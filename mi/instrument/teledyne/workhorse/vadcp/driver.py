@@ -33,6 +33,7 @@ from mi.core.instrument.driver_dict import DriverDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
+from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter2
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.exceptions import InstrumentParameterException
@@ -53,13 +54,14 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.instrument.teledyne.driver import TeledyneParameter
+from mi.instrument.teledyne.driver import TeledyneParameter2
 
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 
 import re
 import base64
-
 
 class SlaveProtocol(BaseEnum):
     FOURBEAM = '4Beam'
@@ -69,7 +71,6 @@ class Prompt(TeledynePrompt):
     """
     Device i/o prompts..
     """
-
 
 class Parameter(WorkhorseParameter):
     """
@@ -83,6 +84,17 @@ class Parameter(WorkhorseParameter):
     SLAVE_TIMEOUT = 'ST'
     SYNCH_DELAY = 'SW'
 
+class Parameter2(WorkhorseParameter2):
+    """
+    Device parameters
+    """
+    #
+    # set-able parameters
+    #
+    SYNC_PING_ENSEMBLE = 'SA_5th'
+    RDS3_MODE_SEL = 'SM_5th'     # 0=off, 1=master, 2=slave
+    SLAVE_TIMEOUT = 'ST_5th'
+    SYNCH_DELAY = 'SW_5th'
 
 
 class ProtocolEvent(TeledyneProtocolEvent):
@@ -109,7 +121,8 @@ class InstrumentCmds(TeledyneInstrumentCmds):
     Represents the commands the driver implements and the string that
     must be sent to the instrument to execute the command.
     """
-    GET2 = '  '
+    GET2 = '   '
+    SET2 = '    '
 
 class RawDataParticle_5thbeam(RawDataParticle):
     _data_particle_type = "raw_5thbeam"
@@ -118,12 +131,16 @@ class VADCP_COMPASS_CALIBRATION_DataParticle(ADCP_COMPASS_CALIBRATION_DataPartic
     _data_particle_type = "vadcp_5thbeam_compass_calibration"
 
 class VADCP_SYSTEM_CONFIGURATION_DataParticle(ADCP_SYSTEM_CONFIGURATION_DataParticle):
-    _data_particle_type = "adcp_5thbean_system_configuration"
+    _data_particle_type = "adcp_5thbeam_system_configuration"
 
 class VADCP_PD0_PARSED_DataParticle(ADCP_PD0_PARSED_DataParticle):
     _data_particle_type = "VADCP"
     _slave = True
 
+class AdcpPortAgentClient (PortAgentClient):
+    def __init__(self, host, port, cmd_port, delim=None):
+        PortAgentClient.__init__(self, host, port, cmd_port, delim=None)
+        self.info = "This is portAgentClient for VADCP"
 
 class ProtocolState(TeledyneProtocolState):
     """
@@ -148,7 +165,42 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
 
 
+    #def _handler_connected_discover(self, event, *args, **kwargs):
+    #    # Redefine discover handler so that we can apply startup params
+    #    # when we discover. Gotta get into command mode first though.
+    #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
+    #    result = WorkhorseInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+    #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover apply_startup_params")
+    #    log.error("Sung driver calling apply_startup_params()")
+    #    self.apply_startup_params()
+    #    log.error("Sung first driver params are done")
+    #    return result
 
+    # Delete it if you don't want to overwrite
+    def apply_startup_params(self):
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument. The startup values are the
+        values that are (1) marked as startup parameters and are (2) the "best"
+        value to use at startup. Preference is given to the previously-set init
+        value, then the default value, then the currently used value.
+
+        This default implementation simply pushes the logic down into the protocol
+        for processing should the action be better accomplished down there.
+
+        The driver writer can decide to overload this method in the derived
+        driver class and apply startup parameters in the driver (likely calling
+        some get and set methods for the resource). If the driver does not
+        implement an apply_startup_params() method in the driver, this method
+        will call into the protocol. Deriving protocol classes are expected to
+        implement an apply_startup_params() method lest they get the exception
+        from the base InstrumentProtocol implementation.
+        """
+        log.debug("Base driver applying startup params...")
+        log.error("Sung driver calling protocol apply_startup_params()")
+        self._protocol.apply_startup_params()
+        log.error("Sung driver calling protocol apply_startup_params2()")
+        self._protocol.apply_startup_params2()
 
     def _build_protocol(self):
         """
@@ -183,6 +235,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
             raise InstrumentParameterException('Missing comms config parameter.')
 
         # Verify dict and construct connection client.
+        log.error("Sung handler_unconfigured_configure args: setting connections %s", repr(config))
         self._connections = self._build_connections(config)
         next_state = DriverConnectionState.DISCONNECTED
 
@@ -241,28 +294,30 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         @raises InstrumentConnectionException if the attempt to connect failed.
         """
         log.debug('_handler_disconnected_connect enter')
+        log.error('Sung _handler_disconnected_connect enter')
         next_state = DriverConnectionState.CONNECTED
         result = None
         self._build_protocol()
+        log.error('Sung _handler_disconnected_connect built protocol')
         try:
-            self._connections['4Beam'].init_comms(self._protocol.got_data, # Sung
-                                      self._protocol.got_raw,  # Sung
+            self._connections[SlaveProtocol.FOURBEAM].init_comms(self._protocol.got_data,
+                                      self._protocol.got_raw,
                                       self._got_exception,
                                       self._lost_connection_callback)
-            self._protocol._connection_4Beam = self.connections['4Beam']
-
+            self._protocol._connection_4Beam = self._connections[SlaveProtocol.FOURBEAM]
         except InstrumentConnectionException as e:
             log.error("4 beam Connection Exception: %s", e)
             log.error("Instrument Driver remaining in disconnected state.")
             # Re-raise the exception
             raise
-
+        log.error('Sung _handler_disconnected_connect built the first connection')
         try:
-            self._connections['5thBeam'].init_comms(self._protocol.got_data2, # Sung
-                                      self._protocol.got_raw2,  # Sung
+            self._connections[SlaveProtocol.FIFTHBEAM].init_comms(self._protocol.got_data2,
+                                      self._protocol.got_raw2,
                                       self._got_exception,
                                       self._lost_connection_callback)
-            self._protocol._connection_5thBeam = self.connections['5thBeam']
+            self._protocol._connection_5thBeam = self._connections[SlaveProtocol.FIFTHBEAM]
+            log.error('Sung _handler_disconnected_connect init comm22 %s', self._protocol._connection_5thBeam.info)
 
         except InstrumentConnectionException as e:
             log.error("5th beam Connection Exception: %s", e)
@@ -337,8 +392,16 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         @throws InstrumentParameterException Invalid configuration.
         """
         log.debug('all_configs: %r', all_configs)
+        log.error('Sung all_configs: %r', all_configs)
         connections = {}
+        all_config = {}
         for name, config in all_configs.items():
+            log.error('Sung small config name: %s', name)
+            log.error('Sung small config: %r', config)
+            all_config[name] = config
+        for name, config in all_config.items():
+            log.error('Sung small config name: %s', name)
+            log.error('Sung small config: %r', config)
             if not isinstance(config, dict):
                 continue
             log.debug('_build_connections: config received: %r', config)
@@ -349,21 +412,36 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
                     connections[name] = mock_port_agent
             else:
                 try:
-                    addr = config['port_agent_addr']
-                    port = config['data_port']
-                    cmd_port = config.get('command_port')
+                    addr = config['addr']
+                    port = config['port']
+                    cmd_port = config.get('comd_port')
 
                     if isinstance(addr, str) and isinstance(port, int) and len(addr) > 0:
-                        connections[name] = PortAgentClient(addr, port, cmd_port)
+                        connections[name] = AdcpPortAgentClient(addr, port, cmd_port)
                     else:
-                        raise InstrumentParameterException('Invalid comms config dict.')
+                        raise InstrumentParameterException('Invalid comms config dict in build_connections.')
 
                 except (TypeError, KeyError):
-                    raise InstrumentParameterException('Invalid comms config dict.')
+                    raise InstrumentParameterException('Invalid comms config dict..')
         return connections
 
 
 class Protocol(WorkhorseProtocol):
+
+    DEFAULT_CMD_TIMEOUT=20
+    DEFAULT_WRITE_DELAY=0
+
+    def _get_params(self):
+        return dir(Parameter)
+
+    def _getattr_key(self, attr):
+        return getattr(Parameter, attr)
+
+    def _has_parameter(self, param):
+        return Parameter.has(param)
+
+    def _has_parameter2(self, param):
+        return Parameter2.has(param)
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -372,15 +450,23 @@ class Protocol(WorkhorseProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-
         log.debug("IN WorkhorseProtocol.__init__")
+        log.error("Sung build protocol for VADCP")
         # Construct protocol superclass.
-        TeledyneProtocol.__init__(self, prompts, newline, driver_event)
+        WorkhorseProtocol.__init__(self, prompts, newline, driver_event)
 
+        # Sung to do
+        #self._add_build_handler(InstrumentCmds.SET2, self._build_set_command2)
+        #self._add_response_handler(InstrumentCmds.GET2, self._parse_get_response2)
+
+        self._add_build_handler(InstrumentCmds.SET2, self._build_set_command2)
+        self._add_build_handler(InstrumentCmds.GET2, self._build_get_command)
+
+        self._add_response_handler(InstrumentCmds.SET2, self._parse_set_response)
         self._add_response_handler(InstrumentCmds.GET2, self._parse_get_response2)
 
-        self._connection_4beam = None
-        self._connection_5thBean = None
+        self._connection_4Beam = None
+        self._connection_5thBeam = None
 
         # Line buffer for input from device.
         self._linebuf2 = ''
@@ -397,7 +483,73 @@ class Protocol(WorkhorseProtocol):
 
         self._chunker2 = StringChunker(WorkhorseProtocol.sieve_function)
 
+    def get_config_metadata_dict(self):
+        """
+        Return a list of metadata about the protocol's driver support,
+        command formats, and parameter formats. The format should be easily
+        JSONifyable (as will happen in the driver on the way out to the agent)
+        @retval A python dict that represents the metadata
+        @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
+        """
+        log.debug("Getting metadata dict from protocol...")
+        return_dict = {}
+        return_dict[ConfigMetadataKey.DRIVER] = self._driver_dict.generate_dict()
+        return_dict[ConfigMetadataKey.COMMANDS] = self._cmd_dict.generate_dict()
+
+        return_dict[ConfigMetadataKey.PARAMETERS] = self._param_dict.generate_dict()
+        return_dict[ConfigMetadataKey.PARAMETERS].update(self._param_dict2.generate_dict())
+
+        return return_dict
+
+    def _build_get_command2(self, cmd, param, **kwargs):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND + NEWLINE + TeledynePrompt.COMMAND
+        try:
+            split_param = param.split('_', 1)
+            self.get_param = split_param[0]
+            get_cmd = split_param[0] + '?' + NEWLINE
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter from build_get_command2 %s' % param)
+
+        return get_cmd
+
+    def _build_set_command2(self, cmd, param, val):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+
+        log.error("Sung in build_set_command2 %", param)
+        try:
+            str_val = self._param_dict2.format(param + "_5th", val)
+            #split_param = param.split('_', 1)
+
+            set_cmd = '%s%s' % (param, str_val)
+            set_cmd = set_cmd + NEWLINE
+            log.trace("IN _build_set_command CMD = '%s'", set_cmd)
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter from _build_set_command2 %s' % param)
+
+        return set_cmd
+
     def _parse_get_response2(self, response, prompt):
+        log.error("Sung GET RESPONSE2 = " + repr(response))
         log.trace("GET RESPONSE2 = " + repr(response))
         if prompt == TeledynePrompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
@@ -406,6 +558,7 @@ class Protocol(WorkhorseProtocol):
             (prompt, response) = self._get_raw_response2(30, TeledynePrompt.COMMAND)
             time.sleep(.05) # was 1
 
+        log.error("Sung GET RESPONSE2  calling param_dict2 = " + repr(response))
         self._param_dict2.update(response)
 
         for line in response.split(NEWLINE):
@@ -417,6 +570,7 @@ class Protocol(WorkhorseProtocol):
             raise InstrumentParameterException('Failed to get a response for lookup of ' + self.get_param)
 
         self.get_count = 0
+        log.error("Sung GET RESPONSE2  return response " + repr(response))
         return response
 
 
@@ -425,6 +579,7 @@ class Protocol(WorkhorseProtocol):
     """
 
     ##########################
+
 
     def _get_response2(self, timeout=10, expected_prompt=None, response_regex=None):
         """
@@ -533,25 +688,46 @@ class Protocol(WorkhorseProtocol):
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         #self._connection.send(cmd)
-        self._connection_4beam.send(cmd)
-        self._connection_5thBean.send(cmd)
+        self._connection_4Beam.send(cmd)
+        self._connection_5thBeam.send(cmd)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
+        @param write_delay kwarg for the amount of delay in seconds to pause
+        between each character. If none supplied, the DEFAULT_WRITE_DELAY
+        value will be used.
+        @param timeout optional wakeup and command timeout via kwargs.
+        @param expected_prompt kwarg offering a specific prompt to look for
+        other than the ones in the protocol class itself.
+        @param response_regex kwarg with a compiled regex for the response to
+        match. Groups that match will be returned as a string.
+        Cannot be supplied with expected_prompt. May be helpful for
+        instruments that do not have a prompt.
+        @retval resp_result The (possibly parsed) response result including the
+        first instance of the prompt matched. If a regex was used, the prompt
+        will be an empty string and the response will be the joined collection
+        of matched groups.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
+
         # Get timeout and initialize response.
+        log.error("Sung do_cmd_resp cmd: " + cmd)
         timeout = kwargs.get('timeout', self.DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
+        response_regex = kwargs.get('response_regex', None)
         write_delay = kwargs.get('write_delay', self.DEFAULT_WRITE_DELAY)
         retval = None
+
+        if response_regex and not isinstance(response_regex, self.RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
 
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
@@ -561,32 +737,44 @@ class Protocol(WorkhorseProtocol):
         cmd_line = build_handler(cmd, *args)
         # Wakeup the device, pass up exception if timeout
 
-        if (self.last_wakeup + 30) > time.time():
-            self.last_wakeup = time.time()
-        else:
-            prompt = self._wakeup(timeout=3)
+        prompt = self._wakeup(timeout)
+
         # Clear line and prompt buffers for result.
-
-
         self._linebuf = ''
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s' % repr(cmd_line))
+        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
+                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
 
         if (write_delay == 0):
-            self._connection_4beam.send(cmd_line)
+            log.error("Sung send the command: %s", repr(cmd_line) )
+            self._connection_4Beam.send(cmd_line)
+            #self._connection.send(cmd_line)
         else:
             for char in cmd_line:
-                self._connection_4beam.send(char)
+                self._connection_4Beam.send(char)
+                #self._connection.send(char)
+
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
+        if response_regex:
+            prompt = ""
+            result_tuple = self._get_response(timeout,
+                                              response_regex=response_regex,
                                               expected_prompt=expected_prompt)
+            log.error("Sung before join %s", repr(result_tuple))
+            result = "".join(result_tuple)
+        else:
+            (prompt, result) = self._get_response(timeout,
+                                                  expected_prompt=expected_prompt)
+
+        log.error("Sung do_cmd_resp result %s", repr(result))
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
+        log.error("Sung do_cmd_resp result... %s", repr(result))
         if resp_handler:
             resp_result = resp_handler(result, prompt)
 
@@ -597,56 +785,95 @@ class Protocol(WorkhorseProtocol):
         Perform a command-response on the device.
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
+        @param write_delay kwarg for the amount of delay in seconds to pause
+        between each character. If none supplied, the DEFAULT_WRITE_DELAY
+        value will be used.
+        @param timeout optional wakeup and command timeout via kwargs.
+        @param expected_prompt kwarg offering a specific prompt to look for
+        other than the ones in the protocol class itself.
+        @param response_regex kwarg with a compiled regex for the response to
+        match. Groups that match will be returned as a string.
+        Cannot be supplied with expected_prompt. May be helpful for
+        instruments that do not have a prompt.
+        @retval resp_result The (possibly parsed) response result including the
+        first instance of the prompt matched. If a regex was used, the prompt
+        will be an empty string and the response will be the joined collection
+        of matched groups.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
+
         # Get timeout and initialize response.
+        log.error("Sung do_cmd_resp2 cmd: " + cmd)
         timeout = kwargs.get('timeout', self.DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
-        write_delay = kwargs.get('write_delay', self.EFAULT_WRITE_DELAY)
+        response_regex = kwargs.get('response_regex', None)
+        write_delay = kwargs.get('write_delay', self.DEFAULT_WRITE_DELAY)
         retval = None
+        log.error("Sung do_cmd_resp2 1")
+        if response_regex and not isinstance(response_regex, self.RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
 
         # Get the build handler.
+        log.error("Sung do_cmd_resp2 2")
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
-
+        log.error("Sung do_cmd_resp2 3 cmd : %s", cmd)
         cmd_line = build_handler(cmd, *args)
         # Wakeup the device, pass up exception if timeout
+        log.error("Sung do_cmd_resp2 3 cmdLine : %s", cmd_line)
+        prompt = self._wakeup2(timeout)
 
-        if (self.last_wakeup2 + 30) > time.time():
-            self.last_wakeup2 = time.time()
-        else:
-            prompt = self._wakeup2(timeout=3)
         # Clear line and prompt buffers for result.
-
-
         self._linebuf2 = ''
         self._promptbuf2 = ''
 
         # Send command.
-        log.debug('_do_cmd_resp2: %s' % repr(cmd_line))
-
+        log.debug('_do_cmd_resp2: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
+                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
+        log.error("Sung do_cmd_resp2 4")
         if (write_delay == 0):
-            self._connection_5thBean.send(cmd_line)
+            log.error("Sung send the command (5th Beam): %s", repr(cmd_line) )
+            self._connection_5thBeam.send(cmd_line)
+            #self._connection.send(cmd_line)
         else:
             for char in cmd_line:
-                self._connection_5thBean.send(char)
+                self._connection_5thBeam.send(char)
+                #self._connection.send(char)
+
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response2(timeout,
+        log.error("Sung do_cmd_resp2 5")
+        if response_regex:
+            prompt = ""
+            result_tuple = self._get_response2(timeout,
+                                              response_regex=response_regex,
                                               expected_prompt=expected_prompt)
+            log.error("Sung2 before join %s", repr(result_tuple))
+            result = "".join(result_tuple)
+        else:
+            (prompt, result) = self._get_response2(timeout,
+                                                  expected_prompt=expected_prompt)
+
+        log.error("Sung do_cmd_resp2 6")
+        log.error("Sung do_cmd_resp2 result %s", repr(result))
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
+        log.error("Sung do_cmd_resp2 result... %s", repr(result))
         if resp_handler:
             resp_result = resp_handler(result, prompt)
 
+        log.error("Sung do_cmd_resp2 Response handler %s", repr(resp_result))
         return resp_result
+
+
 
     def _get_response2(self, timeout=10, expected_prompt=None, response_regex=None):
         """
@@ -744,12 +971,11 @@ class Protocol(WorkhorseProtocol):
         # Send command.
         log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
         if (write_delay == 0):
-            self._connection_4beam.send(cmd_line)
-            #self._connection_5thBean.send(cmd_line)
+            self._connection_4Beam.send(cmd_line)
         else:
             for char in cmd_line:
-                self._connection_4beam.send(char)
-                #self._connection_5thBean.send(char)
+                self._connection_4Beam.send(char)
+                #self._connection_5thBeam.send(char)
                 time.sleep(write_delay)
 
     def _do_cmd_no_resp2(self, cmd, *args, **kwargs):
@@ -785,11 +1011,11 @@ class Protocol(WorkhorseProtocol):
         log.debug('_do_cmd_no_resp2: %s, timeout=%s' % (repr(cmd_line), timeout))
         if (write_delay == 0):
             #self._connection_4beam.send(cmd_line)
-            self._connection_5thBean.send(cmd_line)
+            self._connection_5thBeam.send(cmd_line)
         else:
             for char in cmd_line:
                 #self._connection_4beam.send(char)
-                self._connection_5thBean.send(char)
+                self._connection_5thBeam.send(char)
                 time.sleep(write_delay)
 
 
@@ -810,6 +1036,7 @@ class Protocol(WorkhorseProtocol):
         timestamp = port_agent_packet.get_timestamp()
 
         log.debug("Got Data 2: %s" % data)
+        log.error("Sung Got data 2")
         log.debug("Add Port Agent Timestamp 2: %s" % timestamp)
 
         if data_length > 0:
@@ -822,7 +1049,7 @@ class Protocol(WorkhorseProtocol):
             (timestamp, chunk) = self._chunker2.get_next_data()
             while(chunk):
                 self._got_chunk2(chunk, timestamp)
-                (timestamp, chunk) = self._chunker.get_next_data()
+                (timestamp, chunk) = self._chunker2.get_next_data()
 
     def _got_chunk2(self, chunk, timestamp):
         """
@@ -848,6 +1075,13 @@ class Protocol(WorkhorseProtocol):
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+
+    def got_raw(self, port_agent_packet):
+        """
+        Called by the port agent client when raw data is available, such as data
+        sent by the driver to the instrument, the instrument responses,etc.
+        """
+        self.publish_raw(port_agent_packet)
 
     def got_raw2(self, port_agent_packet):
         """
@@ -878,6 +1112,7 @@ class Protocol(WorkhorseProtocol):
         self._last_data_timestamp2 = time.time()
 
         log.debug("LINE BUF2: %s", self._linebuf2)
+        log.error("Sung LINE BUF2: %s", self._linebuf2)
         log.debug("PROMPT BUF2: %s", self._promptbuf2)
 
 
@@ -907,6 +1142,7 @@ class Protocol(WorkhorseProtocol):
             time.sleep(delay)
 
             log.debug("Prompts: %s", self._get_prompts())
+            log.error("Sung Prompts: %s", self._get_prompts())
 
             for item in self._get_prompts():
                 log.debug("buffer: %s", self._promptbuf2)
@@ -1026,16 +1262,20 @@ class Protocol(WorkhorseProtocol):
         Send a newline to attempt to wake the device.
         """
         log.trace("IN _send_wakeup")
+        log.error("Sung before send in _send_wakeup %s",self._connection_4Beam )
+        log.error("Sung before send in _send_wakeup %s",self._connection_4Beam.info )
 
-        self._connection_4beam.send(NEWLINE)
+
+        self._connection_4Beam.send(NEWLINE)
 
     def _send_wakeup2(self):
         """
         Send a newline to attempt to wake the device.
         """
         log.trace("IN _send_wakeup")
-
-        self._connection_5thBean.send(NEWLINE)
+        log.error("Sung before send in send_wakeup2")
+        log.error("Sung before send in _send_wakeup2")
+        self._connection_5thBeam.send(NEWLINE)
 
     def _wakeup2(self, timeout=3, delay=1):
         """
@@ -1085,7 +1325,7 @@ class Protocol(WorkhorseProtocol):
             log.trace("WHOOPS! 1")
 
         try:
-            sock.connect(('10.180.80.178', 2102))
+            sock.connect(('10.180.80.176', 2102))
         except socket.error, msg:
             log.trace("WHOOPS! 2")
         sock.send("break " + str(delay) + "\r\n")
@@ -1108,7 +1348,7 @@ class Protocol(WorkhorseProtocol):
             log.trace("WHOOPS! 1")
 
         try:
-            sock.connect(('10.180.80.177', 2102))
+            sock.connect(('10.180.80.179', 2102))
         except socket.error, msg:
             log.trace("WHOOPS! 2")
         sock.send("break " + str(delay) + "\r\n")
@@ -1165,9 +1405,15 @@ class Protocol(WorkhorseProtocol):
         log.trace("Startup Parameters 5th beam: %s" % startup_params2)
 
         for param in startup_params2:
-            if not self._has_parameter(param):
+            log.error("Sung param %s", param)
+            split_param = param.split('_', 1)
+            log.error("Sung param2 %s", repr(split_param))
+            _param = split_param[0]
+            log.error("Sung param3 %s", param)
+            if not self._has_parameter2(param):
                 raise InstrumentParameterException("in _instrument_config_dirty2")
 
+            log.error("Sung there is param: %s", param)
             if (self._param_dict2.get(param) != self._param_dict2.get_config_value(param)):
                 log.trace("DIRTY: %s %s != %s" % (param, self._param_dict2.get(param), self._param_dict2.get_config_value(param)))
                 return True
@@ -1180,6 +1426,7 @@ class Protocol(WorkhorseProtocol):
         Update the parameter dictionary.
         """
         log.debug("in _update_params2")
+        log.error("Sung apply_startup_params2")
         error = None
         logging = self._is_logging2()
 
@@ -1197,18 +1444,19 @@ class Protocol(WorkhorseProtocol):
             cmds = self._get_params()
             results = ""
             for attr in sorted(cmds):
-                if attr not in ['dict', 'has', 'list', 'ALL']:
+                if attr not in ['dict', 'has', 'list', 'ALL', TeledyneParameter2.CLOCK_SYNCH_INTERVAL, TeledyneParameter2.GET_STATUS_INTERVAL]:
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
-                        result = self._do_cmd_resp2(TeledyneInstrumentCmds.GET, key, **kwargs)
+                        log.error("Sung update_params2 key %s", key)
+                        key_split = key.split('_', 1)
+
+                        result = self._do_cmd_resp2(InstrumentCmds.GET2, key_split[0], **kwargs)
                         results += result + NEWLINE
 
             new_config = self._param_dict2.get_config()
+            log.error("Sung update_params2 new_config %s", repr(key))
 
-            del old_config['TT']
-            del new_config['TT']
-
-            if not dict_equal(new_config, old_config):
+            if not dict_equal(new_config, old_config, ['TT']):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             ####
 
@@ -1236,6 +1484,7 @@ class Protocol(WorkhorseProtocol):
         Issue commands to the instrument to set various parameters
         """
         log.trace("in _set_params2")
+        log.error("Sung set_params2")
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         result = None
@@ -1250,11 +1499,20 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             pass
         log.trace("_set_params 2 calling _verify_not_readonly ARGS = " + repr(args))
+        log.error("Sung set_params2 calling _verify_not_readonly ARGS ="  + repr(args) )
         self._verify_not_readonly2(*args, **kwargs)
         for (key, val) in params.iteritems():
-            result = self._do_cmd_resp2(TeledyneInstrumentCmds.SET, key, val, **kwargs)
+            log.error("Sung set_params2 key %s", key)
+            if(key.find('_') != -1) :  # Found
+                if key not in [TeledyneParameter2.CLOCK_SYNCH_INTERVAL, TeledyneParameter2.GET_STATUS_INTERVAL]:
+                    log.error("Sung set_params2 key %s", key)
+                    log.error("Sung set_params2 value %s", val)
+                    key_split = key.split('_', 1)
+                    result = self._do_cmd_resp2(InstrumentCmds.SET2, key_split[0], val, **kwargs)
         log.trace("_set_params 2 calling _update_params")
+        log.error("Sung set_params2 value calling update_params")
         self._update_params2()
+        log.error("Sung set_params2 value after calling update_params")
         return result
 
     def _init_params2(self):
@@ -1306,6 +1564,7 @@ class Protocol(WorkhorseProtocol):
 
         if(not self._instrument_config_dirty2()):
             log.trace("in apply_startup_params returning True")
+            log.error("Sung in apply_startup_params config_dirty2 returning True")
             return True
 
         error = None
@@ -1314,7 +1573,7 @@ class Protocol(WorkhorseProtocol):
             if logging:
                 # Switch to command mode,
                 self._stop_logging2()
-
+            log.error("Sung in apply_startup_params calling apply_params2 True")
             self._apply_params2()
 
         # Catch all error so we can put ourself back into
@@ -1502,7 +1761,7 @@ class Protocol(WorkhorseProtocol):
 
         return True
 
-    def _get_param_list2(self, *args, **kwargs):
+    def _get_param_list(self, *args, **kwargs):
         """
         returns a list of parameters based on the list passed in.  If the
         list contains and ALL parameters request then the list will contain
@@ -1523,20 +1782,64 @@ class Protocol(WorkhorseProtocol):
         elif(not isinstance(param_list, (list, tuple))):
             raise InstrumentParameterException("Expected a list, tuple or a string")
 
+        log.error("Sung param list : %s", repr(param_list))
         # Verify all parameters are known parameters
         bad_params = []
-        known_params = self._param_dict2.get_keys() + [DriverParameter.ALL]
+        new_param_list = []
+        known_params = self._param_dict.get_keys() + [DriverParameter.ALL]
         for param in param_list:
-            if(param not in known_params):
-                bad_params.append(param)
+            if(param.find('_') == -1) :  # Not Found
+                if(param not in [DriverParameter.ALL]):
+                    new_param_list.append(param)
+                if(param not in known_params):
+                    bad_params.append(param)
 
         if(len(bad_params)):
             raise InstrumentParameterException("Unknown parameters: %s" % bad_params)
 
         if(DriverParameter.ALL in param_list):
+            return self._param_dict.get_keys()
+        else:
+            return new_param_list
+
+    def _get_param_list2(self, *args, **kwargs):
+        """
+        returns a list of parameters based on the list passed in.  If the
+        list contains and ALL parameters request then the list will contain
+        all parameters.  Otherwise the original list will be returned. Also
+        check the list for unknown parameters
+        @param args[0] list of parameters to inspect
+        @return: list of parameters.
+        @raises: InstrumentParameterException when the wrong param type is passed
+        in or an unknown parameter is in the list
+        """
+        try:
+            param_list = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Parameter required, none specified')
+
+        if(isinstance(param_list, str)):
+            param_list = [param_list]
+        elif(not isinstance(param_list, (list, tuple))):
+            raise InstrumentParameterException("Expected a list, tuple or a string")
+        log.error("Sung param list : %s", repr(param_list))
+        # Verify all parameters are known parameters
+        bad_params = []
+        new_param_list = []
+        known_params = self._param_dict2.get_keys() + [DriverParameter.ALL]
+        for param in param_list:
+            if(param.find('_') != -1) :  # Found
+                new_param_list.append(param)
+                if(param not in known_params):
+                    bad_params.append(param)
+
+        if(len(bad_params)):
+            raise InstrumentParameterException("Unknown parameters2: %s" % bad_params)
+
+        if(DriverParameter.ALL in param_list):
             return self._param_dict2.get_keys()
         else:
-            return param_list
+            return new_param_list
 
 
     def _get_param_result2(self, param_list, expire_time):
@@ -1550,8 +1853,9 @@ class Protocol(WorkhorseProtocol):
         result = {}
 
         for param in param_list:
+            log.error("Sung param in get_param_result2: %s", param)
             val = self._param_dict2.get(param, expire_time)
-            result["_".join(param, "5th")] = val
+            result[param] = val
 
         return result
 
@@ -1562,6 +1866,7 @@ class Protocol(WorkhorseProtocol):
         and value formatting function for set commands.
         """
 
+        log.error("Sung calling build_param_dic for master")
         self._param_dict.add(Parameter.SERIAL_DATA_OUT,
             r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
             lambda match: str(match.group(1)),
@@ -1786,18 +2091,6 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value=1)
 
-        # Not used for Master
-        #self._param_dict.add(Parameter.SLAVE_TIMEOUT,
-        #    r'ST = (\d+) \-+ Slave Timeout',
-        #    lambda match: int(match.group(1), base=10),
-        #    self._int_to_string,
-        #    type=ParameterDictType.INT,
-        #    display_name="Slave timeout",
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value=0)
-
         self._param_dict.add(Parameter.SYNCH_DELAY,
             r'SW = (\d+) \-+ Synch Delay',
             lambda match: int(match.group(1), base=10),
@@ -1851,17 +2144,13 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value='00:01.00')
 
-        #self._param_dict.add(Parameter.TIME,
-        #    r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-        #    lambda match: str(match.group(1) + " UTC"),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="time",
-        #    startup_param=True,
-        #    expiration=86400, # expire once per day 60 * 60 * 24
-        #    direct_access=True,
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    default_value='2014/04/21,20:03:01')
+        self._param_dict.add(Parameter.TIME,
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+            lambda match: str(match.group(1) + " UTC"),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time",
+            expiration=86400) # expire once per day 60 * 60 * 24
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
@@ -1955,27 +2244,6 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value=1)
 
-        #self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
-        #    r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
-        #    lambda match: str(match.group(1)),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="water reference layer",
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value='001,005')
-
-        #self._param_dict.add(Parameter.WATER_PROFILING_MODE,
-        #    r'WM (\d+) \-+ Profiling Mode ',
-        #    lambda match: int(match.group(1), base=10),
-        #    self._int_to_string,
-        #    type=ParameterDictType.INT,
-        #    display_name="water profiling mode",
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value=1)
-
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
             r'WN (\d+) \-+ Number of depth cells',
             lambda match: int(match.group(1), base=10),
@@ -2047,6 +2315,30 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value=175)
 
+        # Engineering parameters
+        self._param_dict.add(Parameter.CLOCK_SYNCH_INTERVAL,
+            r'BOGUS',
+            None,
+            str,
+            type=ParameterDictType.STRING,
+            display_name="clock synch interval",
+            startup_param=True,
+            direct_access=False,
+            default_value="00:00:00")
+
+        self._param_dict.add(Parameter.GET_STATUS_INTERVAL,
+            r'BOGUS',
+            None,
+            str,
+            type=ParameterDictType.STRING,
+            display_name="get status interval",
+            startup_param=True,
+            direct_access=False,
+            default_value="00:00:00")
+
+        self._param_dict.set_default(Parameter.CLOCK_SYNCH_INTERVAL)
+        self._param_dict.set_default(Parameter.GET_STATUS_INTERVAL)
+
     def _build_param_dict2(self):
         """
         Populate the parameter dictionary with ADCP parameters.
@@ -2054,489 +2346,477 @@ class Protocol(WorkhorseProtocol):
         and value formatting function for set commands.
         """
 
-        self._param_dict2.add(Parameter.SERIAL_DATA_OUT,
+        self._param_dict2.add(Parameter2.SERIAL_DATA_OUT,
             r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="serial data out",
+            display_name="serial data out for 5th beam",
             startup_param=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='000 000 000')
 
-        self._param_dict2.add(Parameter.SERIAL_FLOW_CONTROL,
+        self._param_dict2.add(Parameter2.SERIAL_FLOW_CONTROL,
             r'CF = (\d+) \-+ Flow Ctrl ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="serial flow control",
+            display_name="serial flow control for 5th beam",
             startup_param=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='11110')
 
-        self._param_dict2.add(Parameter.BANNER,
+        self._param_dict2.add(Parameter2.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
             lambda match:  bool(int(match.group(1), base=10)),
             self._bool_to_int,
             type=ParameterDictType.BOOL,
-            display_name="banner",
+            display_name="banner for 5th beam",
             startup_param=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=0)
 
-        self._param_dict2.add(Parameter.INSTRUMENT_ID,
+        self._param_dict2.add(Parameter2.INSTRUMENT_ID,
             r'CI = (\d+) \-+ Instrument ID ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="instrument id",
+            display_name="instrument id for 5th beam",
             direct_access=True,
             startup_param=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=0)
 
-        self._param_dict2.add(Parameter.SLEEP_ENABLE,
+        self._param_dict2.add(Parameter2.SLEEP_ENABLE,
             r'CL = (\d) \-+ Sleep Enable',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="sleep enable",
+            display_name="sleep enable for 5th beam",
             startup_param=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=False)
 
-        self._param_dict2.add(Parameter.SAVE_NVRAM_TO_RECORDER,
+        self._param_dict2.add(Parameter2.SAVE_NVRAM_TO_RECORDER,
             r'CN = (\d) \-+ Save NVRAM to recorder',
             lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             type=ParameterDictType.BOOL,
-            display_name="save nvram to recorder",
+            display_name="save nvram to recorder for 5th beam",
             startup_param=True,
             default_value=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE)
 
-        self._param_dict2.add(Parameter.POLLED_MODE,
+        self._param_dict2.add(Parameter2.POLLED_MODE,
             r'CP = (\d) \-+ PolledMode ',
             lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             type=ParameterDictType.BOOL,
-            display_name="polled mode",
+            display_name="polled mode for 5th beam",
             startup_param=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=False)
 
-        self._param_dict2.add(Parameter.XMIT_POWER,
+        self._param_dict2.add(Parameter2.XMIT_POWER,
             r'CQ = (\d+) \-+ Xmt Power ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="xmit power",
+            display_name="xmit power for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=255)
 
-        self._param_dict2.add(Parameter.LATENCY_TRIGGER,
+        self._param_dict2.add(Parameter2.LATENCY_TRIGGER,
             r'CX = (\d) \-+ Trigger Enable ',
             lambda match: int(match.group(1), base=10),
             self._bool_to_int,
             type=ParameterDictType.INT,
-            display_name="latency trigger",
+            display_name="latency trigger for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=False)
 
-        self._param_dict2.add(Parameter.HEADING_ALIGNMENT,
+        self._param_dict2.add(Parameter2.HEADING_ALIGNMENT,
             r'EA = ([\+\-\d]+) \-+ Heading Alignment',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="Heading alignment",
+            display_name="Heading alignment for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             direct_access=True,
             startup_param=True,
             default_value='+00000')
 
-        self._param_dict2.add(Parameter.HEADING_BIAS,
+        self._param_dict2.add(Parameter2.HEADING_BIAS,
             r'EB = ([\+\-\d]+) \-+ Heading Bias',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="Heading Bias",
+            display_name="Heading Bias for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value='+00000')
 
-        self._param_dict2.add(Parameter.SPEED_OF_SOUND,
+        self._param_dict2.add(Parameter2.SPEED_OF_SOUND,
             r'EC = (\d+) \-+ Speed Of Sound',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="speed of sound",
+            display_name="speed of sound for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=1485)
 
-        self._param_dict2.add(Parameter.TRANSDUCER_DEPTH,
+        self._param_dict2.add(Parameter2.TRANSDUCER_DEPTH,
             r'ED = (\d+) \-+ Transducer Depth ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="Transducer Depth",
+            display_name="Transducer Depth for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=2000)
 
-        self._param_dict2.add(Parameter.PITCH,
+        self._param_dict2.add(Parameter2.PITCH,
             r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="pitch",
+            display_name="pitch for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.ROLL,
+        self._param_dict2.add(Parameter2.ROLL,
             r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="roll",
+            display_name="roll for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.SALINITY,
+        self._param_dict2.add(Parameter2.SALINITY,
             r'ES = (\d+) \-+ Salinity ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="salinity",
+            display_name="salinity for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=35)
 
-        self._param_dict2.add(Parameter.COORDINATE_TRANSFORMATION,
+        self._param_dict2.add(Parameter2.COORDINATE_TRANSFORMATION,
             r'EX = (\d+) \-+ Coord Transform ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="coordinate transformation",
+            display_name="coordinate transformation for 5th beam",
             startup_param=True,
             direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='00111')
 
-        self._param_dict2.add(Parameter.SENSOR_SOURCE,
+        self._param_dict2.add(Parameter2.SENSOR_SOURCE,
             r'EZ = (\d+) \-+ Sensor Source ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="sensor source",
+            display_name="sensor source for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value='1111101')
 
-        self._param_dict2.add(Parameter.DATA_STREAM_SELECTION,
+        self._param_dict2.add(Parameter2.DATA_STREAM_SELECTION,
             r'PD = (\d+) \-+ Data Stream Select',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="Data Stream Selection",
+            display_name="Data Stream Selection for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict.add(Parameter.SYNC_PING_ENSEMBLE,
+        self._param_dict2.add(Parameter2.SYNC_PING_ENSEMBLE,
             r'SA = (\d+) \-+ Synch Before',
             lambda match: int(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="Synch ping ensemble",
+            display_name="Synch ping ensemble for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value='001')
 
-        self._param_dict.add(Parameter.RDS3_MODE_SEL,
+        self._param_dict2.add(Parameter2.RDS3_MODE_SEL,
             r'SM = (\d+) \-+ Mode Select',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="RDS3 mode selection",
+            display_name="RDS3 mode selection for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=2)
 
-        self._param_dict.add(Parameter.SLAVE_TIMEOUT,
+        self._param_dict2.add(Parameter2.SLAVE_TIMEOUT,
             r'ST = (\d+) \-+ Slave Timeout',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="Slave timeout",
+            display_name="Slave timeout for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict.add(Parameter.SYNCH_DELAY,
+        self._param_dict2.add(Parameter2.SYNCH_DELAY,
             r'SW = (\d+) \-+ Synch Delay',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="Synch delay",
+            display_name="Synch delay for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-
-        self._param_dict2.add(Parameter.ENSEMBLE_PER_BURST,
+        self._param_dict2.add(Parameter2.ENSEMBLE_PER_BURST,
             r'TC (\d+) \-+ Ensembles Per Burst',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="Ensemble per burst",
+            display_name="Ensemble per burst for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.TIME_PER_ENSEMBLE,
+        self._param_dict2.add(Parameter2.TIME_PER_ENSEMBLE,
             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="time per ensemble",
+            display_name="time per ensemble for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value='00:00:00.00')
 
-        self._param_dict2.add(Parameter.TIME_OF_FIRST_PING,
+        self._param_dict2.add(Parameter2.TIME_OF_FIRST_PING,
             r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="time of first ping",
+            display_name="time of first ping for 5th beam",
             startup_param=False,
             direct_access=False,
             visibility=ParameterDictVisibility.READ_ONLY)
 
-        #self._param_dict2.add(Parameter.TIME_PER_PING,
-        #    r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
-        #    lambda match: str(match.group(1)),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="time per ping",
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value='00:01.00')
+        self._param_dict2.add(Parameter2.TIME,
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+            lambda match: str(match.group(1) + " UTC"),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time for 5th beam",
+            expiration=86400) # expire once per day 60 * 60 * 24
 
-        #self._param_dict2.add(Parameter.TIME,
-        #    r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-        #    lambda match: str(match.group(1) + " UTC"),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="time",
-        #    startup_param=True,
-        #    expiration=86400, # expire once per day 60 * 60 * 24
-        #    direct_access=True,
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    default_value='2014/04/21,20:03:01')
-
-        self._param_dict2.add(Parameter.BUFFERED_OUTPUT_PERIOD,
+        self._param_dict2.add(Parameter2.BUFFERED_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="Buffered output period",
+            display_name="Buffered output period for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value='00:00:00')
 
-        self._param_dict2.add(Parameter.FALSE_TARGET_THRESHOLD,
+        self._param_dict2.add(Parameter2.FALSE_TARGET_THRESHOLD,
             r'WA (\d+,\d+) \-+ False Target Threshold ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="false target threshold",
+            display_name="false target threshold for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value='050,001')
 
-        self._param_dict2.add(Parameter.BANDWIDTH_CONTROL,
+        self._param_dict2.add(Parameter2.BANDWIDTH_CONTROL,
             r'WB (\d) \-+ Bandwidth Control ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="bandwidth control",
+            display_name="bandwidth control for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.CORRELATION_THRESHOLD,
+        self._param_dict2.add(Parameter2.CORRELATION_THRESHOLD,
             r'WC (\d+) \-+ Correlation Threshold',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="correlation threshold",
+            display_name="correlation threshold for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=64)
 
-        self._param_dict2.add(Parameter.SERIAL_OUT_FW_SWITCHES,
+        self._param_dict2.add(Parameter2.SERIAL_OUT_FW_SWITCHES,
             r'WD ([\d ]+) \-+ Data Out ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="serial out fw switches",
+            display_name="serial out fw switches for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value='111100000')
 
-        self._param_dict2.add(Parameter.ERROR_VELOCITY_THRESHOLD,
+        self._param_dict2.add(Parameter2.ERROR_VELOCITY_THRESHOLD,
             r'WE (\d+) \-+ Error Velocity Threshold',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="error velocity threshold",
+            display_name="error velocity threshold for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=2000)
 
-        self._param_dict2.add(Parameter.BLANK_AFTER_TRANSMIT,
+        self._param_dict2.add(Parameter2.BLANK_AFTER_TRANSMIT,
             r'WF (\d+) \-+ Blank After Transmit',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="blank after transmit",
+            display_name="blank after transmit for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=83)
 
-        self._param_dict2.add(Parameter.CLIP_DATA_PAST_BOTTOM,
+        self._param_dict2.add(Parameter2.CLIP_DATA_PAST_BOTTOM,
             r'WI (\d) \-+ Clip Data Past Bottom',
             lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             type=ParameterDictType.BOOL,
-            display_name="clip data past bottom",
+            display_name="clip data past bottom for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=False)
 
-        self._param_dict2.add(Parameter.RECEIVER_GAIN_SELECT,
+        self._param_dict2.add(Parameter2.RECEIVER_GAIN_SELECT,
             r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="receiver gain select",
+            display_name="receiver gain select for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=1)
 
-        #self._param_dict2.add(Parameter.WATER_REFERENCE_LAYER,
-        #    r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
-        #    lambda match: str(match.group(1)),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="water reference layer",
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value='001,005')
-
-        #self._param_dict2.add(Parameter.WATER_PROFILING_MODE,
-        #    r'WM (\d+) \-+ Profiling Mode ',
-        #    lambda match: int(match.group(1), base=10),
-        #    self._int_to_string,
-        #    type=ParameterDictType.INT,
-        #    display_name="water profiling mode",
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    startup_param=True,
-        #    direct_access=True,
-        #   default_value=1)
-
-        self._param_dict2.add(Parameter.NUMBER_OF_DEPTH_CELLS,
+        self._param_dict2.add(Parameter2.NUMBER_OF_DEPTH_CELLS,
             r'WN (\d+) \-+ Number of depth cells',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="number of depth cells",
+            display_name="number of depth cells for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=22)
 
-        self._param_dict2.add(Parameter.PINGS_PER_ENSEMBLE,
+        self._param_dict2.add(Parameter2.PINGS_PER_ENSEMBLE,
             r'WP (\d+) \-+ Pings per Ensemble ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="pings per ensemble",
+            display_name="pings per ensemble for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=1)
 
-        self._param_dict2.add(Parameter.SAMPLE_AMBIENT_SOUND,
+        self._param_dict2.add(Parameter2.SAMPLE_AMBIENT_SOUND,
             r'WQ (\d) \-+ Sample Ambient Sound',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="Sample ambient sound",
+            display_name="Sample ambient sound for 5th beam",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.DEPTH_CELL_SIZE,
+        self._param_dict2.add(Parameter2.DEPTH_CELL_SIZE,
             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="depth cell size",
+            display_name="depth cell size for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=94)
 
-        self._param_dict2.add(Parameter.TRANSMIT_LENGTH,
+        self._param_dict2.add(Parameter2.TRANSMIT_LENGTH,
             r'WT (\d+) \-+ Transmit Length ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="transmit length",
+            display_name="transmit length for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.PING_WEIGHT,
+        self._param_dict2.add(Parameter2.PING_WEIGHT,
             r'WU (\d) \-+ Ping Weighting ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="ping weight",
+            display_name="ping weight for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=0)
 
-        self._param_dict2.add(Parameter.AMBIGUITY_VELOCITY,
+        self._param_dict2.add(Parameter2.AMBIGUITY_VELOCITY,
             r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="ambiguity velocity",
+            display_name="ambiguity velocity for 5th beam",
             startup_param=True,
             direct_access=True,
             default_value=175)
+
+        # Engineering parameters
+        self._param_dict2.add(Parameter2.CLOCK_SYNCH_INTERVAL,
+            r'BOGUS',
+            None,
+            str,
+            type=ParameterDictType.STRING,
+            display_name="clock synch interval for 5th beam",
+            startup_param=True,
+            direct_access=False,
+            default_value="00:00:00")
+
+        self._param_dict2.add(Parameter2.GET_STATUS_INTERVAL,
+            r'BOGUS',
+            None,
+            str,
+            type=ParameterDictType.STRING,
+            display_name="get status interval for 5th beam",
+            startup_param=True,
+            direct_access=False,
+            default_value="00:00:00")
+
+        self._param_dict2.set_default(Parameter2.CLOCK_SYNCH_INTERVAL)
+        self._param_dict2.set_default(Parameter2.GET_STATUS_INTERVAL)
 
     def _handler_command_init_params(self, *args, **kwargs):
         """
@@ -2585,6 +2865,7 @@ class Protocol(WorkhorseProtocol):
         @throws InstrumentParameterException if missing or invalid parameter.
         """
         log.trace("in _handler_command_get")
+        log.error("Sung in _handler_command_get")
         next_state = None
         result = None
         error = None
@@ -2596,24 +2877,27 @@ class Protocol(WorkhorseProtocol):
         # build a list of parameters we need to get
         param_list = self._get_param_list(*args, **kwargs)
         param_list2 = self._get_param_list2(*args, **kwargs)
+        log.error("Sung in _handler_command_get paramList1 : %s", repr(param_list))
+        log.error("Sung in _handler_command_get paramList2 : %s", repr(param_list2))
 
         try:
             # Take a first pass at getting parameters.  If they are
             # expired an exception will be raised.
             result = self._get_param_result(param_list, expire_time)
+            log.error("Sung in _handler_command_get called get_param_result")
         except InstrumentParameterExpirationException as e:
             # In the second pass we need to update parameters, it is assumed
             # that _update_params does everything required to refresh all
             # parameters or at least those that would expire.
 
             log.trace("in _handler_command_get Parameter expired, refreshing, %s", e)
-
+            log.error("Sung in _handler_command_get Parameter expired, refreshing, %s", e)
             if self._is_logging():
                 log.trace("I am logging")
                 try:
                     # Switch to command mode,
                     self._stop_logging()
-
+                    log.error("Sung in _handler_command_get calling update_params")
                     self._update_params()
                     # Take a second pass at getting values, this time is should
                     # have all fresh values.
@@ -2632,7 +2916,9 @@ class Protocol(WorkhorseProtocol):
                     raise error
             else:
                 log.trace("I am not logging")
+                log.error("Sung Get params before calling update_params %s", repr(result))
                 self._update_params()
+                log.error("Sung Get params after calling update_params2 %s", repr(result))
                 # Take a second pass at getting values, this time is should
                 # have all fresh values.
                 log.trace("Fetching parameters for the second time")
@@ -2641,7 +2927,9 @@ class Protocol(WorkhorseProtocol):
         try:
             # Take a first pass at getting parameters.  If they are
             # expired an exception will be raised.
+            log.error("Sung Get params before calling get_param_result2")
             result2 = self._get_param_result2(param_list2, expire_time)
+            log.error("Sung Get params after calling get_param_result2 %s", repr(result2))
         except InstrumentParameterExpirationException as e:
             # In the second pass we need to update parameters, it is assumed
             # that _update_params does everything required to refresh all
@@ -2673,52 +2961,20 @@ class Protocol(WorkhorseProtocol):
                     raise error
             else:
                 log.trace("I am not logging")
+                log.error("Sung Get params before calling update_params2 %s", repr(result2))
                 self._update_params2()
                 # Take a second pass at getting values, this time is should
                 # have all fresh values.
                 log.trace("Fetching parameters for the second time")
+                log.error("Sung Get params after calling update_params2 %s", repr(result2))
                 result2 = self._get_param_result2(param_list2, expire_time)
 
         #combine the two results
         result.update(result2)
+        log.error("Sung Get params %s", repr(result))
         #result_combined = ",".join(result, result2)
         return (next_state, result)
 
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Perform a set command.
-        @param args[0] parameter : value dict.
-        @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
-        not a dict, or if paramter can't be properly formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set command.
-        @throws InstrumentProtocolException if set command could not be built or misunderstood.
-        """
-        log.trace("IN _handler_command_set")
-        next_state = None
-        result = None
-        startup = False
-
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
-
-        try:
-            startup = args[1]
-        except IndexError:
-            pass
-
-        if not isinstance(params, dict):
-            raise InstrumentParameterException('Set parameters not a dict.')
-
-        # For each key, val in the dict, issue set command to device.
-        # Raise if the command not understood.
-        else:
-            result = self._set_params(params, startup)
-            result2 = self._set_params2(params, startup)
-
-        return (next_state, result)
 
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
@@ -2755,8 +3011,9 @@ class Protocol(WorkhorseProtocol):
         output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
-
-        result_combined = ",".join(result, result2)
+        log.error("Sung get_calibration combined")
+        result_combined = result  + result2
+        log.error("Sung get_calibration combined %s",result_combined )
         return (next_state, (next_agent_state, result_combined))
 
     def _handler_command_save_setup_to_ram(self, *args, **kwargs):
@@ -2772,39 +3029,40 @@ class Protocol(WorkhorseProtocol):
 
         return (next_state, result)
 
-    def _handler_command_send_last_sample(self, *args, **kwargs):
-        log.debug("IN _handler_command_send_last_sample")
+    #def _handler_command_send_last_sample(self, *args, **kwargs):
+    #    log.debug("IN _handler_command_send_last_sample")
 
-        next_state = None
-        next_agent_state = None
-        kwargs['timeout'] = 30
-        kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
-        prompt = self._wakeup(timeout=3)
-        prompt = self._wakeup2(timeout=3)
+    #    next_state = None
+    #    next_agent_state = None
+    #    kwargs['timeout'] = 30
+    #    kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
+    #    prompt = self._wakeup(timeout=3)
+    #    prompt = self._wakeup2(timeout=3)
 
         # Disable autosample recover, so it isnt faked out....
-        self.disable_autosample_recover = True
-        (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-        (result2, last_sample2) = self._do_cmd_resp2(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+    #    self.disable_autosample_recover = True
+    #    (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+    #    (result2, last_sample2) = self._do_cmd_resp2(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
         # re-enable it.
-        self.disable_autosample_recover = False
+    #    self.disable_autosample_recover = False
 
-        last_sample_combined = ",".join(last_sample, last_sample2)
-        decoded_last_sample = base64.b64decode(last_sample_combined)
+    #    last_sample_combined = last_sample + ", "  + last_sample2
+    #    decoded_last_sample = base64.b64decode(last_sample_combined)
 
-        return (next_state, (next_agent_state, decoded_last_sample))
+    #    return (next_state, (next_agent_state, decoded_last_sample))
 
-    def _handler_command_get_instrument_transform_matrix(self, *args, **kwargs):
-        """
-        get instrument transform matrix.
-        """
-        next_state = None
-        kwargs['timeout'] = 30
-        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
-        result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
-        result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
-        result_combined = ",".join(result, result2)
-        return (next_state, result_combined)
+    #def _handler_command_get_instrument_transform_matrix(self, *args, **kwargs):
+    #    """
+    #    get instrument transform matrix.
+    #    """
+    #    next_state = None
+    #    kwargs['timeout'] = 30
+    #    kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+    #    result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
+    #    result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
+    #    result_combined = result + ", " + result2
+    #    log.error("Sung get_instrument_transform_matrix combined %s",result_combined )
+    #    return (next_state, result_combined)
 
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
@@ -2822,7 +3080,8 @@ class Protocol(WorkhorseProtocol):
         output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
-        result_combined = ",".join(result, result2)
+        result_combined =  result + result2
+        log.error("Sung get_configuration combined %s",result_combined )
         return (next_state, (next_agent_state, {'result': result_combined}))
 
     def _handler_command_run_test_200(self, *args, **kwargs):
@@ -2834,7 +3093,8 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        result_combined = result  + result2
+        log.error("Sung get_test_200 combined %s",result_combined )
         return (next_state, result_combined)
 
     def _handler_command_factory_sets(self, *args, **kwargs):
@@ -2846,7 +3106,8 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        result_combined = result + result2
+        log.error("Sung get_factory combined %s",result_combined )
         return (next_state, result_combined)
 
     def _handler_command_user_sets(self, *args, **kwargs):
@@ -2858,7 +3119,8 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        result_combined = result + result2
+        log.error("Sung get_user set combined %s",result_combined )
         return (next_state, result_combined)
 
     def _handler_command_clear_error_status_word(self, *args, **kwargs):
@@ -2870,7 +3132,9 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        log.error("Sung clear_error_status_word combined")
+        result_combined = result  + result2
+        log.error("Sung clear_error_status_word combined %s",repr(result_combined) )
         return (next_state, result_combined)
 
     def _handler_command_acquire_error_status_word(self, *args, **kwargs):
@@ -2882,8 +3146,12 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        log.error("Sung acquire_error_status_word combined %s", repr(result))
+        log.error("Sung acquire_error_status_word combined2 %s", repr(result2))
+        result_combined = result  + result2
+        log.error("Sung acquire_error_status_word combined %s", repr(result_combined) )
         return (next_state, result_combined)
+        #return (next_state, result)
 
     def _handler_command_display_fault_log(self, *args, **kwargs):
         """
@@ -2894,7 +3162,7 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        result_combined = result + result2
         return (next_state, result_combined)
 
     def _handler_command_clear_fault_log(self, *args, **kwargs):
@@ -2906,7 +3174,7 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
-        result_combined = ",".join(result, result2)
+        result_combined = result  + result2
         return (next_state, result_combined)
 
     def _handler_autosample_init_params(self, *args, **kwargs):
@@ -2982,6 +3250,48 @@ class Protocol(WorkhorseProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        """
+        log.trace("IN _handler_command_set")
+        log.error("Sung IN _handler_command_set")
+        next_state = None
+        result = None
+        startup = False
+
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+            if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
+                if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
+                    self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
+                    self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            else:
+                 result = self._set_params(params, startup)
+                 result2 = self._set_params2(params, startup)
+
+        return (next_state, result)
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
@@ -3043,6 +3353,7 @@ class Protocol(WorkhorseProtocol):
         return (next_state, (next_agent_state, result))
 
 
+
     def _handler_autosample_get_calibration(self, *args, **kwargs):
         """
         execute a get calibration from autosample mode.
@@ -3084,7 +3395,7 @@ class Protocol(WorkhorseProtocol):
 
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
-        result_combined = ",".join(result, result2)
+        result_combined = result + ", " + result2
         return (next_state, (next_agent_state, result_combined))
         #return (next_state, (next_agent_state, {'result': result}))
 
@@ -3131,7 +3442,7 @@ class Protocol(WorkhorseProtocol):
 
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
-        result_combined = ",".join(result, result2)
+        result_combined = result  + result2
 
         return (next_state, (next_agent_state, result_combined))
 
@@ -3182,12 +3493,44 @@ class Protocol(WorkhorseProtocol):
         result2_PT4 = self._sanitize(base64.b64decode(output))
         time.sleep(.05)
 
-        result_start = "4 beam status outputs:".join(result_AC)
-        result2_start = "5th beam status outputs".join(result2_AC)
+        result_start = "4 beam status outputs:" + result_AC
+        result2_start = "5th beam status outputs:" +result2_AC
 
         result_4beam = ", ".join([result_start,result_PT2,result_PT4])
         result_5thBeam = ", ".join([result2_start,result2_PT2,result2_PT4])
 
-        result = " ".join(result_4beam, result_5thBeam)
+        result = result_4beam + " " + result_5thBeam
         return (next_state, result)
+
+    def _wakeup(self, timeout=3, delay=1):
+        """
+        Clear buffers and send a wakeup command to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+
+        self.last_wakeup = time.time()
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+
+        # Grab time for timeout.
+        starttime = time.time()
+        endtime = starttime + float(timeout)
+
+        # Send a line return and wait a sec.
+        log.debug('Sending wakeup. timeout=%s' % timeout)
+        log.error("Sung before send_wakeup in _wakeup")
+        self._send_wakeup()
+        log.error("Sung after send_wakeup in _wakeup: ")
+        while time.time() < endtime:
+            time.sleep(0.05)
+            for item in self._get_prompts():
+                index = self._promptbuf.find(item)
+                if index >= 0:
+                    log.debug('wakeup got prompt: %s' % repr(item))
+                    log.error("Sung after send_wakeup in _wakeup return: ")
+                    return item
+        log.error("Sung after send_wakeup in _wakeup return None: ")
+        return None
 
