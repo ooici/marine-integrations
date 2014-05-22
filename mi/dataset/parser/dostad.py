@@ -21,14 +21,13 @@ from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException, RecoverableSampleException
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'dosta_ln_wfp_instrument'
+    SAMPLE = 'dosta_abcdjm_sio_instrument'
+    METADATA = 'dosta_abcdjm_sio_metadata'
 
 class DostadParserDataParticleKey(BaseEnum):
     CONTROLLER_TIMESTAMP = 'controller_timestamp'
-    PRODUCT_NUMBER = 'product_number'
-    SERIAL_NUMBER = 'serial_number'
-    ESTIMATED_OXYGEN = 'estimated_oxygen_concentration'
-    AIR_SATURATION = 'estimated_oxygen_saturation'
+    ESTIMATED_OXYGEN = 'estimated_oxygen'
+    AIR_SATURATION = 'air_saturation'
     OPTODE_TEMPERATURE = 'optode_temperature'
     CALIBRATED_PHASE = 'calibrated_phase'
     TEMP_COMPENSATED_PHASE = 'temp_compensated_phase'
@@ -87,10 +86,6 @@ class DostadParserDataParticle(DataParticle):
             result = [self._encode_value(DostadParserDataParticleKey.CONTROLLER_TIMESTAMP,
                                          self.raw_data[0:8],
                                          DostadParserDataParticle.encode_int_16),
-                      self._encode_value(DostadParserDataParticleKey.PRODUCT_NUMBER,
-                                         self._data_match.group(1), int),
-                      self._encode_value(DostadParserDataParticleKey.SERIAL_NUMBER,
-                                         self._data_match.group(2), int),
                       self._encode_value(DostadParserDataParticleKey.ESTIMATED_OXYGEN,
                                          self._data_match.group(3), float),
                       self._encode_value(DostadParserDataParticleKey.AIR_SATURATION,
@@ -117,6 +112,57 @@ class DostadParserDataParticle(DataParticle):
     @staticmethod
     def encode_int_16(hex_str):
         return int(hex_str, 16)
+    
+class DostadMetadataDataParticleKey(BaseEnum):
+    PRODUCT_NUMBER = 'product_number'
+    SERIAL_NUMBER = 'serial_number'
+
+class DostadMetadataDataParticle(DataParticle):
+    """
+    Class for parsing data from the DOSTA-D instrument on a MSFM platform node
+    """
+
+    _data_particle_type = DataParticleType.METADATA
+    
+    def __init__(self, raw_data,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
+        super(DostadParserDataParticle, self).__init__(raw_data,
+                                                      port_timestamp=None,
+                                                      internal_timestamp=None,
+                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                                                      quality_flag=DataParticleValue.OK,
+                                                      new_sequence=None)
+        timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
+        if not timestamp_match:
+            raise RecoverableSampleException("DostaMetadataDataParticle: No regex match of " \
+                                             "timestamp [%s]" % self.raw_data[:8])
+        self._data_match = DATA_MATCHER.match(self.raw_data[8:])
+        if not self._data_match:
+            raise RecoverableSampleException("DostaMetadataDataParticle: No regex match of " \
+                                              "parsed sample data [%s]" % self.raw_data[8:])
+
+        posix_time = int(timestamp_match.group(0), 16)
+        self.set_internal_timestamp(unix_time=float(posix_time))
+    
+    def _build_parsed_values(self):
+        """
+        Take something in the binary data values and turn it into a
+        particle with the appropriate tag.
+        throws SampleException If there is a problem with sample creation
+        """
+        result = []
+        if self._data_match:
+            result = [self._encode_value(DostadParserDataParticleKey.PRODUCT_NUMBER,
+                                         self._data_match.group(1), int),
+                      self._encode_value(DostadParserDataParticleKey.SERIAL_NUMBER,
+                                         self._data_match.group(2), int)]
+        return result
+    
+    
 
 class DostadParser(SioMuleParser):
 
