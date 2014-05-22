@@ -589,8 +589,8 @@ class DriverTestMixinSub(DriverTestMixin):
         @param verify_values:  bool, should we verify parameter values
         """
         self.assert_data_particle_keys(NortekEngIdDataParticleKey, self._id_parameter)
-        # self.assert_data_particle_header(data_particle, NortekDataParticleType.ID_STRING)
-        # self.assert_data_particle_parameters(data_particle, self._id_parameter, verify_values)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.ID_STRING)
+        self.assert_data_particle_parameters(data_particle, self._id_parameter, verify_values)
 
 
 ###############################################################################
@@ -1163,9 +1163,9 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #GC
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
         #ID
-        # self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id) # TODO fix this test!
+        self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
 
-    # @unittest.skip('temp disable')
+    @unittest.skip('temp disable')
     def test_direct_access(self):
         """
         Verify the driver can enter/exit the direct access state
