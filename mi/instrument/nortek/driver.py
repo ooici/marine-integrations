@@ -62,13 +62,9 @@ HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 
-BV_LEN = 4
-CLK_LEN = 8
-ID_LEN = 14     # TODO reevaluate the usuage of this
-INTVL_LEN = 4
-
 CHECK_SUM_SEED = 0xb58c
 
+# TODO update these to include some specific values?
 HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' \
                                % HW_CONFIG_SYNC_BYTES
 HARDWARE_CONFIG_DATA_REGEX = re.compile(HARDWARE_CONFIG_DATA_PATTERN, re.DOTALL)
@@ -80,20 +76,29 @@ USER_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})' % USER_CONFIG_SYNC_BYTES
 USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
-CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})\x06\x06'
+CLOCK_DATA_PATTERN = r'(.)(.)(.)(.)(.)([\x01-\x12])\x06\x06'    # min, sec, day, hour, year, month
+# CLOCK_DATA_PATTERN = r'([\x00-\x3C])([\x00-\x3C])([\x01-\x1F])([\x00-\x18])(.{1})([\x01-\x0C])\x06\x06'    # min, sec, day, hour, year, month
 CLOCK_DATA_REGEX = re.compile(CLOCK_DATA_PATTERN, re.DOTALL)
-BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'        # TODO update to only take a valid range
+BATTERY_DATA_PATTERN = r'([\x00-\xFF][\x13-\x46])\x06\x06'        # ~5000mV (0x1388) minimum to ~18000mv (0x4650) maximum
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
-MODE_DATA_PATTERN = r'(.{1})\x00\x06\x06'       # TODO Update this pattern so it only takes hex values \0x00, \0x01, \0x02, \0x04, and \0x05
+MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)\x06\x06'        # [\x00, \x01, \x02, \x04, and \x05]
 MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
-ID_DATA_PATTERN = r'([A-Z]{3})( {1})([0-9]{4})( {0,6})\x06\x06' # ["VEC 8181", "AQD 8493      "]
+ID_DATA_PATTERN = r'(AQD|VEC [0-9]{4}) {0,6}\x06\x06'      # ["VEC 8181", "AQD 8493      "]
 ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
 
 NORTEK_COMMON_SAMPLE_STRUCTS = [[USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN],
                                 [HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN],
                                 [HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN]]
 
+NORTEK_COMMON_REGEXES = [USER_CONFIG_DATA_REGEX,
+                         HARDWARE_CONFIG_DATA_REGEX,
+                         HEAD_CONFIG_DATA_REGEX,
+                         # CLOCK_DATA_REGEX,    # clock data regex is not ready for prime time yet
+                         # BATTERY_DATA_REGEX,  # battery data regex may not be specific enough
+                         ID_DATA_REGEX]
+
 NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS = []
+NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX = []
 
 INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
@@ -856,13 +861,8 @@ class NortekParameterDictVal(RegexParameter):
         @param input A string possibly containing the parameter value.
         @retval True if an update was successful, False otherwise.
         """
-        if self.name == EngineeringParameter.ACQUIRE_STATUS_INTERVAL or self.name == EngineeringParameter.CLOCK_SYNC_INTERVAL:
-            log.debug('NortekParameterDictVal.update(): do not update parameter from particle data %s', self.name)
-            return True
-
         init_value = kwargs.get('init_value', False)
         match = self.regex.match(input)
-
         if match:
             #log.debug('NortekDictVal.update(): match=<%s>, init_value=%s', match.group(1).encode('hex'), init_value)
             value = self.f_getval(match)
@@ -1239,7 +1239,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.SAMPLE_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
-        self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
+        self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id_response)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
         self._add_response_handler(InstrumentCmds.READ_USER_CONFIGURATION, self._parse_read_user_config)
@@ -1274,7 +1274,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                     log.debug("FOUND STRUCT = %r, LENGTH = %s", structure_sync, structure_len)
                     # only check the CRC if all of the structure has arrived
                     if start + structure_len <= len(raw_data):
-
+                        log.debug("start index = %s, end_index = %s", start, start + structure_len)
                         calculated_checksum = NortekProtocolParameterDict.calculate_checksum(raw_data[start: start + structure_len - 2], structure_len)
                         sent_checksum = NortekProtocolParameterDict.convert_word_to_int(raw_data[start + structure_len - 2: start + structure_len])
                         log.debug('chunker_sieve_function: calculated checksum = %r vs sent_checksum = %s', hex(calculated_checksum), hex(sent_checksum))
@@ -1289,12 +1289,41 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # by this point, all the particles with headers have been parsed from the raw data
         # what's left will be battery voltage, identification string, or clock
         if len(NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS):
-            for structure_sync, structure_len in NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS:
+            for structure_sync in NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS:
                 start = raw_data.find(structure_sync)
+                log.debug("chunker_sieve_function: dynamic find %r", structure_sync)
                 if start != -1:    # found a "sync" pattern
                     return_list.append((start, start + len(structure_sync)))
-                    log.debug("chunker_sieve_function: found %r", raw_data[start: start + len(structure_sync)].encode('hex'))
-                    NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.remove([structure_sync, structure_len])
+                    log.debug("chunker_sieve_function: dynamic found %r, %r, %s", raw_data[start: start + len(structure_sync)].encode('hex'), raw_data[start: start + len(structure_sync)],
+                              raw_data[start: start + len(structure_sync)])
+                    NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.remove(structure_sync)
+
+        return return_list
+
+    @staticmethod
+    def sieve_function(raw_data, add_regex=[]):
+        """
+        The method that detects data sample structures from instrument
+        @param add_structs Additional structures to include in the structure search.
+        Should be in the format [[structure_sync_bytes, structure_len]*]
+        """
+        return_list = []
+        sieve_matchers = add_regex + NORTEK_COMMON_REGEXES
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+                log.debug("sieve_function: regex found %r", raw_data[match.start():match.end()])
+
+        found_flag = False
+        if len(NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX):
+            for matcher in NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX:
+                for match in matcher.finditer(raw_data):
+                    return_list.append((match.start(), match.end()))
+                    log.debug("sieve_function: dynamic regex found %r", raw_data[match.start():match.end()])
+                    found_flag = True
+                if found_flag:
+                    NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX.remove(matcher)
 
         return return_list
 
@@ -1583,6 +1612,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             # Issue the confirmation command.
             self._do_cmd_resp(InstrumentCmds.CONFIRMATION, *args, **kwargs)
 
+        #ID
+        #self._handler_command_read_id()
+        self._do_cmd_resp(InstrumentCmds.READ_ID)
+
         #BV
         self._handler_command_read_battery_voltage()
 
@@ -1597,10 +1630,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         #GC
         self._handler_command_get_user_config()
-
-        #ID
-        #self._handler_command_read_id()
-        self._do_cmd_resp(InstrumentCmds.READ_ID)
 
         self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, *args, **kwargs)
 
@@ -1613,6 +1642,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_acquire_status')
 
+        #ID
+        self._handler_command_read_id()
+
         #BV
         self._handler_command_read_battery_voltage()
 
@@ -1627,9 +1659,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         #GC
         self._handler_command_get_user_config()
-
-        #ID
-        self._handler_command_read_id()
 
         return None, (None, None)
 
@@ -1661,23 +1690,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-
-            # #TODO - DO THE TRANSLATION HERE FROM USER INFO TO SOMETHING THAT CAN BE USED BY THE INSTRUMENT
-            # #may need to write this for each child class as there are diff translations for each!
-            # for (name, value) in params.iteritems():
-            #     if name == Parameter.TRANSMIT_PULSE_LENGTH:
-            #         log.debug('would need to translate %s', name)
-            #     elif name == Parameter.BLANKING_DISTANCE:
-            #         log.debug('only translate if Aquadopp %s', name)
-            #     elif name == Parameter.RECEIVE_LENGTH:
-            #         log.debug('would need to translate %s', name)
-            #     elif name == Parameter.TIME_BETWEEN_PINGS:
-            #         log.debug('would need to translate %s', name)
-            #     elif name == Parameter.DIAGNOSTIC_INTERVAL:
-            #         log.debug('only translate if Aquadopp %s', name)
-            #     elif name == Parameter.ADJUSTMENT_SOUND_SPEED:
-            #         log.debug('would need to translate %s', name)
-
             self._set_params(params, startup)
 
         return None, None
@@ -2023,7 +2035,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             ret_prompt = self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
                                        expected_prompt=[InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE])
 
-            log.debug('_handler_direct_access_stop_direct, stop autosample ret_prompt: %r', ret_prompt)
+            log.debug('_handler_direct_access_stop_direct, stop autosample ret_prompt: %s', ret_prompt)
 
             if ret_prompt == InstrumentPrompts.CONFIRMATION:
                 # Issue the confirmation command.
@@ -2118,16 +2130,102 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict = NortekProtocolParameterDict()
 
         self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH,
+                                   r'^.{%s}(.{2}).*' % str(4),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="transmit pulse length",
+                                   default_value=2,
+                                   init_value=2,    # velpt was 125
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.BLANKING_DISTANCE,
+                                   r'^.{%s}(.{2}).*' % str(6),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="blanking distance",
+                                   default_value=16,
+                                   init_value=16,     # velpt was 3
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.RECEIVE_LENGTH,
+                                   r'^.{%s}(.{2}).*' % str(8),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="receive length",
+                                   default_value=7,
+                                   init_value=7,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TIME_BETWEEN_PINGS,
+                                   r'^.{%s}(.{2}).*' % str(10),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="time between pings",
+                                   default_value=None,
+                                   init_value=437,             # velpt doesnt like 44, try 437
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
+                                   r'^.{%s}(.{2}).*' % str(12),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="time between burst sequences",
+                                   default_value=512,
+                                   init_value=512,          # velpt doesnt like 0, try 512
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_PINGS,
+                                   r'^.{%s}(.{2}).*' % str(14),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="number pings",
+                                   default_value=23,
+                                   init_value=23,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.AVG_INTERVAL,
+                                   r'^.{%s}(.{2}).*' % str(16),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="avg interval",
+                                   default_value=1,      # velpt doesnt like 32, try 1
+                                   init_value=1,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_NUMBER_BEAMS,
                                    r'^.{%s}(.{2}).*' % str(18),
                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="user number beams",
-                                   direct_access=True,
-                                   value=3))
+                                   default_value=3,        # velpt doesnt like 7, stay with 3
+                                   init_value=3,
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TIMING_CONTROL_REGISTER,
                                    r'^.{%s}(.{2}).*' % str(20),
@@ -2135,10 +2233,17 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.READ_WRITE,
-                                   display_name="timing control register",
-                                   direct_access=True,
-                                   value=130))
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="timing control register"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.POWER_CONTROL_REGISTER,
+                                   r'^.{%s}(.{2}).*' % str(22),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="power control register"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.A1_1_SPARE,
                                    r'^.{%s}(.{2}).*' % str(24),
@@ -2160,13 +2265,26 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    default_value=None))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.B1_1_SPARE,
-                                    r'^.{%s}(.{2}).*' % str(28),
-                                    lambda match: match.group(1).encode('hex'),
-                                    lambda string: string.decode('hex'),
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
-                                    display_name="b1 1 spare"))
+                                   r'^.{%s}(.{2}).*' % str(28),
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="b1 1 spare"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.COMPASS_UPDATE_RATE,
+                                   r'^.{%s}(.{2}).*' % str(30),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="compass update rate",
+                                   default_value=1,
+                                   init_value=1,
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.COORDINATE_SYSTEM,
                                    r'^.{%s}(.{2}).*' % str(32),
@@ -2176,9 +2294,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="coordinate system",
-                                   default_value=2,
-                                   startup_param=True,
-                                   direct_access=True))
+                                   default_value=0,
+                                   init_value=0,
+                                   startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_BINS,
                                    r'^.{%s}(.{2}).*' % str(34),
@@ -2186,21 +2304,76 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="number bins",
                                    default_value=1,
-                                   units=ParameterUnits.METERS,
+                                   init_value=1,
+                                   startup_param=True,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.BIN_LENGTH,
+                                   r'^.{%s}(.{2}).*' % str(36),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="bin length",
+                                   default_value=7,
+                                   init_value=7,
+                                   startup_param=True,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.MEASUREMENT_INTERVAL,
+                                   r'^.{%s}(.{2}).*' % str(38),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="measurement interval",
+                                   default_value=1,
+                                   init_value=1,     # velpt doesn't like 3600, try 1
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.DEPLOYMENT_NAME,
                                    r'^.{%s}(.{6}).*' % str(40),
                                    lambda match: NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)),
-                                   lambda string : string,
+                                   lambda string: string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
-                                   display_name="deployment name",
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="deployment name"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.WRAP_MODE,
+                                   r'^.{%s}(.{2}).*' % str(46),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="wrap mode"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.CLOCK_DEPLOY,
+                                   r'^.{%s}(.{6}).*' % str(48),
+                                   lambda match: NortekProtocolParameterDict.convert_words_to_datetime(match.group(1)),
+                                   lambda string: string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="clock deploy"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.DIAGNOSTIC_INTERVAL,
+                                   r'^.{%s}(.{4}).*' % str(54),
+                                   lambda match: NortekProtocolParameterDict.convert_double_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.double_word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="diagnostic interval",
+                                   default_value=10800,
+                                   init_value=10800,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -2210,9 +2383,35 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="mode",
-                                   default_value=48,
+                                   default_value=None,
+                                   # # init_value=,
+                                   startup_param=False,  # True?, find correct initial value
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.ADJUSTMENT_SOUND_SPEED,
+                                   r'^.{%s}(.{2}).*' % str(60),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="adjustment sound speed",
+                                   default_value=1525,  # TODO reevaluate this default value
+                                   init_value=16657,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+                                   r'^.{%s}(.{2}).*' % str(62),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="number samples diagnostic",
+                                   default_value=1,
+                                   init_value=1,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -2222,9 +2421,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="number beams cell diagnostic",
                                    default_value=1,
+                                   init_value=1,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -2234,9 +2434,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="number pings diagnostic",
                                    default_value=1,
+                                   init_value=1,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -2246,43 +2447,117 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="mode test",
-                                   default_value=4,
-                                   startup_param=True,
+                                   default_value=None,
+                                   # # init_value=,
+                                   startup_param=False,  # TODO True?, find correct initial value
                                    direct_access=True))
         self._param_dict.add_parameter(
-            NortekParameterDictVal(Parameter.USER_1_SPARE,
-                                    r'^.{%s}(.{2}).*' % str(74),
-                                    lambda match: match.group(1).encode('hex'),
-                                    lambda string: string.decode('hex'),
+            NortekParameterDictVal(Parameter.ANALOG_INPUT_ADDR,
+                                    r'^.{%s}(.{2}).*' % str(70),
+                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                    NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,
-                                    display_name="user 1 spare"))
+                                    display_name="analog input addr"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.SW_VERSION,
+                                   r'^.{%s}(.{2}).*' % str(72),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="sw version"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.USER_1_SPARE,
+                                   r'^.{%s}(.{2}).*' % str(74),
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="user 1 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.VELOCITY_ADJ_TABLE,
                                    r'^.{%s}(.{180}).*' % str(76),
-                                   lambda match: NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)), #base64.b64encode(match.group(1)),
-                                   lambda string : string,
+                                   lambda match: base64.b64encode(match.group(1)),
+                                   lambda string: string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="velocity adj table",
-                                   units=ParameterUnits.PARTS_PER_TRILLION,
-                                   startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.COMMENTS,
                                    r'^.{%s}(.{180}).*' % str(256),
                                    lambda match: NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)),
-                                   lambda string : string,
+                                   lambda string: string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="comments",
+                                   default_value=None,
+                                   init_value='init comment',
+                                   # init_value='3305-00106_00001_28092012',
                                    startup_param=True,
                                    direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.WAVE_MEASUREMENT_MODE,
+                                   r'^.{%s}(.{2}).*' % str(436),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="wave measurement mode"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.DYN_PERCENTAGE_POSITION,
+                                   r'^.{%s}(.{2}).*' % str(438),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="dyn percentage position"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.WAVE_TRANSMIT_PULSE,
+                                   r'^.{%s}(.{2}).*' % str(440),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="wave transmit pulse"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.WAVE_BLANKING_DISTANCE,
+                                   r'^.{%s}(.{2}).*' % str(442),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="wave blanking distance"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.WAVE_CELL_SIZE,
+                                   r'^.{%s}(.{2}).*' % str(444),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="wave cell size"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_DIAG_SAMPLES,
+                                   r'^.{%s}(.{2}).*' % str(446),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="number diag samples"))     # TODO Does this control diagnostic output?
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.A1_2_SPARE,
                                    r'^.{%s}(.{2}).*' % str(448),
@@ -2302,15 +2577,48 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_ONLY,
                                    display_name="b0 2 spare"))
         self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
+                                   r'^.{%s}(.{2}).*' % str(452),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="number samples per burst"
+                                   # ,default_value=0,
+                                   # init_value=0,        # TODO change this value so that it is always in continuous mode?
+                                   # startup_param=False,
+                                   # direct_access=False
+                                   ))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.USER_2_SPARE,          # for Vector this is 'SAMPLE_RATE'
+                                   r'^.{%s}(.{2}).*' % str(454),
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,       # This might change based on OIS
+                                   display_name="user 2 spare"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.ANALOG_OUTPUT_SCALE,
+                                   r'^.{%s}(.{2}).*' % str(456),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="analog output scale"))
+        self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.CORRELATION_THRESHOLD,
                                    r'^.{%s}(.{2}).*' % str(458),
                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="correlation threshold",
                                    default_value=0,
+                                   init_value=0,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -2329,9 +2637,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="transmit pulse length second lag",
                                    default_value=2,
+                                   init_value=2,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -2350,8 +2659,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    lambda string: string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="qual constants",
+                                   default_value='Cv/N/4sA5QDuAAsAhP89/w==',
+                                   init_value='Cv/N/4sA5QDuAAsAhP89/w==',
                                    startup_param=True,
                                    direct_access=True))
 
@@ -2454,9 +2765,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             for i in range(20):   # loop for 2 seconds waiting for response to complete
                 if len(self._promptbuf) == USER_CONFIG_LEN+2:
                     if self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
-
-
-                        #todo = play in here to get data happy
                         self._param_dict.update(self._promptbuf)
                         new_config = self._param_dict.get_config()
 
@@ -2464,6 +2772,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                         break
                     break
                 time.sleep(.1)
+
+            # log.debug('_update_params: get_user_configuration command response length %d not right, %s'
+            #           % (len(self._promptbuf), self._promptbuf.encode("hex")))
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
@@ -2473,56 +2784,13 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         log.debug("_update_params: new_config: %s", new_config)
         #TODO - COMPARISION MAY NOT WORK
-        log.debug('FSM STATE = %s', self._protocol_fsm.get_current_state() )
-        if new_config != old_config and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
+        log.debug('FSM STATE = %s', self._protocol_fsm.get_current_state())
+        config_changed = cmp(new_config, old_config)
+        log.debug("config_changed: %s", config_changed)
+        if config_changed != 0: #  and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        return config_changed
 
-        # config_changed = cmp(new_config, old_config)
-        # log.debug("config_changed: %s", config_changed)
-        # if config_changed:
-        #     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-        # return config_changed
-
-
-
-    def _get_mode(self, timeout, delay=1):
-        """
-        _wakeup is replaced by this method for this instrument to search for
-        prompt strings at other than just the end of the line.
-        @param timeout The timeout to wake the device.
-        @param delay The time to wait between consecutive wakeups.
-        @throw InstrumentTimeoutException if the device could not be woken.
-        """
-        # Clear the prompt buffer.
-        self._promptbuf = ''
-
-        # Grab time for timeout.
-        starttime = time.time()
-
-        log.debug("_get_mode: timeout = %d", timeout)
-
-        while True:
-            log.debug('Sending what_mode command to get a response from the instrument.')
-
-            self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
-            time.sleep(.1)
-            self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
-
-            log.debug('get_mode self._promptbuf: %r' % self._promptbuf)
-            search_obj = re.search(MODE_DATA_REGEX, self._promptbuf)
-            if search_obj:
-                log.debug("get_mode: found=%r", search_obj.group())
-            else:
-                log.debug("get_mode: not found")
-
-            for item in self._prompts.list():
-                if item in self._promptbuf:
-                    if item != InstrumentPrompts.Z_NACK:
-                        log.debug('get_mode got prompt (return): %s' % repr(item))
-                        return item
-
-        if time.time() > starttime + timeout:
-            raise InstrumentTimeoutException()
 
     def _create_set_output(self, parameters):
         """
@@ -2536,12 +2804,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             if param == Parameter.COMMENTS:
                 output += self._param_dict.format(param).ljust(180, "\x00")
             elif param == Parameter.DEPLOYMENT_NAME:
-
                 output += parameters.format(param).ljust(6, "\x00")
             elif param == Parameter.QUAL_CONSTANTS:
                 #TODO - WHAT IS THE PROPER FORMAT FOR SENDING THIS?
-                output += parameters.format(param).ljust(16, "\x00")
-                #output += base64.b64decode(parameters.format(param))
+                #output += parameters.format(param).ljust(16, "\x00")
+                output += base64.b64decode(parameters.format(param))
             elif param == Parameter.VELOCITY_ADJ_TABLE:
                 #TODO - WHAT IS THE PROPER FORMAT FOR SENDING THIS?
                 output += parameters.format(param).ljust(180, "\x00")
@@ -2627,27 +2894,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         pass
 
-    def _parse_read_clock_response(self, response, prompt):
-        """ Parse the response from the instrument for a read clock command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        # packed BCD format, so convert binary to hex to get value
-        # should be the 6 byte response ending with two ACKs
-        if len(response) != CLK_LEN:
-            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, CLK_LEN])
-
-        time = NortekProtocolParameterDict.convert_time(response)
-        return time
-
     def _parse_what_mode_response(self, response, prompt):
         """ Parse the response from the instrument for a 'what mode' command.
         
@@ -2660,10 +2906,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         search_obj = re.search(MODE_DATA_REGEX, response)
         if search_obj:
-            log.debug("_parse_what_mode_response: response=%r", search_obj.group())
-            return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(0)[0:2])
+            log.debug("_parse_what_mode_response: response=%r", search_obj.group(1))
+            return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(1))
         else:
-            log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
+            log.warn("_parse_what_mode_response: Bad what mode response from instrument (%r)", response)
             raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
 
     def _parse_second_break_response(self, response, prompt):
@@ -2691,74 +2937,68 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
-        @retval return The time as a string
+        @retval return The battery voltage in mV int
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if len(response) != BV_LEN:
-            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex'))
+        func_name = sys._getframe().f_code.co_name
+        log.debug("%% IN %s", func_name)
+
+        match = BATTERY_DATA_REGEX.match(response)
+        if not match:
+            log.warn("%s: Bad response from instrument (%s)", func_name, response.encode('hex'))
+            raise InstrumentProtocolException("%s: Invalid response. (%s)", func_name, response.encode('hex'))
+
+        log.debug("%s: response=%r", func_name, match.group(1))
 
         # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
+        NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX.append(re.compile(response, re.DOTALL))
 
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:BV_LEN - 2])
+        return NortekProtocolParameterDict.convert_word_to_int(match.group(1))
 
-    def _parse_read_id(self, response, prompt):
-        """ Parse the response from the instrument for a read ID command.
+    def _parse_read_clock_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read clock command.
 
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
+        func_name = sys._getframe().f_code.co_name
+        log.debug("%% IN %s", func_name)
 
-        search_obj = re.search(ID_DATA_REGEX, response)
-        if search_obj:
-            log.debug("_parse_read_id: response=%r", search_obj.group())
-            return search_obj.group(0)[0:8]
-        else:
-            log.warn("_parse_read_id: Bad read id response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read id response. (%s)" % response.encode('hex'))
+        match = CLOCK_DATA_REGEX.match(response)
+        if not match:
+            log.warn("%s: Bad response from instrument (%s)", func_name, response.encode('hex'))
+            raise InstrumentProtocolException("%s: Invalid response. (%s)", func_name, response.encode('hex'))
 
-    def _parse_sample_average_interval(self, response, prompt):
-        """ Parse the response from the instrument for a sample average interval command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if len(response) != INTVL_LEN:
-            log.warn("_handler_command_sample_average_interval: Bad response from instrument (%s)",
-                     response.encode('hex'))
-            raise InstrumentProtocolException("Invalid sample average interval response. (%s)", response.encode('hex'))
-        log.debug("_handler_command_sample_average_interval: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking   # TODO reevaluate this
-        # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
-
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
-
-
-    def _parse_sample_measurement_interval(self, response, prompt):
-        """ Parse the response from the instrument for a sample measurement interval command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if len(response) != INTVL_LEN:
-            log.warn("_handler_command_sample_measurement_interval: Bad response from instrument (%s)",
-                     response.encode('hex'))
-            raise InstrumentProtocolException("Invalid sample measurement interval response. (%s)", response.encode('hex'))
-        log.debug("_handler_command_sample_measurement_interval: response=%s", response.encode('hex'))
+        log.debug("%s: response=%r", func_name, match.group().encode('hex'))
 
         # Workaround for not so unique data particle chunking
-        # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
+        NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX.append(re.compile(response, re.DOTALL))
 
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
+        return NortekProtocolParameterDict.convert_time(match.group())
+
+    def _parse_read_id_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read ID command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The id as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        func_name = sys._getframe().f_code.co_name
+        log.debug("%% IN %s", func_name)
+
+        match = ID_DATA_REGEX.match(response)
+        if not match:
+            log.warn("%s: Bad response from instrument (%s)", func_name, response.encode('hex'))
+            raise InstrumentProtocolException("%s: Invalid response. (%s)", func_name, response.encode('hex'))
+
+        log.debug("%s: response=%r", func_name, match.group(1))
+
+        return match.group(1)
 
     def _parse_read_hw_config(self, response, prompt):
         """ Parse the response from the instrument for a read hw config command.
