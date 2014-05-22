@@ -1582,18 +1582,19 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('SamiProtocol._parse_response_sample_sami')
 
-    def _wakeup(self, timeout=0, delay=1):
+    def _wakeup(self, timeout=0, delay=0):
         """
         Override wakeup instrument processing
         @param timeout not used
-        @param delay seconds to sleep between wakeup attempts
+        @param delay not used
         """
         # Send 2 newlines to wake up SAMI.
         log.debug('SamiProtocol._wakeup: Send first newline to wake up')
         self._do_cmd_direct(NEWLINE)
-        time.sleep(delay)
+        time.sleep(0.5)
         log.debug('SamiProtocol._wakeup: Send second newline to wake up')
         self._do_cmd_direct(NEWLINE)
+        time.sleep(0.5)
 
     def apply_startup_params(self):
 

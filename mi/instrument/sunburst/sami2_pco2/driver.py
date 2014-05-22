@@ -60,7 +60,7 @@ from mi.instrument.sunburst.driver import NEW_LINE_REGEX_MATCHER
 #    Driver Constant Definitions
 ###
 
-PUMP_REAGENT = '01'  # Pump on, valve off
+PUMP_REAGENT = '02'  # Pump on, valve off
 PUMP_DEIONIZED_WATER = '03'  # Pump on, valve on
 PUMP_DURATION_UNITS = 0.125  # 1/8 second
 
@@ -434,7 +434,7 @@ class Pco2wProtocol(SamiProtocol):
 
         log.debug('Pco2wProtocol._build_pump_command(): flush duration value = %s, string = %s' % (value, flush_duration_str))
 
-        pump_command = cmd + flush_duration_str + NEWLINE
+        pump_command = cmd + ',' + flush_duration_str + NEWLINE
 
         log.debug('Pco2wProtocol._build_pump_command(): pump command = %s' % pump_command)
 
@@ -565,15 +565,17 @@ class Pco2wProtocol(SamiProtocol):
 
             log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
-            # Add 1 seconds to make sure pump completes.
+            # Add 5 seconds to timeout make sure pump completes.
 
-            flush_duration_seconds += 1.0
+            flush_timeout = flush_duration_seconds + 5.0
 
-            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): sleeping %f seconds' % flush_duration_seconds)
+            start_time = time.time()
 
-            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
 
-            time.sleep(flush_duration_seconds)
+            pump_time = time.time() - start_time
+
+            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): pump time = %s' % pump_time)
 
             # Make sure pump is off
 
@@ -651,18 +653,21 @@ class Pco2wProtocol(SamiProtocol):
 
             log.debug('Pco2wProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
-            # Add 1 seconds to make sure pump completes.
+            # Add 5 seconds to make sure pump completes.
 
-            flush_duration_seconds += 1.0
+            flush_timeout = flush_duration_seconds + 5.0
 
-            log.debug('Pco2wProtocol._handler_reagent_flush_execute(): sleeping %f seconds' % flush_duration_seconds)
+            start_time = time.time()
 
-            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+            time.sleep(1)
 
-            time.sleep(flush_duration_seconds)
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            pump_time = time.time() - start_time
+
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute(): pump time = %s' % pump_time)
 
             # Make sure pump is off
-
             self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
 
             log.debug('Pco2wProtocol._handler_reagent_flush_execute(): SUCCESS')

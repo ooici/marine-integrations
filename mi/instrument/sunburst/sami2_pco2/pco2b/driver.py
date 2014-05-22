@@ -747,7 +747,7 @@ class Protocol(Pco2wProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x14,
+                             default_value=0x1E,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='external pump settings')
 
@@ -759,7 +759,7 @@ class Protocol(Pco2wProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=False,
-                             default_value=600,
+                             default_value=360,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='external pump delay')
 

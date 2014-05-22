@@ -165,7 +165,7 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
     # string.
     VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
                           '000000000D000000000D000000000D07' + \
-                          '1020FF54181C01003814' + \
+                          '1020FF54181C0100381E' + \
                           '000000000000000000000000000000000000000000000000000' + \
                           '000000000000000000000000000000000000000000000000000' + \
                           '0000000000000000000000000000' + \
@@ -248,11 +248,11 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38},
         Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x14, VALUE: 0x14},
+                                             DEFAULT: 0x1E, VALUE: 0x1E},
         Parameter.AUTO_SAMPLE_INTERVAL:     {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                              DEFAULT: 3600, VALUE: 3600},
         Parameter.EXTERNAL_PUMP_DELAY:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 600, VALUE: 600},
+                                             DEFAULT: 360, VALUE: 360},
         Parameter.FLUSH_DURATION:           {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
@@ -338,7 +338,7 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS:       {TYPE: int,  VALUE: 0x14, REQUIRED: True}
+        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS:       {TYPE: int,  VALUE: 0x1E, REQUIRED: True}
     }
 
     ###
@@ -682,7 +682,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.FLUSH_PUMP_INTERVAL: 0x01,
            Parameter.BIT_SWITCHES: 0x01,
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
-           Parameter.EXTERNAL_PUMP_SETTINGS: 0x14,
+           Parameter.EXTERNAL_PUMP_SETTINGS: 0x1E,
            Parameter.EXTERNAL_PUMP_DELAY: 10,
            Parameter.AUTO_SAMPLE_INTERVAL: 3600,
            Parameter.FLUSH_DURATION: 1
@@ -987,7 +987,7 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         """
         self.assert_enter_command_mode()
         self.assert_set_parameter(Parameter.BIT_SWITCHES, 0x00)
-        self.assert_set_parameter(Parameter.EXTERNAL_PUMP_DELAY, 600)
+        self.assert_set_parameter(Parameter.EXTERNAL_PUMP_DELAY, 360)
         request_sample = time.time()
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=120)
         receive_dev1_sample = time.time()
