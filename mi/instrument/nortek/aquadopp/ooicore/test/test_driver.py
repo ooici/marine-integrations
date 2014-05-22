@@ -39,13 +39,14 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
+from mi.instrument.nortek.aquadopp.ooicore.driver import NortekDataParticleType
 from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, EngineeringParameter, Parameter
+from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, EngineeringParameter, Parameter, \
+    NortekEngIdDataParticleKey
 
 ###
 #   Driver parameters for the tests
@@ -56,21 +57,26 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id='nortek_aquadopp_dw_ooicore',
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
-    instrument_agent_packet_config=DataParticleType(),
+    instrument_agent_packet_config=NortekDataParticleType(),
     driver_startup_config={
         DriverConfigKey.PARAMETERS:
             {Parameter.DEPLOYMENT_NAME: 'test',
-             Parameter.VELOCITY_ADJ_TABLE: '0', #'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
-                                           # 'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
-                                           # 'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
-                                           # 'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+             Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                            'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                            'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                            'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
              Parameter.COMMENTS: 'this is a test',
              Parameter.ANALOG_OUTPUT_SCALE: 6711,
-             Parameter.QUAL_CONSTANTS: 'notused1',
-             EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
-             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
+             Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w=='}}
+             #EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
+             #EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
 )
 
+def eng_id_sample():
+    sample_as_hex = "415144"
+    return sample_as_hex.decode('hex')
+
+eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 8493      "}]
 
 # velocity data particle & sample 
 def velocity_sample():
@@ -151,7 +157,7 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         @param verify_values:
         """
         self.assert_data_particle_keys(AquadoppDwVelocityDataParticleKey, self._sample_velocity_diagnostic)
-        self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.VELOCITY)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
 
@@ -181,7 +187,7 @@ class DriverUnitTest(NortekUnitTest):
         Verify driver specific enums have no duplicates
         Base unit test driver will test enums specific for the base class.
         """
-        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(NortekDataParticleType())
 
     def test_velocity_sample_format(self):
         """
@@ -195,7 +201,7 @@ class DriverUnitTest(NortekUnitTest):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY,
+            DataParticleKey.STREAM_NAME: NortekDataParticleType.VELOCITY,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
@@ -219,14 +225,14 @@ class DriverUnitTest(NortekUnitTest):
         self.assert_chunker_combined_sample(chunker, velocity_sample())
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
 
-    def test_corrupt_data_structures(self):
-        """
-        Verify when generating the particle, if the particle is corrupt, an exception is raised
-        """
-        particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1), port_timestamp=3558720820.531179)
-
-        with self.assertRaises(SampleException):
-            particle.generate()
+    # def test_corrupt_data_structures(self):
+    #     """
+    #     Verify when generating the particle, if the particle is corrupt, an exception is raised
+    #     """
+    #     particle = AquadoppDwVelocityDataParticle(velocity_sample(), port_timestamp=3558720820.531179)
+    #
+    #     with self.assertRaises(SampleException):
+    #         particle.generate()
 
  
 ###############################################################################
@@ -251,7 +257,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
+        self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
     def test_command_autosample(self):
         """
@@ -297,11 +303,11 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         """
         Verify the driver can poll the instrument for a single sample
         """
-        self.assert_sample_polled(self.assert_particle_velocity, DataParticleType.VELOCITY, timeout=10)
+        self.assert_sample_polled(self.assert_particle_velocity, NortekDataParticleType.VELOCITY, timeout=10)
 
     def test_autosample(self):
         """
         Verify the driver can enter and exit autosample mode, while in autosample the driver will collect multiple
         samples.
         """
-        self.assert_sample_autosample(self.assert_particle_velocity, DataParticleType.VELOCITY, timeout=10)
+        self.assert_sample_autosample(self.assert_particle_velocity, NortekDataParticleType.VELOCITY, timeout=10)

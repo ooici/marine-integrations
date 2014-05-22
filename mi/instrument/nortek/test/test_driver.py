@@ -232,10 +232,10 @@ eng_battery_particle = [{DataParticleKey.VALUE_ID: NortekEngBatteryDataParticleK
 
 
 def eng_id_sample():
-    sample_as_hex = "41514420313231352020202020200606"
+    sample_as_hex = "ADQ"
     return sample_as_hex.decode('hex')
 
-eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "4151442031323135202020202020"}]
+eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "ADQ 123"}]
 
 
 def user_config1():
@@ -842,6 +842,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
                                          ProtocolEvent.SET,
                                          ProtocolEvent.START_DIRECT,
                                          ProtocolEvent.START_AUTOSAMPLE,
+                                         ProtocolEvent.STOP_AUTOSAMPLE,
                                          ProtocolEvent.CLOCK_SYNC,
                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                          ProtocolEvent.ACQUIRE_STATUS,
@@ -950,7 +951,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #test parameter w/direct access only
         #self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
 
-        #self.assert_set(Parameter.BLANKING_DISTANCE, 49)
+        self.assert_set(Parameter.BLANKING_DISTANCE, 49)
 
         #test start parameter
         #self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
