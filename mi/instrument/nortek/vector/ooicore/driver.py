@@ -48,16 +48,11 @@ SYSTEM_DATA_SYNC_BYTES = '\xa5\x11\x0e\x00'
 VELOCITY_HEADER_DATA_LEN = 42
 VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x12\x15\x00'
 
-VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
-                            [SYSTEM_DATA_SYNC_BYTES, SYSTEM_DATA_LEN],
-                            [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN]
-                           ]
-
-VELOCITY_DATA_PATTERN = r'^%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1}).{2}' % VELOCITY_DATA_SYNC_BYTES
+VELOCITY_DATA_PATTERN = r'%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1}).{2}' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
-SYSTEM_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2}).{2}' % SYSTEM_DATA_SYNC_BYTES
+SYSTEM_DATA_PATTERN = r'%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2}).{2}' % SYSTEM_DATA_SYNC_BYTES
 SYSTEM_DATA_REGEX = re.compile(SYSTEM_DATA_PATTERN, re.DOTALL)
-VELOCITY_HEADER_DATA_PATTERN = r'^%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
+VELOCITY_HEADER_DATA_PATTERN = r'%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
 VECTOR_SAMPLE_REGEX = [VELOCITY_DATA_REGEX, SYSTEM_DATA_REGEX, VELOCITY_HEADER_DATA_REGEX]
@@ -452,17 +447,11 @@ class Protocol(NortekInstrumentProtocol):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         
         # create chunker for processing instrument samples.
-        self._chunker = StringChunker(Protocol.chunker_sieve_function)    # This can be moved to base class if VECTOR_SAMPLE_STRUCTURES can be initialized
-        
-    @staticmethod
-    def chunker_sieve_function(raw_data):
-        return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
-                                                               VECTOR_SAMPLE_STRUCTURES)
+        self._chunker = StringChunker(Protocol.sieve_function)    # This can be moved to base class if VECTOR_SAMPLE_REGEX can be initialized
 
-    # @staticmethod
-    # def sieve_function(raw_data):
-    #     return NortekInstrumentProtocol.sieve_function(raw_data,
-    #                                                            VECTOR_SAMPLE_REGEX)
+    @staticmethod
+    def sieve_function(raw_data):
+        return NortekInstrumentProtocol.sieve_function(raw_data, VECTOR_SAMPLE_REGEX)
 
     ########################################################################
     # overridden superclass methods
