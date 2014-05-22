@@ -224,11 +224,11 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test a large import
         """
-        self.create_sample_data_set_dir('node59p1_longest.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1.dat', TELEM_DIR)
         self.assert_initialize()
 
-        result = self.data_subscribers.get_samples(DataParticleType.CT,33,30)
-        result2 = self.data_subscribers.get_samples(DataParticleType.CO,3,30)
+        result = self.data_subscribers.get_samples(DataParticleType.CT,2550,200)
+        result2 = self.data_subscribers.get_samples(DataParticleType.CO,200,60)
 
     def test_stop_start(self):
         """
