@@ -1009,7 +1009,7 @@ class Pco2wProtocol(SamiProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=False,
-                             default_value=1,
+                             default_value=0x8,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='flush duration')
 
