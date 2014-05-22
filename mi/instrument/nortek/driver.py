@@ -15,6 +15,7 @@ import re
 import time
 import copy
 import base64
+import sys
 
 from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
@@ -62,13 +63,9 @@ HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 
-BV_LEN = 4
-CLK_LEN = 8
-ID_LEN = 14     # TODO reevaluate the usage of this
-INTVL_LEN = 4
-
 CHECK_SUM_SEED = 0xb58c
 
+# TODO update these to include some specific values?
 HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' \
                                % HW_CONFIG_SYNC_BYTES
 HARDWARE_CONFIG_DATA_REGEX = re.compile(HARDWARE_CONFIG_DATA_PATTERN, re.DOTALL)
@@ -80,21 +77,29 @@ USER_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})' % USER_CONFIG_SYNC_BYTES
 USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
-CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})\x06\x06'
+CLOCK_DATA_PATTERN = r'(.)(.)(.)(.)(.)([\x01-\x12])\x06\x06'    # min, sec, day, hour, year, month
+# CLOCK_DATA_PATTERN = r'([\x00-\x3C])([\x00-\x3C])([\x01-\x1F])([\x00-\x18])(.{1})([\x01-\x0C])\x06\x06'    # min, sec, day, hour, year, month
 CLOCK_DATA_REGEX = re.compile(CLOCK_DATA_PATTERN, re.DOTALL)
-BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'        # TODO update to only take a valid range
+BATTERY_DATA_PATTERN = r'([\x00-\xFF][\x13-\x46])\x06\x06'        # ~5000mV (0x1388) minimum to ~18000mv (0x4650) maximum
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
-MODE_DATA_PATTERN = r'(.{1})\x00\x06\x06'
-# MODE_DATA_PATTERN = r'([\x00,\x02,\x04,\x05])\x00\x06\x06'       # [\0x00, \0x01, \0x02, \0x04, and \0x05]
+MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)\x06\x06'        # [\x00, \x01, \x02, \x04, and \x05]
 MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
-ID_DATA_PATTERN = r'([A-Z]{3})( {1})([0-9]{4})( {0,6})\x06\x06'            # ["VEC 8181", "AQD 8493      "]
+ID_DATA_PATTERN = r'(AQD|VEC [0-9]{4}) {0,6}\x06\x06'      # ["VEC 8181", "AQD 8493      "]
 ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
 
 NORTEK_COMMON_SAMPLE_STRUCTS = [[USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN],
                                 [HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN],
                                 [HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN]]
 
+NORTEK_COMMON_REGEXES = [USER_CONFIG_DATA_REGEX,
+                         HARDWARE_CONFIG_DATA_REGEX,
+                         HEAD_CONFIG_DATA_REGEX,
+                         # CLOCK_DATA_REGEX,    # clock data regex is not ready for prime time yet
+                         # BATTERY_DATA_REGEX,  # battery data regex may not be specific enough
+                         ID_DATA_REGEX]
+
 NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS = []
+NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX = []
 
 INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
@@ -853,7 +858,7 @@ class NortekEngIdDataParticle(DataParticle):
         if not match:
             raise SampleException("NortekEngIdDataParticle: No regex match of parsed sample data: [%s]" % self.raw_data)
 
-        id_str = NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)).encode('hex')
+        id_str = NortekProtocolParameterDict.convert_bytes_to_string(match.group(1))
         if None == id_str:
             raise SampleException("No ID value parsed")
 
@@ -1382,7 +1387,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.SAMPLE_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
-        self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
+        self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id_response)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
         self._add_response_handler(InstrumentCmds.READ_USER_CONFIGURATION, self._parse_read_user_config)
@@ -1439,12 +1444,41 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # by this point, all the particles with headers have been parsed from the raw data
         # what's left will be battery voltage, identification string, or clock
         if len(NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS):
-            for structure_sync, structure_len in NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS:
+            for structure_sync in NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS:
                 start = raw_data.find(structure_sync)
+                log.debug("chunker_sieve_function: dynamic find %r", structure_sync)
                 if start != -1:    # found a "sync" pattern
                     return_list.append((start, start + len(structure_sync)))
-                    log.debug("chunker_sieve_function: found %r", raw_data[start: start + len(structure_sync)].encode('hex'))
-                    NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.remove([structure_sync, structure_len])
+                    log.debug("chunker_sieve_function: dynamic found %r, %r, %s", raw_data[start: start + len(structure_sync)].encode('hex'), raw_data[start: start + len(structure_sync)],
+                              raw_data[start: start + len(structure_sync)])
+                    NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.remove(structure_sync)
+
+        return return_list
+
+    @staticmethod
+    def sieve_function(raw_data, add_regex=[]):
+        """
+        The method that detects data sample structures from instrument
+        @param add_structs Additional structures to include in the structure search.
+        Should be in the format [[structure_sync_bytes, structure_len]*]
+        """
+        return_list = []
+        sieve_matchers = add_regex + NORTEK_COMMON_REGEXES
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+                log.debug("sieve_function: regex found %r", raw_data[match.start():match.end()])
+
+        found_flag = False
+        if len(NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX):
+            for matcher in NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX:
+                for match in matcher.finditer(raw_data):
+                    return_list.append((match.start(), match.end()))
+                    log.debug("sieve_function: dynamic regex found %r", raw_data[match.start():match.end()])
+                    found_flag = True
+                if found_flag:
+                    NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX.remove(matcher)
 
         return return_list
 
@@ -1453,7 +1487,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-
         self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
@@ -1461,10 +1494,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
-        # Note: This appears to be the same size as average interval & measurement interval
+        # Note: This appears to be the same size and data structure as average interval & measurement interval
         # need to copy over the exact regex to match
         self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
-
 
     ########################################################################
     # overridden superclass methods
@@ -1737,6 +1769,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             # Issue the confirmation command.
             self._do_cmd_resp(InstrumentCmds.CONFIRMATION, *args, **kwargs)
 
+        #ID
+        #self._handler_command_read_id()
+        self._do_cmd_resp(InstrumentCmds.READ_ID)
+
         #BV
         self._handler_command_read_battery_voltage()
 
@@ -1751,10 +1787,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         #GC
         self._handler_command_get_user_config()
-
-        #ID
-        #self._handler_command_read_id()
-        self._do_cmd_resp(InstrumentCmds.READ_ID)
 
         self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, *args, **kwargs)
 
@@ -1767,6 +1799,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_acquire_status')
 
+        #ID
+        self._handler_command_read_id()
+
         #BV
         self._handler_command_read_battery_voltage()
 
@@ -1781,9 +1816,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         #GC
         self._handler_command_get_user_config()
-
-        #ID
-        self._handler_command_read_id()
 
         return None, (None, None)
 
@@ -3102,27 +3134,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         pass
 
-    def _parse_read_clock_response(self, response, prompt):
-        """ Parse the response from the instrument for a read clock command.
-        
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        # packed BCD format, so convert binary to hex to get value
-        # should be the 6 byte response ending with two ACKs
-        if len(response) != CLK_LEN:
-            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, CLK_LEN])
-
-        time = NortekProtocolParameterDict.convert_time(response)
-        return time
-
     def _parse_what_mode_response(self, response, prompt):
         """ Parse the response from the instrument for a 'what mode' command.
         
@@ -3135,8 +3146,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         search_obj = re.search(MODE_DATA_REGEX, response)
         if search_obj:
-            log.debug("_parse_what_mode_response: response=%r", search_obj.group(0))
-            return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(0)[0:2])
+            log.debug("_parse_what_mode_response: response=%r", search_obj.group(1))
+            return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(1))
         else:
             log.warn("_parse_what_mode_response: Bad what mode response from instrument (%r)", response)
             raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
@@ -3166,74 +3177,68 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
-        @retval return The time as a string
+        @retval return The battery voltage in mV int
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if len(response) != BV_LEN:
-            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
+        func_name = sys._getframe().f_code.co_name
+        log.debug("%% IN %s", func_name)
+
+        match = BATTERY_DATA_REGEX.match(response)
+        if not match:
+            log.warn("%s: Bad response from instrument (%s)", func_name, response.encode('hex'))
+            raise InstrumentProtocolException("%s: Invalid response. (%s)", func_name, response.encode('hex'))
+
+        log.debug("%s: response=%r", func_name, match.group(1))
 
         # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
+        NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX.append(re.compile(response, re.DOTALL))
 
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:BV_LEN - 2])
-        
-    def _parse_read_id(self, response, prompt):
-        """ Parse the response from the instrument for a read ID command.
-        
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
+        return NortekProtocolParameterDict.convert_word_to_int(match.group(1))
+
+    def _parse_read_clock_response(self, response, prompt):
         """
-
-        search_obj = re.search(ID_DATA_REGEX, response)
-        if search_obj:
-            log.debug("_parse_read_id: response=%r", search_obj.group())
-            return search_obj.group(0)[0:8]
-        else:
-            log.warn("_parse_read_id: Bad read id response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read id response. (%s)" % response.encode('hex'))
-
-    def _parse_sample_average_interval(self, response, prompt):
-        """ Parse the response from the instrument for a sample average interval command.
+        Parse the response from the instrument for a read clock command.
 
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if len(response) != INTVL_LEN:
-            log.warn("_handler_command_sample_average_interval: Bad response from instrument (%s)",
-                     response.encode('hex'))
-            raise InstrumentProtocolException("Invalid sample average interval response. (%s)", response.encode('hex'))
-        log.debug("_handler_command_sample_average_interval: response=%s", response.encode('hex'))
+        func_name = sys._getframe().f_code.co_name
+        log.debug("%% IN %s", func_name)
 
-        # Workaround for not so unique data particle chunking   # TODO reevaluate this
-        # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
+        match = CLOCK_DATA_REGEX.match(response)
+        if not match:
+            log.warn("%s: Bad response from instrument (%s)", func_name, response.encode('hex'))
+            raise InstrumentProtocolException("%s: Invalid response. (%s)", func_name, response.encode('hex'))
 
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
-
-
-    def _parse_sample_measurement_interval(self, response, prompt):
-        """ Parse the response from the instrument for a sample measurement interval command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if len(response) != INTVL_LEN:
-            log.warn("_handler_command_sample_measurement_interval: Bad response from instrument (%s)",
-                     response.encode('hex'))
-            raise InstrumentProtocolException("Invalid sample measurement interval response. (%s)", response.encode('hex'))
-        log.debug("_handler_command_sample_measurement_interval: response=%s", response.encode('hex'))
+        log.debug("%s: response=%r", func_name, match.group().encode('hex'))
 
         # Workaround for not so unique data particle chunking
-        # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
+        NORTEK_COMMON_DYNAMIC_SAMPLE_REGEX.append(re.compile(response, re.DOTALL))
 
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
+        return NortekProtocolParameterDict.convert_time(match.group())
+
+    def _parse_read_id_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read ID command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The id as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        func_name = sys._getframe().f_code.co_name
+        log.debug("%% IN %s", func_name)
+
+        match = ID_DATA_REGEX.match(response)
+        if not match:
+            log.warn("%s: Bad response from instrument (%s)", func_name, response.encode('hex'))
+            raise InstrumentProtocolException("%s: Invalid response. (%s)", func_name, response.encode('hex'))
+
+        log.debug("%s: response=%r", func_name, match.group(1))
+
+        return match.group(1)
 
     def _parse_read_hw_config(self, response, prompt):
         """ Parse the response from the instrument for a read hw config command.
