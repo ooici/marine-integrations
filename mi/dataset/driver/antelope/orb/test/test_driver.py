@@ -70,14 +70,6 @@ import cProfile
 profile = cProfile.Profile()
 
 
-# Ignore antelope import errors for buildbot
-try:
-    from mi.core.kudu.brttpkt import NoData
-    import _Pkt as _pkt
-    from mi.core.kudu.orb import Orb
-except Exception as e: 
-    log.warn("Failed to import antelope lib: %s", e)
-
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
 # written as needed.
@@ -124,6 +116,8 @@ def makepacket(data, samprate=666, net='net', sta='sta',
 
     Packet has one channel.
     """
+    from mi.core.kudu import _pkt
+
     pkt = _pkt._newPkt()
     try:
         _pkt._Pkt_pkttype_set(pkt, type)
@@ -175,6 +169,7 @@ def orbserver(packets_to_send, samples_per_packet):
             # give orb server a chance to start up
             gevent.sleep(3) 
             # Empty orbs are wonky; put one packet in
+            from mi.core.kudu.orb import Orb
             with Orb(ORB_NAME, permissions='w') as myorb:
                 # Write packets to ORB
                 pkttype, packet, srcname, time = makepacket([])
@@ -199,9 +194,6 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
     # configuration singleton
 #    test_config = DataSetTestConfig()
 
-#    def __init__(self, *args, **kwargs):
-#        super(IntegrationTest, self).__init__(*args, **kwargs)
-
     def test_harvester_config_exception(self):
         pass
 
@@ -216,6 +208,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
 #        cls.test_config.initialize(*args,**kwargs)
 
     def setUp(self):
+        from mi.core.kudu import _pkt
         log.debug("*********************************************************************")
         log.debug("Starting Dataset Test %s", self._testMethodName)
         log.debug("*********************************************************************")
@@ -273,6 +266,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
+        from mi.core.kudu.brttpkt import NoData
         rvals = [(self.PKT_ID, sn, ts, pkt) for (pt, pkt, sn, ts) in [
                         makepacket(self.PKT_DATA, time=n+1) for n in range(2)]]
         def orbget():
@@ -298,6 +292,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
+        from mi.core.kudu.brttpkt import NoData
         def orbget():
             log.trace('no more packets')
             raise NoData()
@@ -330,6 +325,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
+        from mi.core.kudu.brttpkt import NoData
         # Start sampling and watch for an exception
 
         # TODO make some packets, put in mock orb
@@ -366,7 +362,6 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('ANTELOPE', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-
     def test_missing_directory(self):
         self.skipTest("Not applicable to Antelope ORB driver")
 
@@ -391,6 +386,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         with orbserver(PACKETS_TO_SEND, SAMPLES_PER_PACKET):
             log.debug("Started orb server")
+            from mi.core.kudu.orb import Orb
             with Orb(ORB_NAME, permissions='w') as myorb:
                 # Write packets to ORB
                 log.debug("Connected to orb server")
@@ -426,6 +422,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         with orbserver(PACKETS_TO_SEND, SAMPLES_PER_PACKET):
           log.debug("Started orb server")
+          from mi.core.kudu.orb import Orb
           with Orb(ORB_NAME, permissions='w') as myorb:
               # Write packets to ORB
               log.debug("Connected to orb server")

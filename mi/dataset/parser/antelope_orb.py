@@ -28,7 +28,7 @@ from mi.core.exceptions import SampleException
 from mi.dataset.dataset_parser import Parser
 
 from mi.core.kudu.brttpkt import OrbReapThr, Timeout, NoData
-import _Pkt as _pkt
+from mi.core.kudu import _pkt
 
 
 class ParserConfigKey(BaseEnum):
