@@ -51,9 +51,9 @@ DataSetTestCase.initialize(
     agent_name='Agent007',
     agent_packet_config=DOSTADataSetDriver.stream_config(),
     startup_config={
-        # WHAT SHOULD THE RESOURCE ID BE?  moas, gl, dosta?
         DataSourceConfigKey.RESOURCE_ID: 'dosta',
-        DataSourceConfigKey.HARVESTER: {
+        DataSourceConfigKey.HARVESTER:
+        {
             DataTypeKey.GLIDER_TELEMETERED:
             {
                 DataSetDriverConfigKeys.DIRECTORY: TELEMETERED_TEST_DIR,
@@ -69,8 +69,7 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER:
-            {
+        DataSourceConfigKey.PARSER: {
             DataTypeKey.GLIDER_TELEMETERED: {}, DataTypeKey.GLIDER_RECOVERED: {}
         }
     }
