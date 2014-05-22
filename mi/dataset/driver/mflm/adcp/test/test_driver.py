@@ -70,19 +70,8 @@ SAMPLE_STREAM='adcps_jln_sio_mule_instrument'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-        
-    def clean_file(self):
-        # remove just the file we are using
-        driver_config = self._driver_config()['startup_config']
-        log.debug('startup config %s', driver_config)
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
 
     def test_get(self):
-        self.clean_file()
-
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
@@ -111,8 +100,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test an exception raised after the driver is started during
         the file read.  Should call the exception callback.
         """
-        self.clean_file()
-
         # create the file so that it is unreadable
         self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat", mode=000)
 
@@ -166,9 +153,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         There that a file that has had a section fill with zeros is skipped, then
         when data is filled in that data is read. 
         """
-
-        self.clean_file()
-
         self.driver.start_sampling()
 
         # step 2 contains 2 blocks, start with this and get both since we used them
@@ -216,15 +200,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
         
-    def clean_file(self):
-        # remove just the file we are using
-        driver_config = self._driver_config()['startup_config']
-        log.debug('startup config %s', driver_config)
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
-
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -232,7 +207,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         exception callback called.
         """
-        self.clean_file()
         # need to put data in the file, not just make an empty file for this to work
         self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR,
                                         "node59p1.dat", mode=000, copy_metadata=False)
@@ -384,7 +358,6 @@ class QualificationTest(DataSetQualificationTestCase):
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        self.clean_file()
         # file contains invalid sample values
         self.create_sample_data_set_dir('node59p1_bad.dat', TELEM_DIR,
                                         "node59p1.dat")
