@@ -363,7 +363,7 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _id_parameter = {
-        NortekEngIdDataParticleKey.ID: {TYPE: str, VALUE: '', REQUIRED: True}
+        NortekEngIdDataParticleKey.ID: {TYPE: unicode, VALUE: '', REQUIRED: True}
     }
 
     _driver_parameters = {
@@ -650,7 +650,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         """
         chunker = StringChunker(NortekInstrumentProtocol.chunker_sieve_function)
 
-        #test complete data structures
+        # test complete data structures
         self.assert_chunker_sample(chunker, hw_config_sample())
         self.assert_chunker_sample(chunker, head_config_sample())
         self.assert_chunker_sample(chunker, user_config_sample())
@@ -873,7 +873,8 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assertEqual(protocol._scheduler_callback.get(ScheduledJob.CLOCK_SYNC), None)
         self.assertEqual(protocol._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS), None)
 
-        protocol._param_dict.add_parameter(NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
+        protocol._param_dict.add_parameter(
+            NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
                                    INTERVAL_TIME_REGEX,
                                    lambda match: match.group(1),
                                    str,
@@ -947,13 +948,15 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test parameter w/direct access only
-        self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
+        #self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
+
+        #self.assert_set(Parameter.BLANKING_DISTANCE, 49)
 
         #test start parameter
-        self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
+        #self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
 
         #test read only parameter
-        self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=InstrumentParameterException)
+        #self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=InstrumentParameterException)
 
     def test_instrument_clock_sync(self):
         """
@@ -1024,6 +1027,18 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         # test acquire status
         # don't need to assert the particles, acquire_status method already does that for us
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
+        #BV
+        self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
+        #RC
+        self.assert_async_particle_generation(NortekDataParticleType.CLOCK, self.assert_particle_clock)
+        #GP
+        self.assert_async_particle_generation(NortekDataParticleType.HARDWARE_CONFIG, self.assert_particle_hardware)
+        #GH
+        self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
+        #GC
+        self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
+        #ID
+        self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
 
     def test_direct_access(self):
         """

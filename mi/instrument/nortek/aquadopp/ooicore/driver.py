@@ -17,7 +17,7 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, InstrumentParameterException
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -208,6 +208,55 @@ class Protocol(NortekInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if parameter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        """
+        log.debug('%% IN CHILD _handler_command_set')
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            startup = False
+            pass
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+
+            #TODO - DO THE TRANSLATION HERE FROM USER INFO TO SOMETHING THAT CAN BE USED BY THE INSTRUMENT
+            #may need to write this for each child class as there are diff translations for each!
+            for (name, value) in params.iteritems():
+                if name == Parameter.TRANSMIT_PULSE_LENGTH:
+                    log.debug('would need to translate %s', name)
+                elif name == Parameter.BLANKING_DISTANCE:
+                    log.debug('only translate if Aquadopp %s', name)
+                elif name == Parameter.RECEIVE_LENGTH:
+                    log.debug('would need to translate %s', name)
+                elif name == Parameter.TIME_BETWEEN_PINGS:
+                    log.debug('would need to translate %s', name)
+                elif name == Parameter.DIAGNOSTIC_INTERVAL:
+                    log.debug('only translate if Aquadopp %s', name)
+                elif name == Parameter.ADJUSTMENT_SOUND_SPEED:
+                    log.debug('would need to translate %s', name)
+
+            self._set_params(params, startup)
+
+        return None, None
+
     def _helper_get_data_key(self):
         """
         override to pass the correct velocity data key per instrument

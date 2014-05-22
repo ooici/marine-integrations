@@ -51,7 +51,6 @@ VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
 VECTOR_SAMPLE_REGEX = [VELOCITY_DATA_REGEX, SYSTEM_DATA_REGEX, VELOCITY_HEADER_DATA_REGEX]
 
-
 class DataParticleType(NortekDataParticleType):
     """
     List of data particles to collect
@@ -302,7 +301,7 @@ class Protocol(NortekInstrumentProtocol):
         
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
-        return NortekInstrumentProtocol.chunker_sieve_function(raw_data, VECTOR_SAMPLE_STRUCTURES)
+        return NortekInstrumentProtocol.chunker_sieve_function(raw_data, VECTOR_SAMPLE_REGEX)
 
     ########################################################################
     # overridden superclass methods
