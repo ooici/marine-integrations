@@ -216,7 +216,7 @@ class SioMuleParser(Parser):
         processed file.
         @param timestamp The NTP4 timestamp
         """
-        log.debug("Incrementing current state: %s", self._read_state)
+        log.trace("Incrementing current state: %s", self._read_state)
 
         while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
             # if we were in the middle of processing, we need to drop the parsed
@@ -446,7 +446,7 @@ class SioMuleParser(Parser):
         """
         # see if there is more unprocessed data at a later file position (don't go backwards)
         next_idx = 0
-        log.debug('Getting next unprocessed from %s, last position %d', unproc, self._position[END_IDX])
+        log.trace('Getting next unprocessed from %s, last position %d', unproc, self._position[END_IDX])
         while len(unproc) > next_idx and unproc[next_idx][END_IDX] <= self._position[END_IDX]:
             next_idx = next_idx + 1
 
@@ -489,7 +489,7 @@ class SioMuleParser(Parser):
             # need to keep track of which records have actually been returned
             self._increment_state(num_to_fetch)
             self._state = self._read_state
-            log.debug("Sending parser state [%s] to driver", self._state)
+            log.trace("Sending parser state [%s] to driver", self._state)
             self._state_callback(self._state) # push new state to driver
 
         return return_list

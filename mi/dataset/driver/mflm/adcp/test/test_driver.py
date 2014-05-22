@@ -250,11 +250,10 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test a large import
         """
-        self.create_sample_data_set_dir('node59p1_shorter.dat', TELEM_DIR,
-                                        "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1.dat', TELEM_DIR)
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,29,30)
+        result = self.get_samples(SAMPLE_STREAM,2000,400)
 
     def test_stop_start(self):
         """
