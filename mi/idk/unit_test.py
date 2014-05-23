@@ -908,14 +908,21 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
         }
-        log.debug('create_ethernet_comm_config returning: %r', config)
         return config
 
     def create_botpt_comm_config(self, comm_config):
-        config = self.create_ethernet_comm_config(comm_config)
-        config['instrument_type'] = ConfigTypes.BOTPT
-        config['device_tx_port'] = comm_config.device_tx_port
-        config['device_rx_port'] = comm_config.device_rx_port
+        config = {
+            'instrument_type': ConfigTypes.BOTPT,
+            'port_agent_addr': comm_config.host,
+            'device_addr': comm_config.device_addr,
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'device_tx_port': comm_config.device_tx_port,
+            'device_rx_port': comm_config.device_rx_port,
+            'log_level': 5,
+        }
         return config
 
     def create_multi_comm_config(self, comm_config):
@@ -934,9 +941,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @return if comm_config.yml exists return the full path
         """
         repo_dir = Config().get('working_repo')
-        driver_path = cls.test_config.driver_module
-        p = re.compile('\.')
-        driver_path = p.sub('/', driver_path)
+        driver_path = cls.test_config.driver_module.replace('.', '/')
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
 
         log.debug(abs_path)
