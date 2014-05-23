@@ -68,6 +68,7 @@ InstrumentDriverTestCase.initialize(
              Parameter.COMMENTS: 'this is a test',
              Parameter.ANALOG_OUTPUT_SCALE: 6711,
              Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
+             #update the following two parameters to allow for faster collecting of samples during testing
              Parameter.AVG_INTERVAL: 1,
              Parameter.MEASUREMENT_INTERVAL: 1}}
              #EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
@@ -262,7 +263,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
@@ -275,11 +275,10 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         4. stop AUTOSAMPLE
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
-        # self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        # self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity,
-        #                                       particle_count=4, timeout=TIMEOUT)
-        # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity,
+                                              particle_count=4, timeout=TIMEOUT)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 
 ###############################################################################
