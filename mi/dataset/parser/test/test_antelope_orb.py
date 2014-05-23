@@ -19,16 +19,19 @@ from mock import patch, MagicMock
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 
-from mi.dataset.parser.antelope_orb import AntelopeOrbParser, StateKey
-from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticleKey
-from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticleChannelKey
-from mi.dataset.parser.antelope_orb import ParserConfigKey
+try:
+    from mi.dataset.parser.antelope_orb import AntelopeOrbParser, StateKey
+    from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticleKey
+    from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticleChannelKey
+    from mi.dataset.parser.antelope_orb import ParserConfigKey
+    
+    import _Pkt as _pkt
+    from mi.core.kudu.brttpkt import GetError
+except Exception as e: 
+    log.warn("Failed to import antelope lib: %s", e)
 
-import _Pkt as _pkt
-from mi.core.kudu.brttpkt import GetError
 
-
-@attr('UNIT', group='mi')
+@attr('ANTELOPE', group='mi')
 class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
 
     def state_callback(self, state, file_ingested):
