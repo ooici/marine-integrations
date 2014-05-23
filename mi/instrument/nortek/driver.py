@@ -1333,9 +1333,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Raise exception if no parameter provided, or not a dict.
         try:
             params = args[0]
-            verify_read_only = kwargs.get('verify_read_only', True)
-            if verify_read_only:
-                self._verify_not_readonly(*args, **kwargs)
+            # verify_read_only = args[1]
+            # if verify_read_only:
+            #      log.debug('Verifying parameters for READ ONLY')
+            #      self._verify_not_readonly(*args, **kwargs)
         except IndexError:
             raise InstrumentParameterException('Set params requires a parameter dict.')
         else:

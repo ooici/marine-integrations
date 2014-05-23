@@ -267,7 +267,7 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_velocity_header_sample_format(self):
         """
-        Test to make sure we can get velocity_header sample data out in a
+        Verify driver can get velocity_header sample data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests
         """
@@ -296,7 +296,7 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_velocity_sample_format(self):
         """
-        Test to make sure we can get velocity sample data out in a reasonable
+        Verify driver can get velocity sample data out in a reasonable
         format. Parsed is all we care about...raw is tested in the base
         DataParticle tests
         """
@@ -322,7 +322,7 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_system_sample_format(self):
         """
-        Test to make sure we can get velocity sample data out in a reasonable
+        Verify driver can get system sample data out in a reasonable
         format. Parsed is all we care about...raw is tested in the base
         DataParticle tests
         """
@@ -351,7 +351,11 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_chunker(self):
         """
-        Tests the chunker
+        Verify the chunker can parse each sample type
+        1. complete data structure
+        2. fragmented data structure
+        3. combined data structure
+        4. data structure with noise
         """
         chunker = StringChunker(Protocol.sieve_function)
 
@@ -376,7 +380,9 @@ class UnitFromIDK(NortekUnitTest):
         self.assert_chunker_sample_with_noise(chunker, velocity_header_sample())
 
     def test_corrupt_data_structures(self):
-        # garbage is not okay
+        """
+        Verify when generating the particle, if the particle is corrupt, an exception is raised
+        """
         particle = VectorVelocityHeaderDataParticle(velocity_header_sample().replace(chr(0), chr(1), 1),
                                                     port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
@@ -447,16 +453,18 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 @attr('QUAL', group='mi')
 class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
 
-    def test_direct_access_telnet_mode(self):
+    def test_direct_access_telnet_mode_driver(self):
         """
         This test manually tests that the Instrument Driver properly supports direct access to the
         physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
-
+        log.debug('finished set up')
         self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("VECTOR")
+        result = self.tcp_client.expect("VECTOR")
+
+        self.assertTrue(result)
 
         self.assert_direct_access_stop_telnet()
 

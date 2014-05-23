@@ -298,9 +298,10 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
+        #todo
+
         self.tcp_client.send_data("K1W%!Q")
         result = self.tcp_client.expect("AQUADOPP")
-
         self.assertTrue(result)
 
         self.assert_direct_access_stop_telnet()

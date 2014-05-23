@@ -921,8 +921,8 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         self.assert_initialize_driver()
 
-        # values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        # log.debug("VALUES_BEFORE = %s", values_before)
+        values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        log.debug("VALUES_BEFORE = %s", values_before)
 
         self.driver_client.cmd_dvr('set_init_params',
                                    {DriverConfigKey.PARAMETERS:
