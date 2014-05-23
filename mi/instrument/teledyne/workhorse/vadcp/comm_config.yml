@@ -4,18 +4,18 @@
     4Beam:
       comm:
         command_port: 2002
-        data_port: 2001
-        host: 10.180.80.178
-        device_port: 2003
-        device_addr: localhost
+        data_port: 2003
+        host: localhost
+        device_port: 2101
+        device_addr: 10.180.80.176
         method: ethernet
         sniffer_port: 6003
     5thBeam:
       comm:
-        command_port: 2002
-        data_port: 2001
-        device_addr: 10.180.80.177
-        device_port: 2003
+        command_port: 2004
+        data_port: 2005
+        device_addr: 10.180.80.179
+        device_port: 2101
         host: localhost
         method: ethernet
         sniffer_port: 6003
