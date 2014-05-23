@@ -147,7 +147,7 @@ class IRISDataParticle(DataParticle):
         (?P<temp>       %(float)s       ),
         (?P<serial>     %(word)s        )
         ''' % common_regex_items
-        pattern = 'IRIS,(%(date_time)s),(%(float)s),(%(float)s)(%(float)s)(%(word)s)%(newline)s' % common_regex_items
+        # pattern = 'IRIS,(%(date_time)s),(%(float)s),(%(float)s)(%(float)s)(%(word)s)%(newline)s' % common_regex_items
 
         # pattern = r'IRIS,'  # pattern starts with IRIS '
         # pattern += r'(.*),'  # 1 time
@@ -183,7 +183,7 @@ class IRISDataParticle(DataParticle):
             x_tilt = float(match.group('x_tilt'))
             y_tilt = float(match.group('y_tilt'))
             temperature = float(match.group('temp'))
-            sn = match.group('serial')
+            sn = match.group('serial').strip()
 
             timestamp = time.strptime(iris_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
@@ -360,7 +360,7 @@ class LILYDataParticle(DataParticle):
             mag_compass = float(match.group('compass'))
             temperature = float(match.group('temp'))
             supply_volts = float(match.group('volts'))
-            sn = match.group('serial')
+            sn = match.group('serial').strip()
 
             timestamp = time.strptime(lily_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
@@ -473,7 +473,7 @@ class LILYLevelingParticle(DataParticle):
             if supply_volts.startswith(','):
                 status, supply_volts = supply_volts.split('!')
             supply_volts = float(supply_volts)
-            sn = str(match.group('serial'))
+            sn = match.group('serial').strip()
 
             timestamp = time.strptime(lily_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
