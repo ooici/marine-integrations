@@ -407,6 +407,31 @@ class QualificationTest(DataSetQualificationTestCase):
 #                log.error("Exception trapped: %s", e)
 #                self.fail("Sample timeout.")
 
+    def test_parser_exception(self):
+        """
+        Test an exception is raised after the driver is started during
+        record parsing.
+        """
+
+        with orbserver(1, 0):
+            log.debug("Started orb server")
+            from mi.core.kudu.orb import Orb
+            with Orb(ORB_NAME, permissions='w') as myorb:
+                # Write packets to ORB
+                log.debug("Connected to orb server")
+                myorb.putx('dummy', 1, 'deadbeef')
+            log.debug("Sent packets to orb server")
+#            gevent.sleep(1000)
+
+            self.assert_initialize()
+
+            self.event_subscribers.clear_events()
+
+            # Verify an event was raised and we are in our retry state
+            self.assert_event_received(ResourceAgentErrorEvent, 10)
+            self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+
     def test_performance(self):
         PACKETS_TO_SEND = 200
         SAMPLES_PER_PACKET = 64000
