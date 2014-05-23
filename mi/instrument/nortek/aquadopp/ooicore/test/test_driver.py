@@ -37,9 +37,6 @@ log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.unit_test import ParameterTestConfigKey
 
@@ -53,22 +50,14 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
-from mi.core.exceptions import InstrumentCommandException
+# from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
+from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
 from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentPrompts
-# from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentCmds
-# from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
-# from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
-# from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
-# from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
-from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
@@ -76,9 +65,7 @@ from interface.objects import CapabilityType
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, DriverTestMixinSub
 from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent
 
-
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
+# from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from pyon.agent.agent import ResourceAgentEvent
@@ -94,127 +81,6 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={Parameter.TRANSMIT_PULSE_LENGTH: 0x2})
-
-params_dict = {
-    Parameter.TRANSMIT_PULSE_LENGTH: int,
-    Parameter.BLANKING_DISTANCE: int,
-    Parameter.RECEIVE_LENGTH: int,
-    Parameter.TIME_BETWEEN_PINGS: int,
-    Parameter.TIME_BETWEEN_BURST_SEQUENCES: int,
-    Parameter.NUMBER_PINGS: int,
-    Parameter.AVG_INTERVAL: int,
-    Parameter.USER_NUMBER_BEAMS: int,
-    Parameter.TIMING_CONTROL_REGISTER: int,
-    Parameter.POWER_CONTROL_REGISTER: int,
-    Parameter.COMPASS_UPDATE_RATE: int,
-    Parameter.COORDINATE_SYSTEM: int,
-    Parameter.NUMBER_BINS: int,
-    Parameter.BIN_LENGTH: int,
-    Parameter.MEASUREMENT_INTERVAL: int,
-    Parameter.DEPLOYMENT_NAME: str,
-    Parameter.WRAP_MODE: int,
-    Parameter.CLOCK_DEPLOY: str,
-    Parameter.DIAGNOSTIC_INTERVAL: int,
-    Parameter.MODE: int,
-    Parameter.ADJUSTMENT_SOUND_SPEED: int,
-    Parameter.NUMBER_SAMPLES_DIAGNOSTIC: int,
-    Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: int,
-    Parameter.NUMBER_PINGS_DIAGNOSTIC: int,
-    Parameter.MODE_TEST: int,
-    Parameter.ANALOG_INPUT_ADDR: int,
-    Parameter.SW_VERSION: int,
-    Parameter.VELOCITY_ADJ_TABLE: str,
-    Parameter.COMMENTS: str,
-    Parameter.WAVE_MEASUREMENT_MODE: int,
-    Parameter.DYN_PERCENTAGE_POSITION: int,
-    Parameter.WAVE_TRANSMIT_PULSE: int,
-    Parameter.WAVE_BLANKING_DISTANCE: int,
-    Parameter.WAVE_CELL_SIZE: int,
-    Parameter.NUMBER_DIAG_SAMPLES: int,
-    Parameter.ANALOG_OUTPUT_SCALE: int,
-    Parameter.CORRELATION_THRESHOLD: int,
-    Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: int,
-    Parameter.QUAL_CONSTANTS: str}
-
-
-def user_config1():
-    # CompassUpdateRate = 600, MeasurementInterval = 600
-    user_config_values = "A5 00 00 01 7D 00 37 00 20 00 B5 01 00 02 01 00 \
-                          3C 00 03 00 00 00 00 00 00 00 00 00 00 00 58 02 \
-                          00 00 01 00 20 00 58 02 00 00 00 00 00 00 00 00 \
-                          59 12 03 14 12 08 C0 A8 00 00 20 00 11 41 14 00 \
-                          01 00 14 00 04 00 00 00 00 00 5E 01 02 3D 1E 3D \
-                          39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D \
-                          06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E \
-                          C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F \
-                          69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F \
-                          02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 \
-                          8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 \
-                          08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 \
-                          78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 \
-                          DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 \
-                          33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 \
-                          80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 \
-                          32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 \
-                          02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 \
-                          40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 \
-                          00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 \
-                          14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF \
-                          CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF 82 8E"
-    user_config = ''
-    for value in user_config_values.split():
-        user_config += chr(int(value, 16))
-    return user_config
-
-
-def user_config2():
-    # CompassUpdateRate = 2, MeasurementInterval = 3600
-    user_config_values = [0xa5, 0x00, 0x00, 0x01, 0x7d, 0x00, 0x37, 0x00, 0x20, 0x00, 0xb5, 0x01, 0x00, 0x02, 0x01, 0x00, 
-                          0x3c, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 
-                          0x01, 0x00, 0x01, 0x00, 0x20, 0x00, 0x10, 0x0e, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x01, 0x00, 
-                          0x56, 0x07, 0x08, 0x10, 0x12, 0x08, 0xc0, 0xa8, 0x00, 0x00, 0x22, 0x00, 0x11, 0x41, 0x14, 0x00, 
-                          0x01, 0x00, 0x14, 0x00, 0x04, 0x00, 0x00, 0x00, 0xe8, 0x35, 0x5e, 0x01, 0x02, 0x3d, 0x1e, 0x3d, 
-                          0x39, 0x3d, 0x53, 0x3d, 0x6e, 0x3d, 0x88, 0x3d, 0xa2, 0x3d, 0xbb, 0x3d, 0xd4, 0x3d, 0xed, 0x3d, 
-                          0x06, 0x3e, 0x1e, 0x3e, 0x36, 0x3e, 0x4e, 0x3e, 0x65, 0x3e, 0x7d, 0x3e, 0x93, 0x3e, 0xaa, 0x3e, 
-                          0xc0, 0x3e, 0xd6, 0x3e, 0xec, 0x3e, 0x02, 0x3f, 0x17, 0x3f, 0x2c, 0x3f, 0x41, 0x3f, 0x55, 0x3f, 
-                          0x69, 0x3f, 0x7d, 0x3f, 0x91, 0x3f, 0xa4, 0x3f, 0xb8, 0x3f, 0xca, 0x3f, 0xdd, 0x3f, 0xf0, 0x3f, 
-                          0x02, 0x40, 0x14, 0x40, 0x26, 0x40, 0x37, 0x40, 0x49, 0x40, 0x5a, 0x40, 0x6b, 0x40, 0x7c, 0x40, 
-                          0x8c, 0x40, 0x9c, 0x40, 0xac, 0x40, 0xbc, 0x40, 0xcc, 0x40, 0xdb, 0x40, 0xea, 0x40, 0xf9, 0x40, 
-                          0x08, 0x41, 0x17, 0x41, 0x25, 0x41, 0x33, 0x41, 0x42, 0x41, 0x4f, 0x41, 0x5d, 0x41, 0x6a, 0x41, 
-                          0x78, 0x41, 0x85, 0x41, 0x92, 0x41, 0x9e, 0x41, 0xab, 0x41, 0xb7, 0x41, 0xc3, 0x41, 0xcf, 0x41, 
-                          0xdb, 0x41, 0xe7, 0x41, 0xf2, 0x41, 0xfd, 0x41, 0x08, 0x42, 0x13, 0x42, 0x1e, 0x42, 0x28, 0x42, 
-                          0x33, 0x42, 0x3d, 0x42, 0x47, 0x42, 0x51, 0x42, 0x5b, 0x42, 0x64, 0x42, 0x6e, 0x42, 0x77, 0x42, 
-                          0x80, 0x42, 0x89, 0x42, 0x91, 0x42, 0x9a, 0x42, 0xa2, 0x42, 0xaa, 0x42, 0xb2, 0x42, 0xba, 0x42, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x5a, 0x00, 0x5a, 0x00, 0xbc, 0x02, 
-                          0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00, 
-                          0x02, 0x00, 0x14, 0x00, 0xea, 0x01, 0x14, 0x00, 0xea, 0x01, 0x0a, 0x00, 0x05, 0x00, 0x00, 0x00, 
-                          0x40, 0x00, 0x40, 0x00, 0x02, 0x00, 0x0f, 0x00, 0x5a, 0x00, 0x00, 0x00, 0x01, 0x00, 0xc8, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x0f, 0x00, 0xea, 0x01, 0xea, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 
-                          0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0xff, 
-                          0xcd, 0xff, 0x8b, 0x00, 0xe5, 0x00, 0xee, 0x00, 0x0b, 0x00, 0x84, 0xff, 0x3d, 0xff, 0xa8, 0x98]
-    user_config = ''
-    for value in user_config_values:
-        user_config += chr(value)
-    return user_config
 
 
 # velocity data particle & sample
@@ -313,23 +179,6 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
 
-    _sample_diagnostic_header = {
-        # AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.CELL: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2: {TYPE: int, VALUE: 1, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3: {TYPE: int, VALUE: 1, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4: {TYPE: int, VALUE: 1, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4: {TYPE: int, VALUE: 0, REQUIRED: True}
-    }
-
     #this particle can be used for both the velocity particle and the diagnostic particle
     _sample_velocity_diagnostic = {
         AquadoppDwVelocityDataParticleKey.TIMESTAMP: {TYPE: unicode, VALUE: '', REQUIRED: True},
@@ -360,28 +209,6 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
 
         self.assert_data_particle_keys(AquadoppDwVelocityDataParticleKey, self._sample_velocity_diagnostic)
         self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
-        self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
-
-    # def assert_particle_diagnostic_header(self, data_particle, verify_values=False):
-    #     """
-    #     Verify velpt_diagostics_header
-    #     @param data_particle:  AquadoppDwDiagnosticHeaderDataParticleKey data particle
-    #     @param verify_values:
-    #     """
-    #
-    #     self.assert_data_particle_keys(AquadoppDwDiagnosticHeaderDataParticleKey, self._sample_diagnostic_header)
-    #     self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC_HEADER)
-    #     self.assert_data_particle_parameters(data_particle, self._sample_diagnostic_header, verify_values)
-
-    def assert_particle_diagnostic(self, data_particle, verify_values=False):
-        """
-        Verify velpt_diagonstics_data
-        @param data_particle:  AquadoppDwDiagnosticDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-
-        #self.assert_data_particle_keys(AquadoppDwDiagnosticDataParticle, self._sample_velocity_diagnostic)
-        self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
 
@@ -487,8 +314,6 @@ class DriverUnitTest(NortekUnitTest):
         """
         self.assert_enum_has_no_duplicates(Parameter())
 
-
-
     def test_driver_enums(self):
         """
         Verify driver specific enums have no duplicates
@@ -496,58 +321,11 @@ class DriverUnitTest(NortekUnitTest):
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
 
-    def test_diagnostic_header_sample_format(self):
-        """
-        Verify driver can get diagnostic_header sample data out in a reasonable format.
-        Parsed is all we care about...raw is tested in the base DataParticle tests
-        """
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
-        # construct the expected particle
-        expected_particle = {
-            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
-            DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC_HEADER,
-            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
-            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
-            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
-            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: diagnostic_header_particle}
-
-        self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
-                                          diagnostic_header_sample(),
-                                          expected_particle)
-
-    def test_diagnostic_sample_format(self):
-        """
-        Verify driver can get diagnostic sample data out in a reasonable format.
-        Parsed is all we care about...raw is tested in the base DataParticle tests
-        """
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
-        # construct the expected particle
-        expected_particle = {
-            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
-            DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC,
-            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
-            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
-            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
-            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: diagnostic_particle}
-
-        self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
-                                          diagnostic_sample(),
-                                          expected_particle)
-
     def test_velocity_sample_format(self):
         """
         Verify driver can get velocity sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-        
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
 
@@ -600,16 +378,7 @@ class DriverUnitTest(NortekUnitTest):
         """
         Verify when generating the particle, if the particle is corrupt, an exception is raised
         """
-        particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
-                        port_timestamp=3558720820.531179)
-        with self.assertRaises(SampleException):
-            particle.generate()
-         
-        particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
-                        port_timestamp=3558720820.531179)
-        with self.assertRaises(SampleException):
-            particle.generate()
-         
+
         particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
                         port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
@@ -673,106 +442,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 
-    @unittest.skip('temp disable')
-    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
-        """
-        Verify all device parameters exist and are correct type.
-        """
-        if all_params:
-            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
-            #print str(pd1)
-            #print str(pd2)
-            for (key, type_val) in pd2.iteritems():
-                #print key
-                #print type_val
-                self.assertTrue(isinstance(pd1[key], type_val))
-        else:
-            for (key, val) in pd1.iteritems():
-                self.assertTrue(pd2.has_key(key))
-                self.assertTrue(isinstance(val, pd2[key]))
-
-    @unittest.skip('temp disable')
-    def check_state(self, expected_state):
-        self.protocol_state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(self.protocol_state, expected_state)
-        return 
-
-    @unittest.skip('temp disable')
-    def put_driver_in_unconfigured_mode(self):
-        """Wrap the steps and asserts for going into unconfigured state.
-           May be used in multiple test cases.
-        """
-        # Test that the driver protocol is in state connected.
-        self.check_state(ProtocolState.COMMAND)
-        
-        # put driver in disconnected state.
-        self.driver_client.cmd_dvr('disconnect')
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('initialize')
-
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-    @unittest.skip('temp disable')
-    def put_driver_in_command_mode(self):
-        """Wrap the steps and asserts for going into command mode.
-           May be used in multiple test cases.
-        """
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(ProtocolState.UNKNOWN)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        try:
-            # Test that the driver protocol is in state command.
-            self.check_state(ProtocolState.COMMAND)
-        except:
-            self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
-            # Put the driver in command mode
-            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-            # Test that the driver protocol is in state command.
-            self.check_state(ProtocolState.COMMAND)
-
-    @unittest.skip('temp disable')      # TODO adjust this test to use valid values so aquadopp doesn't complain
-    def test_set_init_params(self):
-        """
-        @brief Test for set_init_params()
-        """
-        self.assert_initialize_driver()
-
-        values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        #print("vb=%s" %values_before)
-
-        self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: base64.b64encode(user_config1())})
-        self.driver_client.cmd_dvr("apply_startup_params")
-
-        values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-        #print("va=%s" %values_after)
-        #
-        # # check to see if startup config got set in instrument
-        # self.assertEquals(values_after[Parameter.DIAGNOSTIC_INTERVAL], 600)
-        # self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 600)
-        #
-        # self.driver_client.cmd_dvr('set_resource', values_before)
-        # values_reset = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        # self.assertEquals(values_reset, values_before)
 
     # @unittest.skip('temp disable')
     def test_startup_configuration(self):
@@ -802,61 +471,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         """
         self.put_driver_in_command_mode()
 
-    @unittest.skip('temp disable')
-    def test_instrument_clock_sync(self):
-        """
-        @brief Test for syncing clock
-        """
-        
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
-
-        # command the instrument to sync the clck.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
-        
-        # verify that the dates match 
-        local_time = time.gmtime(time.mktime(time.localtime()))
-        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
-        self.assertTrue(local_time_str[:12].upper() in response[1].upper())
-        
-        # verify that the times match closely
-        instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
-        it = datetime.datetime(*instrument_time[:6])
-        lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
-        if lt - it > datetime.timedelta(seconds = 5):
-            self.fail("time delta too large after clock sync")      
-
-    @unittest.skip('temp disable')      # TODO adjust this test to use valid values so aquadopp doesn't complain
-    def test_instrument_set_configuration(self):
-        """
-        @brief Test for setting instrument configuration
-        """
-        
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to set the user configuration.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=base64.b64encode(user_config2()))
-        
-        values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-        #print("va=%s" %values_after)
-        
-        # check to see if config got set in instrument
-        self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 3600)
-        self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 2)
-
     # @unittest.skip('temp disable')
     def test_instrument_read_clock(self):
         """
@@ -883,34 +497,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         log.debug("what mode returned: %s", response)
         self.assertTrue(2, response[1])
 
-    @unittest.skip('temp disable')
-    def test_instrument_power_down(self):
-        """
-        @brief Test for power_down
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to power down.
-        try:
-            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
-        except:
-            self.fail("Exception raised while trying to power down the instrument")
-        
-        # nothing to check except that no exceptions were raised
-
-    @unittest.skip('temp disable')
-    def test_instrument_read_battery_voltage(self):
-        """
-        @brief Test for reading battery voltage
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the battery voltage.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
-        
-        log.debug("read battery voltage returned: %s", response)
-        self.assertTrue(isinstance(response[1], int))
-
     # @unittest.skip('temp disable')      # TODO don't think this is requireed in the OIS & fully supported in code
     def test_instrument_read_id(self):
         """
@@ -923,20 +509,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         
         log.debug("read ID returned: %s", response)
         self.assertTrue(re.search(r'AQD 9984.*', response[1]))
-
-    @unittest.skip('temp disable')      # TODO don't think this is requireed in the OIS & fully supported in code
-    def test_instrument_read_fat(self):
-        """
-        @brief Test for reading FAT
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the FAT.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_FAT)
-        
-        log.debug("read ID returned:")
-        for item in response[1]:
-            log.debug("%s", item)
 
     # @unittest.skip('temp disable')
     def test_instrument_read_hw_config(self):
@@ -981,102 +553,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         
         log.debug("read HEAD config returned: %s", response)
         self.assertEqual(head_config, response[1])
-
-    @unittest.skip('temp disable')      # TODO don't think this is requireed in the OIS & fully supported in code
-    def test_instrument_start_measurement_immediate(self):
-        """
-        @brief Test for starting measurement immediate
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to start measurement immediate.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
-        gevent.sleep(100)  # wait for measurement to complete  
-                      
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        #log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-        
-        # take instrument out of sample mode so we don't fill up the recorder
-        self.put_driver_in_unconfigured_mode()
-        self.put_driver_in_command_mode()
-
-    @unittest.skip('temp disable')      # TODO don't think this is requireed in the OIS & fully supported in code
-    def test_instrument_start_measurement_at_specific_time(self):
-        """
-        @brief Test for starting measurement immediate
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to start measurement immediate.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME)
-        gevent.sleep(100)  # wait for measurement to complete 
-                      
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        #log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-        
-        # take instrument out of sample mode so we don't fill up the recorder
-        self.put_driver_in_unconfigured_mode()
-        self.put_driver_in_command_mode()
-
-    @unittest.skip('temp disable')      # TODO adjust this test to use valid values so aquadopp doesn't complain
-    def test_instrument_set(self):
-        """
-        @brief Test for setting instrument parameter
-        """
-        self.put_driver_in_command_mode()
-
-        # Get all device parameters. Confirm all expected keys are retrieved
-        # and have correct type.
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDictionariesEqual(reply, params_dict, True)
-
-        # Grab a subset of parameters.
-        params = [
-            Parameter.WRAP_MODE
-            ]
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        #self.assertParamDict(reply)        
-
-        # Remember the original subset.
-        orig_params = reply
-        
-        # Construct new parameters to set.
-        new_wrap_mode = 1 if orig_params[Parameter.WRAP_MODE]==0 else 0
-        log.debug('old=%d, new=%d' %(orig_params[Parameter.WRAP_MODE], new_wrap_mode))
-        new_params = {
-            Parameter.WRAP_MODE : new_wrap_mode
-        }
-        
-        # Set parameter and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_params)
-        
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertEqual(new_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
-
-        # Reset parameter to original value and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
-        
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertEqual(orig_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
-
-        # set wrap_mode to 1 to leave instrument with wrap mode enabled
-        new_params = {
-            Parameter.WRAP_MODE : 1,
-            Parameter.AVG_INTERVAL : 60,
-            Parameter.DIAGNOSTIC_INTERVAL : 43200
-        }
-        
-        # Set parameter and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_params)
-        
-        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.AVG_INTERVAL, Parameter.DIAGNOSTIC_INTERVAL])
-        self.assertEqual(new_params, reply)
 
     # @unittest.skip('temp disable')
     def test_instrument_acquire_sample(self):
