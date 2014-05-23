@@ -47,10 +47,15 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.driver.antelope.orb.driver import AntelopeOrbDataSetDriver
-from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticle, DataParticleType
-from mi.dataset.parser.antelope_orb import StateKey
-from mi.dataset.parser.antelope_orb import ParserConfigKey
+
+# Ignore antelope import errors for buildbot
+try:
+    from mi.dataset.driver.antelope.orb.driver import AntelopeOrbDataSetDriver
+    from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticle, DataParticleType
+    from mi.dataset.parser.antelope_orb import StateKey
+    from mi.dataset.parser.antelope_orb import ParserConfigKey
+except Exception as e: 
+    log.warn("Failed to import antelope lib: %s", e)
 
 from mock import patch, MagicMock
 
@@ -65,10 +70,13 @@ import cProfile
 profile = cProfile.Profile()
 
 
-from mi.core.kudu.brttpkt import NoData
-import _Pkt as _pkt
-from mi.core.kudu.orb import Orb
-
+# Ignore antelope import errors for buildbot
+try:
+    from mi.core.kudu.brttpkt import NoData
+    import _Pkt as _pkt
+    from mi.core.kudu.orb import Orb
+except Exception as e: 
+    log.warn("Failed to import antelope lib: %s", e)
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
@@ -81,29 +89,32 @@ ORB_SERVER_PATH='/opt/antelope/5.3/bin/orbserver'
 
 
 # Fill in driver details
-DataSetIntegrationTestCase.initialize(
-    driver_module='mi.dataset.driver.antelope.orb.driver',
-    driver_class='AntelopeOrbDataSetDriver',
-    agent_resource_id = '123xyz',
-    agent_name = 'Agent007',
-    agent_packet_config = AntelopeOrbDataSetDriver.stream_config(),
-    startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'antelope_orb',
-        DataSourceConfigKey.HARVESTER:
-        {
-            # IDK requires this to be present; it's not very friendly to
-            # drivers that don't use a harvester.
-            DataSetDriverConfigKeys.DIRECTORY: 'not used',
-            DataSetDriverConfigKeys.PATTERN: 'not used',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
-        },
-        DataSourceConfigKey.PARSER: {
-            ParserConfigKey.ORBNAME: ORB_NAME,
-            ParserConfigKey.SELECT: '',
-            ParserConfigKey.REJECT: '',
+try:
+    DataSetIntegrationTestCase.initialize(
+        driver_module='mi.dataset.driver.antelope.orb.driver',
+        driver_class='AntelopeOrbDataSetDriver',
+        agent_resource_id = '123xyz',
+        agent_name = 'Agent007',
+        agent_packet_config = AntelopeOrbDataSetDriver.stream_config(),
+        startup_config = {
+            DataSourceConfigKey.RESOURCE_ID: 'antelope_orb',
+            DataSourceConfigKey.HARVESTER:
+            {
+                # IDK requires this to be present; it's not very friendly to
+                # drivers that don't use a harvester.
+                DataSetDriverConfigKeys.DIRECTORY: 'not used',
+                DataSetDriverConfigKeys.PATTERN: 'not used',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+            DataSourceConfigKey.PARSER: {
+                ParserConfigKey.ORBNAME: ORB_NAME,
+                ParserConfigKey.SELECT: '',
+                ParserConfigKey.REJECT: '',
+            }
         }
-    }
-)
+    )
+except Exception as e: 
+    log.warn("Failed to import antelope lib: %s", e)
 
 
 
@@ -183,7 +194,7 @@ class AntelopeMixin(object):
 # Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
-@attr('INT', group='mi')
+@attr('ANTELOPE', group='mi')
 class IntegrationTestCase(DataSetIntegrationTestCase):
     # configuration singleton
 #    test_config = DataSetTestConfig()
@@ -353,7 +364,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
 # Device specific qualification tests are for                                 #
 # testing device specific capabilities                                        #
 ###############################################################################
-@attr('QUAL', group='mi')
+@attr('ANTELOPE', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
     def test_missing_directory(self):
