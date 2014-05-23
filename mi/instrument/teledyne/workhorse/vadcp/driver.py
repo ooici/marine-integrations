@@ -121,8 +121,10 @@ class InstrumentCmds(TeledyneInstrumentCmds):
     Represents the commands the driver implements and the string that
     must be sent to the instrument to execute the command.
     """
-    GET2 = '   '
-    SET2 = '    '
+    #GET2 = '    '
+    #SET2 = '     '
+    GET2 = 'get2'
+    SET2 = 'set2'
 
 class RawDataParticle_5thbeam(RawDataParticle):
     _data_particle_type = "raw_5thbeam"
@@ -535,10 +537,9 @@ class Protocol(WorkhorseProtocol):
         if the formatting function could not accept the value passed.
         """
 
-        log.error("Sung in build_set_command2 %", param)
+        log.error("Sung in build_set_command2 %s", param)
         try:
             str_val = self._param_dict2.format(param + "_5th", val)
-            #split_param = param.split('_', 1)
 
             set_cmd = '%s%s' % (param, str_val)
             set_cmd = set_cmd + NEWLINE
@@ -821,6 +822,8 @@ class Protocol(WorkhorseProtocol):
         # Get the build handler.
         log.error("Sung do_cmd_resp2 2")
         build_handler = self._build_handlers.get(cmd, None)
+        log.error("Sung do_cmd_resp2 2 %s", repr(build_handler))
+
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
         log.error("Sung do_cmd_resp2 3 cmd : %s", cmd)
@@ -1444,7 +1447,10 @@ class Protocol(WorkhorseProtocol):
             cmds = self._get_params()
             results = ""
             for attr in sorted(cmds):
-                if attr not in ['dict', 'has', 'list', 'ALL', TeledyneParameter2.CLOCK_SYNCH_INTERVAL, TeledyneParameter2.GET_STATUS_INTERVAL]:
+                log.error("Sung test test2 %s", attr)
+                #if attr not in ['dict', 'has', 'list', 'ALL', TeledyneParameter2.CLOCK_SYNCH_INTERVAL, TeledyneParameter2.GET_STATUS_INTERVAL]:
+                if attr not in ['dict', 'has', 'list', 'ALL', 'GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL']:
+
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
                         log.error("Sung update_params2 key %s", key)
@@ -1504,7 +1510,7 @@ class Protocol(WorkhorseProtocol):
         for (key, val) in params.iteritems():
             log.error("Sung set_params2 key %s", key)
             if(key.find('_') != -1) :  # Found
-                if key not in [TeledyneParameter2.CLOCK_SYNCH_INTERVAL, TeledyneParameter2.GET_STATUS_INTERVAL]:
+                if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     log.error("Sung set_params2 key %s", key)
                     log.error("Sung set_params2 value %s", val)
                     key_split = key.split('_', 1)
@@ -1622,6 +1628,7 @@ class Protocol(WorkhorseProtocol):
         assert isinstance(start_list, list)
 
         for param in start_list:
+            log.error("Sung test001 %s", param)
             result = self._param_dict2.get_config_value(param)
             if(result != None):
                 return_dict[param] = result
@@ -2795,28 +2802,28 @@ class Protocol(WorkhorseProtocol):
             default_value=175)
 
         # Engineering parameters
-        self._param_dict2.add(Parameter2.CLOCK_SYNCH_INTERVAL,
-            r'BOGUS',
-            None,
-            str,
-            type=ParameterDictType.STRING,
-            display_name="clock synch interval for 5th beam",
-            startup_param=True,
-            direct_access=False,
-            default_value="00:00:00")
+        #self._param_dict2.add(Parameter2.CLOCK_SYNCH_INTERVAL,
+        #    r'BOGUS',
+        #    None,
+        #    str,
+        #    type=ParameterDictType.STRING,
+        #    display_name="clock synch interval for 5th beam",
+        #    startup_param=True,
+        #    direct_access=False,
+        #    default_value="00:00:00")
 
-        self._param_dict2.add(Parameter2.GET_STATUS_INTERVAL,
-            r'BOGUS',
-            None,
-            str,
-            type=ParameterDictType.STRING,
-            display_name="get status interval for 5th beam",
-            startup_param=True,
-            direct_access=False,
-            default_value="00:00:00")
+        #self._param_dict2.add(Parameter2.GET_STATUS_INTERVAL,
+        #    r'BOGUS',
+        #    None,
+        #    str,
+        #    type=ParameterDictType.STRING,
+        #    display_name="get status interval for 5th beam",
+        #    startup_param=True,
+        #   direct_access=False,
+        #    default_value="00:00:00")
 
-        self._param_dict2.set_default(Parameter2.CLOCK_SYNCH_INTERVAL)
-        self._param_dict2.set_default(Parameter2.GET_STATUS_INTERVAL)
+        #self._param_dict2.set_default(Parameter2.CLOCK_SYNCH_INTERVAL)
+        #self._param_dict2.set_default(Parameter2.GET_STATUS_INTERVAL)
 
     def _handler_command_init_params(self, *args, **kwargs):
         """
@@ -3282,13 +3289,16 @@ class Protocol(WorkhorseProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
+            log.error("Sung test test 007 %s", repr(params))
             if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
                 if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
                     self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
                     self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             else:
+                 log.error("Sung test test002 %s", repr(params))
                  result = self._set_params(params, startup)
+                 log.error("Sung test test003 %s", repr(params))
                  result2 = self._set_params2(params, startup)
 
         return (next_state, result)
