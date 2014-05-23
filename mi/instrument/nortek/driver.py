@@ -48,7 +48,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 
 from mi.core.time import get_timestamp_delayed
-from mi.core.common import InstErrorCode, BaseEnum
+from mi.core.common import BaseEnum
 
 # newline.
 NEWLINE = '\n\r'
@@ -864,31 +864,6 @@ class NortekParameterDictVal(RegexParameter):
 
 class NortekProtocolParameterDict(ProtocolParameterDict):
 
-    @staticmethod
-    def convert_to_raw_value(param_name, initial_value):
-        """
-        Convert COMMENTS, DEPLOYMENT_NAME, QUAL_CONSTANTS, VELOCITY_ADJ_TABLE,
-        and CLOCK_DEPLOY back to their instrument-ready binary representation
-        despite them being stored in an ION-friendly not-raw-binary format.
-        @param params a name of a parameter
-        @param initial_value The value that is being converted
-        @retval The raw, instrument-binary value for that name. If the value would
-        already be instrument-level coming  out of the param dict, there is
-        no change
-        """
-        if param_name == Parameter.COMMENTS:
-            return initial_value.ljust(180, "\x00")
-        if param_name == Parameter.DEPLOYMENT_NAME:
-            return initial_value.ljust(6, "\x00")
-        if param_name == Parameter.QUAL_CONSTANTS:
-            return base64.b64decode(initial_value.get_value())
-        if param_name == Parameter.VELOCITY_ADJ_TABLE:
-            return base64.b64decode(initial_value.get_value())
-        if param_name == Parameter.CLOCK_DEPLOY:
-            return NortekProtocolParameterDict.convert_datetime_to_words(initial_value.get_value())
-
-        return initial_value
-
     def get_config(self):
         """
         Retrieve the configuration (all key values not ending in 'Spare').
@@ -931,17 +906,6 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         self._param_dict[name].value.set_value(value)
 
         return retval
-
-    def get_keys(self):
-        """
-        Return list of device parameters available.  These are a subset of all the parameters
-        """
-        list = []
-        for param in self._param_dict.keys():
-            if not param.endswith('Spare'):
-                list.append(param)
-        log.debug('get_keys: list=%s', list)
-        return list
 
     @staticmethod
     def word_to_string(value):
@@ -1231,9 +1195,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DISCOVER, self._handler_unknown_discover)  # TODO what was this for again?
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_MODE, self._handler_command_read_mode)
-        # self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_CONFIGURATION, self._handler_command_set_configuration)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
@@ -2019,14 +1981,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.START_DIRECT, display_name='start direct access')
         self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct access')
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
-        # self._cmd_dict.add(Capability.SET_CONFIGURATION)
-        # self._cmd_dict.add(Capability.READ_CLOCK)
-        # self._cmd_dict.add(Capability.READ_MODE)
-        # self._cmd_dict.add(Capability.READ_BATTERY_VOLTAGE)
-        # self._cmd_dict.add(Capability.READ_ID)
-        # self._cmd_dict.add(Capability.GET_HW_CONFIGURATION)
-        # self._cmd_dict.add(Capability.GET_HEAD_CONFIGURATION)
-        # self._cmd_dict.add(Capability.GET_USER_CONFIGURATION)
 
         # Child should load this, no need to do it twice 
         # self._cmd_dict.load_strings() TODO do we need this?
