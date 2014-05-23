@@ -98,6 +98,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.memento,
                 self.data_callback,
                 self.state_callback,
+                self.event_callback,
                 self.exception_callback)
 
     def test_get(self):
@@ -145,12 +146,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time_1 = os.path.getmtime(file_path_1)
         file_size_1 = os.path.getsize(file_path_1)
         with open(file_path_1) as filehandle:
-	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+            md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
         file_path_2 = os.path.join(directory, "DATA002.TXT")
         mod_time_2 = os.path.getmtime(file_path_2)
         file_size_2 = os.path.getsize(file_path_2)
         with open(file_path_2) as filehandle:
-	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+            md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
 
         # Create and store the new driver state
         state = {"DATA001.TXT":{'ingested': True,
@@ -172,6 +173,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             state,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse

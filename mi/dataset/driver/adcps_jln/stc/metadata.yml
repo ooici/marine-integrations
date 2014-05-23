@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Maria Lutz
+  constructor: AdcpsJlnStcDataSetDriver
+  driver_name: adcps_jln_stc
+  driver_path: adcps_jln/stc
+  email: mlutz@bbn.com
+  release_notes: Initial Release
+  version: 0.0.1

@@ -88,6 +88,15 @@ class ReadOnlyException(InstrumentException):
 class SampleException(InstrumentException):
     """ An expected sample could not be extracted. """
 
+class RecoverableSampleException(InstrumentException):
+    """ An expected sample could not be extracted, but this is recoverable. """
+
+class SampleEncodingException(SampleException):
+    """ An value could not be encoded as specified. """
+
+class UnexpectedDataException(SampleException):
+    """ Data was found that was not expected. """
+
 class DatasetHarvesterException(InstrumentException):
     """ An dataset parser encountered trouble. """
 

@@ -17,12 +17,14 @@ import copy
 import re
 import ntplib
 import struct
-import binhex
+import binascii
+import math
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
+
 from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, SAMPLE_BYTES
 
 
@@ -56,15 +58,18 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
             time_stamp = int(fields_prof[0])
             par_value = float(fields_prof[4])
         except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
+            raise SampleException("Error (%s) while decoding parameters in data: [0x%s]"
+                                  % (ex, binascii.hexlify(match.group(0))))
+        # confirm we did not get an NaNs
+        if math.isnan(par_value) or math.isnan(time_stamp):
+            log.error("Found a NaN value in the data")
+            raise SampleException("Got a NaN value")
         
         result = [{DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: time_stamp},
                   {DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.SENSOR_DATA,
                    DataParticleKey.VALUE: par_value}]
 
-        log.debug('Parad_k_stc_imodemParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -99,12 +104,10 @@ class Parad_k_stc_imodemParser(WfpEFileParser):
             fields = struct.unpack('>I', record[:4])
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
-            log.debug("Parad_k_stc_imodemParserDataParticle: Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
             # PARAD_K Data
             sample = self._extract_sample(Parad_k_stc_imodemParserDataParticle, None, record, self._timestamp)
             if sample:
                 # create particle
-                log.trace("Parad_k_stc_imodemParserDataParticle: Extracting sample %s with read_state: %s", sample, self._read_state)
                 self._increment_state(SAMPLE_BYTES)
                 result_particle = (sample, copy.copy(self._read_state))
 

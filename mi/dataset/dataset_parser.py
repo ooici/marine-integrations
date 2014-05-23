@@ -11,10 +11,14 @@ out of files and feed them into the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+import time
+import ntplib
+
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, NotImplementedException
+from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException
+from mi.core.exceptions import NotImplementedException, UnexpectedDataException
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -113,12 +117,19 @@ class Parser(object):
         try:
             if regex is None or regex.match(raw_data):
                 particle = particle_class(raw_data, internal_timestamp=timestamp,
-                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
-
+                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP,
+                                          new_sequence=self._new_sequence)
                 if self._new_sequence:
                     self._new_sequence = False
 
-        except SampleException as e:
+                # need to actually parse the particle fields to find out of there are errors
+                particle.generate()
+                encoding_errors = particle.get_encoding_errors()
+                if encoding_errors:
+                    log.warn("Failed to encode: %s", encoding_errors)
+                    raise SampleEncodingException("Failed to encode: %s" % encoding_errors)
+
+        except (RecoverableSampleException, SampleEncodingException) as e:
             log.error("Sample exception detected: %s raw data: %s", e, raw_data)
             if self._exception_callback:
                 self._exception_callback(e)
@@ -134,8 +145,35 @@ class BufferLoadingParser(Parser):
     to operate this way, but it can keep memory in check and smooth out
     stream inputs if they dont all come at once.
     """
-    file_complete = False
-        
+
+    def __init__(self, config, stream_handle, state, sieve_fn,
+                 state_callback, publish_callback, exception_callback = None):
+        """
+        @param config The configuration parameters to feed into the parser
+        @param stream_handle An already open file-like filehandle
+        @param state The location in the file to start parsing from.
+           This reflects what has already been published.
+        @param sieve_fn A sieve function that might be added to a handler
+           to appropriate filter out the data
+        @param state_callback The callback method from the agent driver
+           (ultimately the agent) to call back when a state needs to be
+           updated
+        @param publish_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our sample particle to
+           be published into ION
+        @param exception_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our error events to
+           be published into ION
+        """
+        self._record_buffer = []
+        self._timestamp = 0.0
+        self.file_complete = False
+
+        super(BufferLoadingParser, self).__init__(config, stream_handle, state,
+                                                  sieve_fn, state_callback,
+                                                  publish_callback,
+                                                  exception_callback)
+
     def get_records(self, num_records):
         """
         Go ahead and execute the data parsing loop up to a point. This involves
@@ -150,9 +188,22 @@ class BufferLoadingParser(Parser):
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
         except EOFError:
-            pass            
+            self._process_end_of_file()
         return self._yank_particles(num_records)
-                
+
+    def _process_end_of_file(self):
+        """
+        Confirm that the chunker does not have any extra bytes left at the end of the file
+        """
+        (nd_timestamp, non_data) = self._chunker.get_next_non_data()
+        (timestamp, chunk) = self._chunker.get_next_data()
+        if (non_data and len(non_data) > 0):
+            log.warn("Have extra unexplained non-data bytes at the end of the file:%s", non_data)
+            raise UnexpectedDataException("Have extra unexplained non-data bytes at the end of the file:%s" % non_data)
+        elif (chunk and len(chunk) > 0):
+            log.warn("Have extra unexplained data chunk bytes at the end of the file:%s", chunk)
+            raise UnexpectedDataException("Have extra unexplained data chunk bytes at the end of the file:%s" % chunk)
+
     def _yank_particles(self, num_records):
         """
         Get particles out of the buffer and publish them. Update the state
@@ -188,7 +239,7 @@ class BufferLoadingParser(Parser):
             self._state_callback(self._state, file_ingested) # push new state to driver
 
         return return_list
-        
+
     def _load_particle_buffer(self):
         """
         Load up the internal record buffer with some particles based on a
@@ -208,7 +259,7 @@ class BufferLoadingParser(Parser):
         # read in some more data
         data = self._stream_handle.read(size)
         if data:
-            self._chunker.add_chunk(data, self._timestamp)
+            self._chunker.add_chunk(data, ntplib.system_to_ntp_time(time.time()))
             return len(data)
         else: # EOF
             self.file_complete = True
