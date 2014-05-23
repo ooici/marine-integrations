@@ -39,6 +39,7 @@ from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 from mi.dataset.dataset_driver import DataSourceConfigKey, DriverParameter
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from interface.objects import ResourceAgentConnectionLostErrorEvent
@@ -191,20 +192,37 @@ class DataSetTestCase(MiIntTestCase):
         if not startup_config:
             raise IDKConfigMissing("Driver config missing 'startup_config'")
 
-        harvester_config = startup_config.get('harvester')
+        harvester_config = startup_config.get(DataSourceConfigKey.HARVESTER)
         if not harvester_config:
             raise IDKConfigMissing("Startup config missing 'harvester' config")
 
-        data_dir = harvester_config.get("directory")
-        if not data_dir:
-            raise IDKConfigMissing("Harvester config missing 'directory'")
+        if DataSetDriverConfigKeys.DIRECTORY in harvester_config:
+            # there is just one harvester config
+            data_dir = harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+            if not data_dir:
+                raise IDKConfigMissing("Harvester config missing 'directory'")
 
-        if not os.path.exists(data_dir):
-            log.debug("Creating data dir: %s", data_dir)
-            os.makedirs(data_dir)
+            if not os.path.exists(data_dir):
+                log.debug("Creating data dir: %s", data_dir)
+                os.makedirs(data_dir)
 
-        elif not os.path.isdir(data_dir):
-            raise IDKException("'data_dir' is not a directory")
+            elif not os.path.isdir(data_dir):
+                raise IDKException("'data_dir' is not a directory")
+        else:
+            # return an array of dirs if there are multiple harvester configs
+            data_dir = []
+            for key in harvester_config:
+                this_dir = harvester_config[key].get(DataSetDriverConfigKeys.DIRECTORY)
+                if not this_dir:
+                    raise IDKConfigMissing("Harvester config missing 'directory'")
+
+                if not os.path.exists(this_dir):
+                    log.debug("Creating data dir: %s", this_dir)
+                    os.makedirs(this_dir)
+
+                elif not os.path.isdir(this_dir):
+                    raise IDKException("'data_dir' is not a directory")
+                data_dir.append(this_dir)
 
         return data_dir
     
@@ -220,7 +238,7 @@ class DataSetTestCase(MiIntTestCase):
         if not startup_config:
             raise IDKConfigMissing("Driver config missing 'startup_config'")
 
-        harvester_config = startup_config.get('harvester')
+        harvester_config = startup_config.get(DataSourceConfigKey.HARVESTER)
         if not harvester_config:
             raise IDKConfigMissing("Startup config missing 'harvester' config")
 
@@ -237,7 +255,11 @@ class DataSetTestCase(MiIntTestCase):
         """
         data_dir = self.create_data_dir()
         self.clear_sample_data()
-        os.rmdir(data_dir)
+        if isinstance(data_dir, list):
+            for d_dir in data_dir:
+                os.rmdir(d_dir)
+        else:
+            os.rmdir(data_dir)
 
     def clear_sample_data(self):
         """
@@ -247,12 +269,21 @@ class DataSetTestCase(MiIntTestCase):
         stored_data_dir = self.get_data_storage_dir()
 
         log.debug("Clean all data from %s", data_dir)
-        remove_all_files(data_dir)
+        if isinstance(data_dir, list):
+            for d_dir in data_dir:
+                remove_all_files(d_dir)
+        else:
+            remove_all_files(data_dir)
 
         # storage dir might not be in use
         log.debug("Clean all data from %s", stored_data_dir)
-        if stored_data_dir and os.path.isdir(stored_data_dir):
-            remove_all_files(stored_data_dir)
+        if stored_data_dir:
+            if isinstance(stored_data_dir, list):
+                for d_dir in stored_data_dir:
+                    if os.path.isdir(d_dir):
+                        remove_all_files(d_dir)
+            elif os.path.isdir(stored_data_dir):
+                remove_all_files(stored_data_dir)
 
     def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
         """
@@ -507,14 +538,17 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
             self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
 
-    def assert_file_ingested(self, filename):
+    def assert_file_ingested(self, filename, data_source_key=None):
         """
         Assert that a particular file was ingested (useable by Single Directory driver, not Single File driver),
         If the ingested flag is not set in the driver state for this file, fail the test
         @ param filename name of the file to check that it was ingested using the ingested flag
         """
         log.debug("last state callback result %s", self.state_callback_result[-1])
-        last_state = self.state_callback_result[-1]
+        if data_source_key is None:
+            last_state = self.state_callback_result[-1]
+        else:
+            last_state = self.state_callback_result[-1][data_source_key]
         if not filename in last_state or not last_state[filename]['ingested']:
             self.fail("File %s was not ingested" % filename)
 
@@ -597,20 +631,38 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         """
         self.clear_sample_data()
 
-        config = self._driver_config()['startup_config']['harvester']['pattern']
-        filename = config.replace("*", "foo")
-        self.assertIsNotNone(config)
+        harvester_config = self._driver_config()['startup_config'][DataSourceConfigKey.HARVESTER]
 
-        # create the file so that it is unreadable
-        self.create_sample_data(filename, create=True, mode=000)
+        if DataSetDriverConfigKeys.PATTERN in harvester_config:
+            pattern = harvester_config[DataSetDriverConfigKeys.PATTERN]
+            filename = pattern.replace("*", "foo")
+            self.assertIsNotNone(pattern)
 
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
+            # create the file so that it is unreadable
+            self.create_sample_data(filename, create=True, mode=000)
 
-        self.assert_exception(IOError)
+            # Start sampling and watch for an exception
+            self.driver.start_sampling()
 
-        # At this point the harvester thread is dead.  The agent
-        # exception handle should handle this case.
+            self.assert_exception(IOError)
+        else:
+            # Start sampling and watch for an exceptions
+            self.driver.start_sampling()
+
+            # there are multiple harvester configs, test each one
+            for key in harvester_config:
+                pattern = harvester_config[key][DataSetDriverConfigKeys.PATTERN]
+                filename = pattern.replace("*", "foo")
+                file_dir = harvester_config[key][DataSetDriverConfigKeys.DIRECTORY]
+                self.assertIsNotNone(pattern)
+                self.assertIsNotNone(file_dir)
+
+                # create the file so that it is unreadable
+                self.create_sample_data_set_dir(filename, file_dir, create=True, mode=000)
+
+                self.assert_exception(IOError)
+                # clear out exceptions so we know we get a new one next key
+                self.clear_async_data()
 
     def test_parameters(self):
         """
@@ -724,6 +776,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertIsNotNone(params.get(DriverParameter.RECORDS_PER_SECOND))
         self.assertIsNotNone(params.get(DriverParameter.PUBLISHER_POLLING_INTERVAL))
         self.assertIsNotNone(params.get(DriverParameter.BATCHED_PARTICLE_COUNT))
+
 
 class DataSetAgentTestCase(DataSetTestCase):
     """
@@ -902,7 +955,7 @@ class DataSetAgentTestCase(DataSetTestCase):
         cmd = AgentCommand(command=DriverEvent.STOP_AUTOSAMPLE)
         retval = self.dataset_agent_client.execute_resource(cmd)
         state = self.dataset_agent_client.get_agent_state()
-        log.info("Sent START SAMPLING; DSA state = %s", state)
+        log.info("Sent STOP SAMPLING; DSA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
     def assert_start_sampling(self):
@@ -1359,15 +1412,38 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
 
         exception callback called.
         """
-        config = self._driver_config()['startup_config']['harvester']['pattern']
-        filename = config.replace("*", "foo")
+        harvester_config = self._driver_config()['startup_config'][DataSourceConfigKey.HARVESTER]
+        log.debug('Harvester config %s', harvester_config)
+        if DataSetDriverConfigKeys.PATTERN in harvester_config:
+            pattern = harvester_config[DataSetDriverConfigKeys.PATTERN]
+            filename = pattern.replace("*", "foo")
+            self.assert_new_file_exception(filename)
+        else:
+            for key in harvester_config:
+                pattern = harvester_config[key][DataSetDriverConfigKeys.PATTERN]
+                file_dir = harvester_config[key][DataSetDriverConfigKeys.DIRECTORY]
+                filename = pattern.replace("*", "foo")
 
-        self.assert_new_file_exception(filename)
+                self.assert_new_file_exception(filename, file_dir)
+                # stop sampling so we can start again
+                self.assert_stop_sampling()
 
-    def assert_new_file_exception(self, filename):
+                # stop and restart the agent so we can test the next key new file exception
+                self.stop_dataset_agent_client()
+                self.init_dataset_agent_client()
 
+    def assert_new_file_exception(self, filename, directory=None):
+        """
+        Assert that an unreadable file creates an exception and loses connection,
+        then making that file readable regains the connection
+        @param filename filename of the file to create
+        @param directory optional directory to create file in, default to None
+        """
         self.clear_sample_data()
-        self.create_sample_data(filename, mode=000)
+        if directory is None:
+            self.create_sample_data(filename, mode=000)
+        else:
+            self.create_sample_data_set_dir(filename, directory, mode=000)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -1377,7 +1453,10 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.clear_sample_data()
-        self.create_sample_data(filename)
+        if directory is None:
+            self.create_sample_data(filename)
+        else:
+            self.create_sample_data_set_dir(filename, directory)
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)

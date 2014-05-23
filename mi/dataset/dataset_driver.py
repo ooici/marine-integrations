@@ -915,7 +915,8 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
         @param event_callback Method to call when an event occurs
         @param exception_callback Method to call when an exception occurs
         @param data_keys A list of keys, one for each harvester/parser pair to start
-        @param harvester_type Optional parameter defaults to None, a dictionary of data keys associated with a harvester type
+        @param harvester_type Optional dictionary of data keys associated with a harvester type.  If any single file
+                              harvesters are in use, this must be specified, otherwise it defaults to directory harvesters.
         """
         self._data_keys = data_keys
         if harvester_type != None and not isinstance(harvester_type, dict):
