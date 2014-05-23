@@ -642,6 +642,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             log.error("Sung in update_params cmd : %s", repr(cmds))
             results = ""
             for attr in sorted(cmds):
+                log.error("Sung test test %s", attr)
                 if attr not in ['dict', 'has', 'list', 'ALL','GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL' ]:
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
@@ -699,6 +700,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._verify_not_readonly(*args, **kwargs)
         for (key, val) in params.iteritems():
             if(key.find('_') ==-1): # Not found
+                log.error("Sung test test test %s", key)
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL,TeledyneParameter.GET_STATUS_INTERVAL]:
                     result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
@@ -716,6 +718,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         result = {}
 
         for param in param_list:
+            log.error("Sung test test007 %s", param)
             val = self._param_dict.get(param, expire_time)
             result[param] = val
 
@@ -811,6 +814,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws: InstrumentParameterException
         """
         log.trace("in _instrument_config_dirty")
+        log.error("Sung in _instrument_config_dirty")
         # Refresh the param dict cache
         #self._update_params()
 
@@ -1022,7 +1026,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         # start scheduled event for clock synch
-        clock_interval = self._param_dict.get(self._getattr_key(TeledyneParameter.CLOCK_SYNCH_INTERVAL))
+        log.error("Sung clockSynch")
+        clock_interval = self._param_dict.get(self._getattr_key('CLOCK_SYNCH_INTERVAL'))
         if clock_interval != '00:00:00':
             log.error("Sung start schedule")
             self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
@@ -1429,6 +1434,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             else:
+                 log.error("Sung test test005 %s", repr(params))
                  result = self._set_params(params, startup)
 
         return (next_state, result)
@@ -1616,6 +1622,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
 
         try:
+            log.error("Sung test test006 %s", param)
             str_val = self._param_dict.format(param, val)
             set_cmd = '%s%s' % (param, str_val)
             set_cmd = set_cmd + NEWLINE
