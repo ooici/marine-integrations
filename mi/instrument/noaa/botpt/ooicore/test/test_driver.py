@@ -13,8 +13,6 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-
-
 import time
 import mi.instrument.noaa.botpt.ooicore.particles as particles
 from nose.plugins.attrib import attr
@@ -31,8 +29,8 @@ from mi.core.instrument.instrument_driver import DriverParameter, DriverConfigKe
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentDataException
-from mi.instrument.noaa.botpt.ooicore.driver import DataParticleType, NEWLINE, Parameter, Capability, InstrumentCommand, ProtocolState, ProtocolEvent, InstrumentDriver, Protocol
-
+from mi.instrument.noaa.botpt.ooicore.driver import DataParticleType, NEWLINE, Parameter, Capability, InstrumentCommand, \
+    ProtocolState, ProtocolEvent, InstrumentDriver, Protocol
 
 
 __author__ = 'Pete Cable'
@@ -331,7 +329,7 @@ class BotptTestMixinSub(DriverTestMixin):
         particles.IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True},
         particles.IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True}
     }
-    
+
     heat_sample_parameters_01 = {
         particles.HEATDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'HEAT', REQUIRED: True},
         particles.HEATDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/04/19 22:54:11', REQUIRED: True},
@@ -360,7 +358,7 @@ class BotptTestMixinSub(DriverTestMixin):
         self.assert_data_particle_keys(particle_keys, sample_data)
         self.assert_data_particle_header(data_particle, particle_type, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, sample_data, verify_values)
-    #
+
     def assert_particle_lily_sample_01(self, data_particle, verify_values=False):
         self.assert_particle(data_particle, DataParticleType.LILY_SAMPLE,
                              particles.LILYDataParticleKey, self.lily_sample_parameters_01, verify_values)
@@ -392,6 +390,7 @@ class BotptTestMixinSub(DriverTestMixin):
     def assert_particle_heat_sample_02(self, data_particle, verify_values=False):
         self.assert_particle(data_particle, DataParticleType.IRIS_SAMPLE,
                              particles.HEATDataParticleKey, self.heat_sample_parameters_02, verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -710,10 +709,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_AUTOSAMPLE)
-        self.assert_async_particle_generation(DataParticleType.LILY_PARSED,
-                                              self.assert_particle_sample_01,
-                                              particle_count=5,
-                                              timeout=10)
+        for particle_type, assert_func in [(DataParticleType.LILY_SAMPLE, self.assert_particle_lily_sample_01),
+                                           (DataParticleType.HEAT_SAMPLE, self.assert_particle_heat_sample_01),
+                                           (DataParticleType.IRIS_SAMPLE, self.assert_particle_iris_sample_01),
+                                           (DataParticleType.NANO_SAMPLE, self.assert_particle_nano_sample_01)]:
+            self.assert_async_particle_generation(particle_type, assert_func, particle_count=5, timeout=15)
         self.assert_driver_command(Capability.STOP_AUTOSAMPLE)
         self.assert_state_change(ProtocolState.COMMAND, 1)
 
