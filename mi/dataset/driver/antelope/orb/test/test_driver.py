@@ -59,15 +59,10 @@ except Exception as e:
 
 from mock import patch, MagicMock
 
-#try:
-#    import yappi
-#except ImportError:
-#    log.warning('yappi not available; profiling disabled')
-#    yappi = Mock()
-yappi = Mock()
-
 import cProfile
-profile = cProfile.Profile()
+profile = Mock()
+# NOTE: Uncomment to enable profiling
+#profile = cProfile.Profile()
 
 
 # The integration and qualification tests generated here are suggested tests,
@@ -438,7 +433,6 @@ class QualificationTest(DataSetQualificationTestCase):
           result = []
           nsamps = 0
           try:
-              yappi.start()
               profile.enable()
               while True:
                   try:
@@ -460,7 +454,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
           finally:
               profile.disable()
-              yappi.stop()
               period = end_time - start_time
               log.critical("Processed %d PACKETS_TO_SEND in %s for a rate of %s pps"
                   % (nsamps, period,  float(nsamps) / period ))
@@ -469,8 +462,6 @@ class QualificationTest(DataSetQualificationTestCase):
 #            self.stop_dataset_agent_client()
 
         # review published particles
-        with open('yappistats', 'w') as f:
-            yappi.print_stats(out=f)
 
         profile.dump_stats('cprofile')
 
