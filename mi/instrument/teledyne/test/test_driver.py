@@ -107,7 +107,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         raise NotImplementedException()
 
-    def test_scheduled_compass_calibration_command(self):
+    def _test_scheduled_compass_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
         """
@@ -115,7 +115,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100) #250
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
-    def test_scheduled_compass_calibration_autosample(self):
+    def _test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
         """

@@ -189,8 +189,8 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0},
 
         #Engineering parameter
-        Parameter.CLOCK_SYNCH_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:01:00'},
-        Parameter.GET_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:01:00'}
+        Parameter.CLOCK_SYNCH_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'},
+        Parameter.GET_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'}
     }
 
     _driver_capabilities = {

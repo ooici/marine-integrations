@@ -118,8 +118,8 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     ENSEMBLE_NUMBER = "ensemble_number"
     INTERNAL_TIMESTAMP = "internal_timestamp"
     ENSEMBLE_NUMBER_INCREMENT = "ensemble_number_increment"
+    BIT_RESULT_DEMOD_0 = "bit_result_demod_0"
     BIT_RESULT_DEMOD_1 = "bit_result_demod_1"
-    BIT_RESULT_DEMOD_2 = "bit_result_demod_2"
     BIT_RESULT_TIMING = "bit_result_timing"
     SPEED_OF_SOUND = "speed_of_sound"
     TRANSDUCER_DEPTH = "transducer_depth"
@@ -445,9 +445,9 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: ensemble_number})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER_INCREMENT,
                                   DataParticleKey.VALUE: ensemble_number_increment})
-        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_1,
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_0,
                                   DataParticleKey.VALUE: 1 if error_bit_field & 0b00001000 else 0})
-        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_2,
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_1,
                                   DataParticleKey.VALUE: 1 if error_bit_field & 0b00010000 else 0})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_TIMING,
                                   DataParticleKey.VALUE: 1 if error_bit_field & 0b00000010 else 0})

@@ -654,6 +654,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             new_config = self._param_dict.get_config()
             log.error("Sung in update_params new config : %s", repr(new_config))
             log.error("Sung in update_params old config : %s", repr(old_config))
+            #new_config.
             if not dict_equal(new_config, old_config, ['TT']):
                 log.error("Sung in update_params new equal")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)

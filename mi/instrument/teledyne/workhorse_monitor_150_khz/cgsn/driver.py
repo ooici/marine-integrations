@@ -120,7 +120,7 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=False,
-            default_value='11111')
+            default_value='00000')
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
@@ -272,7 +272,7 @@ class Protocol(WorkhorseProtocol):
             display_name="Time Per Ensemble",
             direct_access=False,
             startup_param=True,
-            default_value='01:00:00.00')
+            default_value='00:00:00.00')
 
         # NEVER USE THIS COMMAND.
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
@@ -293,7 +293,7 @@ class Protocol(WorkhorseProtocol):
             display_name="Time Per Ping",
             direct_access=False,
             startup_param=True,
-            default_value='01:20.00')
+            default_value='00:01.00')
 
         self._param_dict.add(Parameter.TIME,
             r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
@@ -356,7 +356,7 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.IMMUTABLE,
             direct_access=False,
             startup_param=True,
-            default_value='111 100 000')
+            default_value='111100000')
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
             r'WE (\d+) \-+ Error Velocity Threshold',
@@ -438,7 +438,7 @@ class Protocol(WorkhorseProtocol):
             display_name="Pings per Ensemble",
             direct_access=False,
             startup_param=True,
-            default_value=45)
+            default_value=1)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
@@ -491,7 +491,7 @@ class Protocol(WorkhorseProtocol):
             log.trace("WHOOPS! 1")
 
         try:
-            sock.connect(('localhost', 2102))
+            sock.connect(('10.180.80.178', 2102))
         except socket.error, msg:
             log.trace("WHOOPS! 2")
         sock.send("break " + str(delay) + "\r\n")

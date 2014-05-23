@@ -238,14 +238,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=120)
 
-    def test_scheduled_compass_calibration_command(self):
+    def _test_scheduled_compass_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
         """
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
-    def test_scheduled_compass_calibration_autosample(self):
+    def _test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
         """
@@ -262,14 +262,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=120)
 
-    def test_scheduled_device_configuration_command(self):
+    def _test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
         """
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=100)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
-    def test_scheduled_device_configuration_autosample(self):
+    def _test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """

@@ -100,14 +100,15 @@ class Protocol(WorkhorseProtocol):
         and value formatting function for set commands.
         """
 
-        #self._param_dict.add(Parameter.SERIAL_DATA_OUT,
-        #    r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
-        #    lambda match: str(match.group(1)),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="serial data out",
-        #    startup_param=True,
-        #    visibility=ParameterDictVisibility.READ_ONLY)
+        self._param_dict.add(Parameter.SERIAL_DATA_OUT,
+            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial data out",
+            startup_param=True,
+            #visibility=ParameterDictVisibility.READ_ONLY,
+            default_value='000 000 000')
 
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
             r'CF = (\d+) \-+ Flow Ctrl ',

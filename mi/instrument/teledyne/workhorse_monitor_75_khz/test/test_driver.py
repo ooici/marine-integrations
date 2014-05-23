@@ -252,7 +252,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.TRANSMIT_LENGTH: 0,
             WorkhorseParameter.PING_WEIGHT: 0,
             WorkhorseParameter.AMBIGUITY_VELOCITY: 175,
-
+            WorkhorseParameter.SERIAL_DATA_OUT: '000 000 000',
 
             WorkhorseParameter.LATENCY_TRIGGER: 0,
             WorkhorseParameter.HEADING_ALIGNMENT: '+00000',
@@ -718,7 +718,9 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.ROLL, 1)
         self.assert_set_parameter(WorkhorseParameter.SALINITY, 36)
         self.assert_set_parameter(WorkhorseParameter.TIME_PER_ENSEMBLE, '00:00:01.00')
+        self.assert_set_parameter(WorkhorseParameter.TIME_PER_ENSEMBLE, '01:00:00.00')
         self.assert_set_parameter(WorkhorseParameter.TIME_PER_PING, '00:02.00')
+        self.assert_set_parameter(WorkhorseParameter.TIME_PER_PING, '01:20.00')
         self.assert_set_parameter(WorkhorseParameter.FALSE_TARGET_THRESHOLD, '049,002')
         self.assert_set_parameter(WorkhorseParameter.BANDWIDTH_CONTROL, 1)
         self.assert_set_parameter(WorkhorseParameter.CORRELATION_THRESHOLD, 63)
@@ -741,6 +743,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.BUFFERED_OUTPUT_PERIOD, '00:00:12')
         self.assert_set_parameter(WorkhorseParameter.SAMPLE_AMBIENT_SOUND, 1)
         self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 60000)
+        self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 0)
 
     def test_startup_params_second_pass(self):
         """
@@ -764,6 +767,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.POLLED_MODE, True)
         self.assert_set_parameter(WorkhorseParameter.XMIT_POWER, 250)
         self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1480)
+        self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1500)
         self.assert_set_parameter(WorkhorseParameter.PITCH, 1)
         self.assert_set_parameter(WorkhorseParameter.ROLL, 1)
         self.assert_set_parameter(WorkhorseParameter.SALINITY, 36)
@@ -774,15 +778,19 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.CORRELATION_THRESHOLD, 63)
         self.assert_set_parameter(WorkhorseParameter.ERROR_VELOCITY_THRESHOLD, 1999)
         self.assert_set_parameter(WorkhorseParameter.BLANK_AFTER_TRANSMIT, 714)
+        self.assert_set_parameter(WorkhorseParameter.BLANK_AFTER_TRANSMIT, 352)
         self.assert_set_parameter(WorkhorseParameter.CLIP_DATA_PAST_BOTTOM, 1)
         self.assert_set_parameter(WorkhorseParameter.RECEIVER_GAIN_SELECT, 0)
         self.assert_set_parameter(WorkhorseParameter.WATER_REFERENCE_LAYER, '002,006')
         self.assert_set_parameter(WorkhorseParameter.NUMBER_OF_DEPTH_CELLS, 99)
+        self.assert_set_parameter(WorkhorseParameter.NUMBER_OF_DEPTH_CELLS, 30)
         self.assert_set_parameter(WorkhorseParameter.PINGS_PER_ENSEMBLE, 0)
+        self.assert_set_parameter(WorkhorseParameter.PINGS_PER_ENSEMBLE, 1)
         self.assert_set_parameter(WorkhorseParameter.DEPTH_CELL_SIZE, 790)
         self.assert_set_parameter(WorkhorseParameter.TRANSMIT_LENGTH, 1)
         self.assert_set_parameter(WorkhorseParameter.PING_WEIGHT, 1)
         self.assert_set_parameter(WorkhorseParameter.AMBIGUITY_VELOCITY, 176)
+        self.assert_set_parameter(WorkhorseParameter.SERIAL_DATA_OUT, '000 000 000')
 
 
 ###############################################################################

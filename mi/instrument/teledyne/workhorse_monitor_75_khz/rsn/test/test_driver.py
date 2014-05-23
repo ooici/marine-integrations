@@ -146,7 +146,7 @@ class ADCPTMixin(DriverTestMixin):
     # Parameter and Type Definitions
     ###
     _driver_parameters = {
-        #Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '000 000 000', VALUE:'000 000 000'},
         Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '11110', VALUE: '11110'},
         Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
@@ -669,6 +669,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
+            Parameter.SERIAL_DATA_OUT: '000 000 000',
             Parameter.LATENCY_TRIGGER: 0,
             Parameter.HEADING_ALIGNMENT: '+00000',
             Parameter.TRANSDUCER_DEPTH:8000,
