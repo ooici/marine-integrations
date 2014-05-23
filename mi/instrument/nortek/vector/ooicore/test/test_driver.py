@@ -44,11 +44,10 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter, Capability, Parameter
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, Capability, Parameter
 
 from mi.instrument.nortek.driver import ProtocolEvent
 
-#from mi.instrument.nortek.vector.ooicore.driver import NortekDataParticleType
 from mi.instrument.nortek.vector.ooicore.driver import Protocol, DataParticleType, NortekDataParticleType
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticleKey
@@ -68,21 +67,17 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='nortek_vector_dw_ooicore_agent',
     instrument_agent_packet_config=NortekDataParticleType(),
     driver_startup_config={
-        DriverConfigKey.PARAMETERS:{
+        DriverConfigKey.PARAMETERS: {
             Parameter.DEPLOYMENT_NAME: 'test',
             Parameter.WRAP_MODE: 0,
-            Parameter.CLOCK_DEPLOY: '000000',
             Parameter.ANALOG_INPUT_ADDR: 0,
             Parameter.SW_VERSION: 13702,
             Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
-                                            'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
-                                            'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
-                                            'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
             Parameter.COMMENTS: 'this is a test',
-            Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
-            # EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
-            # EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}
-            }}
+            Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w=='}}
 )
 
 
@@ -416,7 +411,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         Test acquire sample command and events.
 
         1. initialize the instrument to COMMAND state
-        2. command the instrument to ACQUIRESAMPLE
+        2. command the instrument to ACQUIRE SAMPLE
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
@@ -435,28 +430,13 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        # self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        #
-        # self.assert_async_particle_generation(DataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
-        # self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system)
-        # self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
-        #
-        # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
-    # def test_instrument_read_id(self):
-    #     """
-    #     Test for reading ID, need to be implemented in the child class because each ID is unique to the
-    #     instrument.
-    #     """
-    #     self.assert_initialize_driver()
-    #
-    #     # command the instrument to read the ID.
-    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-    #
-    #     log.debug("read ID returned: %s", response)
-    #     self.assertTrue(re.search(r'VEL .*', response[1]))
-    #
-    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
+        self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 
 ###############################################################################

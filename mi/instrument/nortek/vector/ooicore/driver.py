@@ -344,7 +344,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="blanking distance",
                                    default_value=16,
-                                   #init_value=16,     # velpt was 3
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -357,7 +356,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="receive length",
                                    default_value=7,
-                                   #init_value=7,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -370,7 +368,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="time between pings",
                                    default_value=44,
-                                   #init_value=437,             # velpt doesnt like 44, try 437
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -383,7 +380,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="time between burst sequences",
                                    default_value=0,
-                                   #init_value=512,          # velpt doesnt like 0, try 512
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -396,7 +392,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="number pings",
                                    default_value=0,
-                                   #init_value=23,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -408,7 +403,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="avg interval",
-                                   default_value=64,      # velpt doesnt like 32, try 1
+                                   default_value=64,
                                    units=ParameterUnits.SECONDS,
                                    startup_param=True,
                                    direct_access=True))
@@ -421,7 +416,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.READ_ONLY,
                                    display_name="user number beams",
-                                   value=3,        # velpt doesnt like 7, stay with 3
+                                   value=3,
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TIMING_CONTROL_REGISTER,
@@ -496,7 +491,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="coordinate system",
                                    default_value=2,
-                                   #init_value=0,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -535,7 +529,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="measurement interval",
                                    default_value=600,
-                                   #init_value=1,     # velpt doesn't like 3600, try 1
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -564,11 +557,12 @@ class Protocol(NortekInstrumentProtocol):
             NortekParameterDictVal(Parameter.CLOCK_DEPLOY,
                                    r'^.{%s}(.{6}).*' % str(48),
                                    lambda match: NortekProtocolParameterDict.convert_words_to_datetime(match.group(1)),
-                                   lambda string: string,
+                                   NortekProtocolParameterDict.convert_datetime_to_words,
                                    regex_flags=re.DOTALL,
-                                   type=ParameterDictType.STRING,
+                                   type=ParameterDictType.LIST,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="clock deploy",
+                                   default_value=[0, 0, 0, 0, 0, 0],
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -594,8 +588,7 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="mode",
                                    default_value=48,
-                                   # # init_value=,
-                                   startup_param=True,  # True?, find correct initial value
+                                   startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.ADJUSTMENT_SOUND_SPEED,
@@ -620,7 +613,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="number samples diagnostic",
                                    default_value=1,
-                                   #init_value=1,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -646,7 +638,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="number pings diagnostic",
                                    default_value=1,
-                                   #init_value=1,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -659,7 +650,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="mode test",
                                    default_value=4,
-                                   # # init_value=,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -831,7 +821,7 @@ class Protocol(NortekInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.READ_WRITE,       # This might change based on OIS
+                                   visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="sample rate",
                                    default_value=16,
                                    startup_param=True))
@@ -857,7 +847,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="correlation threshold",
                                    default_value=0,
-                                   #init_value=0,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -879,7 +868,6 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="transmit pulse length second lag",
                                    default_value=2,
-                                   #init_value=2,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -900,7 +888,5 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="qual constants",
-                                   #default_value='Cv/N/4sA5QDuAAsAhP89/w==',
-                                   #init_value='Cv/N/4sA5QDuAAsAhP89/w==',
                                    startup_param=True,
                                    direct_access=True))

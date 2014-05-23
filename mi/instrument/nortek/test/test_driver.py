@@ -18,7 +18,8 @@ from mock import Mock
 
 from pyon.agent.agent import ResourceAgentState
 
-from mi.core.log import get_logger; log = get_logger()
+from mi.core.log import get_logger;
+log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverUnitTestCase, ParameterTestConfigKey, InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -197,9 +198,9 @@ user_config_particle = [{DataParticleKey.VALUE_ID: NortekUserConfigDataParticleK
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR, DataParticleKey.VALUE: 0},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER, DataParticleKey.VALUE: 13600},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR, DataParticleKey.VALUE:
-                          "Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/"
-                          "8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20"
-                          "HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC"},
+                        "Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/"
+                        "8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20"
+                        "HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC"},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILE_COMMENTS, DataParticleKey.VALUE: "3305-00106_00001_28092012"},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_DATA_RATE, DataParticleKey.VALUE: 1},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_POS, DataParticleKey.VALUE: 1},
@@ -916,15 +917,12 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     def test_set_init_params(self):
         """
         Verify the instrument will set the init params from a config file
+        This verifies setting all the parameters.
         """
         self.assert_initialize_driver()
-        log.debug("FINISHED INIT DRIVER")
 
-        values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        log.debug("VALUES_BEFORE = %s", values_before)
-
-        self.assertEquals(values_before[Parameter.RECEIVE_LENGTH], 7)
-        self.assertEquals(values_before[Parameter.CORRELATION_THRESHOLD], 0)
+        # values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        # log.debug("VALUES_BEFORE = %s", values_before)
 
         self.driver_client.cmd_dvr('set_init_params',
                                    {DriverConfigKey.PARAMETERS:
@@ -934,9 +932,44 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
         log.debug("VALUES_AFTER = %s", values_after)
 
-        # check to see if startup config got set in instrument
+        self.assertEquals(values_after[Parameter.TRANSMIT_PULSE_LENGTH], 2)
+        self.assertEquals(values_after[Parameter.BLANKING_DISTANCE], 16)
+        self.assertEquals(values_after[Parameter.RECEIVE_LENGTH], 7)
+        self.assertEquals(values_after[Parameter.TIME_BETWEEN_PINGS], 44)
+        self.assertEquals(values_after[Parameter.TIME_BETWEEN_BURST_SEQUENCES], 512)
+        self.assertEquals(values_after[Parameter.AVG_INTERVAL], 64)
+        self.assertEquals(values_after[Parameter.USER_NUMBER_BEAMS], 3)
+        self.assertEquals(values_after[Parameter.TIMING_CONTROL_REGISTER], 130)
+        self.assertEquals(values_after[Parameter.POWER_CONTROL_REGISTER], 0)
+        self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 1)
+        self.assertEquals(values_after[Parameter.COORDINATE_SYSTEM], 0)
+        self.assertEquals(values_after[Parameter.NUMBER_BINS], 1)
+        self.assertEquals(values_after[Parameter.BIN_LENGTH], 7)
         self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 500)
+        self.assertEquals(values_after[Parameter.DEPLOYMENT_NAME], "")
+        self.assertEquals(values_after[Parameter.WRAP_MODE], 0)
+        self.assertEquals(values_after[Parameter.CLOCK_DEPLOY], [39, 28, 17, 14, 12, 12])
+        self.assertEquals(values_after[Parameter.DIAGNOSTIC_INTERVAL], 10800)
+        self.assertEquals(values_after[Parameter.MODE], 48)
+        self.assertEquals(values_after[Parameter.ADJUSTMENT_SOUND_SPEED], 16657)
+        self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_DIAGNOSTIC], 1)
+        self.assertEquals(values_after[Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC], 1)
+        self.assertEquals(values_after[Parameter.NUMBER_PINGS_DIAGNOSTIC], 20)
+        self.assertEquals(values_after[Parameter.MODE_TEST], 4)
+        self.assertEquals(values_after[Parameter.ANALOG_INPUT_ADDR], 0)
+        self.assertEquals(values_after[Parameter.SW_VERSION], 0)
+        self.assertEquals(values_after[Parameter.COMMENTS], '')
+        self.assertEquals(values_after[Parameter.WAVE_MEASUREMENT_MODE], 4615)
+        self.assertEquals(values_after[Parameter.DYN_PERCENTAGE_POSITION], 32768)
+        self.assertEquals(values_after[Parameter.WAVE_TRANSMIT_PULSE], 16384)
+        self.assertEquals(values_after[Parameter.WAVE_BLANKING_DISTANCE], 0)
+        self.assertEquals(values_after[Parameter.WAVE_CELL_SIZE], 0)
+        self.assertEquals(values_after[Parameter.NUMBER_DIAG_SAMPLES], 0)
         self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 20)
+        self.assertEquals(values_after[Parameter.ANALOG_OUTPUT_SCALE], 11185)
+        self.assertEquals(values_after[Parameter.CORRELATION_THRESHOLD], 0)
+        self.assertEquals(values_after[Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG], 2)
+        self.assertEquals(values_after[Parameter.QUAL_CONSTANTS], 'Cv/N/4sA5QDuAAsAhP89/w==')
 
     def test_set_get_parameters(self):
         """
@@ -950,7 +983,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         #test parameter w/direct access only
         self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
-
+        #
         #test start parameter
         self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
 
@@ -1025,6 +1058,8 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         # test acquire status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
+        #ID
+        self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
         #BV
         self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
         #RC
@@ -1035,8 +1070,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
         #GC
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
-        #ID
-        self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
 
     def test_direct_access(self):
         """

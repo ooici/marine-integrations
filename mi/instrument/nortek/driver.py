@@ -40,7 +40,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
-from mi.core.exceptions import ReadOnlyException, InstrumentCommandException
+from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
@@ -877,12 +877,12 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
                 (self._param_dict[name].value.f_format == NortekProtocolParameterDict.double_word_to_string)):
             if not isinstance(value, int):
                 raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' % (name, value))
-        else:
-            if not isinstance(value, str):
-                raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' % (name, value))
+        # else:
+        #     if not isinstance(value, str):
+        #         raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' % (name, value))
 
-        if self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY:
-            raise ReadOnlyException('Unable to set parameter %s to %s: parameter %s is read only' % (name, value, name))
+        # if self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY:
+        #     raise ReadOnlyException('Unable to set parameter %s to %s: parameter %s is read only' % (name, value, name))
 
         if value != self._param_dict[name].value.get_value():
             log.debug("old value: %s, new value: %s", self._param_dict[name].value.get_value(), value)
@@ -1333,7 +1333,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Raise exception if no parameter provided, or not a dict.
         try:
             params = args[0]
-            self._verify_not_readonly(*args, **kwargs)
+            verify_read_only = kwargs.get('verify_read_only', True)
+            if verify_read_only:
+                self._verify_not_readonly(*args, **kwargs)
         except IndexError:
             raise InstrumentParameterException('Set params requires a parameter dict.')
         else:
@@ -1482,7 +1484,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        self._update_params()   # TODO: If all params have some kind of default value...THEY DO NOT
+        self._update_params()
         self._init_params()
 
         if self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL) is not None:
@@ -1512,7 +1514,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Command the instrument to acquire sample data. Instrument will enter Power Down mode when finished
         """
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=self.velocity_sync_bytes, *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=self.velocity_sync_bytes,
+                                   timeout=70, *args, **kwargs)
 
         return None, (None, result)
 
@@ -1578,7 +1581,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
-        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, timeout=70, *args, **kwargs)
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
 
     def _handler_command_start_direct(self):
@@ -1897,11 +1900,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         #restore parameters
         log.debug("da_param_restore = %s,", self.da_param_restore)
-        self._set_params(self.da_param_restore)
+        self._set_params(self.da_param_restore, False)
 
         if next_state == DriverProtocolState.AUTOSAMPLE:
             #go back into autosample mode
-            self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER)
+            self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, timeout=70)
 
         log.debug("Next_state = %s, Next_agent_state = %s", next_state, next_agent_state)
         return next_state, (next_agent_state, None)
@@ -2076,7 +2079,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             elif param == Parameter.VELOCITY_ADJ_TABLE:
                 output += base64.b64decode(parameters.format(param))
             elif param == Parameter.CLOCK_DEPLOY:
-                output += NortekProtocolParameterDict.convert_datetime_to_words(parameters.format(param))
+                output += parameters.format(param)
+                #output += NortekProtocolParameterDict.convert_datetime_to_words(parameters.format(param))
             else:
                 output += parameters.format(param)
             log.debug('_create_set_output: ADDED %s output size = %s', param, len(output))

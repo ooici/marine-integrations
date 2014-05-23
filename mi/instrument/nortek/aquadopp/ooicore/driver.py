@@ -452,12 +452,12 @@ class Protocol(NortekInstrumentProtocol):
             NortekParameterDictVal(Parameter.CLOCK_DEPLOY,
                                    r'^.{%s}(.{6}).*' % str(48),
                                    lambda match: NortekProtocolParameterDict.convert_words_to_datetime(match.group(1)),
-                                   lambda string: string,
+                                   NortekProtocolParameterDict.convert_datetime_to_words,
                                    regex_flags=re.DOTALL,
-                                   type=ParameterDictType.STRING,
+                                   type=ParameterDictType.LIST,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="clock deploy",
-                                   default_value='000000',
+                                   default_value=[0, 0, 0, 0, 0, 0],
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -582,7 +582,7 @@ class Protocol(NortekInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.VELOCITY_ADJ_TABLE,
                                    r'^.{%s}(.{180}).*' % str(76),
-                                   lambda match: NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)),
+                                   lambda match: base64.b64encode(match.group(1)),
                                    lambda string: string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,

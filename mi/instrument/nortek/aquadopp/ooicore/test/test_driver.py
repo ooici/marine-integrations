@@ -40,13 +40,12 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import SampleException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import NortekDataParticleType
-from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, EngineeringParameter, Parameter, \
-    NortekEngIdDataParticleKey, NortekInstrumentProtocol
+from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, Parameter, NortekEngIdDataParticleKey, \
+    NortekInstrumentProtocol
 
 ###
 #   Driver parameters for the tests
@@ -59,21 +58,20 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config=NortekDataParticleType(),
     driver_startup_config={
-        DriverConfigKey.PARAMETERS:
-            {Parameter.DEPLOYMENT_NAME: 'test',
-             Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
-                                            'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
-                                            'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
-                                            'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
-             Parameter.COMMENTS: 'this is a test',
-             Parameter.ANALOG_OUTPUT_SCALE: 6711,
-             Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
-             #update the following two parameters to allow for faster collecting of samples during testing
-             Parameter.AVG_INTERVAL: 1,
-             Parameter.MEASUREMENT_INTERVAL: 1}}
-             #EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
-             #EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
+        DriverConfigKey.PARAMETERS: {
+            Parameter.DEPLOYMENT_NAME: 'test',
+            Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+            Parameter.COMMENTS: 'this is a test',
+            Parameter.ANALOG_OUTPUT_SCALE: 6711,
+            Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
+            #update the following two parameters to allow for faster collecting of samples during testing
+            Parameter.AVG_INTERVAL: 1,
+            Parameter.MEASUREMENT_INTERVAL: 1}}
 )
+
 
 def eng_id_sample():
     sample_as_hex = "415144"
@@ -81,11 +79,12 @@ def eng_id_sample():
 
 eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 8493      "}]
 
+
 def bad_sample():
     sample = 'thisshouldnotworkd'
     return sample
 
-# velocity data particle & sample 
+
 def velocity_sample():
     sample_as_hex = "a5011500101926221211000000009300f83b810628017f01002d0000e3094c0122ff9afe1e1416006093"
     return sample_as_hex.decode('hex')
@@ -310,7 +309,6 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         """
         Verify the driver can poll the instrument for a single sample
         """
-        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         self.assert_sample_polled(self.assert_particle_velocity, NortekDataParticleType.VELOCITY, timeout=10)
 
     def test_autosample(self):
@@ -318,5 +316,4 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         Verify the driver can enter and exit autosample mode, while in autosample the driver will collect multiple
         samples.
         """
-        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         self.assert_sample_autosample(self.assert_particle_velocity, NortekDataParticleType.VELOCITY, timeout=10)
