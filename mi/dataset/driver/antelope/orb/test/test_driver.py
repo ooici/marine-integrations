@@ -395,17 +395,11 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_start_sampling()
 
             # Verify we get one sample
-            try:
-                result = self.data_subscribers.get_samples(DataParticleType.ANTELOPE_ORB_PACKET, 2)
-                log.debug("First RESULT: %s", result)
+            result = self.data_subscribers.get_samples(DataParticleType.ANTELOPE_ORB_PACKET, 2)
+            log.debug("First RESULT: %s", result)
 
-                # Verify values
-                self.assert_data_values(result, 'first.result.yml')
-            finally:
-                pass
-#            except Exception as e:
-#                log.error("Exception trapped: %s", e)
-#                self.fail("Sample timeout.")
+            # Verify values
+            self.assert_data_values(result, 'first.result.yml')
 
     def test_parser_exception(self):
         """
@@ -437,6 +431,7 @@ class QualificationTest(DataSetQualificationTestCase):
         SAMPLES_PER_PACKET = 64000
         DATA = range(SAMPLES_PER_PACKET)
         TEST_TIMEOUT = 15
+        MINIMUM_RATE = 6
 
         pkttype, packet, srcname, pkttime = makepacket(DATA)
 
@@ -457,6 +452,7 @@ class QualificationTest(DataSetQualificationTestCase):
           self.assert_start_sampling()
           result = []
           nsamps = 0
+          rate = None
           try:
               profile.enable()
               while True:
@@ -480,8 +476,9 @@ class QualificationTest(DataSetQualificationTestCase):
           finally:
               profile.disable()
               period = end_time - start_time
+              rate = float(nsamps) / period
               log.critical("Processed %d PACKETS_TO_SEND in %s for a rate of %s pps"
-                  % (nsamps, period,  float(nsamps) / period ))
+                  % (nsamps, period,  rate ))
 
 #            self.assert_reset()
 #            self.stop_dataset_agent_client()
@@ -489,4 +486,6 @@ class QualificationTest(DataSetQualificationTestCase):
         # review published particles
 
         profile.dump_stats('cprofile')
+
+        self.assertGreater(rate, MINIMUM_RATE)
 
