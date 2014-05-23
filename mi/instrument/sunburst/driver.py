@@ -80,7 +80,9 @@ FIVE_YEARS_IN_SECONDS = 0x0968A480
 
 ONE_YEAR_IN_SECONDS = 0x01E13380
 
-TIME_WAKEUP_DELAY = 6
+## Time delay between retrieving system time and setting SAMI time.  Multiple commands are sent before the time.
+##   Each command has a wakeup which takes 1 second.
+TIME_WAKEUP_DELAY = 8
 
 # Length of configuration string with '0' padding
 # used to calculate number of '0' padding

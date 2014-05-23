@@ -685,7 +685,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x1E,
            Parameter.EXTERNAL_PUMP_DELAY: 10,
            Parameter.AUTO_SAMPLE_INTERVAL: 3600,
-           Parameter.FLUSH_DURATION: 1
+           Parameter.FLUSH_DURATION: 8
         }
 
         new_values = {
@@ -701,7 +701,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x40,
            Parameter.EXTERNAL_PUMP_DELAY: 300,
            Parameter.AUTO_SAMPLE_INTERVAL: 600,
-           Parameter.FLUSH_DURATION: 8
+           Parameter.FLUSH_DURATION: 1
         }
 
         self.assert_initialize_driver()
@@ -968,8 +968,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.RUN_EXTERNAL_PUMP)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=15.0)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=15.0)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=20.0)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=20.0)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
