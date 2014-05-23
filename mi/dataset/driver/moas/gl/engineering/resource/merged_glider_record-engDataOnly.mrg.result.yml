@@ -1,0 +1,187 @@
+# Expected Results
+
+header:
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
+
+data:
+  - _index: 1
+    particle_object: EngineeringTelemeteredDataParticle
+    particle_type: glider_eng_telemetered
+    internal_timestamp: '2012-02-21T18:40:18.799620Z' 
+    m_present_time: 1329849618.79962
+    m_present_secs_into_mission: 49.646
+    m_gps_lat:
+      value: 43.47114
+      round: 5
+    m_gps_lon:
+      value: -125.39661
+      round: 5
+    m_lat:
+      value: 43.47114
+      round: 5
+    m_lon:
+      value: -125.39661
+      round: 5
+    c_battpos: 0.7
+    c_ballast_pumped: 260
+    c_de_oil_vol: 260
+    c_dvl_on: -1
+    c_heading: 4.96727
+    c_pitch: 0.4528
+    c_wpt_lat:
+      value: 43.50000
+      round: 5
+    c_wpt_lon:
+      value: -126.00000
+      round: 5
+    m_air_pump: 1
+    m_altitude: 12.9695
+    m_ballast_pumped: 0
+    m_battery: 10.6806
+    m_battpos: 0.695632
+    m_coulomb_amphr: 40.9972
+    m_coulomb_amphr_total: 303.806
+    m_coulomb_current: 0.0955938
+    m_depth: 0.148777
+    m_de_oil_vol: 259.742
+    m_fin: 0.0127162
+    m_heading: 5.05447
+    m_lithium_battery_relative_charge: 57.8047
+    m_pitch: 0.518363
+    m_pressure: 0.0148777
+    m_speed: 0.348396
+    m_raw_altitude: 16.967
+    m_roll: -0.10821
+    m_vacuum: 7.84544
+    m_water_depth: -1
+    m_water_vx: -0.0616963
+    m_water_vy: -0.144984
+  - _index: 2
+    particle_object: EngineeringScienceTelemeteredDataParticle
+    particle_type: glider_eng_sci_telemetered
+    internal_timestamp: '2012-02-21T18:40:18.799620Z'
+    sci_m_present_time: 1000.2
+    sci_m_present_secs_into_mission: 1000.2
+    sci_m_disk_free: 1000.2
+    sci_m_disk_usage: 1000.2
+  - _index: 3
+    particle_object: EngineeringTelemeteredDataParticle
+    particle_type: glider_eng_telemetered
+    internal_timestamp: '2012-02-21T18:41:43.758150Z'
+    m_present_time: 1329849703.75815
+    m_present_secs_into_mission: 134.605
+    m_gps_lat:
+      value: 43.46955
+      round: 5
+    m_gps_lon:
+      value: -125.39484
+      round: 5
+    m_lat:
+      value: 43.46955
+      round: 5
+    m_lon:
+      value: -125.39484
+      round: 5
+    c_battpos: 0.7
+    c_ballast_pumped: null
+    c_de_oil_vol: 260
+    c_dvl_on: -1
+    c_heading: 1.02677
+    c_pitch: null
+    c_wpt_lat:
+      value: 43.47113
+      round: 5
+    c_wpt_lon:
+      value: -125.35000
+      round: 5
+    m_air_pump: 0
+    m_altitude: null
+    m_ballast_pumped: null
+    m_battery: null
+    m_battpos: 0.692938
+    m_coulomb_amphr: 41.0032
+    m_coulomb_amphr_total: 303.812
+    m_coulomb_current: 0.272234
+    m_depth: 0
+    m_de_oil_vol: 259.687
+    m_fin: 0.0063581
+    m_heading: null
+    m_lithium_battery_relative_charge: 57.8038
+    m_pitch: null
+    m_pressure: -0.0124008
+    m_speed: null
+    m_raw_altitude: null
+    m_roll: null
+    m_vacuum: null
+    m_water_depth: null
+    m_water_vx: null
+    m_water_vy: null
+  - _index: 4
+    particle_object: EngineeringScienceTelemeteredDataParticle
+    particle_type: glider_eng_sci_telemetered
+    internal_timestamp: '2012-02-21T18:41:43.758150Z'
+    sci_m_present_time: 1000.3
+    sci_m_present_secs_into_mission: 1000.3
+    sci_m_disk_free: 1000.3
+    sci_m_disk_usage: 1000.3
+  - _index: 5
+    particle_object: EngineeringTelemeteredDataParticle
+    particle_type: glider_eng_telemetered
+    internal_timestamp: '2012-02-21T18:42:02.245270Z'
+    m_present_time: 1329849722.24527
+    m_present_secs_into_mission: 153.091
+    m_gps_lat:
+      value: 43.46952
+      round: 5
+    m_gps_lon:
+      value: -125.39478
+      round: 5
+    m_lat:
+      value: 43.46953
+      round: 5
+    m_lon:
+      value: -125.39478
+      round: 5
+    c_battpos: 0
+    c_ballast_pumped: null
+    c_de_oil_vol: -260
+    c_dvl_on: 0
+    c_heading: 1.02658
+    c_pitch: null
+    c_wpt_lat:
+      value: null
+      round: 5
+    c_wpt_lon:
+      value: null
+      round: 5
+    m_air_pump: 0
+    m_altitude: null
+    m_ballast_pumped: null
+    m_battery: null
+    m_battpos: -0.00769719
+    m_coulomb_amphr: 41.0044
+    m_coulomb_amphr_total: 303.814
+    m_coulomb_current: 0.418297
+    m_depth: 0
+    m_de_oil_vol: 251.227
+    m_fin: 0.0063581
+    m_heading: null
+    m_lithium_battery_relative_charge: 57.8037
+    m_pitch: null
+    m_pressure: -0.00137786
+    m_speed: null
+    m_raw_altitude: null
+    m_roll: null
+    m_vacuum: null
+    m_water_depth: null
+    m_water_vx: null
+    m_water_vy: null
+  - _index: 6
+    particle_object: EngineeringScienceTelemeteredDataParticle
+    particle_type: glider_eng_sci_telemetered
+    internal_timestamp: '2012-02-21T18:42:02.245270Z'
+    sci_m_present_time: 1000.4
+    sci_m_present_secs_into_mission: 1000.4
+    sci_m_disk_free: 1000.4
+    sci_m_disk_usage: 1000.4

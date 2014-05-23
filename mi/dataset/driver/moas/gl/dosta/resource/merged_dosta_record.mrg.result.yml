@@ -1,6 +1,6 @@
 header:
-  particle_object: GgldrDostaDelayedDataParticle
-  particle_type: ggldr_dosta_delayed
+  particle_object: DostaTelemeteredDataParticle
+  particle_type: dosta_abcdjm_glider_instrument
 
 data:
   - _index: 1

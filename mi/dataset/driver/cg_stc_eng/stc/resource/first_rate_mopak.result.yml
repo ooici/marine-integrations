@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    internal_timestamp: 3603723723.453376
+    internal_timestamp: 3603723533.0
     particle_object: MopakODclAccelParserDataParticle
     particle_type: mopak_o_dcl_accel
     mopak_accelx: 0.65947556495666503906
@@ -18,7 +18,7 @@ data:
     mopak_magz: -0.24980238080024719238
     mopak_timer: 11903336
   - _index: 2
-    internal_timestamp: 3603723723.553376
+    internal_timestamp: 3603723533.0999999
     particle_object: MopakODclAccelParserDataParticle
     particle_type: mopak_o_dcl_accel
     mopak_accelx: 0.66078400611877441406
@@ -32,7 +32,7 @@ data:
     mopak_magz: -0.25092640519142150879
     mopak_timer: 11909586
   - _index: 3
-    internal_timestamp: 3603723752.053376
+    internal_timestamp: 3603723561.599999
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.99457669258117675781
@@ -43,7 +43,7 @@ data:
     mopak_ang_ratez: 0.00140886835288256407
     mopak_timer: 13690836
   - _index: 4
-    internal_timestamp: 3603723752.153376
+    internal_timestamp: 3603723561.699999
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.99428188800811767578
@@ -54,7 +54,7 @@ data:
     mopak_ang_ratez: 0.00598210329189896584
     mopak_timer: 13697086
   - _index: 5
-    internal_timestamp: 3603723752.253376
+    internal_timestamp: 3603723561.80
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.99425637722015380859
@@ -65,7 +65,7 @@ data:
     mopak_ang_ratez: 0.00203492515720427036
     mopak_timer: 13703336
   - _index: 6
-    internal_timestamp: 3603723752.353376
+    internal_timestamp: 3603723561.90
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.99432933330535888672
