@@ -1,6 +1,6 @@
 """
 @package mi.instrument.nortek.aquadopp.ooicore.driver
-@author Rachel Manoni
+@author Rachel Manoni, Ronald Ronquillo
 @brief Driver for the ooicore
 Release notes:
 
@@ -8,7 +8,7 @@ Driver for Aquadopp DW
 """
 import base64
 
-__author__ = 'Rachel Manoni'
+__author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 import re
@@ -18,9 +18,7 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.core.exceptions import SampleException, InstrumentParameterException
-
-from mi.core.instrument.chunker import StringChunker
+from mi.core.exceptions import SampleException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
@@ -32,13 +30,13 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 VELOCITY_DATA_LEN = 42
-VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x01'
+VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
 
-VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_DATA_LEN]]
-
-VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})' \
-                        r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_HEADER_DATA_SYNC_BYTES
+VELOCITY_DATA_PATTERN = r'%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})' \
+                        r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
+
+AQUADOPP_SAMPLE_REGEX = [VELOCITY_DATA_REGEX]
 
 
 class NortekDataParticleType(BaseEnum):
@@ -93,7 +91,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         match = VELOCITY_DATA_REGEX.match(self.raw_data)
 
         if not match:
-            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%r]", self.raw_data)
+            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]" % self.raw_data)
 
         result = self._build_particle(match)
         return result
@@ -179,6 +177,9 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
+    NortekInstrumentProtocol.velocity_data_regex.extend(AQUADOPP_SAMPLE_REGEX)
+    NortekInstrumentProtocol.velocity_sync_bytes = VELOCITY_DATA_SYNC_BYTES
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -187,18 +188,11 @@ class Protocol(NortekInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
-
-        # create chunker for processing instrument samples.
-        self._chunker = StringChunker(Protocol.chunker_sieve_function)
+        super(Protocol, self).__init__(prompts, newline, driver_event)
 
     ########################################################################
     # overridden superclass methods
     ########################################################################
-    @staticmethod
-    def chunker_sieve_function(raw_data, add_structs=[]):
-        return NortekInstrumentProtocol.chunker_sieve_function(raw_data, VECTOR_SAMPLE_STRUCTURES)
-
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
@@ -206,16 +200,6 @@ class Protocol(NortekInstrumentProtocol):
         """
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._got_chunk_base(structure, timestamp)
-
-    ########################################################################
-    # Command handlers.
-    ########################################################################
-    def _helper_get_data_key(self):
-        """
-        override to pass the correct velocity data key per instrument
-        """
-        # TODO change this to a init value that the base class can use
-        return VELOCITY_HEADER_DATA_SYNC_BYTES
 
     def _build_param_dict(self):
         """
@@ -311,7 +295,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="avg interval",
-                                   default_value=600,
+                                   default_value=60,
                                    units=ParameterUnits.SECONDS,
                                    startup_param=True,
                                    direct_access=True))
@@ -437,7 +421,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="measurement interval",
-                                   default_value=600,
+                                   default_value=60,
                                    units=ParameterUnits.SECONDS,
                                    startup_param=True,
                                    direct_access=True))
@@ -564,16 +548,16 @@ class Protocol(NortekInstrumentProtocol):
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.ANALOG_INPUT_ADDR,
-                                    r'^.{%s}(.{2}).*' % str(70),
-                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                    NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="analog input addr",
-                                    default_value=0,
-                                    startup_param=True,
-                                    direct_access=True))
+                                   r'^.{%s}(.{2}).*' % str(70),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="analog input addr",
+                                   default_value=0,
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.SW_VERSION,
                                    r'^.{%s}(.{2}).*' % str(72),
@@ -588,13 +572,13 @@ class Protocol(NortekInstrumentProtocol):
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_1_SPARE,
-                                    r'^.{%s}(.{2}).*' % str(74),
-                                    lambda match: match.group(1).encode('hex'),
-                                    lambda string: string.decode('hex'),
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
-                                    display_name="user 1 spare"))
+                                   r'^.{%s}(.{2}).*' % str(74),
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="user 1 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.VELOCITY_ADJ_TABLE,
                                    r'^.{%s}(.{180}).*' % str(76),
@@ -611,7 +595,7 @@ class Protocol(NortekInstrumentProtocol):
             NortekParameterDictVal(Parameter.COMMENTS,
                                    r'^.{%s}(.{180}).*' % str(256),
                                    lambda match: NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)),
-                                   lambda string : string,
+                                   lambda string: string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
@@ -711,38 +695,38 @@ class Protocol(NortekInstrumentProtocol):
                                    display_name="b0 2 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
-                                    r'^.{%s}(.{2}).*' % str(452),
-                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                    NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.INT,
-                                    expiration=None,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="number of samples per burst",
-                                    default_value=0,
-                                    startup_param=True,
-                                    direct_access=True))
+                                   r'^.{%s}(.{2}).*' % str(452),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   expiration=None,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="number of samples per burst",
+                                   default_value=0,
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.ANALOG_OUTPUT_SCALE,
-                                    r'^.{%s}(.{2}).*' % str(456),
-                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                    NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="analog output scale",
-                                    default_value=0,
-                                    startup_param=True,
-                                    direct_access=True))
+                                   r'^.{%s}(.{2}).*' % str(456),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="analog output scale",
+                                   default_value=0,
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_2_SPARE,  # for Vector this is 'SAMPLE_RATE'
-                                    r'^.{%s}(.{2}).*' % str(454),
-                                    lambda match: match.group(1).encode('hex'),
-                                    lambda string: string.decode('hex'),
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
-                                    display_name="user 2 spare"))
+                                   r'^.{%s}(.{2}).*' % str(454),
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="user 2 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.CORRELATION_THRESHOLD,
                                    r'^.{%s}(.{2}).*' % str(458),

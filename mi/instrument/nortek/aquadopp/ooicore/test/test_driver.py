@@ -46,7 +46,7 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataP
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
 from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, EngineeringParameter, Parameter, \
-    NortekEngIdDataParticleKey
+    NortekEngIdDataParticleKey, NortekInstrumentProtocol
 
 ###
 #   Driver parameters for the tests
@@ -67,7 +67,9 @@ InstrumentDriverTestCase.initialize(
                                             'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
              Parameter.COMMENTS: 'this is a test',
              Parameter.ANALOG_OUTPUT_SCALE: 6711,
-             Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w=='}}
+             Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
+             Parameter.AVG_INTERVAL: 1,
+             Parameter.MEASUREMENT_INTERVAL: 1}}
              #EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
              #EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
 )
@@ -77,6 +79,10 @@ def eng_id_sample():
     return sample_as_hex.decode('hex')
 
 eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 8493      "}]
+
+def bad_sample():
+    sample = 'thisshouldnotworkd'
+    return sample
 
 # velocity data particle & sample 
 def velocity_sample():
@@ -218,21 +224,21 @@ class DriverUnitTest(NortekUnitTest):
         3. combined data structure
         4. data structure with noise
         """
-        chunker = StringChunker(Protocol.chunker_sieve_function)
+        chunker = StringChunker(NortekInstrumentProtocol.sieve_function)
 
         self.assert_chunker_sample(chunker, velocity_sample())
         self.assert_chunker_fragmented_sample(chunker, velocity_sample())
         self.assert_chunker_combined_sample(chunker, velocity_sample())
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
 
-    # def test_corrupt_data_structures(self):
-    #     """
-    #     Verify when generating the particle, if the particle is corrupt, an exception is raised
-    #     """
-    #     particle = AquadoppDwVelocityDataParticle(velocity_sample(), port_timestamp=3558720820.531179)
-    #
-    #     with self.assertRaises(SampleException):
-    #         particle.generate()
+    def test_corrupt_data_structures(self):
+        """
+        Verify when generating the particle, if the particle is corrupt, an exception is raised
+        """
+        particle = AquadoppDwVelocityDataParticle(bad_sample(), port_timestamp=3558720820.531179)
+
+        with self.assertRaises(SampleException):
+            particle.generate()
 
  
 ###############################################################################
@@ -256,6 +262,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
+        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
@@ -268,8 +275,9 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         4. stop AUTOSAMPLE
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
+        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         # self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        # self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity,
+        # self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity,
         #                                       particle_count=4, timeout=TIMEOUT)
         # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
@@ -303,6 +311,7 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         """
         Verify the driver can poll the instrument for a single sample
         """
+        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         self.assert_sample_polled(self.assert_particle_velocity, NortekDataParticleType.VELOCITY, timeout=10)
 
     def test_autosample(self):
@@ -310,4 +319,5 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         Verify the driver can enter and exit autosample mode, while in autosample the driver will collect multiple
         samples.
         """
+        #TODO - SAMPLE WILL TAKE 1 MIN TO COLLECT!
         self.assert_sample_autosample(self.assert_particle_velocity, NortekDataParticleType.VELOCITY, timeout=10)

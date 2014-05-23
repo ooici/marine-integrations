@@ -1,16 +1,15 @@
 """
 @package mi.instrument.nortek.vector.ooicore.driver
 @file mi/instrument/nortek/vector/ooicore/driver.py
-@author Rachel Manoni
+@author Rachel Manoni, Ronald Ronquillo
 @brief Driver for the ooicore
 Release notes:
 
 Driver for vector
 """
 import base64
-from mi.core.instrument.protocol_param_dict import ParameterDictType, ParameterDictVisibility
 
-__author__ = 'Rachel Manoni'
+__author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 import time
@@ -22,23 +21,12 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
-from mi.core.exceptions import InstrumentProtocolException
-
-from mi.instrument.nortek.driver import NortekParameterDictVal, Parameter, ParameterUnits
-from mi.instrument.nortek.driver import NortekDataParticleType
-from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
-from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
-from mi.instrument.nortek.driver import NortekUserConfigDataParticle
-from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
-from mi.instrument.nortek.driver import NortekEngClockDataParticle
-from mi.instrument.nortek.driver import NortekEngIdDataParticle
+from mi.instrument.nortek.driver import NortekDataParticleType, NortekParameterDictVal, Parameter, ParameterUnits
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
 from mi.instrument.nortek.driver import InstrumentPrompts
 from mi.instrument.nortek.driver import NEWLINE
-
-from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -58,6 +46,7 @@ VELOCITY_HEADER_DATA_PATTERN = r'%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1}
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
 VECTOR_SAMPLE_REGEX = [VELOCITY_DATA_REGEX, SYSTEM_DATA_REGEX, VELOCITY_HEADER_DATA_REGEX]
+
 
 class DataParticleType(NortekDataParticleType):
     """
@@ -103,7 +92,7 @@ class VectorVelocityDataParticle(DataParticle):
         match = VELOCITY_DATA_REGEX.match(self.raw_data)
         
         if not match:
-            raise SampleException("VectorVelocityDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("VectorVelocityDataParticle: No regex match of parsed sample data: [%s]" % self.raw_data)
         
         analog_input2 = ord(match.group(1))
         count = ord(match.group(2))
@@ -137,6 +126,7 @@ class VectorVelocityDataParticle(DataParticle):
  
         log.debug('VectorVelocityDataParticle: particle=%s', result)
         return result
+
 
 class VectorVelocityHeaderDataParticleKey(BaseEnum):
     """
@@ -280,15 +270,16 @@ class InstrumentDriver(NortekInstrumentDriver):
         """
         #Construct superclass.
         NortekInstrumentDriver.__init__(self, evt_callback)
+
     ########################################################################
     # Protocol builder.
     ########################################################################
-
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
         """
         self._protocol = Protocol(InstrumentPrompts, NEWLINE, self._driver_event)
+
 
 ###############################################################################
 # Protocol
@@ -298,22 +289,21 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
+    NortekInstrumentProtocol.velocity_data_regex.extend(VECTOR_SAMPLE_REGEX)
+    NortekInstrumentProtocol.velocity_sync_bytes = VELOCITY_DATA_SYNC_BYTES
 
     def __init__(self, prompts, newline, driver_event):
-        NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
-
-        # create chunker for processing instrument samples.
-        self._chunker = StringChunker(Protocol.sieve_function)    # This can be moved to base class if VECTOR_SAMPLE_REGEX can be initialized
-        
-    @staticmethod
-    def sieve_function(raw_data):
-        return NortekInstrumentProtocol.sieve_function(raw_data, VECTOR_SAMPLE_REGEX)
+        """
+        Protocol constructor.
+        @param prompts A BaseEnum class containing instrument prompts.
+        @param newline The newline.
+        @param driver_event Driver process event callback.
+        """
+        super(Protocol, self).__init__(prompts, newline, driver_event)
 
     ########################################################################
     # overridden superclass methods
     ########################################################################
-
-
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
@@ -325,13 +315,6 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure, timestamp)
 
         self._got_chunk_base(structure, timestamp)
-
-    def _helper_get_data_key(self):
-        """
-        override to pass the correct velocity data key per instrument
-        """
-        # TODO change this to a init value that the base class can use
-        return VELOCITY_DATA_SYNC_BYTES
 
     ########################################################################
     # Private helpers.
@@ -681,15 +664,15 @@ class Protocol(NortekInstrumentProtocol):
                                    direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.ANALOG_INPUT_ADDR,
-                                    r'^.{%s}(.{2}).*' % str(70),
-                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                    NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="analog input addr",
-                                    startup_param=True,
-                                    direct_access=True))
+                                   r'^.{%s}(.{2}).*' % str(70),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.STRING,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="analog input addr",
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.SW_VERSION,
                                    r'^.{%s}(.{2}).*' % str(72),
@@ -921,5 +904,3 @@ class Protocol(NortekInstrumentProtocol):
                                    #init_value='Cv/N/4sA5QDuAAsAhP89/w==',
                                    startup_param=True,
                                    direct_access=True))
-
-

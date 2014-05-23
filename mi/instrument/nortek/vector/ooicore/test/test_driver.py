@@ -358,7 +358,7 @@ class UnitFromIDK(NortekUnitTest):
         """
         Tests the chunker
         """
-        chunker = StringChunker(Protocol.chunker_sieve_function)
+        chunker = StringChunker(Protocol.sieve_function)
 
         # test complete data structures
         self.assert_chunker_sample(chunker, velocity_sample())

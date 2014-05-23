@@ -232,10 +232,10 @@ eng_battery_particle = [{DataParticleKey.VALUE_ID: NortekEngBatteryDataParticleK
 
 
 def eng_id_sample():
-    sample_as_hex = "ADQ"
+    sample_as_hex = "41514420313231352020202020200606"
     return sample_as_hex.decode('hex')
 
-eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "ADQ 123"}]
+eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 1215"}]
 
 
 def user_config1():
@@ -648,7 +648,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         3. combined data structure
         4. data structure with noise
         """
-        chunker = StringChunker(NortekInstrumentProtocol.chunker_sieve_function)
+        chunker = StringChunker(NortekInstrumentProtocol.sieve_function)
 
         # test complete data structures
         self.assert_chunker_sample(chunker, hw_config_sample())
@@ -949,15 +949,13 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test parameter w/direct access only
-        #self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
-
-        self.assert_set(Parameter.BLANKING_DISTANCE, 49)
+        self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
 
         #test start parameter
-        #self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
+        self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
 
         #test read only parameter
-        #self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=InstrumentParameterException)
+        self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=InstrumentParameterException)
 
     def test_instrument_clock_sync(self):
         """
@@ -1026,7 +1024,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         # test acquire status
-        # don't need to assert the particles, acquire_status method already does that for us
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
         #BV
         self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
