@@ -26,7 +26,7 @@ try:
     from mi.dataset.parser.antelope_orb import ParserConfigKey
 
     from mi.core.kudu import _pkt
-    from mi.core.kudu.brttpkt import GetError
+    from mi.core.kudu.brttpkt import NoData
 except Exception as e:
     log.error("Failed to import antelope lib: %s", e)
 
@@ -146,7 +146,7 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
     def test_get_error(self):
         from mi.core.kudu.brttpkt import GetError
         def f(*args, **kwargs):
-            raise GetError()
+            raise NoData()
         self.parser._orbreapthr.get = f
         self.parser.get_records()
 
