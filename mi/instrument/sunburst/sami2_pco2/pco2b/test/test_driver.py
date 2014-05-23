@@ -957,8 +957,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_flush_pump(self):
         self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5.0)
-        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=5.0)
+        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
+        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
 
     def test_run_external_pump(self):
         """

@@ -673,7 +673,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.BIT_SWITCHES: 0x01,
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
            Parameter.AUTO_SAMPLE_INTERVAL: 3600,
-           Parameter.FLUSH_DURATION: 1
+           Parameter.FLUSH_DURATION: 8
         }
 
         new_values = {
@@ -687,7 +687,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.BIT_SWITCHES: 0x02,
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
            Parameter.AUTO_SAMPLE_INTERVAL: 600,
-           Parameter.FLUSH_DURATION: 8
+           Parameter.FLUSH_DURATION: 1
         }
 
         self.assert_initialize_driver()
@@ -853,7 +853,6 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_flush_pump(self):
         self.assert_initialize_driver()
-        self.assert_set(Parameter.FLUSH_DURATION, 80)
         self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
         self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
 

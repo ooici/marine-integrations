@@ -170,7 +170,9 @@ class DriverTestMixinSub(SamiMixin):
         Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
                                                   ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
-                                                  ProtocolState.COMMAND]}
+                                                  ProtocolState.COMMAND]},
+        Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH:         {STATES: [ProtocolState.COMMAND]}
     }
 
     _driver_parameters = {
@@ -246,6 +248,8 @@ class DriverTestMixinSub(SamiMixin):
                                              DEFAULT: 0x00, VALUE: 0x00},
         Parameter.AUTO_SAMPLE_INTERVAL:     {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 3600},
+        Parameter.FLUSH_DURATION:           {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                             DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
 
     _sami_data_sample_parameters = {
@@ -396,7 +400,17 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
                                          'DRIVER_EVENT_START_DIRECT',
                                          'DRIVER_EVENT_ACQUIRE_STATUS',
                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                         'DRIVER_EVENT_START_AUTOSAMPLE'],
+                                         'DRIVER_EVENT_START_AUTOSAMPLE',
+                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
+                                         'DRIVER_EVENT_REAGENT_FLUSH'],
+        ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
                                          'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                          'DRIVER_EVENT_ACQUIRE_STATUS'],
@@ -557,7 +571,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
            Parameter.MEASURE_TO_PUMP_ON: 0x08,
            Parameter.NUMBER_MEASUREMENTS: 0x17,
            Parameter.SALINITY_DELAY: 0x00,
-           Parameter.AUTO_SAMPLE_INTERVAL: 3600
+           Parameter.AUTO_SAMPLE_INTERVAL: 3600,
+           Parameter.FLUSH_DURATION: 8
         }
 
         new_values = {
@@ -575,7 +590,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
            Parameter.MEASURE_TO_PUMP_ON: 0x09,
            Parameter.NUMBER_MEASUREMENTS: 0x18,
            Parameter.SALINITY_DELAY: 0x01,
-           Parameter.AUTO_SAMPLE_INTERVAL: 600
+           Parameter.AUTO_SAMPLE_INTERVAL: 600,
+           Parameter.FLUSH_DURATION: 1
         }
 
         self.assert_initialize_driver()
@@ -608,6 +624,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.MEASURE_TO_PUMP_ON, 0x07)
         self.assert_set(Parameter.NUMBER_MEASUREMENTS, 0xA0)
         self.assert_set(Parameter.SALINITY_DELAY, 0x05)
+        self.assert_set(Parameter.FLUSH_DURATION, 8)
 
         self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
         self.assert_set_readonly(Parameter.STOP_TIME_FROM_START, 84600)
@@ -632,7 +649,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
             Parameter.PUMP_OFF_TO_MEASURE: 0x05,
             Parameter.MEASURE_TO_PUMP_ON: 0x07,
             Parameter.NUMBER_MEASUREMENTS: 0xA0,
-            Parameter.SALINITY_DELAY: 0x05
+            Parameter.SALINITY_DELAY: 0x05,
+            Parameter.FLUSH_DURATION: 8
         }
         self.assert_set_bulk(new_values)
 
@@ -745,6 +763,11 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
         self.assert_current_state(ProtocolState.COMMAND)
 
+    def test_flush_pump(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
+        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -823,6 +846,9 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
+        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
     def test_autosample_poll(self):
@@ -866,7 +892,9 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
             AgentCapabilityType.RESOURCE_COMMAND: [
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
-                ProtocolEvent.ACQUIRE_SAMPLE
+                ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.DEIONIZED_WATER_FLUSH,
+                ProtocolEvent.REAGENT_FLUSH
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
