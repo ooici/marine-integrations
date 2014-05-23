@@ -49,6 +49,19 @@ from mi.instrument.teledyne.workhorse.adcp.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse.adcp.driver import Protocol
 
 from mi.instrument.teledyne.workhorse.adcp.driver import ProtocolState
+
+from mi.idk.comm_config import ConfigTypes
+from ion.agents.port.port_agent_process import PortAgentProcess, PortAgentProcessType
+from mi.idk.unit_test import InstrumentDriverTestCase, LOCALHOST, ParameterTestConfigKey
+
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+
+from mi.instrument.teledyne.driver import TeledyneProtocolState
+from mi.instrument.teledyne.driver import TeledyneProtocolEvent
+
+from mi.core.exceptions import InstrumentCommandException
 ###
 #   Driver parameters for tests
 ###
@@ -85,8 +98,6 @@ InstrumentDriverTestCase.initialize(
             Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.WATER_PROFILING_MODE: 1,
             Parameter.NUMBER_OF_DEPTH_CELLS: 100,
             Parameter.PINGS_PER_ENSEMBLE: 1,
             Parameter.DEPTH_CELL_SIZE: 800,
@@ -101,6 +112,9 @@ InstrumentDriverTestCase.initialize(
             Parameter.ENSEMBLE_PER_BURST: 0,
             Parameter.SAMPLE_AMBIENT_SOUND: 0,
             Parameter.BUFFERED_OUTPUT_PERIOD: '00:00:00',
+
+            Parameter.CLOCK_SYNCH_INTERVAL: '00:00:00',
+            Parameter.GET_STATUS_INTERVAL: '00:00:00',
         },
         DriverStartupConfigKey.SCHEDULER: {
             ScheduledJob.GET_CALIBRATION: {},
@@ -150,10 +164,8 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '000 000 000', VALUE:'000 000 000'},
         Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '11110', VALUE: '11110'},
         Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.TIME: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: False},
+        Parameter.TIME: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '111100000', VALUE: '111100000'},
-        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-
         Parameter.BANNER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
@@ -175,7 +187,6 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 704, VALUE: 704},
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '001,005', VALUE: '001,005'},
         Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 800, VALUE: 800},
@@ -190,7 +201,9 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.DATA_STREAM_SELECTION: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.BUFFERED_OUTPUT_PERIOD: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00:00:00', VALUE:'00:00:00'},
-        Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0}
+        Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0},
+        Parameter.CLOCK_SYNCH_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'},
+        Parameter.GET_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'}
     }
 
     _driver_capabilities = {
@@ -201,16 +214,16 @@ class ADCPTMixin(DriverTestMixin):
         Capability.GET_CALIBRATION: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CONFIGURATION: { STATES: [ProtocolState.COMMAND]},
         Capability.SAVE_SETUP_TO_RAM: { STATES: [ProtocolState.COMMAND]},
-        Capability.SEND_LAST_SAMPLE: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
-        Capability.GET_INSTRUMENT_TRANSFORM_MATRIX: { STATES: [ProtocolState.COMMAND]},
         Capability.RUN_TEST_200: { STATES: [ProtocolState.COMMAND]},
         Capability.FACTORY_SETS: { STATES: [ProtocolState.COMMAND]},
         Capability.USER_SETS: { STATES: [ProtocolState.COMMAND]},
-
+        Capability.ACQUIRE_STATUS: { STATES: [ProtocolState.COMMAND]},
+        Capability.START_DIRECT: { STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT: { STATES: [ProtocolState.DIRECT_ACCESS]},
     }
 
     EF_CHAR = '\xef'
@@ -324,8 +337,8 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER: {'type': int, 'value': 5 },
         ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP: {'type': float, 'value': 752 },
         ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER_INCREMENT: {'type': int, 'value': 0 },
+        ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_0: {'type': int, 'value': 0 },
         ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_1: {'type': int, 'value': 0 },
-        ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_2: {'type': int, 'value': 0 },
         ADCP_PD0_PARSED_KEY.BIT_RESULT_TIMING: {'type': int, 'value': 0  },
         ADCP_PD0_PARSED_KEY.SPEED_OF_SOUND: {'type': int, 'value': 1523 },
         ADCP_PD0_PARSED_KEY.TRANSDUCER_DEPTH: {'type': int, 'value': 0 },
@@ -549,20 +562,19 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'PROTOCOL_EVENT_CLEAR_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_CLEAR_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
-                                    'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
                                     'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
                                     'FACTORY_DEFAULT_SETTINGS',
                                     'USER_DEFAULT_SETTINGS',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
-                                    'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
+                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'DRIVER_EVENT_GET',
@@ -640,6 +652,155 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
+
+    def setUp(self):
+        self.port_agents = {}
+        InstrumentDriverIntegrationTestCase.setUp(self)
+
+    def create_serial_comm_config(self, comm_config):
+        return {
+            'instrument_type': ConfigTypes.SERIAL,
+            'port_agent_addr': comm_config.host,
+            'device_os_port': comm_config.device_os_port,
+            'device_baud': comm_config.device_baud,
+            'device_data_bits': comm_config.device_data_bits,
+            'device_stop_bits': comm_config.device_stop_bits,
+            'device_flow_control': comm_config.device_flow_control,
+            'device_parity': comm_config.device_parity,
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+
+    def create_ethernet_comm_config(self, comm_config):
+        config = {
+            'instrument_type': ConfigTypes.ETHERNET,
+            'port_agent_addr': comm_config.host,
+            'device_addr': comm_config.device_addr,
+            'device_port': comm_config.device_port,
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+        log.debug('create_ethernet_comm_config returning: %r', config)
+        return config
+
+    def create_botpt_comm_config(self, comm_config):
+        config = self.create_ethernet_comm_config(comm_config)
+        config['instrument_type'] = ConfigTypes.BOTPT
+        config['device_tx_port'] = comm_config.device_tx_port
+        config['device_rx_port'] = comm_config.device_rx_port
+        return config
+
+    def create_multi_comm_config(self, comm_config):
+        result = {}
+        for name, config in comm_config.configs.items():
+            if config.method() == ConfigTypes.ETHERNET:
+                result[name] = self.create_ethernet_comm_config(config)
+            elif config.method() == ConfigTypes.SERIAL:
+                result[name] = self.create_serial_comm_config(config)
+        return result
+
+    def port_agent_config(self):
+        """
+        return the port agent configuration
+        """
+        comm_config = self.get_comm_config()
+        log.debug('comm_config = %r', comm_config.__dict__)
+        method = comm_config.method()
+        config = {}
+
+        if method == ConfigTypes.SERIAL:
+            config = self.create_serial_comm_config(comm_config)
+        elif method == ConfigTypes.ETHERNET:
+            config = self.create_ethernet_comm_config(comm_config)
+        elif method == ConfigTypes.BOTPT:
+            config = self.create_botpt_comm_config(comm_config)
+        elif method == ConfigTypes.MULTI:
+            config = self.create_multi_comm_config(comm_config)
+
+        config['instrument_type'] = comm_config.method()
+
+        if comm_config.sniffer_prefix: config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
+        if comm_config.sniffer_suffix: config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
+
+        return config
+
+    def init_port_agent(self):
+        """
+        @brief Launch the driver process and driver client.  This is used in the
+        integration and qualification tests.  The port agent abstracts the physical
+        interface with the instrument.
+        @retval return the pid to the logger process
+        """
+        if self.port_agents:
+            log.error("Port agent already initialized")
+            return
+
+        log.debug("Startup Port Agent")
+
+        config = self.port_agent_config()
+        log.debug("port agent config: %s", config)
+
+        port_agents = {}
+
+        if config['instrument_type'] != ConfigTypes.MULTI:
+            config = {'only one port agent here!': config}
+        for name, each in config.items():
+            log.error("Sung init port agent name %s", name)
+            log.error("Sung init port agent each %s", each)
+            if type(each) != dict:
+                continue
+            port_agent_host = each.get('device_addr')
+            log.error("Sung init port agant host %s", port_agent_host)
+            if port_agent_host is not None:
+                log.error("Sung init port agant calling launch_process")
+                port_agent = PortAgentProcess.launch_process(each, timeout=60, test_mode=True)
+                log.error("Sung init port agant  after")
+                port = port_agent.get_data_port()
+                log.error("Sung init port agant port %s", port)
+                pid = port_agent.get_pid()
+
+                if port_agent_host == LOCALHOST:
+                    log.info('Started port agent pid %s listening at port %s' % (pid, port))
+                else:
+                    log.info("Connecting to port agent on host: %s, port: %s", port_agent_host, port)
+                log.error("Sung init port agant port agent %s", repr(port_agent))
+                port_agents[name] = port_agent
+
+        self.addCleanup(self.stop_port_agent)
+        self.port_agents = port_agents
+
+    def stop_port_agent(self):
+        """
+        Stop the port agent.
+        """
+        log.info("Stop port agent")
+        if self.port_agents:
+            log.debug("found port agents, now stop them")
+            for agent in self.port_agents.values():
+                agent.stop()
+        self.port_agents = {}
+
+    def port_agent_comm_config(self):
+        config = {}
+        for name, each in self.port_agents.items():
+            log.debug('XXXXX: %r', each.__dict__)
+            port = each.get_data_port()
+            cmd_port = each.get_command_port()
+
+            config[name] = {
+                # TODO
+                'addr': each._config['port_agent_addr'],
+                'port': port,
+                'cmd_port': cmd_port
+            }
+        return config
+
     def _test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
@@ -664,7 +825,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
             Parameter.NUMBER_OF_DEPTH_CELLS: 100,
             Parameter.PINGS_PER_ENSEMBLE: 1,
             Parameter.DEPTH_CELL_SIZE: 800,
@@ -838,6 +998,53 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assertFalse(fail, "See above for un-exercized parameters.")
 
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_initialize_driver()
+        ####
+        # First test in command mode
+        ####
+
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=10)
+        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION)
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
+        self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
+        self.assert_driver_command(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
+        self.assert_driver_command(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
+        self.assert_driver_command(TeledyneProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
+        self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
+        self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
+        self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
+        #self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
+        #self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS, regex='^4 beam status outputs')
+
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS, exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
+        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
+
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
@@ -856,7 +1063,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._test_set_blank_after_transmit()
         self._test_set_clip_data_past_bottom()
         self._test_set_receiver_gain_select()
-        self._test_set_water_reference_layer()
+        #self._test_set_water_reference_layer()
         self._test_set_number_of_depth_cells()
         self._test_set_pings_per_ensemble()
         self._test_set_depth_cell_size()
