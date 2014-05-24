@@ -342,7 +342,7 @@ class Protocol(NortekInstrumentProtocol):
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="user number beams",
                                    direct_access=True,
                                    value=3))
@@ -376,7 +376,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="a1 1 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.B0_1_SPARE,
@@ -385,7 +385,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="b0 1 spare",
                                    default_value=None))
         self._param_dict.add_parameter(
@@ -395,7 +395,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="b1 1 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.COMPASS_UPDATE_RATE,
@@ -613,7 +613,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="user 1 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.VELOCITY_ADJ_TABLE,
@@ -718,7 +718,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="a1 2 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.B0_2_SPARE,
@@ -727,7 +727,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="b0 2 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
@@ -761,7 +761,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="user 2 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.CORRELATION_THRESHOLD,
@@ -782,7 +782,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="user 3 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
@@ -803,7 +803,7 @@ class Protocol(NortekInstrumentProtocol):
                                    lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,  # was READ_ONLY, restored from DA
                                    display_name="user 4 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.QUAL_CONSTANTS,
