@@ -354,6 +354,8 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
+    NortekInstrumentProtocol.velocity_data_regex.extend(VECTOR_SAMPLE_REGEX)
+    NortekInstrumentProtocol.velocity_sync_bytes = VELOCITY_DATA_SYNC_BYTES
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -363,9 +365,6 @@ class Protocol(NortekInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         super(Protocol, self).__init__(prompts, newline, driver_event)
-
-        self.velocity_data_regex.extend(VECTOR_SAMPLE_REGEX)
-        self.velocity_sync_bytes = VELOCITY_DATA_SYNC_BYTES
 
     ########################################################################
     # overridden superclass methods
