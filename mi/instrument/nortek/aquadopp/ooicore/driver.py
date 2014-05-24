@@ -6,11 +6,12 @@ Release notes:
 
 Driver for Aquadopp DW
 """
-import base64
+
 
 __author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
+import base64
 import re
 
 from mi.core.common import BaseEnum
