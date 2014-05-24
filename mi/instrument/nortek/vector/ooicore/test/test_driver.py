@@ -18,14 +18,12 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a INT
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a QUAL
 """
-
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey; monkey.patch_all()
-import unittest
+from gevent import monkey
+monkey.patch_all()
 import time
-import base64
 import ntplib
 
 from nose.plugins.attrib import attr
@@ -33,33 +31,20 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
-# MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 
-from mi.instrument.nortek.test.test_driver import head_config_sample
-from mi.instrument.nortek.test.test_driver import user_config1, user_config2
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, DriverTestMixinSub
 
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
 
-from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentStateException
-from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter, Capability
-from mi.instrument.nortek.driver import ProtocolEvent
-from mi.instrument.nortek.driver import Parameter
-from mi.instrument.nortek.driver import NortekDataParticleType
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, Capability, Parameter, ProtocolEvent
 
-from mi.instrument.nortek.vector.ooicore.driver import DataParticleType
-from mi.instrument.nortek.vector.ooicore.driver import Protocol
+from mi.instrument.nortek.vector.ooicore.driver import Protocol, DataParticleType, NortekDataParticleType
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticle
@@ -76,55 +61,21 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id='nortek_vector_dw_ooicore',
     instrument_agent_name='nortek_vector_dw_ooicore_agent',
-    instrument_agent_packet_config=DataParticleType(),
+    instrument_agent_packet_config=NortekDataParticleType(),
     driver_startup_config={
-        DriverConfigKey.PARAMETERS:
-            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
-             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00',
-             Parameter.AVG_INTERVAL: 61}}
+        DriverConfigKey.PARAMETERS: {
+            Parameter.DEPLOYMENT_NAME: 'test',
+            Parameter.WRAP_MODE: 0,
+            Parameter.ANALOG_INPUT_ADDR: 0,
+            Parameter.SW_VERSION: 13702,
+            Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+            Parameter.COMMENTS: 'this is a test',
+            Parameter.QUAL_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w=='}}
 )
 
-params_dict = {
-    Parameter.TRANSMIT_PULSE_LENGTH: int,
-    Parameter.BLANKING_DISTANCE: int,
-    Parameter.RECEIVE_LENGTH: int,
-    Parameter.TIME_BETWEEN_PINGS: int,
-    Parameter.TIME_BETWEEN_BURST_SEQUENCES: int,
-    Parameter.NUMBER_PINGS: int,
-    Parameter.AVG_INTERVAL: int,
-    Parameter.USER_NUMBER_BEAMS: int,
-    Parameter.TIMING_CONTROL_REGISTER: int,
-    Parameter.POWER_CONTROL_REGISTER: int,
-    Parameter.COMPASS_UPDATE_RATE: int,
-    Parameter.COORDINATE_SYSTEM: int,
-    Parameter.NUMBER_BINS: int,
-    Parameter.BIN_LENGTH: int,
-    Parameter.MEASUREMENT_INTERVAL: int,
-    Parameter.DEPLOYMENT_NAME: str,
-    Parameter.WRAP_MODE: int,
-    Parameter.CLOCK_DEPLOY: list,
-    Parameter.DIAGNOSTIC_INTERVAL: int,
-    Parameter.MODE: int,
-    Parameter.ADJUSTMENT_SOUND_SPEED: int,
-    Parameter.NUMBER_SAMPLES_DIAGNOSTIC: int,
-    Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: int,
-    Parameter.NUMBER_PINGS_DIAGNOSTIC: int,
-    Parameter.MODE_TEST: int,
-    Parameter.ANALOG_INPUT_ADDR: int,
-    Parameter.SW_VERSION: int,
-    Parameter.VELOCITY_ADJ_TABLE: str,
-    Parameter.COMMENTS: str,
-    Parameter.WAVE_MEASUREMENT_MODE: int,
-    Parameter.DYN_PERCENTAGE_POSITION: int,
-    Parameter.WAVE_TRANSMIT_PULSE: int,
-    Parameter.WAVE_BLANKING_DISTANCE: int,
-    Parameter.WAVE_CELL_SIZE: int,
-    Parameter.NUMBER_DIAG_SAMPLES: int,
-    Parameter.NUMBER_SAMPLES_PER_BURST: int,
-    Parameter.ANALOG_OUTPUT_SCALE: int,
-    Parameter.CORRELATION_THRESHOLD: int,
-    Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: int,
-    Parameter.QUAL_CONSTANTS: str}
 
 # velocity data particle & sample
 def velocity_sample():
@@ -308,11 +259,11 @@ class UnitFromIDK(NortekUnitTest):
         Verify driver specific enums have no duplicates
         Base unit test driver will test enums specific for the base class.
         """
-        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(NortekDataParticleType())
 
     def test_velocity_header_sample_format(self):
         """
-        Test to make sure we can get velocity_header sample data out in a
+        Verify driver can get velocity_header sample data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests
         """
@@ -341,7 +292,7 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_velocity_sample_format(self):
         """
-        Test to make sure we can get velocity sample data out in a reasonable
+        Verify driver can get velocity sample data out in a reasonable
         format. Parsed is all we care about...raw is tested in the base
         DataParticle tests
         """
@@ -367,7 +318,7 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_system_sample_format(self):
         """
-        Test to make sure we can get velocity sample data out in a reasonable
+        Verify driver can get system sample data out in a reasonable
         format. Parsed is all we care about...raw is tested in the base
         DataParticle tests
         """
@@ -396,9 +347,13 @@ class UnitFromIDK(NortekUnitTest):
 
     def test_chunker(self):
         """
-        Tests the chunker
+        Verify the chunker can parse each sample type
+        1. complete data structure
+        2. fragmented data structure
+        3. combined data structure
+        4. data structure with noise
         """
-        chunker = StringChunker(Protocol.chunker_sieve_function)
+        chunker = StringChunker(Protocol.sieve_function)
 
         # test complete data structures
         self.assert_chunker_sample(chunker, velocity_sample())
@@ -421,7 +376,9 @@ class UnitFromIDK(NortekUnitTest):
         self.assert_chunker_sample_with_noise(chunker, velocity_header_sample())
 
     def test_corrupt_data_structures(self):
-        # garbage is not okay
+        """
+        Verify when generating the particle, if the particle is corrupt, an exception is raised
+        """
         particle = VectorVelocityHeaderDataParticle(velocity_header_sample().replace(chr(0), chr(1), 1),
                                                     port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
@@ -447,54 +404,22 @@ class UnitFromIDK(NortekUnitTest):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
-    protocol_state = ''
 
     def setUp(self):
         NortekIntTest.setUp(self)
 
-    # @unittest.skip('temp disable')
-    def test_autosample_read_mode(self):
-        """
-        Test acquire sample command and events.
-        """
-
-        """
-        1. initialize the instrument to COMMAND state
-        2. command the instrument to ACQUIRESAMPLE
-        3. verify the particle coming in
-        """
-        self.assert_initialize_driver(ProtocolState.AUTOSAMPLE)
-        time.sleep(5)
-        self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
-
-        # time.sleep(5)
-        # self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        time.sleep(3)
-        self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        time.sleep(1)
-        self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        time.sleep(3)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-
-    # @unittest.skip('temp disable')
     def test_acquire_sample(self):
         """
         Test acquire sample command and events.
 
         1. initialize the instrument to COMMAND state
-        2. command the instrument to ACQUIRESAMPLE
+        2. command the instrument to ACQUIRE SAMPLE
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         # test acquire sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
-
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
-        # self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
-        #
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
-        # self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=TIMEOUT)
 
     # @unittest.skip('temp disable')
     def test_command_autosample(self):
@@ -507,7 +432,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         4. command the instrument back to COMMAND state
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-        # test autosample
+
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
@@ -516,293 +441,6 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-        # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, delay=1)
-
-
-    # def test_set_init_params(self):
-    #     """
-    #     @brief Test for set_init_params()
-    #     """
-    #     self.put_driver_in_command_mode()
-    #
-    #     values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #
-    #     self.driver_client.cmd_dvr('set_init_params',
-    #                                {DriverConfigKey.PARAMETERS:
-    #                                     {DriverParameter.ALL:
-    #                                          base64.b64encode(user_config1())}
-    #                                })
-    #     self.driver_client.cmd_dvr("apply_startup_params")
-    #
-    #     values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-    #
-    #     # check to see if startup config got set in instrument
-    #     self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 500)
-    #     self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 20)
-    #
-    #     self.driver_client.cmd_dvr('set_resource', values_before)
-    #     values_after = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #     self.assertEquals(values_after, values_before)
-    #
-    #
-    # def test_startup_configuration(self):
-    #     '''
-    #     Test that the startup configuration is applied correctly
-    #     '''
-    #     self.put_driver_in_command_mode()
-    #     value_before = self.driver_client.cmd_dvr('get_resource',
-    #                                               [Parameter.AVG_INTERVAL])
-    #     log.debug("Value before applying startup parameters: %s", value_before)
-    #
-    #     self.driver_client.cmd_dvr('apply_startup_params')
-    #     reply = self.driver_client.cmd_dvr('get_resource',
-    #                                        [Parameter.AVG_INTERVAL])
-    #     self.assertEquals(reply, {Parameter.AVG_INTERVAL: 61})
-    #     reply = self.driver_client.cmd_dvr('set_resource', value_before)
-    #     reply = self.driver_client.cmd_dvr('get_resource',
-    #                                        [Parameter.AVG_INTERVAL])
-    #     self.assertEquals(reply, value_before)
-    #
-    # def test_instrument_set_configuration(self):
-    #     """
-    #     @brief Test for setting instrument configuration
-    #     """
-    #
-    #     self.put_driver_in_command_mode()
-    #
-    #     # command the instrument to set the user configuration.
-    #     self.driver_client.cmd_dvr('execute_resource',
-    #                                ProtocolEvent.SET_CONFIGURATION,
-    #                                user_configuration=base64.b64encode(user_config2()))
-    #
-    #     values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-    #     #print("va=%s" %values_after)
-    #
-    #     # check to see if config got set in instrument
-    #     self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 600)
-    #     self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 10)
-    #
-    # def test_instrument_set(self):
-    #     """
-    #     @brief Test for setting instrument parameter
-    #     """
-    #     self.put_driver_in_command_mode()
-    #
-    #     # Get all device parameters. Confirm all expected keys are retrieved
-    #     # and have correct type.
-    #     reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #     self.assertParamDictionariesEqual(reply, params_dict, True)
-    #
-    #     # Grab a subset of parameters.
-    #     params = [
-    #         Parameter.WRAP_MODE
-    #     ]
-    #     reply = self.driver_client.cmd_dvr('get_resource', params)
-    #     #self.assertParamDict(reply)
-    #
-    #     # Remember the original subset.
-    #     orig_params = reply
-    #
-    #     # Construct new parameters to set.
-    #     new_wrap_mode = 1 if orig_params[Parameter.WRAP_MODE] == 0 else 0
-    #     log.debug('old=%d, new=%d', orig_params[Parameter.WRAP_MODE], new_wrap_mode)
-    #     new_params = {
-    #         Parameter.WRAP_MODE: new_wrap_mode
-    #     }
-    #
-    #     # Set parameter and verify.
-    #     reply = self.driver_client.cmd_dvr('set_resource', new_params)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', params)
-    #     self.assertEqual(new_params[Parameter.WRAP_MODE],
-    #                      reply[Parameter.WRAP_MODE])
-    #
-    #     # Reset parameter to original value and verify.
-    #     reply = self.driver_client.cmd_dvr('set_resource', orig_params)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', params)
-    #     self.assertEqual(orig_params[Parameter.WRAP_MODE],
-    #                      reply[Parameter.WRAP_MODE])
-    #
-    #     # set wrap_mode to 1 to leave instrument with wrap mode enabled
-    #     new_params = {
-    #         Parameter.WRAP_MODE: 1,
-    #         Parameter.NUMBER_SAMPLES_PER_BURST: 10,
-    #         Parameter.MEASUREMENT_INTERVAL: 600
-    #     }
-    #
-    #     # Set parameter and verify.
-    #     reply = self.driver_client.cmd_dvr('set_resource', new_params)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource',
-    #                                        [Parameter.WRAP_MODE,
-    #                                         Parameter.NUMBER_SAMPLES_PER_BURST,
-    #                                         Parameter.MEASUREMENT_INTERVAL])
-    #     self.assertEqual(new_params, reply)
-    #
-    #
-    # def test_capabilities(self):
-    #     """
-    #     Test get_resource_capaibilties in command state and autosample state;
-    #     should be different in each.
-    #     """
-    #
-    #     command_capabilities = ['EXPORTED_INSTRUMENT_CMD_READ_ID',
-    #                             'EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION',
-    #                             'DRIVER_EVENT_SET',
-    #                             'DRIVER_EVENT_GET',
-    #                             'EXPORTED_INSTRUMENT_CMD_READ_CLOCK',
-    #                             'EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION',
-    #                             'EXPORTED_INSTRUMENT_CMD_GET_USER_CONFIGURATION',
-    #                             'EXPORTED_INSTRUMENT_CMD_POWER_DOWN',
-    #                             'EXPORTED_INSTRUMENT_CMD_READ_MODE',
-    #                             # RECORDER
-    #                             #'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME',
-    #                             'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE',
-    #                             # RECORDER
-    #                             #'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE',
-    #                             'EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION',
-    #                             'DRIVER_EVENT_START_AUTOSAMPLE',
-    #                             'DRIVER_EVENT_ACQUIRE_SAMPLE',
-    #                             'DRIVER_EVENT_CLOCK_SYNC']
-    #
-    #     autosample_capabilities = ['DRIVER_EVENT_STOP_AUTOSAMPLE']
-    #
-    #     params_list = params_dict.keys()
-    #
-    #     self.put_driver_in_command_mode()
-    #
-    #     # Get the capabilities of the driver.
-    #     driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-    #     log.debug("\nec=%s\ndc=%s", sorted(command_capabilities),
-    #               sorted(driver_capabilities[0]))
-    #     self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
-    #     #log.debug('dc=%s' %sorted(driver_capabilities[1]))
-    #     #log.debug('pl=%s' %sorted(params_list))
-    #     self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
-    #
-    #     # Put the driver in autosample
-    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-    #
-    #     self.check_state(ProtocolState.AUTOSAMPLE)
-    #
-    #     # Get the capabilities of the driver.
-    #     driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-    #     log.debug('test_capabilities: autosample mode capabilities=%s',
-    #               driver_capabilities)
-    #     self.assertTrue(autosample_capabilities == driver_capabilities[0])
-    #
-    # def test_errors(self):
-    #     """
-    #     Test response to erroneous commands and parameters.
-    #     """
-    #
-    #     # Test that the driver is in state unconfigured.
-    #     self.check_state(DriverConnectionState.UNCONFIGURED)
-    #
-    #     # Assert for an unknown driver command.
-    #     self.assert_ion_exception(InstrumentCommandException,
-    #                               self.driver_client.cmd_dvr, 'bogus_command')
-    #
-    #     # Assert for a known command, invalid state.
-    #     self.assert_ion_exception(InstrumentStateException,
-    #                               self.driver_client.cmd_dvr, 'execute_resource',
-    #                               ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #     # Assert we forgot the comms parameter.
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'configure')
-    #
-    #     # Assert we send a bad config object (not a dict).
-    #     BOGUS_CONFIG = 'not a config dict'
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'configure', BOGUS_CONFIG)
-    #
-    #     BOGUS_CONFIG = self.port_agent_comm_config().copy()
-    #     BOGUS_CONFIG.pop('addr')
-    #     # Assert we send a bad config object (missing addr value).
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'configure', BOGUS_CONFIG)
-    #
-    #     # Assert we send a bad config object (bad addr value).
-    #     BOGUS_CONFIG = self.port_agent_comm_config().copy()
-    #     BOGUS_CONFIG['addr'] = ''
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'configure', BOGUS_CONFIG)
-    #
-    #     # Configure driver and transition to disconnected.
-    #     self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-    #
-    #     # Test that the driver is in state disconnected.
-    #     self.check_state(DriverConnectionState.DISCONNECTED)
-    #
-    #     # Assert for a known command, invalid state.
-    #     self.assert_ion_exception(InstrumentStateException,
-    #                               self.driver_client.cmd_dvr, 'execute_resource',
-    #                               ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #     self.driver_client.cmd_dvr('connect')
-    #
-    #     # Test the driver is in unknown state.
-    #     self.check_state(ProtocolState.UNKNOWN)
-    #
-    #     # Assert for a known command, invalid state.
-    #     self.assert_ion_exception(InstrumentStateException,
-    #                               self.driver_client.cmd_dvr, 'execute_resource',
-    #                               ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #     self.driver_client.cmd_dvr('discover_state')
-    #
-    #     try:
-    #         # Test that the driver protocol is in state command.
-    #         self.check_state(ProtocolState.COMMAND)
-    #     except:
-    #         self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
-    #         # Put the driver in command mode
-    #         self.driver_client.cmd_dvr('execute_resource',
-    #                                    ProtocolEvent.STOP_AUTOSAMPLE)
-    #         # Test that the driver protocol is in state command.
-    #         self.check_state(ProtocolState.COMMAND)
-    #
-    #     # Assert for a known command, invalid state.
-    #     self.assert_ion_exception(InstrumentStateException,
-    #                               self.driver_client.cmd_dvr, 'execute_resource',
-    #                               ProtocolEvent.STOP_AUTOSAMPLE)
-    #
-    #     # Assert for a known command, invalid state.
-    #     self.assert_ion_exception(InstrumentStateException,
-    #                               self.driver_client.cmd_dvr, 'connect')
-    #
-    #     # Assert get fails without a parameter.
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'get_resource')
-    #
-    #     # Assert get fails with a bad parameter (not ALL or a list).
-    #     bogus_params = 'I am a bogus param list.'
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'get_resource', bogus_params)
-    #
-    #     # Assert get fails with a bad parameter (not ALL or a list).
-    #     bogus_params = [
-    #         'a bogus parameter name',
-    #         Parameter.ADJUSTMENT_SOUND_SPEED
-    #     ]
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'get_resource', bogus_params)
-    #
-    #     # Assert we cannot set a bogus parameter.
-    #     bogus_params = {
-    #         'a bogus parameter name': 'bogus value'
-    #     }
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'set_resource', bogus_params)
-    #
-    #     # Assert we cannot set a real parameter to a bogus value.
-    #     bogus_params = {
-    #         Parameter.ADJUSTMENT_SOUND_SPEED: 'bogus value'
-    #     }
-    #     self.assert_ion_exception(InstrumentParameterException,
-    #                               self.driver_client.cmd_dvr, 'set_resource', bogus_params)
 
 
 ###############################################################################
@@ -813,16 +451,18 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 @attr('QUAL', group='mi')
 class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
 
-    def test_direct_access_telnet_mode(self):
+    def test_direct_access_telnet_mode_driver(self):
         """
         This test manually tests that the Instrument Driver properly supports direct access to the
         physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
-
+        log.debug('finished set up')
         self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("VECTOR")
+        result = self.tcp_client.expect("VECTOR")
+
+        self.assertTrue(result)
 
         self.assert_direct_access_stop_telnet()
 
@@ -842,55 +482,3 @@ class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
         self.assert_particle_polled(Capability.START_AUTOSAMPLE, self.assert_particle_velocity, DataParticleType.VELOCITY_HEADER)
         self.assert_particle_async(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=10)
         self.assert_particle_async(DataParticleType.SYSTEM, self.assert_particle_system, timeout=10)
-
-    def assertSampleDataParticle(self, sample):
-        if not self.assertBaseSampleDataParticle(sample):  # Check the common types
-            values = sample['values']
-            value_ids = []
-            for value in values:
-                value_ids.append(value[DataParticleKey.VALUE_ID])
-            if sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY:
-                log.debug('assertSampleDataParticle: VectorVelocityDataParticle detected')
-                self.assertEqual(sorted(value_ids),
-                                 sorted(VectorVelocityDataParticleKey.list()))
-                for value in values:
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY_HEADER:
-                log.debug('assertSampleDataParticle: VectorVelocityHeaderDataParticle detected')
-                self.assertEqual(sorted(value_ids),
-                                 sorted(VectorVelocityHeaderDataParticleKey.list()))
-                for value in values:
-                    if value[DataParticleKey.VALUE_ID] == VectorVelocityHeaderDataParticleKey.TIMESTAMP:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-                    else:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.SYSTEM:
-                log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
-                self.assertEqual(sorted(value_ids),
-                                 sorted(VectorSystemDataParticleKey.list()))
-                for value in values:
-                    if value[DataParticleKey.VALUE_ID] == VectorSystemDataParticleKey.TIMESTAMP:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-                    else:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-
-    def test_poll(self):
-        '''
-        poll for a single sample
-        '''
-
-        self.assert_sample_polled(self.assertSampleDataParticle,
-                                  [DataParticleType.VELOCITY,
-                                   DataParticleType.VELOCITY_HEADER,
-                                   DataParticleType.SYSTEM],
-                                  timeout=100)
-
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-        self.assert_sample_autosample(self.assertSampleDataParticle,
-                                      [DataParticleType.VELOCITY,
-                                       DataParticleType.VELOCITY_HEADER,
-                                       DataParticleType.SYSTEM],
-                                      timeout=100)
