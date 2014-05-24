@@ -211,6 +211,9 @@ class Protocol(NortekInstrumentProtocol):
     Subclasses NortekInstrumentProtocol
     """
 
+    NortekInstrumentProtocol.velocity_data_regex.extend(AQUADOPP_SAMPLE_REGEX)
+    NortekInstrumentProtocol.velocity_sync_bytes = VELOCITY_DATA_SYNC_BYTES
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -220,9 +223,6 @@ class Protocol(NortekInstrumentProtocol):
         """
         # Construct protocol superclass.
         super(Protocol, self).__init__(prompts, newline, driver_event)
-
-        self.velocity_data_regex.extend(AQUADOPP_SAMPLE_REGEX)
-        self.velocity_sync_bytes = VELOCITY_DATA_SYNC_BYTES
 
     ########################################################################
     # overridden superclass methods
