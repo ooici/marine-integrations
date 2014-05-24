@@ -992,12 +992,12 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        #test parameter w/direct access only
-        self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
+        #test parameter w/direct access only, direct access only? does it mean resetting after direct access?
+
+        #test read/write parameter
+        self.assert_set(Parameter.TIMING_CONTROL_REGISTER, 3)
 
         # TODO pick new params to test with!
-        #test read/write parameter
-        # self.assert_set(Parameter.RECEIVE_LENGTH, 3)
 
         #test start parameter
         # self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
