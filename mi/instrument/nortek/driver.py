@@ -1387,7 +1387,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Raise exception if no parameter provided, or not a dict.
         try:
             params = args[0]
-            self._verify_not_readonly(*args, **kwargs)    # TODO come back for this
+            self._verify_not_readonly(*args, **kwargs)
         except IndexError:
             raise InstrumentParameterException('Set params requires a parameter dict.')
         else:
@@ -2311,7 +2311,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         #                            type=ParameterDictType.INT,
         #                            visibility=ParameterDictVisibility.READ_WRITE,
         #                            display_name="adjustment sound speed",
-        #                            default_value=1525,  # TODO reevaluate this default value
+        #                            default_value=1525,
         #                            init_value=16657,
         #                            startup_param=True))
         # self._param_dict.add_parameter(
@@ -2364,7 +2364,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         #                            display_name="mode test",
         #                            default_value=None,
         #                            # # init_value=,
-        #                            startup_param=False,  # TODO True?, find correct initial value
+        #                            startup_param=False,
         #                            direct_access=True))
         # self._param_dict.add_parameter(
         #     NortekParameterDictVal(Parameter.ANALOG_INPUT_ADDR,
@@ -2470,7 +2470,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         #                            regex_flags=re.DOTALL,
         #                            type=ParameterDictType.INT,
         #                            visibility=ParameterDictVisibility.READ_ONLY,
-        #                            display_name="number diag samples"))     # TODO Does this control diagnostic output?
+        #                            display_name="number diag samples"))
         # self._param_dict.add_parameter(
         #     NortekParameterDictVal(Parameter.A1_2_SPARE,
         #                            r'^.{%s}(.{2}).*' % str(448),
@@ -2499,7 +2499,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         #                            visibility=ParameterDictVisibility.READ_ONLY,
         #                            display_name="number samples per burst"
         #                            # ,default_value=0,
-        #                            # init_value=0,        # TODO change this value so that it is always in continuous mode?
+        #                            # init_value=0,
         #                            # startup_param=False,
         #                            # direct_access=False
         #                            ))
