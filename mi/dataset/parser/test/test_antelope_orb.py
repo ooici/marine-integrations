@@ -115,7 +115,8 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
         channels = self.get_data_value(r, AntelopeOrbPacketParticleKey.CHANNELS)
         self.assertEquals(len(channels), 1)
         chan = channels[0]
-        self.assertEquals(self.PKT_DATA, chan[AntelopeOrbPacketParticleChannelKey.DATA])
+        self.assertEquals(self.PKT_DATA,
+                            tuple(chan[AntelopeOrbPacketParticleChannelKey.DATA]))
         self.assertEquals(self.PKT_TIME, chan[AntelopeOrbPacketParticleChannelKey.TIME])
         self.assertEquals(self.PKT_SAMPRATE, chan[AntelopeOrbPacketParticleChannelKey.SAMPRATE])
         self.assertEquals(self.PKT_NET, chan[AntelopeOrbPacketParticleChannelKey.NET])
