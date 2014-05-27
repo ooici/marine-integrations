@@ -326,6 +326,9 @@ class SeaBird19plusMixin(DriverTestMixin):
 "</StatusData>" + NEWLINE
 
     VALID_SEND_OPTODE_RESPONSE = "" + \
+'S>sendoptode=get analog output' + NEWLINE + \
+'Sending Optode: get analog output' + NEWLINE + NEWLINE + \
+'Optode RX = Analog Output	4831	134	CalPhase' + NEWLINE + \
 'Optode RX = CalPhase[Deg]	4831	134	30.050' + NEWLINE + \
 'S>sendoptode=get enable temperature' + NEWLINE + \
 'Sending Optode: get enable temperature' + NEWLINE + NEWLINE + \
@@ -342,9 +345,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 'S>sendoptode=get enable rawdata' + NEWLINE + \
 'Sending Optode: get enable rawdata' + NEWLINE + NEWLINE + \
 'Optode RX = Enable Rawdata	4831	134	No' + NEWLINE + \
-'S>sendoptode=get analog output' + NEWLINE + \
-'Sending Optode: get analog output' + NEWLINE + NEWLINE + \
-'Optode RX = Analog Output	4831	134	CalPhase' + NEWLINE + \
 'S>sendoptode=get interval' + NEWLINE + \
 'Sending Optode: get interval' + NEWLINE + NEWLINE + \
 'Optode RX = Interval	4831	134	5.000' + NEWLINE + \
@@ -1013,30 +1013,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    def assert_calibration_coefficients(self):
-        """
-        Verify a calibration particle was generated
-        over-ride the base class for different calibration particle
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration, timeout=60)
-
-    def test_scheduled_config_command(self):
-        """
-        Verify the device configuration command can be triggered and run in command
-        """
-        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_calibration_coefficients, delay=60)
-        self.assert_current_state(ProtocolState.COMMAND)
-
-    def test_scheduled_config_autosample(self):
-        """
-        Verify the device configuration command can be triggered and run in autosample
-        """
-        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_calibration_coefficients,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
-        self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-
     def assert_acquire_status(self):
         """
         Verify a status particle was generated
@@ -1262,8 +1238,7 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
 
     def test_get_set_parameters(self):
         '''
-        verify that all parameters can be get set properly, this includes
-        ensuring that read only parameters fail on set.
+        verify that all parameters can be get set properly
         '''
         self.assert_enter_command_mode()
 
