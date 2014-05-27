@@ -83,8 +83,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Take the diagnostic data sample and parse it into
-        values with appropriate tags.
+        Take the velocity data sample and parse it into values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
         log.debug('AquadoppDwVelocityDataParticle: raw data =%r', self.raw_data)
@@ -94,11 +93,12 @@ class AquadoppDwVelocityDataParticle(DataParticle):
             raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]" % self.raw_data)
 
         result = self._build_particle(match)
+        log.debug('AquadoppDwVelocityDataParticle: particle=%s', result)
         return result
 
     def _build_particle(self, match):
         """
-        Build a particle.  Used for parsing Velocity and Diagnostic data
+        Build a particle.  Used for parsing Velocity
         """
         timestamp = NortekProtocolParameterDict.convert_time(match.group(1))
         error = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
@@ -137,7 +137,6 @@ class AquadoppDwVelocityDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2, DataParticleKey.VALUE: amplitude_beam2},
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3, DataParticleKey.VALUE: amplitude_beam3}]
 
-        log.debug('AquadoppDwVelocityDataParticle: particle=%s', result)
         return result
 
 
@@ -198,6 +197,8 @@ class Protocol(NortekInstrumentProtocol):
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        log.debug("_got_chunk: structure: %r", structure)
+
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._got_chunk_base(structure, timestamp)
 
