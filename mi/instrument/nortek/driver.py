@@ -8,7 +8,7 @@
 """
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 
-__author__ = 'Ronald Ronquillo'
+__author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 import re
@@ -1220,8 +1220,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.ACQUIRE_DATA, self._parse_acquire_data_response)
         self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.SAMPLE_WHAT_MODE, self._parse_what_mode_response)
-        # self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
-        # self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id_response)
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
@@ -1337,10 +1335,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Raise exception if no parameter provided, or not a dict.
         try:
             params = args[0]
-            # verify_read_only = args[1]
-            # if verify_read_only:
-            #      log.debug('Verifying parameters for READ ONLY')
-            #      self._verify_not_readonly(*args, **kwargs)
         except IndexError:
             raise InstrumentParameterException('Set params requires a parameter dict.')
         else:
@@ -1391,7 +1385,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         Send a wakeup to the device. Overridden by device specific
         subclasses.
         """
-
         self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
@@ -1519,7 +1512,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Command the instrument to acquire sample data. Instrument will enter Power Down mode when finished
         """
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=self.velocity_sync_bytes,
+        self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=self.velocity_sync_bytes,
                                    timeout=SAMPLE_TIMEOUT, *args, **kwargs)
 
         return None, (None, None)
@@ -1595,6 +1588,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_set_configuration(self, *args, **kwargs):
         """
+        Send the configuration to the instrument
         """
         next_state = None
         next_agent_state = None
@@ -1623,11 +1617,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_read_mode(self):
         """
+        Issue read mode command.
         """
         next_state = None
         next_agent_state = None
 
-        # Issue read mode command.
         try:
             self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
             time.sleep(.1)
@@ -1790,7 +1784,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Exit autosample state.
         """
-
         self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
         self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
         pass
@@ -2019,7 +2012,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    startup_param=True))
 
     def _dump_config(self, input):
-        # dump config block
+        """
+        For debug purposes, dump the configuration block
+        """
         dump = ''
         for byte_index in range(0, len(input)):
             if byte_index % 0x10 == 0:
@@ -2029,6 +2024,13 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         return dump
 
     def _check_configuration(self, input, sync, length):
+        """
+        Perform a check on the configuration:
+        1. Correct length
+        2. Contains ACK bytes
+        3. Correct sync byte
+        4. Correct checksum
+        """
         # log.debug('_check_configuration: config=%s', self._dump_config(input))
         #print self._dump_config(input)
         if len(input) != length+2:
@@ -2137,7 +2139,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
         """
-
         log.debug("_parse_response_default: response=%r, prompt=%r", response, prompt)
 
     def _parse_acquire_data_response(self, response, prompt):
@@ -2148,13 +2149,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The [value] as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        # log.debug("_parse_acquire_data_response: response=%r, prompt=%r", response, prompt)
-
         key = self.velocity_sync_bytes
         start = response.find(key)
         if start != -1:
             log.debug("_parse_acquire_data_response: response=%r", response[start:start+len(key)])
-            # log.debug("_parse_acquire_data_response: Calling STOP_AUTOSAMPLE")
             self._protocol_fsm.on_event(ProtocolEvent.STOP_AUTOSAMPLE)
             return response[start:start+len(key)]
 
@@ -2200,7 +2198,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _parse_read_battery_voltage_response(self, response, prompt):
         """
         Parse the response from the instrument for a read battery voltage command.
-        
+
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
         @retval return The battery voltage in mV int

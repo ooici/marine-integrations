@@ -19,7 +19,7 @@ USAGE:
 """
 from mi.instrument.ooici.mi.test_driver.test.test_driver import DriverTestMixinSub
 
-__author__ = 'Rachel Manoni'
+__author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 from gevent import monkey
@@ -333,7 +333,6 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
             gevent.sleep(15)
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
-
 
     def test_poll(self):
         """

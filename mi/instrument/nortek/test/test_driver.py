@@ -5,7 +5,7 @@
 @brief Common test code for Nortek drivers
 """
 
-__author__ = 'Steve Foley'
+__author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
@@ -970,26 +970,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assertEquals(values_after[Parameter.CORRELATION_THRESHOLD], 0)
         self.assertEquals(values_after[Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG], 2)
         self.assertEquals(values_after[Parameter.QUAL_CONSTANTS], 'Cv/N/4sA5QDuAAsAhP89/w==')
-
-    # def test_set_get_parameters(self):
-    #     #TODO - DO WE NEED THIS?  TESTING THE INIT PARAMS SEEMS TO COVER THIS ALREADY....
-    #     """
-    #     Verify that we can set the parameters
-    #
-    #     1. Cannot set read only parameters
-    #     2. Can set read/write parameters
-    #     3. Can set direct access
-    #     """
-    #     self.assert_initialize_driver(ProtocolState.COMMAND)
-    #
-    #     #test parameter w/direct access only
-    #     self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1)
-    #     #
-    #     #test start parameter
-    #    # self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
-    #
-    #     #test read only parameter
-    #     self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=TypeError)
 
     def test_instrument_clock_sync(self):
         """
