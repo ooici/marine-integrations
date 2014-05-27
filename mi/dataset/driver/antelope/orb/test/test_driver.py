@@ -30,6 +30,7 @@ from mock import Mock, call
 
 import gevent
 
+from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
@@ -37,8 +38,9 @@ from mi.core.log import get_logger ; log = get_logger()
 import logging
 log.setLevel(logging.TRACE)
 
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.unit_test import MiIntTestCase
-
+from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetTestConfig
@@ -47,6 +49,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+
 
 # Ignore antelope import errors for buildbot
 try:
@@ -362,6 +365,96 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_harvester_new_file_exception(self):
         self.skipTest("Not applicable to Antelope ORB driver")
+
+    def test_capabilities(self):
+        """
+        Verify capabilities throughout the agent lifecycle
+        """
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.UNINITIALIZED),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: None,
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: None,
+        }
+
+        ###
+        # DSA State INACTIVE
+        ###
+
+        log.debug("Initialize DataSet agent")
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_state_change(ResourceAgentState.INACTIVE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State IDLE
+        ###
+
+        log.debug("DataSet agent go active")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.IDLE)
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_state_change(ResourceAgentState.IDLE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State COMMAND
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_agent_command(ResourceAgentEvent.RUN)
+        self.assert_state_change(ResourceAgentState.COMMAND)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State STREAMING
+        ###
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.STOP_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_start_sampling()
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State COMMAND Revisited
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_stop_sampling()
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State INACTIVE
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.INACTIVE)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = None
+        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_state_change(ResourceAgentState.INACTIVE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State LOST_CONNECTION
+        ###
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.LOST_CONNECTION)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = None
+        self.assert_agent_command(ResourceAgentEvent.RESET)
+        self.assert_state_change(ResourceAgentState.UNINITIALIZED)
+
+        # Antelopes completely hides it's connection status
+        #self.remove_sample_dir()
+        #self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        #self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        #self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
 
     def assert_all_queue_empty(self):
         """
