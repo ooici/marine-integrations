@@ -512,7 +512,6 @@ class CommConfigMulti(CommConfig):
             'config_type': self.method(),
             'configs': {},
         }
-        print self.configs['mcu'].__dict__
         for name, config in self.configs.items():
             result['configs']['name'] = config._config_dictionary()
         return result
