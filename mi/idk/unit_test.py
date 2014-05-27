@@ -23,10 +23,13 @@ from sets import Set
 # part we can ignore this. See initialize_ion_int_tests() for implementation.
 # If you DO care about couch content make sure you do a force_clean when needed.
 from pyon.core import bootstrap
+
 bootstrap.testing = False
 
 # Import pyon first for monkey patching.
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+
+log = get_logger()
 
 import gevent
 import json
@@ -103,23 +106,25 @@ from ooi.logging import log
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-AGENT_DISCOVER_TIMEOUT=900
-GO_ACTIVE_TIMEOUT=900
-GET_TIMEOUT=900
-SET_TIMEOUT=900
-EXECUTE_TIMEOUT=900
+AGENT_DISCOVER_TIMEOUT = 900
+GO_ACTIVE_TIMEOUT = 900
+GET_TIMEOUT = 900
+SET_TIMEOUT = 900
+EXECUTE_TIMEOUT = 900
 #AGENT_DISCOVER_TIMEOUT=180
 #GO_ACTIVE_TIMEOUT=400
 #GET_TIMEOUT=180
 #SET_TIMEOUT=180
 #EXECUTE_TIMEOUT=180
-SAMPLE_RAW_DATA="Iam Apublished Message"
+SAMPLE_RAW_DATA = "Iam Apublished Message"
 
-LOCALHOST='localhost'
+LOCALHOST = 'localhost'
+
 
 class DriverStartupConfigKey(BaseEnum):
     PARAMETERS = 'parameters'
     SCHEDULER = 'scheduler'
+
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -127,6 +132,7 @@ class AgentCapabilityType(BaseEnum):
     RESOURCE_COMMAND = 'resource_command'
     RESOURCE_INTERFACE = 'resource_interface'
     RESOURCE_PARAMETER = 'resource_parameter'
+
 
 class ParameterTestConfigKey(BaseEnum):
     """
@@ -142,16 +148,17 @@ class ParameterTestConfigKey(BaseEnum):
     STATES = 'states'
     VALUE = 'value'
 
+
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
     """
-    driver_module  = None
-    driver_class   = None
+    driver_module = None
+    driver_class = None
 
-    working_dir    = "/tmp/" # requires trailing / or it messes up the path. should fix.
+    working_dir = "/tmp/"  # requires trailing / or it messes up the path. should fix.
 
-    delimeter      = ['<<','>>']
+    delimeter = ['<<', '>>']
     logger_timeout = 15
 
     driver_process_type = DriverProcessType.PYTHON_MODULE
@@ -170,24 +177,29 @@ class InstrumentDriverTestConfig(Singleton):
     container_deploy_file = 'deploy/r2qual.yml'
     publisher_deploy_file = 'deploy/r2pub.yml'
 
-    initialized   = False
+    initialized = False
 
     def initialize(self, *args, **kwargs):
         self.driver_module = kwargs.get('driver_module')
-        self.driver_class  = kwargs.get('driver_class')
+        self.driver_class = kwargs.get('driver_class')
         if kwargs.get('working_dir'):
             self.working_dir = kwargs.get('working_dir')
         if kwargs.get('delimeter'):
             self.delimeter = kwargs.get('delimeter')
 
         self.agent_preload_id = get_dict_value(kwargs, ['instrument_agent_preload_id', 'agent_preload_id'])
-        self.agent_resource_id = get_dict_value(kwargs, ['instrument_agent_resource_id', 'agent_resource_id'], self.agent_resource_id)
+        self.agent_resource_id = get_dict_value(kwargs, ['instrument_agent_resource_id', 'agent_resource_id'],
+                                                self.agent_resource_id)
         self.agent_name = get_dict_value(kwargs, ['instrument_agent_name', 'agent_name'], self.agent_name)
-        self.agent_packet_config = self._build_packet_config(get_dict_value(kwargs, ['instrument_agent_packet_config','agent_packet_config']))
-        self.agent_stream_definition = get_dict_value(kwargs, ['instrument_agent_stream_definition', 'agent_stream_definition'])
+        self.agent_packet_config = self._build_packet_config(
+            get_dict_value(kwargs, ['instrument_agent_packet_config', 'agent_packet_config']))
+        self.agent_stream_definition = get_dict_value(kwargs,
+                                                      ['instrument_agent_stream_definition', 'agent_stream_definition'])
         self.agent_module = get_dict_value(kwargs, ['instrument_agent_module', 'agent_module'], self.agent_module)
         self.agent_class = get_dict_value(kwargs, ['instrument_agent_class', 'agent_class'], self.agent_class)
-        self.agent_stream_encoding = get_dict_value(kwargs, ['instrument_agent_stream_encoding', 'agent_stream_encoding'], self.agent_stream_encoding)
+        self.agent_stream_encoding = get_dict_value(kwargs,
+                                                    ['instrument_agent_stream_encoding', 'agent_stream_encoding'],
+                                                    self.agent_stream_encoding)
 
         if kwargs.get('container_deploy_file'):
             self.container_deploy_file = kwargs.get('container_deploy_file')
@@ -205,14 +217,14 @@ class InstrumentDriverTestConfig(Singleton):
 
         self.initialized = True
 
-    def config_for_preload(self,adict):
+    def config_for_preload(self, adict):
         def helper(prefix, dict):
             buffer = ""
             if dict is None or 0 == len(dict):
                 return "%s: {}," % ".".join(prefix)
-    
+
             newprefix = prefix[:]
-    
+
             for k, v in dict.iteritems():
                 if type(v) == type({}):
                     buffer += helper(newprefix + [k], v)
@@ -235,14 +247,14 @@ class InstrumentDriverTestConfig(Singleton):
         @return list of stream names to create
         """
         params = []
-        if(isinstance(param_config, list)):
+        if isinstance(param_config, list):
             params = param_config
 
-        elif(isinstance(param_config, BaseEnum)):
+        elif isinstance(param_config, BaseEnum):
             params = param_config.list()
 
-        elif(isinstance(param_config, dict)):
-            params = [ value for (key, value) in param_config.items() ]
+        elif isinstance(param_config, dict):
+            params = [value for (key, value) in param_config.items()]
 
         else:
             log.error("Unknown param_config type")
@@ -250,7 +262,7 @@ class InstrumentDriverTestConfig(Singleton):
 
         result = []
         for i in params:
-            if(isinstance(i, tuple)):
+            if isinstance(i, tuple):
                 log.debug("BLAMMM")
                 result.append(i[0])
             else:
@@ -270,22 +282,22 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         RawDataParticleKey.CHECKSUM: {'type': int, 'value': 2757}
     }
 
-    def assert_particle_raw(self, data_particle, verify_values = False):
-        '''
+    def assert_particle_raw(self, data_particle, verify_values=False):
+        """
         Verify a raw data particles
         @param data_particle SBE26plusTideSampleDataParticle data particle
         @param verify_values bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_header(data_particle, CommonDataParticleType.RAW)
         self.assert_data_particle_parameters(data_particle, self._raw_sample_parameters, verify_values)
 
-    def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
+    def assert_data_particle_parameters(self, data_particle, param_dict, verify_values=False):
         """
-        Verify data partice parameters.  Does a quick conversion of the values to a dict
+        Verify data particle parameters.  Does a quick conversion of the values to a dict
         so that common methods can operate on them.
 
         @param data_particle the data particle to examine
-        @param parameter_dict dict with parameter names and types
+        @param param_dict dict with parameter names and types
         @param verify_values bool should ve verify parameter values
         """
         log.error("****SUNG assert_data_particle_parameters")
@@ -313,7 +325,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
          }
 
         @param driver: driver to inspect, must have a protocol defined
-        @param parameter_dict: dict with parameter names and types
+        @param param_dict: dict with parameter names and types
         """
         self.assertIsInstance(driver, InstrumentDriver)
         self.assertIsInstance(driver._protocol, InstrumentProtocol)
@@ -331,27 +343,31 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             readonly = config.get(ParameterTestConfigKey.READONLY)
             default = config.get(ParameterTestConfigKey.DEFAULT)
 
-            if(da == True):
-                self.assertIn(name, pd.get_direct_access_list(), msg="%s not a direct access parameters %s" % (name, pd.get_direct_access_list()))
-            elif(da == False):
-                self.assertNotIn(name, pd.get_direct_access_list(), msg="%s is a direct access parameters %s" % (name, pd.get_direct_access_list()))
+            if da:
+                self.assertIn(name, pd.get_direct_access_list(),
+                              msg="%s not a direct access parameters %s" % (name, pd.get_direct_access_list()))
+            else:
+                self.assertNotIn(name, pd.get_direct_access_list(),
+                                 msg="%s is a direct access parameters %s" % (name, pd.get_direct_access_list()))
 
-            if(startup == True):
+            if startup:
                 self.assertIn(name, pd.get_startup_list(), msg="%s is not a startup parameter" % name)
-            elif(startup == False):
+            else:
                 self.assertNotIn(name, pd.get_startup_list(), msg="%s is a startup parameter" % name)
 
-            if(readonly == True):
+            if readonly:
                 ro_params = pd.get_visibility_list(ParameterDictVisibility.READ_ONLY) + \
                             pd.get_visibility_list(ParameterDictVisibility.IMMUTABLE)
                 self.assertIn(name, ro_params, msg="%s is not a read only parameter" % name)
-            elif(readonly == False):
-                self.assertIn(name, pd.get_visibility_list(ParameterDictVisibility.READ_WRITE), msg="%s is a read only parameter" % name)
+            else:
+                self.assertIn(name, pd.get_visibility_list(ParameterDictVisibility.READ_WRITE),
+                              msg="%s is a read only parameter" % name)
 
-            if(default):
-                self.assertEqual(default, pd.get_default_value(name), "%s default value incorrect: %s != %s" % (name, default, pd.get_default_value(name)))
+            if default:
+                self.assertEqual(default, pd.get_default_value(name),
+                                 "%s default value incorrect: %s != %s" % (name, default, pd.get_default_value(name)))
 
-    def assert_parameters(self, current_parameters, param_dict, verify_values = False):
+    def assert_parameters(self, current_parameters, param_dict, verify_values=False):
         """
         Verify the parameters contain all parameters in the parameter enum and verify the
         types match those defined in the enum.
@@ -397,7 +413,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         This will verify the type is a float, it is required and we will not validate the key.
 
         @param current_parameters: list of parameters to examine
-        @param parameter_dict: dict with parameter names and types
+        @param param_dict: dict with parameter names and types
         @param verify_values: bool should ve verify parameter values
         """
         self.assertIsInstance(current_parameters, dict)
@@ -407,7 +423,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         self.assert_parameter_set(current_parameters, param_dict)
         self.assert_parameter_types(current_parameters, param_dict)
 
-        if(verify_values):
+        if verify_values:
             self.assert_parameter_value(current_parameters, param_dict)
 
     def assert_parameter_names(self, param_dict):
@@ -428,9 +444,9 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         @param param_dict: dictionary containing data particle parameter validation values
         """
         for key, param_def in param_dict.items():
-            if(isinstance(param_def, dict)):
+            if isinstance(param_def, dict):
                 name = param_def.get(ParameterTestConfigKey.NAME)
-                if(name != None):
+                if name is not None:
                     self.assertEqual(key, name)
 
     def assert_parameter_set(self, sample_values, param_dict):
@@ -453,9 +469,9 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
 
         # split the parameters into optional and required
         for key, param in param_dict.items():
-            if(isinstance(param, dict)):
+            if isinstance(param, dict):
                 required = param.get(ParameterTestConfigKey.REQUIRED, True)
-                if(required):
+                if required:
                     required_keys.append(key)
                 else:
                     optional_keys.append(key)
@@ -475,7 +491,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
 
         # Now lets look for optional fields and removed them from the parameter list
         for optional in optional_keys:
-            if(optional in sample_keys):
+            if optional in sample_keys:
                 sample_keys.remove(optional)
 
         log.error("Unknown Keys: %s", sample_keys)
@@ -483,12 +499,11 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         # If there is anything left in the sample keys then it's a problem
         self.assertEqual(len(sample_keys), 0)
 
-
     def assert_parameter_value(self, sample_values, param_dict):
         """
         Verify the value in the data particle parameter with the value in the param dict.  This test
         is useful in unit testing when the values are known.
-        @param sample_dict: parsed data particle to inspect
+        @param sample_values: parsed data particle to inspect
         @param param_dict: dictionary containing parameter validation information
         """
         for (param_name, param_value) in sample_values.items():
@@ -496,9 +511,9 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             param_def = param_dict.get(param_name)
             log.debug("Particle Def (%s) ", param_def)
             self.assertIsNotNone(param_def)
-            if(isinstance(param_def, dict)):
+            if isinstance(param_def, dict):
                 param_type = param_def.get(ParameterTestConfigKey.TYPE)
-                self.assertIsNotNone(type)
+                self.assertIsNotNone(param_type)
             else:
                 param_type = param_def
 
@@ -506,17 +521,17 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
                 required_value = param_def[ParameterTestConfigKey.VALUE]
                 # Only test the equality if the parameter has a value.  Test for required parameters
                 # happens in assert_parameter_set
-                if(param_value != None):
-                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, repr(param_value), repr(required_value)))
+                if param_value is not None:
+                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (
+                        param_name, repr(param_value), repr(required_value)))
             except KeyError:
                 # Ignore key errors
                 pass
 
-
     def assert_parameter_types(self, sample_values, param_dict):
         """
         Verify all parameters in the sample_dict are of the same type as described in the param_dict
-        @param sample_dict: parsed data particle to inspect
+        @param sample_values: parsed data particle to inspect
         @param param_dict: dictionary containing parameter validation information
         """
         for (param_name, param_value) in sample_values.items():
@@ -525,29 +540,29 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             # get the parameter type
             param_def = param_dict.get(param_name)
             self.assertIsNotNone(param_def)
-            if(isinstance(param_def, dict)):
+            if isinstance(param_def, dict):
                 param_type = param_def.get(ParameterTestConfigKey.TYPE)
-                self.assertIsNotNone(type)
+                self.assertIsNotNone(param_type)
             else:
                 param_type = param_def
 
             # is this a required parameter
-            if(isinstance(param_def, dict)):
+            if isinstance(param_def, dict):
                 required = param_def.get(ParameterTestConfigKey.REQUIRED, True)
             else:
                 required = param_def
 
-            if(required):
+            if required:
                 self.assertIsNotNone(param_value, msg="%s required field None" % param_name)
 
-            if(param_value):
+            if param_value:
                 # It looks like one of the interfaces between services converts unicode to string
                 # and vice versa.  So if the type is string it can be promoted to unicode so it
                 # is still valid.
-                if (param_type == long and isinstance(param_value, int)):
+                if param_type == long and isinstance(param_value, int):
                     # we want type Long, but it is a int instance.  All good
                     pass
-                elif (param_type == unicode and isinstance(param_value, str)):
+                elif param_type == unicode and isinstance(param_value, str):
                     # we want type unicode, but it is a string instance.  All good
                     pass
                 else:
@@ -618,7 +633,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         """
         verify config returned describes the type properly
         @param config_parameter parameter as returned from the schema
-        @param expected_parameters dictionary with expected parameter info
+        @param expected_parameter dictionary with expected parameter info
         """
         log.debug("Verify driver parameter type is defined correctly")
         value_dict = config_parameter.get(ParameterDictKey.VALUE)
@@ -628,15 +643,15 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         self.assertIsNotNone(value_type, 'value type for %s not define' % name)
 
         log.debug("parameter '%s' type: %s", name, value_type)
-        if(value_type == ParameterDictType.FLOAT):
+        if value_type == ParameterDictType.FLOAT:
             param_type = float
-        elif(value_type == ParameterDictType.INT):
+        elif value_type == ParameterDictType.INT:
             param_type = int
-        elif(value_type == ParameterDictType.LIST):
+        elif value_type == ParameterDictType.LIST:
             param_type = list
-        elif(value_type == ParameterDictType.STRING):
+        elif value_type == ParameterDictType.STRING:
             param_type = str
-        elif(value_type == ParameterDictType.BOOL):
+        elif value_type == ParameterDictType.BOOL:
             param_type = bool
         else:
             self.fail("Unknown parameter type: %s" % type)
@@ -644,14 +659,15 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         expected_type = expected_parameter.get(ParameterTestConfigKey.TYPE)
         self.assertIsNotNone(expected_type)
 
-        self.assertEqual(expected_type, param_type, msg="Type mismatch: %s expected type %s, defined type %s" % (name, expected_type, param_type))
+        self.assertEqual(expected_type, param_type,
+                         msg="Type mismatch: %s expected type %s, defined type %s" % (name, expected_type, param_type))
 
     def assert_schema_parameter_read_only(self, name, config_parameter, expected_parameter):
         """
         verify config returned describes the read only parameters properly
         @param name parameter name
         @param config_parameter parameter as returned from the schema
-        @param expected_parameters dictionary with expected parameter info
+        @param expected_parameter dictionary with expected parameter info
         """
         param_visibility = config_parameter.get(ParameterDictKey.VISIBILITY)
         self.assertIsNotNone(param_visibility)
@@ -659,8 +675,8 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         read_only = expected_parameter.get(ParameterTestConfigKey.READONLY, False)
 
         log.debug("Key: %s, Expected Read-Only: %s, schema visibility: %s", name, read_only, param_visibility)
-        if(param_visibility == ParameterDictVisibility.READ_ONLY or
-           param_visibility == ParameterDictVisibility.IMMUTABLE):
+        if (param_visibility == ParameterDictVisibility.READ_ONLY or
+                    param_visibility == ParameterDictVisibility.IMMUTABLE):
             self.assertTrue(read_only, "%s is NOT defined as read-only" % name)
         else:
             self.assertFalse(read_only, "%s is defined as read-only" % name)
@@ -670,7 +686,6 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         verify parameter has required metadata
         @param name parameter name
         @param config_parameter parameter as returned from the schema
-        @param expected_parameters dictionary with expected parameter info
         """
         display_name = config_parameter.get(ParameterDictKey.DISPLAY_NAME)
         self.assertIsNotNone(display_name, "%s has no name defined" % name)
@@ -680,7 +695,6 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         verify value has required metadata
         @param name parameter name
         @param config_parameter parameter as returned from the schema
-        @param expected_parameters dictionary with expected parameter info
         """
         value = config_parameter.get(ParameterDictKey.VALUE)
         self.assertIsNotNone(value, "%s has no value dict defined")
@@ -694,7 +708,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         @param config driver schema dictionary
         @param capabilities dictionary from test mixin describing expected capabilities.
         """
-        log.debug("Verify driver schema - capabilites")
+        log.debug("Verify driver schema - capabilities")
         capability_dict = config.get(ConfigMetadataKey.COMMANDS)
         self.assertIsNotNone(capability_dict)
 
@@ -738,17 +752,17 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         Test that we can generate metadata information for the driver,
         commands, and parameters. Needs a driver to exist first. Metadata
         can come from any source (file or code).
-        @param instrumnet_params The list of parameters to compare with the parameter
+        @param instrument_params The list of parameters to compare with the parameter
         metadata being generated. Could be from an enum class's list() method.
         @param commands The list of commands to compare with the command
         metadata being generated. Could be from an enum class's list() method
         """
         json_result = self.driver_client.cmd_dvr("get_config_metadata")
-        self.assert_(json_result != None)
-        self.assert_(len(json_result) > 100) # just make sure we have something...
+        self.assert_(json_result is not None)
+        self.assert_(len(json_result) > 100)  # just make sure we have something...
         result = json.loads(json_result)
         log.debug("Metadata JSON response: %s", json_result)
-        self.assert_(result != None)
+        self.assert_(result is not None)
         self.assert_(isinstance(result, dict))
 
         # simple driver metadata check
@@ -756,14 +770,14 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         self.assertTrue(result[ConfigMetadataKey.DRIVER][DriverDictKey.VENDOR_SW_COMPATIBLE])
 
         # param metadata check
-        self.assertTrue(result[ConfigMetadataKey.PARAMETERS])        
+        self.assertTrue(result[ConfigMetadataKey.PARAMETERS])
         keys = result[ConfigMetadataKey.PARAMETERS].keys()
-        keys.append(DriverParameter.ALL) # toss that in there to match up
+        keys.append(DriverParameter.ALL)  # toss that in there to match up
         keys.sort()
         enum_list = instrument_params
         enum_list.sort()
         self.assertEqual(keys, enum_list)
-        
+
         # command metadata check 
         self.assertTrue(result[ConfigMetadataKey.COMMANDS])
         keys = result[ConfigMetadataKey.COMMANDS].keys()
@@ -777,17 +791,17 @@ class InstrumentDriverTestCase(MiIntTestCase):
     """
     Base class for instrument driver tests
     """
-    
+
     # configuration singleton
     test_config = InstrumentDriverTestConfig()
-    
+
     @classmethod
     def initialize(cls, *args, **kwargs):
         """
         Initialize the test_configuration singleton
         """
-        cls.test_config.initialize(*args,**kwargs)
-    
+        cls.test_config.initialize(*args, **kwargs)
+
     # Port agent process object.
     port_agent = None
 
@@ -803,8 +817,8 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         # Test to ensure we have initialized our test config
         if not self.test_config.initialized:
-            return TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initalize(...)?")
-            
+            return TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initialize(...)?")
+
         self.clear_events()
 
     def tearDown(self):
@@ -820,10 +834,10 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param unix_time: unix timestamp to create
         @return: ntp timestamp
         """
-        if(unix_time == None):
+        if unix_time is None:
             unix_time = time.time()
 
-        return ntplib.system_to_ntp_time(time.time())
+        return ntplib.system_to_ntp_time(unix_time)
 
     def clear_events(self):
         """
@@ -831,32 +845,32 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         self.events = []
 
-    def get_events(self, type=None):
+    def get_events(self, event_type=None):
         """
         return a list of events received.  If a type is passed then the list
         will only contain events of that type.
-        @param type: type of event we are looking for
+        @param event_type: type of event we are looking for
         """
-        if(type == None):
+        if event_type is None:
             return self.events
         else:
-            return [evt for evt in self.events if evt['type']==type]
+            return [evt for evt in self.events if evt['type'] == event_type]
 
-    def get_sample_events(self, type=None):
+    def get_sample_events(self, event_type=None):
         """
         Get a list of sample events, potentially of a passed in type
-        @param type: what type of data particle are we looking for
+        @param event_type: what type of data particle are we looking for
         @return: list of data sample events
         """
         samples = self.get_events(DriverAsyncEvent.SAMPLE)
-        if(type == None):
+        if event_type is None:
             return samples
         else:
             result = []
             for evt in samples:
                 value = evt.get('value')
                 particle = json.loads(value)
-                if(particle and particle.get('stream_name') == type):
+                if particle and particle.get('stream_name') == event_type:
                     result.append(evt)
 
             return result
@@ -867,6 +881,63 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         self.events.append(evt)
 
+    @staticmethod
+    def create_serial_comm_config(comm_config):
+        return {
+            'instrument_type': ConfigTypes.SERIAL,
+            'port_agent_addr': comm_config.host,
+            'device_os_port': comm_config.device_os_port,
+            'device_baud': comm_config.device_baud,
+            'device_data_bits': comm_config.device_data_bits,
+            'device_stop_bits': comm_config.device_stop_bits,
+            'device_flow_control': comm_config.device_flow_control,
+            'device_parity': comm_config.device_parity,
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+
+    @staticmethod
+    def create_ethernet_comm_config(comm_config):
+        config = {
+            'instrument_type': ConfigTypes.ETHERNET,
+            'port_agent_addr': comm_config.host,
+            'device_addr': comm_config.device_addr,
+            'device_port': comm_config.device_port,
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+        return config
+
+    def create_botpt_comm_config(self, comm_config):
+        config = {
+            'instrument_type': ConfigTypes.BOTPT,
+            'port_agent_addr': comm_config.host,
+            'device_addr': comm_config.device_addr,
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'device_tx_port': comm_config.device_tx_port,
+            'device_rx_port': comm_config.device_rx_port,
+            'log_level': 5,
+        }
+        return config
+
+    def create_multi_comm_config(self, comm_config):
+        result = {}
+        for name, config in comm_config.configs.items():
+            if config.method() == ConfigTypes.ETHERNET:
+                result[name] = self.create_ethernet_comm_config(config)
+            elif config.method() == ConfigTypes.SERIAL:
+                result[name] = self.create_serial_comm_config(config)
+        return result
+
     @classmethod
     def comm_config_file(cls):
         """
@@ -874,11 +945,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @return if comm_config.yml exists return the full path
         """
         repo_dir = Config().get('working_repo')
-        driver_path = cls.test_config.driver_module
-        p = re.compile('\.')
-        driver_path = p.sub('/', driver_path)
+        driver_path = cls.test_config.driver_module.replace('.', '/')
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
-        
+
         log.debug(abs_path)
         return abs_path
 
@@ -889,61 +958,37 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         log.info("get comm config")
         config_file = cls.comm_config_file()
-        
-        log.debug( " -- reading comm config from: %s" % config_file )
+
+        log.debug(" -- reading comm config from: %s" % config_file)
         if not os.path.exists(config_file):
             raise TestNoCommConfig(msg="Missing comm config.  Try running start_driver or switch_driver")
-        
+
         return CommConfig.get_config_from_file(config_file)
-        
+
     def port_agent_config(self):
         """
         return the port agent configuration
         """
         comm_config = self.get_comm_config()
+        log.debug('comm_config = %r', comm_config.__dict__)
+        method = comm_config.method()
+        config = {}
 
-        if ConfigTypes.SERIAL == comm_config.method():
-            config = {
-                'port_agent_addr': comm_config.host,
-                'device_os_port': comm_config.device_os_port,
-                'device_baud': comm_config.device_baud,
-                'device_data_bits': comm_config.device_data_bits,
-                'device_stop_bits': comm_config.device_stop_bits,
-                'device_flow_control': comm_config.device_flow_control,
-                'device_parity': comm_config.device_parity,
-                'command_port': comm_config.command_port,
-                'data_port': comm_config.data_port,
-
-                'telnet_sniffer_port': comm_config.sniffer_port,
-
-                'process_type': PortAgentProcessType.UNIX,
-                'log_level': 5,
-                }
-        else:
-            config = {
-                'port_agent_addr' : comm_config.host,
-                'device_addr' : comm_config.device_addr,
-
-                'command_port': comm_config.command_port,
-                'data_port': comm_config.data_port,
-
-                'telnet_sniffer_port': comm_config.sniffer_port,
-
-                'process_type': PortAgentProcessType.UNIX,
-                'log_level': 5,
-                }
+        if method == ConfigTypes.SERIAL:
+            config = self.create_serial_comm_config(comm_config)
+        elif method == ConfigTypes.ETHERNET:
+            config = self.create_ethernet_comm_config(comm_config)
+        elif method == ConfigTypes.BOTPT:
+            config = self.create_botpt_comm_config(comm_config)
+        elif method == ConfigTypes.MULTI:
+            config = self.create_multi_comm_config(comm_config)
 
         config['instrument_type'] = comm_config.method()
 
-        if ConfigTypes.BOTPT == comm_config.config_type:
-            config['instrument_type'] = ConfigTypes.BOTPT
-            config['device_tx_port'] = comm_config.device_tx_port
-            config['device_rx_port'] = comm_config.device_rx_port
-        elif ConfigTypes.ETHERNET == comm_config.config_type:
-            config['device_port'] = comm_config.device_port
-
-        if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
-        if(comm_config.sniffer_suffix): config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
+        if comm_config.sniffer_prefix:
+            config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
+        if comm_config.sniffer_suffix:
+            config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
 
         return config
 
@@ -954,7 +999,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         interface with the instrument.
         @retval return the pid to the logger process
         """
-        if(self.port_agent):
+        if self.port_agent:
             log.error("Port agent already initialized")
             return
 
@@ -963,12 +1008,12 @@ class InstrumentDriverTestCase(MiIntTestCase):
         config = self.port_agent_config()
         log.debug("port agent config: %s", config)
 
-        port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
+        port_agent = PortAgentProcess.launch_process(config, timeout=60, test_mode=True)
 
         port = port_agent.get_data_port()
-        pid  = port_agent.get_pid()
+        pid = port_agent.get_pid()
 
-        if(self.get_comm_config().host == LOCALHOST):
+        if self.get_comm_config().host == LOCALHOST:
             log.info('Started port agent pid %s listening at port %s' % (pid, port))
         else:
             log.info("Connecting to port agent on host: %s, port: %s", self.get_comm_config().host, port)
@@ -976,7 +1021,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         self.addCleanup(self.stop_port_agent)
         self.port_agent = port_agent
         return port
-
 
     def stop_port_agent(self):
         """
@@ -988,7 +1032,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
             self.port_agent.stop()
         self.port_agent = None
 
-    
     def init_driver_process_client(self):
         """
         @brief Launch the driver process and driver client
@@ -997,12 +1040,12 @@ class InstrumentDriverTestCase(MiIntTestCase):
         log.info("Startup Driver Process")
 
         driver_config = {
-            'dvr_mod'      : self.test_config.driver_module,
-            'dvr_cls'      : self.test_config.driver_class,
-            'workdir'      : self.test_config.working_dir,
-            'comms_config' : self.port_agent_comm_config(),
-            'process_type' : (self.test_config.driver_process_type,),
-            'startup_config' : self.test_config.driver_startup_config
+            'dvr_mod': self.test_config.driver_module,
+            'dvr_cls': self.test_config.driver_class,
+            'workdir': self.test_config.working_dir,
+            'comms_config': self.port_agent_comm_config(),
+            'process_type': (self.test_config.driver_process_type,),
+            'startup_config': self.test_config.driver_startup_config
         }
 
         self.driver_process = DriverProcess.get_process(driver_config, True)
@@ -1017,7 +1060,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             driver_client = self.driver_process.get_client()
             driver_client.start_messaging(self.event_received)
             log.debug("before 'process_echo'")
-            retval = driver_client.cmd_dvr('process_echo', 'Test.') # data=? RU
+            retval = driver_client.cmd_dvr('process_echo', 'Test.')  # data=? RU
             log.debug("after 'process_echo'")
 
             startup_config = driver_config.get('startup_config')
@@ -1031,7 +1074,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             raise InstrumentException('Error starting driver client.')
 
         log.info('started its driver.')
-    
+
     def stop_driver_process_client(self):
         """
         Stop the driver_process.
@@ -1066,34 +1109,34 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         # use assertTrue here intentionally because it's easier to unit test
         # this method.
-        if len (superset):
+        if len(superset):
             self.assertTrue(len(subset) > 0)
-            
+
         for item in subset:
             self.assertTrue(item in superset)
 
-        # This added so the unit test can set a true flag.  If we have made it
-        # this far we should pass the test.
-        #self.assertTrue(True)
+            # This added so the unit test can set a true flag.  If we have made it
+            # this far we should pass the test.
+            #self.assertTrue(True)
 
     def assert_enum_has_no_duplicates(self, obj):
         dic = convert_enum_to_dict(obj)
-        occurances  = {}
+        occurrences = {}
         for k, v in dic.items():
             #v = tuple(v)
-            occurances[v] = occurances.get(v,0) + 1
+            occurrences[v] = occurrences.get(v, 0) + 1
 
-        for k in occurances:
-            if occurances[k] > 1:
+        for k in occurrences:
+            if occurrences[k] > 1:
                 log.error(str(obj) + " has ambiguous duplicate values for '" + str(k) + "'")
-                self.assertEqual(1, occurances[k])
+                self.assertEqual(1, occurrences[k])
 
     def assert_chunker_sample(self, chunker, sample):
-        '''
+        """
         Verify the chunker can parse a sample that comes in a single string
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
-        '''
+        """
         ts = self.get_ntp_timestamp()
         chunker.add_chunk(sample, ts)
         (timestamp, result) = chunker.get_next_data()
@@ -1103,14 +1146,14 @@ class InstrumentDriverTestCase(MiIntTestCase):
         (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
-    def assert_chunker_fragmented_sample(self, chunker, sample, fragment_size = 1):
-        '''
+    def assert_chunker_fragmented_sample(self, chunker, sample, fragment_size=1):
+        """
         Verify the chunker can parse a sample that comes in fragmented.  It sends bytes to the chunker
         one at a time.  This very slow for large chunks (>4k) so we don't want to increase the sample
         part size
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
-        '''
+        """
         sample_length = len(sample)
         self.assertGreater(fragment_size, 0)
 
@@ -1120,13 +1163,13 @@ class InstrumentDriverTestCase(MiIntTestCase):
         timestamps = []
 
         i = 0
-        while(i < sample_length):
+        while i < sample_length:
             ts = self.get_ntp_timestamp()
             timestamps.append(ts)
             end = i + fragment_size
             chunker.add_chunk(sample[i:end], ts)
             (timestamp, result) = chunker.get_next_data()
-            if(result): break
+            if result: break
             i += fragment_size
 
         self.assertEqual(result, sample)
@@ -1136,11 +1179,11 @@ class InstrumentDriverTestCase(MiIntTestCase):
         self.assertEqual(result, None)
 
     def assert_chunker_combined_sample(self, chunker, sample):
-        '''
+        """
         Verify the chunker can parse a sample that comes in combined
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
-        '''
+        """
         ts = self.get_ntp_timestamp()
         chunker.add_chunk(sample + sample, ts)
 
@@ -1156,12 +1199,12 @@ class InstrumentDriverTestCase(MiIntTestCase):
         self.assertEqual(result, None)
 
     def assert_chunker_sample_with_noise(self, chunker, sample):
-        '''
+        """
         Verify the chunker can parse a sample with noise on the
         front or back of sample data
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
-        '''
+        """
         noise = "this is a bunch of noise to add to the sample\r\n"
         ts = self.get_ntp_timestamp()
 
@@ -1233,23 +1276,23 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         """
         port_timestamp = happy_structure[DataParticleKey.PORT_TIMESTAMP]
         if DataParticleKey.INTERNAL_TIMESTAMP in happy_structure:
-            internal_timestamp = happy_structure[DataParticleKey.INTERNAL_TIMESTAMP]        
+            internal_timestamp = happy_structure[DataParticleKey.INTERNAL_TIMESTAMP]
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp,
                                           internal_timestamp=internal_timestamp)
         else:
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
-            
+
         parsed_result = test_particle.generate(sorted=True)
         decoded_parsed = json.loads(parsed_result)
-        
+
         driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
         happy_structure[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
-        
+
         # run it through json so unicode and everything lines up
         standard = json.dumps(happy_structure, sort_keys=True)
-        
-        log.debug("Parsed Result:\n%s", json.dumps(json.loads(parsed_result), sort_keys = True, indent = 2))
-        log.debug("Standard:\n%s", json.dumps(json.loads(standard), sort_keys = True, indent = 2))
+
+        log.debug("Parsed Result:\n%s", json.dumps(json.loads(parsed_result), sort_keys=True, indent=2))
+        log.debug("Standard:\n%s", json.dumps(json.loads(standard), sort_keys=True, indent=2))
 
         self.assertEqual(parsed_result, standard)
 
@@ -1259,11 +1302,11 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param driver: Instrument driver instance.
         @param protocol_state: State to transistion to
         """
-        driver.test_force_state(state = protocol_state)
+        driver.test_force_state(state=protocol_state)
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, protocol_state)
 
-    def assert_driver_connected(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
+    def assert_driver_connected(self, driver, initial_protocol_state=DriverProtocolState.AUTOSAMPLE):
         """
         Check to see if the driver is connected, if it isn't then initialize the driver.  Finally
         force the instrument state to the initial_protocol_state.
@@ -1271,12 +1314,12 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param initial_protocol_state: the state to force the driver too
         """
         current_state = driver.get_resource_state()
-        if(current_state == DriverConnectionState.UNCONFIGURED):
+        if current_state == DriverConnectionState.UNCONFIGURED:
             self.assert_initialize_driver(driver, initial_protocol_state)
         else:
             self.assert_force_state(driver, initial_protocol_state)
 
-    def assert_initialize_driver(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
+    def assert_initialize_driver(self, driver, initial_protocol_state=DriverProtocolState.AUTOSAMPLE):
         """
         Initialize an instrument driver with a mock port agent.  This will allow us to test the
         got data method.  Will the instrument, using test mode, through it's connection state
@@ -1295,8 +1338,8 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -1311,7 +1354,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         # Force the instrument into a known state
         self.assert_force_state(driver, initial_protocol_state)
 
-    def assert_raw_particle_published(self, driver, assert_callback, verify_values = False):
+    def assert_raw_particle_published(self, driver, assert_callback, verify_values=False):
         """
         Verify that every call to got_data publishes a raw data particle
 
@@ -1340,8 +1383,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         # Verify the data particle
         self.assert_particle_raw(particle_dict, verify_values)
 
-
-    def assert_particle_published(self, driver, sample_data, particle_assert_method, verify_values = False):
+    def assert_particle_published(self, driver, sample_data, particle_assert_method, verify_values=False):
         """
         Verify that we can send data through the port agent and the the correct particles
         are generated.
@@ -1373,7 +1415,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
             particle_dict = json.loads(p)
             stream_type = particle_dict.get('stream_name')
             self.assertIsNotNone(stream_type)
-            if(stream_type != CommonDataParticleType.RAW):
+            if stream_type != CommonDataParticleType.RAW:
                 particles.append(p)
 
         log.debug("Non raw particles: %s ", particles)
@@ -1382,7 +1424,6 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         # Verify the data particle
         particle_assert_method(particles.pop(), verify_values)
 
-
     def assert_capabilities(self, driver, capabilities):
         """
         Verify all capabilities expected are in the FSM.  Then verify that the capabilities
@@ -1390,9 +1431,9 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param driver: a mocked up driver
         @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
         """
-        self.assert_protocol_states(driver,capabilities)
-        self.assert_all_capabilities(driver,capabilities)
-        self.assert_state_capabilities(driver,capabilities)
+        self.assert_protocol_states(driver, capabilities)
+        self.assert_all_capabilities(driver, capabilities)
+        self.assert_state_capabilities(driver, capabilities)
 
     def assert_protocol_states(self, driver, capabilities):
         """
@@ -1412,10 +1453,9 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         self.assertEqual(fsm_states, expected_states)
 
-
     def assert_all_capabilities(self, driver, capabilities):
         """
-        Build a list of all the capabilities in the passed in dict and verify they are all availalbe
+        Build a list of all the capabilities in the passed in dict and verify they are all available
         in the FSM
         @param driver: a mocked up driver
         @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
@@ -1427,7 +1467,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         for (state, capability_list) in capabilities.items():
             for s in capability_list:
-                if(not s in expected_capabilities):
+                if not s in expected_capabilities:
                     expected_capabilities.append(s)
 
         expected_capabilities.sort()
@@ -1436,7 +1476,6 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         log.debug("All Expected Capabilities: %s", expected_capabilities)
 
         self.assertEqual(all_capabilities, expected_capabilities)
-
 
     def assert_state_capabilities(self, driver, capabilities):
         """
@@ -1460,7 +1499,8 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
             self.assertEqual(reported_capabilities, expected_capabilities)
 
-class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
+
+class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):  # Must inherit from here to get _start_container
     def setUp(self):
         """
         @brief Setup test cases.
@@ -1503,9 +1543,9 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         end_time = time.time() + timeout
 
-        while(time.time() <= end_time):
+        while time.time() <= end_time:
             state = self.driver_client.cmd_dvr('get_resource_state')
-            if(state == target_state):
+            if state == target_state:
                 log.debug("Current state match: %s", state)
                 return
             log.debug("state mismatch %s != %s, sleep for a bit", state, target_state)
@@ -1534,29 +1574,29 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # Test the driver is in unknown state.
         self.assert_current_state(DriverProtocolState.UNKNOWN)
-        
+
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover_state')
 
         # If we are in streaming mode then stop streaming
         state = self.driver_client.cmd_dvr('get_resource_state')
-        if(state == DriverProtocolState.AUTOSAMPLE and final_state != DriverProtocolState.AUTOSAMPLE):
+        if state == DriverProtocolState.AUTOSAMPLE and final_state != DriverProtocolState.AUTOSAMPLE:
             log.debug("Stop autosample because we want to be in command mode")
             reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.STOP_AUTOSAMPLE)
             state = self.driver_client.cmd_dvr('get_resource_state')
 
-        if(state == DriverProtocolState.COMMAND and final_state != DriverProtocolState.COMMAND):
+        if state == DriverProtocolState.COMMAND and final_state != DriverProtocolState.COMMAND:
             log.debug("Start autosample because we don't want to be in command mode")
             reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.START_AUTOSAMPLE)
             state = self.driver_client.cmd_dvr('get_resource_state')
 
         log.debug("initialize final state: %s", state)
         # Test the driver is in the correct mode
-        if(final_state == DriverProtocolState.AUTOSAMPLE):
+        if final_state == DriverProtocolState.AUTOSAMPLE:
             self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
         else:
             self.assertEqual(state, DriverProtocolState.COMMAND)
-        
+
     def assert_startup_parameters(self, parameter_assert, new_values=None, get_values=None):
         """
         Verify that driver startup parameters are set properly.  To
@@ -1567,19 +1607,19 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         After we have checked the parameters we will force the driver to
         re-apply startup params
 
-        @param params: callback to parameter assert method
+        @param parameter_assert: callback to parameter assert method
         @param new_values: values to change on the instrument
         @param get_values: optional values to explicitly check after discover
         """
-        if(get_values):
+        if get_values:
             reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
             parameter_assert(reply, True)
 
-        if(get_values != None):
+        if get_values is not None:
             for (key, val) in get_values.iteritems():
                 self.assert_get(key, val)
 
-        if(new_values):
+        if new_values:
             self.assert_set_bulk(new_values)
 
         # Force a reapply
@@ -1593,11 +1633,9 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
         parameter_assert(reply, True)
 
-        if(get_values != None):
+        if get_values is not None:
             for (key, val) in get_values.iteritems():
                 self.assert_get(key, val)
-
-
 
     def assert_get(self, param, value=None, pattern=None):
         """
@@ -1612,10 +1650,11 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertIsInstance(reply, dict)
         return_value = reply.get(param)
 
-        if(value != None):
+        if value is not None:
             self.assertEqual(return_value, value, msg="%s no value match (%s != %s)" % (param, return_value, value))
-        elif(pattern != None):
-            self.assertRegexpMatches(str(return_value), pattern, msg="%s no value match (%s != %s)" % (param, return_value, value))
+        elif pattern is not None:
+            self.assertRegexpMatches(str(return_value), pattern,
+                                     msg="%s no value match (%s != %s)" % (param, return_value, value))
 
         return return_value
 
@@ -1646,7 +1685,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             events = self.get_events(DriverAsyncEvent.CONFIG_CHANGE)
 
             log.debug("got config change events: %d", len(events))
-            if(config_change):
+            if config_change:
                 self.assertTrue(len(events) > 0)
             else:
                 self.assertEqual(len(events), 0)
@@ -1672,7 +1711,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         reply = self.driver_client.cmd_dvr('set_resource', param_dict)
         self.assertIsNone(reply, None)
-        
+
         for (key, value) in param_dict.items():
             self.assert_get(key, value)
 
@@ -1687,7 +1726,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         try:
             self.assert_set_bulk(param_dict)
         except Exception as e:
-            if(self._driver_exception_match(e, exception_class, error_regex)):
+            if self._driver_exception_match(e, exception_class, error_regex):
                 log.debug("Expected exception raised: %s", e)
                 return
             else:
@@ -1696,7 +1735,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # If we have made it this far then no exception was raised
         self.fail("No exception raised")
 
-    def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
+    def assert_set_exception(self, param, value='dummyvalue', error_regex=None,
+                             exception_class=InstrumentParameterException):
         """
         Verify that a set command raises an exception on set.
         @param param: parameter to set
@@ -1708,7 +1748,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             reply = self.driver_client.cmd_dvr('set_resource', {param: value})
             self.assert_set(param, value)
         except Exception as e:
-            if(self._driver_exception_match(e, exception_class, error_regex)):
+            if self._driver_exception_match(e, exception_class, error_regex):
                 log.debug("Expected exception raised: %s", e)
                 return
             else:
@@ -1716,7 +1756,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # If we have made it this far then no exception was raised
         self.fail("No exception raised")
-    
+
     def assert_ion_exception(self, ex, call, *args):
         """
         Take a generic ION exception that comes in as a BadRequest, parse it
@@ -1729,23 +1769,23 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         try:
             call(*args)
         except BadRequest as badreq:
-            if(self._driver_exception_match(badreq, ex)):
+            if self._driver_exception_match(badreq, ex):
                 log.debug("Expected exception raised: %s", ex)
                 return
         except ResourceError as e:
-            if(self._driver_exception_match(e, ex)):
+            if self._driver_exception_match(e, ex):
                 log.debug("Expected exception raised as ResourceError: %s", ex)
                 return
         except Timeout as e:
-            if(self._driver_exception_match(e, ex)):
+            if self._driver_exception_match(e, ex):
                 log.debug("Expected exception raised as Timeout: %s", ex)
                 return
         except ServerError as e:
-            if(self._driver_exception_match(e, ex)):
+            if self._driver_exception_match(e, ex):
                 log.debug("Expected exception raised as ServerError: %s", ex)
                 return
         except Conflict as e:
-            if(self._driver_exception_match(e, ex)):
+            if self._driver_exception_match(e, ex):
                 log.debug("Expected exception raised as Conflict: %s", ex)
                 return
         except Exception as e:
@@ -1767,18 +1807,18 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         matcher = re.compile(pattern)
         match = re.search(matcher, str(ion_exception))
 
-        if(match):
+        if match:
             log.debug("Exception code: %s, type: %s, value: %s", match.group(1), match.group(2), match.group(3))
             log.debug("Expected exception type: %s", expected_exception.__name__)
 
-            if(expected_exception.__name__ != match.group(2)):
+            if expected_exception.__name__ != match.group(2):
                 log.error("Exception type mismatch %s != %s", expected_exception.__name__, match.group(2))
                 return False
 
-            if(error_regex != None):
+            if error_regex is not None:
                 log.debug("Checking for a value match: %s", error_regex)
                 matcher = re.compile(error_regex)
-                if(not matcher.search(match.group(3))):
+                if not matcher.search(match.group(3)):
                     log.error("value pattern mismatch %s", match.group(3))
                     return False
         else:
@@ -1795,7 +1835,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         self.assert_set_exception(param, value, exception_class=exception_class)
 
-    def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0, regex_options=re.DOTALL, assert_function=None):
+    def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0,
+                              regex_options=re.DOTALL, assert_function=None):
         """
         Verify that we can run a command and that the reply matches if we have
         passed on in.  If we couldn't execute a command we assume an exception
@@ -1810,34 +1851,34 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param assert_function: assert method to call
         """
         # Execute the command
-        reply = self.driver_client.cmd_dvr('execute_resource', command, )
+        reply = value = self.driver_client.cmd_dvr('execute_resource', command, )
         log.debug("Execute driver command: %s", command)
         log.debug("Reply type: %s", type(reply))
 
-        if(delay):
+        if delay:
             log.debug("sleeping for a bit: %d", delay)
             time.sleep(delay)
 
         # Get the value to check in the reply
-        if(reply != None):
-            if(value_function == None):
+        if reply is not None:
+            if value_function is None:
                 self.assertIsInstance(reply, tuple)
                 value = reply[1]
             else:
                 value = value_function(reply)
 
-        if(expected != None):
+        if expected is not None:
             log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
             self.assertEqual(value, expected)
 
-        if(regex != None):
+        if regex is not None:
             log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
             compiled = re.compile(regex, regex_options)
             self.assertRegexpMatches(value, compiled)
 
-        if(state != None):
+        if state is not None:
             self.assert_current_state(state)
 
     def assert_driver_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException):
@@ -1851,7 +1892,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         try:
             self.driver_client.cmd_dvr(command)
         except Exception as e:
-            if(self._driver_exception_match(e, exception_class, error_regex)):
+            if self._driver_exception_match(e, exception_class, error_regex):
                 log.debug("Expected exception raised: %s", e)
                 return
             else:
@@ -1926,7 +1967,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param delay: time to wait before the event is triggered in seconds
         """
         # Build a scheduled job for 'delay' seconds from now
-        dt = datetime.datetime.now() + datetime.timedelta(0,delay)
+        dt = datetime.datetime.now() + datetime.timedelta(0, delay)
 
         scheduler_config = {
             DriverSchedulerConfigKey.TRIGGER: {
@@ -1938,15 +1979,15 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         config = self.driver_client.cmd_dvr('get_init_params')
 
         # Add the scheduled job
-        if(not config):
+        if not config:
             config = {}
-        if(not config.get(DriverStartupConfigKey.SCHEDULER)):
+        if not config.get(DriverStartupConfigKey.SCHEDULER):
             config[DriverStartupConfigKey.SCHEDULER] = {}
         config[DriverStartupConfigKey.SCHEDULER][job_name] = scheduler_config
 
         # Currently the only way to setup schedulers is via the startup config
         # mechanism.  We may need to expose scheduler specific capability in the
-        # future, but this should work in the intrum.
+        # future, but this should work in the interim.
         self.driver_client.cmd_dvr('set_init_params', config)
         log.debug("SET CONFIG, set_init_params: %s", config)
 
@@ -1957,16 +1998,16 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # driver does it for us.  It should, but it is tested in another test.
         self.driver_client.cmd_dvr('apply_startup_params')
         # Transition to autosample if command supplied
-        if(autosample_command):
+        if autosample_command:
             self.assert_driver_command(autosample_command)
 
         # Ensure we have at least 5 seconds before the event should fire
-        safe_time = datetime.datetime.now() + datetime.timedelta(0,5)
+        safe_time = datetime.datetime.now() + datetime.timedelta(0, 5)
         self.assertGreaterEqual(dt, safe_time, msg="Trigger time already in the past. Increase your delay")
         time.sleep(2)
 
         # Now verify that the job is triggered and it does what we think it should
-        if(assert_callback):
+        if assert_callback:
             log.debug("Asserting callback now")
             assert_callback()
 
@@ -1978,16 +2019,16 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
         """
         log.info("Ensuring driver process was started properly ...")
-        
+
         # Verify processes exist.
         self.assertNotEqual(self.driver_process, None)
         drv_pid = self.driver_process.getpid()
         self.assertTrue(isinstance(drv_pid, int))
-        
+
         self.assertNotEqual(self.port_agent, None)
         pagent_pid = self.port_agent.get_pid()
         self.assertTrue(isinstance(pagent_pid, int))
-        
+
         # Send a test message to the process interface, confirm result.
         log.debug("before 'process_echo'")
         reply = self.driver_client.cmd_dvr('process_echo')
@@ -2001,15 +2042,15 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # TODO: Add this test back in after driver code is merged from coi-services
         #state = self.driver_client.cmd_dvr('get_current_state')
         #self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-                
+
         # Test the event thread publishes and client side picks up events.
         events = [
             'I am important event #1!',
             'And I am important event #2!'
-            ]
+        ]
         reply = self.driver_client.cmd_dvr('test_events', events=events)
         gevent.sleep(1)
-        
+
         # Confirm the events received are as expected.
         self.assertEqual(self.events, events)
 
@@ -2047,7 +2088,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.agent_packet_config,
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
+        self.event_subscribers = InstrumentAgentEventSubscribers(
+            instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_instrument_agent_client()
 
@@ -2073,20 +2115,20 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Driver config
         driver_config = {
-            'dvr_mod' : self.test_config.driver_module,
-            'dvr_cls' : self.test_config.driver_class,
-            'workdir' : self.test_config.working_dir,
-            'process_type' : (self.test_config.driver_process_type,),
-            'comms_config' : self.port_agent_comm_config(),
-            'startup_config' : self.test_config.driver_startup_config
+            'dvr_mod': self.test_config.driver_module,
+            'dvr_cls': self.test_config.driver_class,
+            'workdir': self.test_config.working_dir,
+            'process_type': (self.test_config.driver_process_type,),
+            'comms_config': self.port_agent_comm_config(),
+            'startup_config': self.test_config.driver_startup_config
         }
 
         # Create agent config.
         agent_config = {
-            'driver_config' : driver_config,
-            'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self.test_config.agent_resource_id},
-            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            'driver_config': driver_config,
+            'stream_config': self.data_subscribers.stream_config,
+            'agent': {'resource_id': self.test_config.agent_resource_id},
+            'test_mode': True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
 
@@ -2105,11 +2147,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
     def _common_agent_commands(self, agent_state):
-        '''
+        """
         list of common agent parameters for a agent state
         @return: list of agent parameters
         @raise: KeyError for undefined agent state
-        '''
+        """
         capabilities = {
             ResourceAgentState.UNINITIALIZED: [
                 ResourceAgentEvent.INITIALIZE
@@ -2142,10 +2184,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         ]
 
     def _common_agent_parameters(self):
-        '''
+        """
         list of common agent parameters
         @return: list of agent parameters
-        '''
+        """
         return ['aggstatus', 'alerts', 'driver_name', 'driver_pid', 'example', 'pubrate', 'streams']
 
     def assert_agent_state(self, target_state):
@@ -2182,7 +2224,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command=command, kwargs=args)
         return self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
-    def assert_resource_command(self, command, args=None, expected=None, regex=None, value_function=None, agent_state=None, resource_state=None, delay=0):
+    def assert_resource_command(self, command, args=None, expected=None, regex=None, value_function=None,
+                                agent_state=None, resource_state=None, delay=0):
         """
         Verify that we can run a command and that the reply matches if we have
         passed on in.  If we couldn't execute a command we assume an exception
@@ -2195,43 +2238,44 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         reply = self.assert_execute_resource(command, args)
         value = None
 
-        if(delay):
+        if delay:
             log.debug("sleeping for a bit: %d", delay)
             time.sleep(delay)
 
         # Get the value to check in the reply
-        if(reply != None):
-            if(value_function == None):
+        if reply is not None:
+            if value_function is None:
                 self.assertIsInstance(reply, AgentCommandResult)
                 log.debug("AAResult: %s", reply)
                 value = reply['result']
             else:
                 value = value_function(reply)
 
-        if(expected != None):
+        if expected is not None:
             log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
             self.assertEqual(value, expected)
 
-        if(regex != None):
+        if regex is not None:
             log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
             self.assertRegexpMatches(value, regex)
 
-        if(agent_state != None):
+        if agent_state is not None:
             self.assert_agent_state(agent_state)
 
-        if(resource_state != None):
+        if resource_state is not None:
             self.assert_resource_state(resource_state)
 
-    def assert_agent_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException, timeout=None):
+    def assert_agent_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException,
+                                       timeout=None):
         """
         Verify an agent command throws an exception
         @param command: driver command to execute
         @param error_regex: error message pattern to match
         @param exception_class: class of the exception raised
         """
-        if(error_regex):
+        if error_regex:
             with self.assertRaisesRegexp(exception_class, error_regex):
                 cmd = AgentCommand(command=command)
                 retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
@@ -2246,20 +2290,20 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         complete for a basic particle.
         @param sample_dict The python dictionary form of a particle
         """
-        self.assertTrue(isinstance(sample_dict, dict)) 
+        self.assertTrue(isinstance(sample_dict, dict))
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleValue.PARSED)
+                        DataParticleValue.PARSED)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
+                        DataParticleValue.JSON_DATA)
         self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
         self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-            list))
+                                   list))
         self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
 
 
     def assert_capabilities(self, capabilities):
-        '''
+        """
         Verify that all capabilities are available for a give state
 
         @todo: Currently resource interface not implemented because it requires
@@ -2275,52 +2319,52 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
           resource_interface = None,
           resource_parameter = None,
         }
-        '''
+        """
+
         def sort_capabilities(caps_list):
-            '''
+            """
             sort a return value into capability buckets.
             @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-            '''
+            """
             agt_cmds = []
             agt_pars = []
             res_cmds = []
             res_iface = []
             res_pars = []
 
-            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
-                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
-                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
-                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+            if len(caps_list) > 0 and isinstance(caps_list[0], AgentCapability):
+                agt_cmds = [x.name for x in caps_list if x.cap_type == CapabilityType.AGT_CMD]
+                agt_pars = [x.name for x in caps_list if x.cap_type == CapabilityType.AGT_PAR]
+                res_cmds = [x.name for x in caps_list if x.cap_type == CapabilityType.RES_CMD]
                 #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
-                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+                res_pars = [x.name for x in caps_list if x.cap_type == CapabilityType.RES_PAR]
 
-            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
-                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
-                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
-                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
+            elif len(caps_list) > 0 and isinstance(caps_list[0], dict):
+                agt_cmds = [x['name'] for x in caps_list if x['cap_type'] == CapabilityType.AGT_CMD]
+                agt_pars = [x['name'] for x in caps_list if x['cap_type'] == CapabilityType.AGT_PAR]
+                res_cmds = [x['name'] for x in caps_list if x['cap_type'] == CapabilityType.RES_CMD]
                 #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
-                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
+                res_pars = [x['name'] for x in caps_list if x['cap_type'] == CapabilityType.RES_PAR]
 
             agt_cmds.sort()
             agt_pars.sort()
             res_cmds.sort()
             res_iface.sort()
             res_pars.sort()
-            
+
             return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
 
-        if(not capabilities.get(AgentCapabilityType.AGENT_COMMAND)):
+        if not capabilities.get(AgentCapabilityType.AGENT_COMMAND):
             capabilities[AgentCapabilityType.AGENT_COMMAND] = []
-        if(not capabilities.get(AgentCapabilityType.AGENT_PARAMETER)):
+        if not capabilities.get(AgentCapabilityType.AGENT_PARAMETER):
             capabilities[AgentCapabilityType.AGENT_PARAMETER] = []
-        if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
+        if not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND):
             capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-        if(not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)):
+        if not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE):
             capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
-        if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
+        if not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER):
             capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
-        
-        
+
         expected_agent_cmd = capabilities.get(AgentCapabilityType.AGENT_COMMAND)
         expected_agent_cmd.sort()
         expected_agent_param = self._common_agent_parameters()
@@ -2355,7 +2399,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(expected_res_int, res_iface)
         self.assertEqual(expected_res_param, res_pars)
 
-    def assert_sample_polled(self, sample_data_assert, sample_queue, timeout = 10):
+    def assert_sample_polled(self, sample_data_assert, sample_queue, timeout=10):
         """
         Test observatory polling function.
 
@@ -2412,7 +2456,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Halt streaming.
         self.assert_stop_autosample()
 
-    def assert_particle_async(self, particle_type, particle_callback, particle_count = 1, timeout=10):
+    def assert_particle_async(self, particle_type, particle_callback, particle_count=1, timeout=10):
         """
         verify that a particle is generated
         @param particle_type: the queue to watch for samples
@@ -2433,8 +2477,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             log.debug("SAMPLE: %s", sample)
             particle_callback(sample)
 
-    def assert_sample_async(self, sampleDataAssert, sampleQueue,
-                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
+    def assert_sample_async(self, sample_data_assert, sample_queue,
+                            timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
         """
         Watch the data queue for sample data.
 
@@ -2446,29 +2490,29 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
-        self.data_subscribers.clear_sample_queue(sampleQueue)
+        self.data_subscribers.clear_sample_queue(sample_queue)
 
-        samples = self.data_subscribers.get_samples(sampleQueue, sample_count, timeout = timeout)
+        samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout=timeout)
         self.assertGreaterEqual(len(samples), sample_count)
 
         for s in samples:
             log.debug("SAMPLE: %s", s)
-            sampleDataAssert(s)
+            sample_data_assert(s)
 
     def assert_reset(self):
-        '''
+        """
         Exist active state
-        '''
+        """
         log.debug("Reset Agent Now!")
 
         state = self.instrument_agent_client.get_agent_state()
         log.debug("Current State: %s", state)
 
-        if(state == ResourceAgentState.DIRECT_ACCESS):
+        if state == ResourceAgentState.DIRECT_ACCESS:
             self.assert_direct_access_stop_telnet()
 
         # reset the instrument if it has been initialized
-        if(state != ResourceAgentState.UNINITIALIZED):
+        if state != ResourceAgentState.UNINITIALIZED:
             self.assert_agent_command(ResourceAgentEvent.RESET)
             self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
@@ -2476,37 +2520,37 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("Reset State: %s", state)
 
     def assert_get_parameter(self, name, value):
-        '''
+        """
         verify that parameters are got correctly.  Assumes we are in command mode.
-        '''
-        getParams = [ name ]
+        """
+        get_params = [name]
 
-        result = self.instrument_agent_client.get_resource(getParams,
+        result = self.instrument_agent_client.get_resource(get_params,
                                                            timeout=GET_TIMEOUT)
 
         self.assertEqual(result[name], value)
 
     def assert_set_parameter(self, name, value, verify=True):
-        '''
+        """
         verify that parameters are set correctly.  Assumes we are in command mode.
-        '''
-        setParams = { name : value }
-        getParams = [ name ]
+        """
+        set_params = {name: value}
+        get_params = [name]
 
-        self.instrument_agent_client.set_resource(setParams, timeout=SET_TIMEOUT)
+        self.instrument_agent_client.set_resource(set_params, timeout=SET_TIMEOUT)
 
-        if(verify):
-            result = self.instrument_agent_client.get_resource(getParams, timeout=GET_TIMEOUT)
+        if verify:
+            result = self.instrument_agent_client.get_resource(get_params, timeout=GET_TIMEOUT)
             self.assertEqual(result[name], value)
 
     def assert_read_only_parameter(self, name, value):
-        '''
+        """
         verify that parameters are read only.  Ensure an exception is thrown
         when set is called and that the value returned is the same as the
         passed in value.
-        '''
-        setParams = { name : value }
-        getParams = [ name ]
+        """
+        setParams = {name: value}
+        getParams = [name]
 
         # Call set, but verify the command failed.
         #self.instrument_agent_client.set_resource(setParams)
@@ -2516,9 +2560,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         #self.assertEqual(result[name], value)
 
     def assert_stop_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
-        '''
+        """
         Enter autosample mode from command
-        '''
+        """
         self.assert_agent_state(ResourceAgentState.STREAMING)
 
         # Stop streaming.
@@ -2528,9 +2572,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_agent_state(ResourceAgentState.COMMAND)
 
     def assert_start_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
-        '''
+        """
         Enter autosample mode from command
-        '''
+        """
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
@@ -2542,12 +2586,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
     def assert_enter_command_mode(self, timeout=GO_ACTIVE_TIMEOUT):
-        '''
+        """
         Walk through IA states to get to command mode from uninitialized
-        '''
+        """
         state = self.instrument_agent_client.get_agent_state()
         if state == ResourceAgentState.UNINITIALIZED:
-
             with self.assertRaises(Conflict):
                 res_state = self.instrument_agent_client.get_resource_state()
 
@@ -2556,10 +2599,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             state = self.instrument_agent_client.get_agent_state()
             self.assertEqual(state, ResourceAgentState.INACTIVE)
             log.info("Sent INITIALIZE; IA state = %s", state)
-    
+
             res_state = self.instrument_agent_client.get_resource_state()
             self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
-    
+
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
             retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
             state = self.instrument_agent_client.get_agent_state()
@@ -2572,7 +2615,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         elif state == ResourceAgentState.IDLE:
             cmd = AgentCommand(command=ResourceAgentEvent.RUN)
             retval = self.instrument_agent_client.execute_agent(cmd)
-
 
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
@@ -2588,10 +2630,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_enter_command_mode()
 
         # Direct access configurations
-        args={'session_type':DirectAccessTypes.telnet,
-              'inactivity_timeout': inactivity_timeout,
-              'session_timeout': session_timeout}
-        
+        args = {'session_type': DirectAccessTypes.telnet,
+                'inactivity_timeout': inactivity_timeout,
+                'session_timeout': session_timeout}
+
         #if inactivity_timeout != None: args['inactivity_timeout'] = inactivity_timeout
         #if session_timeout != None: args['session_timeout'] = session_timeout
 
@@ -2606,47 +2648,48 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # start 'telnet' client with returned address and port
         self.tcp_client = TcpClient(retval.result['ip_address'], retval.result['port'])
 
-        self.assertTrue(self.tcp_client.expect("Username: " ))
+        self.assertTrue(self.tcp_client.expect("Username: "))
         self.tcp_client.send_data("bob\r\n")
 
         self.assertTrue(self.tcp_client.expect("token: "))
-        self.tcp_client.send_data(retval.result['token'] + "\r\n",)
+        self.tcp_client.send_data(retval.result['token'] + "\r\n", )
 
         self.assertTrue(self.tcp_client.telnet_handshake())
 
         self.assertTrue(self.tcp_client.expect("connected\r\n"))
-        
+
     def assert_direct_access_stop_telnet(self, timeout=GO_ACTIVE_TIMEOUT):
-        '''
+        """
         Exit out of direct access mode.  We do this by simply changing
         state to command mode.
         @return:
-        '''
+        """
         log.debug("Stopping Direct Access")
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         log.debug("Stopping Direct Access: Send Go Command")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout) # ~9s to run
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)  # ~9s to run
 
         log.debug("Stopping Direct Access: Checking agent state")
         state = self.instrument_agent_client.get_agent_state()
         self.assertNotEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
     def assert_switch_driver_state(self, command, result_state):
-        '''
+        """
         Transition to a new driver state using command passed.
         @param command: protocol event used to transition state
         @param result_state: final protocol state
-        '''
+        """
         cmd = AgentCommand(command=command)
         retval = self.instrument_agent_client.execute_resource(cmd)
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
 
-    def assert_switch_state(self, command, expected_agent_state, expected_resource_state=None, timeout=GO_ACTIVE_TIMEOUT):
+    def assert_switch_state(self, command, expected_agent_state, expected_resource_state=None,
+                            timeout=GO_ACTIVE_TIMEOUT):
         """
         Command the agent to do something, then verify the agent state ofter the command completes.
         If a resource state is sent in then verify that as well.
@@ -2657,7 +2700,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command=command)
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
 
-        if(isinstance(expected_agent_state, list)):
+        if isinstance(expected_agent_state, list):
             expected_state = expected_agent_state
         else:
             expected_state = [expected_agent_state]
@@ -2665,7 +2708,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         agent_state = self.instrument_agent_client.get_agent_state()
         self.assertIn(agent_state, expected_state)
 
-        if(expected_resource_state != None):
+        if expected_resource_state is not None:
             res_state = self.instrument_agent_client.get_resource_state()
             self.assertEqual(res_state, expected_resource_state)
 
@@ -2681,25 +2724,26 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         agent_state = None
         resource_state = None
 
-        while(time.time() <= end_time):
+        while time.time() <= end_time:
             agent_state = self.instrument_agent_client.get_agent_state()
 
             resource_state = self.instrument_agent_client.get_resource_state(timeout=90)
             log.error("Current agent state: %s", agent_state)
             log.error("Current resource state: %s", resource_state)
 
-            if(agent_state == target_agent_state and resource_state == target_resource_state):
+            if agent_state == target_agent_state and resource_state == target_resource_state:
                 log.debug("Current state match: %s %s", agent_state, resource_state)
                 return
             log.debug("state mismatch, waiting for state to transition. Current time: %s, end time: %s",
                       time.time(), end_time)
             gevent.sleep(3)
 
-        if(agent_state != target_agent_state):
+        if agent_state != target_agent_state:
             log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
 
-        if(resource_state != target_resource_state):
-            log.error("Failed to transition resource state to %s, current state: %s", target_resource_state, resource_state)
+        if resource_state != target_resource_state:
+            log.error("Failed to transition resource state to %s, current state: %s", target_resource_state,
+                      resource_state)
 
         self.fail("Failed to transition state")
 
@@ -2711,12 +2755,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        self.assert_switch_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE, DriverConnectionState.UNCONFIGURED)
+        self.assert_switch_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE,
+                                 DriverConnectionState.UNCONFIGURED)
 
         # Looks like some drivers go directly to streaming after a run.  Is this correct behavior.
         self.assert_switch_state(ResourceAgentEvent.GO_ACTIVE, [ResourceAgentState.IDLE, ResourceAgentState.STREAMING])
 
-        if(self.instrument_agent_client.get_agent_state() == ResourceAgentState.IDLE):
+        if self.instrument_agent_client.get_agent_state() == ResourceAgentState.IDLE:
             self.assert_switch_state(ResourceAgentEvent.RUN, expected_agent_state, expected_resource_state)
 
     def test_discover(self):
@@ -2759,7 +2804,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         #self.assert_agent_state(ResourceAgentState.STREAMING)
 
-    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
+    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
                This test verifies that the instrument agent can
@@ -2879,7 +2924,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
     def de_dupe(self, list_in):
         unique_set = Set(item for item in list_in)
-        return [(item) for item in unique_set]
+        return [item for item in unique_set]
 
     @unittest.skip("PROBLEM WITH command=ResourceAgentEvent.GO_ACTIVE")
     def test_driver_notification_messages(self, timeout=GO_ACTIVE_TIMEOUT):
@@ -2906,7 +2951,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'AgentCommand=RESOURCE_AGENT_EVENT_RESUME',
             'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
             'AgentCommand=RESOURCE_AGENT_PING_RESOURCE',
-            'AgentState=RESOUCE_AGENT_STATE_DIRECT_ACCESS',
+            'AgentState=RESOURCE_AGENT_STATE_DIRECT_ACCESS',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
@@ -2919,7 +2964,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_UNCONFIGURED',
             'ResourceState=DRIVER_STATE_UNKNOWN'
         ]
-
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
@@ -3008,10 +3052,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            #kwargs={'session_type': DirectAccessTypes.telnet,
-            kwargs={'session_type':DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
+                           #kwargs={'session_type': DirectAccessTypes.telnet,
+                           kwargs={'session_type': DirectAccessTypes.vsp,
+                                   'session_timeout': 600,
+                                   'inactivity_timeout': 600})
         retval = self.instrument_agent_client.execute_agent(cmd,
                                                             timeout=EXECUTE_TIMEOUT)
         # assert it is as long as expected 4149CB23-AF1D-43DF-8688-DDCD2B8E435E
@@ -3068,7 +3112,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         num_actual = len(self.de_dupe(raw_events))
         log.debug("num_expected = " + str(num_expected) + " num_actual = " + str(num_actual))
         self.assertTrue(num_actual == num_expected)
-    
+
     @unittest.skip("Until we are ready to force everyone to write this...")
     def test_direct_access_exit_from_autosample(self):
         """
@@ -3102,7 +3146,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Test to emulate the IMS save and restore instrument configuration.  basic
         pattern is get all parameters, then use that result to initialize the
         driver.
-        We aren't verifying that apply_statup_params actually stores the values,
+        We aren't verifying that apply_startup_params actually stores the values,
         but just ensuring it doesn't blow up.  The apply_start_params is actually
         tested in more detail in another driver specific test.
         """
@@ -3126,6 +3170,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
     Test driver publication.  These test are not include in general driver
     qualification because publication definitions could change.
     """
+
     def setUp(self):
         """
         @brief Setup test cases.
@@ -3150,7 +3195,8 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         }
 
         self.instrument_agent_manager = InstrumentAgentClient()
-        self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file, container_config=config)
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file,
+                                                      container_config=config)
 
         self.container = self.instrument_agent_manager.container
 
@@ -3159,7 +3205,8 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
             packet_config=self.test_config.agent_packet_config,
             use_default_stream=False
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
+        self.event_subscribers = InstrumentAgentEventSubscribers(
+            instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_instrument_agent_client()
 
@@ -3189,8 +3236,8 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # Wait for the simulator to bind to a port
         timeout = time.time() + 10
-        while(timeout > time.time()):
-            if(self._instrument_simulator.port > 0):
+        while timeout > time.time():
+            if self._instrument_simulator.port > 0:
                 log.debug("Instrument simulator initialized on port %s", self._instrument_simulator.port)
                 return
 
@@ -3207,9 +3254,9 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         comm_config = self.get_comm_config()
 
         config = {
-            'port_agent_addr' : comm_config.host,
-            'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port,
+            'port_agent_addr': comm_config.host,
+            'device_addr': comm_config.device_addr,
+            'device_port': comm_config.device_port,
 
             'command_port': comm_config.command_port,
             'data_port': comm_config.data_port,
@@ -3229,21 +3276,21 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # Driver config
         driver_config = {
-            'dvr_mod' : self.test_config.driver_module,
-            'dvr_cls' : self.test_config.driver_class,
-            'workdir' : self.test_config.working_dir,
-            'process_type' : (self.test_config.driver_process_type,),
-            'comms_config' : self.port_agent_comm_config(),
+            'dvr_mod': self.test_config.driver_module,
+            'dvr_cls': self.test_config.driver_class,
+            'workdir': self.test_config.working_dir,
+            'process_type': (self.test_config.driver_process_type,),
+            'comms_config': self.port_agent_comm_config(),
 
-            'startup_config' : self.test_config.driver_startup_config
+            'startup_config': self.test_config.driver_startup_config
         }
 
         # Create agent config.
         agent_config = {
-            'driver_config' : driver_config,
-            'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self.test_config.agent_resource_id},
-            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            'driver_config': driver_config,
+            'stream_config': self.data_subscribers.stream_config,
+            'agent': {'resource_id': self.test_config.agent_resource_id},
+            'test_mode': True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
 
@@ -3260,9 +3307,9 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
     def assert_initialize_driver(self, timeout=GO_ACTIVE_TIMEOUT):
-        '''
+        """
         Walk through IA states to get to command mode from uninitialized
-        '''
+        """
         state = self.instrument_agent_client.get_agent_state()
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
@@ -3279,7 +3326,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent GO_ACTIVE; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
-        
+
     def assert_async_response_from_cmd(self, command, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
         """
         Force a sample to come through an agent based on a command
@@ -3292,7 +3339,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         """
         self.data_subscribers.clear_sample_queue(sampleQueue)
         self.assert_initialize_driver()
-        
+
         cmd = AgentCommand(command=command)
         reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
@@ -3303,48 +3350,46 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         log.debug("SAMPLE: %s", sample)
         sampleDataAssert(sample)
 
-    def assert_sample_async(self, data, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
+    def assert_sample_async(self, data, sample_data_assert, sample_queue, timeout=GO_ACTIVE_TIMEOUT):
         """
         Force a sample into the port agent and watch a queue for a
         data granule.
-        @param command Command to execute to the instrument agent
-        @param sampleDataAssert The method to use to assert the returned data
+        @param data Data to process
+        @param sample_data_assert The method to use to assert the returned data
         is in the right format.
-        @param sampleQueue The queue to look in for this type of data. Probably
+        @param sample_queue The queue to look in for this type of data. Probably
         a DataParticleType object
         @param timeout The timeout to use when not found
         """
-        self.data_subscribers.clear_sample_queue(sampleQueue)
+        self.data_subscribers.clear_sample_queue(sample_queue)
         self._instrument_simulator.send(data)
         log.debug("Simulating instrument input: %s", data)
 
-        samples = self.data_subscribers.get_samples(sampleQueue, timeout=timeout)
+        samples = self.data_subscribers.get_samples(sample_queue, timeout=timeout)
         self.assertGreaterEqual(len(samples), 1)
         sample = samples.pop()
 
         log.debug("SAMPLE: %s", sample)
-        sampleDataAssert(sample)
+        sample_data_assert(sample)
 
     def assert_reset(self):
-        '''
+        """
         Exist active state
-        '''
+        """
         log.debug("Reset Agent Now!")
 
         state = self.instrument_agent_client.get_agent_state()
         log.debug("Current State: %s", state)
 
         # If in DA mode walk it out
-        if(state == ResourceAgentState.DIRECT_ACCESS):
+        if state == ResourceAgentState.DIRECT_ACCESS:
             cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
             self.instrument_agent_client.execute_agent(cmd, timeout=30)
 
         # reset the instrument if it has been initialized
-        if(state != ResourceAgentState.UNINITIALIZED):
+        if state != ResourceAgentState.UNINITIALIZED:
             cmd = AgentCommand(command=ResourceAgentEvent.RESET)
             self.instrument_agent_client.execute_agent(cmd)
 
             state = self.instrument_agent_client.get_agent_state()
             self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-    
-    
