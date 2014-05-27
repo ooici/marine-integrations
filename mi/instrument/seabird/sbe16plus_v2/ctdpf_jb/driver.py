@@ -79,13 +79,13 @@ class Command(BaseEnum):
 
 class SendOptodeCommand(BaseEnum):
 
+    GET_ANALOG_OUTPUT = 'get analog output'
     GET_CALPHASE = 'get calphase'
     GET_ENABLE_TEMP = 'get enable temperature'
     GET_ENABLE_TEXT = 'get enable text'
     GET_ENABLE_HUM_COMP = 'get enable humiditycomp'
     GET_ENABLE_AIR_SAT = 'get enable airsaturation'
     GET_ENABLE_RAW_DATA = 'get enable rawdata'
-    GET_ANALOG_OUTPUT = 'get analog output'
     GET_INTERVAL = 'get interval'
     GET_MODE  = 'get mode'
 
@@ -147,6 +147,7 @@ class Parameter(DriverParameter):
     VOLT4 = "Volt4"
     VOLT5 = "Volt5"
     SBE38 = "SBE38"
+    SBE63    =  "SBE63"
     WETLABS = "WetLabs"
     GTD = "GTD"
     DUAL_GTD = "DualGTD"
@@ -168,6 +169,7 @@ class ConfirmedParameter(BaseEnum):
     """
     PTYPE    =  Parameter.PTYPE
     SBE38    =  Parameter.SBE38
+    SBE63    =  Parameter.SBE63
     GTD      =  Parameter.GTD
     DUAL_GTD =  Parameter.DUAL_GTD
     OPTODE   =  Parameter.OPTODE
@@ -179,6 +181,13 @@ class ConfirmedParameter(BaseEnum):
     VOLT4    =  Parameter.VOLT4
     VOLT5    =  Parameter.VOLT5
 
+class DriverParameter(BaseEnum):
+    """
+    List of all driver specific parameters
+    i.e. the instrument is not aware of these.
+    """
+    CLOCK_INTERVAL = Parameter.CLOCK_INTERVAL
+    STATUS_INTERVAL = Parameter.STATUS_INTERVAL
 
 ###############################################################################
 # Data Particles
@@ -971,7 +980,7 @@ class OptodeSettingsParticle(SeaBirdParticle):
     @staticmethod
     def regex():
         # pattern for the first sendoptode command
-        pattern =  r'Optode RX = CalPhase\[Deg]'
+        pattern =  r'Optode RX = Analog Output'
         pattern += r'.*?' # non-greedy match of all the junk between
         pattern += r'Optode RX = Mode[\s]*[\d]+[\s]+[\d]+[\s]+([\w\- \t]+)' + NEWLINE
         return pattern
@@ -997,13 +1006,13 @@ class OptodeSettingsParticle(SeaBirdParticle):
 
     def regex_multiline(self):
         return {
+            OptodeSettingsParticleKey.ANALOG_OUTPUT: r'Optode RX = Analog Output[\s]*[\d]+[\s]+[\d]+[\s]+([\w]+)',
             OptodeSettingsParticleKey.CALPHASE : r'Optode RX = CalPhase\[Deg][\s]+[\d]+[\s]+[\d]+[\s]+(\d+.\d+)',
             OptodeSettingsParticleKey.ENABLE_TEMP : r'Optode RX = Enable Temperature[\s]+[\d]+[\s]+[\d]+[\s]+(Yes|No)',
             OptodeSettingsParticleKey.ENABLE_TEXT : r'Optode RX = Enable Text[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
             OptodeSettingsParticleKey.ENABLE_HUM_COMP : r'Optode RX = Enable HumidityComp[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
             OptodeSettingsParticleKey.ENABLE_AIR_SAT: r'Optode RX = Enable AirSaturation[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
             OptodeSettingsParticleKey.ENABLE_RAW_DATA: r'Optode RX = Enable Rawdata[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
-            OptodeSettingsParticleKey.ANALOG_OUTPUT: r'Optode RX = Analog Output[\s]*[\d]+[\s]+[\d]+[\s]+([\w]+)',
             OptodeSettingsParticleKey.INTERVAL : r'Optode RX = Interval[\s]+[\d]+[\s]+[\d]+[\s]+(\d+.\d+)',
             OptodeSettingsParticleKey.MODE: r'Optode RX = Mode[\s]*[\d]+[\s]+[\d]+[\s]+([\w\- \t]+)',
 
@@ -1183,31 +1192,54 @@ class SBE19Protocol(SBE16Protocol):
         else:
             status_interval_seconds = 0
 
-        config = {DriverConfigKey.SCHEDULER: {
+        if self._startup_config.has_key(DriverConfigKey.SCHEDULER):
+
+            self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.CLOCK_SYNC] = {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.SECONDS: clock_interval_seconds}
+            }
+
+            self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.ACQUIRE_STATUS] = {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.SECONDS: status_interval_seconds}
+            }
+
+        else:
+
+            self._startup_config[DriverConfigKey.SCHEDULER] = {
             ScheduledJob.CLOCK_SYNC: {
                 DriverSchedulerConfigKey.TRIGGER: {
                     DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
                     DriverSchedulerConfigKey.SECONDS: clock_interval_seconds
                 }
             }, ScheduledJob.ACQUIRE_STATUS: {
-            DriverSchedulerConfigKey.TRIGGER: {
-                DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                DriverSchedulerConfigKey.SECONDS: status_interval_seconds
-            }
-        },
-        }}
-
-        self.set_init_params(config)
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.SECONDS: status_interval_seconds
+                }
+            },
+        }
 
         # Start the scheduler if it is not running
         if not self._scheduler:
             self.initialize_scheduler()
 
-        #Schedule the Acquire Status and Clock Sync tasks
+        #Add scheduler
         if(clock_interval_seconds > 0):
             self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         if(status_interval_seconds > 0):
             self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+
+        #Remove scheduler if interval set to 0
+        if(clock_interval_seconds == 0 and (not self._scheduler_callback.get(ScheduledJob.CLOCK_SYNC) == None)):
+            self._remove_scheduler(ScheduledJob.CLOCK_SYNC)
+            log.debug("Removed scheduler for clock sync")
+
+        if(status_interval_seconds == 0 and (not self._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS) == None)):
+            self._remove_scheduler(ScheduledJob.ACQUIRE_STATUS)
+            log.debug("Removed scheduler for acquire status")
 
 
     @staticmethod
@@ -1246,6 +1278,9 @@ class SBE19Protocol(SBE16Protocol):
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
+        scheduling_interval_changed = False
+        old_config = self._param_dict.get_config()
+
         #check values that the instrument doesn't validate
         #handle special cases for driver specific parameters
         for (key, val) in params.iteritems():
@@ -1255,14 +1290,12 @@ class SBE19Protocol(SBE16Protocol):
                 raise InstrumentParameterException("num average samples out of range")
 
             # set driver specific parameters
-            elif(key == Parameter.CLOCK_INTERVAL):
-                self._param_dict.set_value(Parameter.CLOCK_INTERVAL, val)
-                self._setup_scheduler_config()
-                return
-            elif(key == Parameter.STATUS_INTERVAL):
-                self._param_dict.set_value(Parameter.STATUS_INTERVAL, val)
-                self._setup_scheduler_config()
-                return
+            elif(key == Parameter.CLOCK_INTERVAL or key == Parameter.STATUS_INTERVAL):
+                #self._set_driver_params(key, val)
+                old_val = self._param_dict.get(key)
+                if val != old_val:
+                    self._param_dict.set_value(key, val)
+                    scheduling_interval_changed = True
 
         self._verify_not_readonly(*args, **kwargs)
 
@@ -1274,11 +1307,26 @@ class SBE19Protocol(SBE16Protocol):
                 # twice, the write delay allows it to process the first command
                 # before it receives the beginning of the second.
                 response = self._do_cmd_resp(Command.SET, key, val, write_delay=0.2)
-            else:
+            elif(key not in DriverParameter.list()):
                 response = self._do_cmd_resp(Command.SET, key, val, **kwargs)
+
+        if(scheduling_interval_changed):
+            self._handle_scheduling_params_changed(old_config)
 
         log.debug("set complete, update params")
         self._update_params()
+
+    def _handle_scheduling_params_changed(self, old_config):
+        """
+        Required actions when scheduling parameters change
+        """
+        self._setup_scheduler_config()
+
+        new_config = self._param_dict.get_config()
+
+        if not dict_equal(new_config, old_config):
+            log.debug("Updated params, sending config change event")
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -1500,6 +1548,7 @@ class SBE19Protocol(SBE16Protocol):
 
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT)
 
+        log.debug("Performing Clock Sync...")
         self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%Y-%m-%dT%H:%M:%S")
 
         return (next_state, (next_agent_state, result))
@@ -1522,6 +1571,7 @@ class SBE19Protocol(SBE16Protocol):
         result = None
         error = None
 
+        log.debug("Performing Clock Sync in autosample mode...")
         self._autosample_clock_sync(*args, **kwargs)
 
         return (next_state, (next_agent_state, result))
@@ -1624,7 +1674,6 @@ class SBE19Protocol(SBE16Protocol):
 
         # Get old param dict config.
         old_config = self._param_dict.get_config()
-        baseline = self._param_dict.get_current_timestamp()
 
         # Issue display commands and parse results.
         log.debug("device status from _update_params")
