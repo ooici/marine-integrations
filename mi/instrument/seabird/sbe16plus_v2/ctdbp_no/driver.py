@@ -82,6 +82,8 @@ class Parameter(DriverParameter):
     AUTO_RUN = "AutoRun"
     IGNORE_SWITCH = "IgnoreSwitch"
     LOGGING = "logging"
+    CLOCK_INTERVAL = "ClockInterval"
+    STATUS_INTERVAL = "StatusInterval"
 
 class ConfirmedParameter(BaseEnum):
     """
@@ -115,6 +117,28 @@ class DataParticleType(BaseEnum):
     DEVICE_HARDWARE = 'ctdbp_no_hardware'
     DEVICE_CONFIGURATION = 'ctdbp_no_configuration'
     OPTODE_SETTINGS = 'ctdbp_no_optode_settings'
+
+
+class SBE16NODataParticle(SBE19DataParticle):
+    """
+    This data particle is identical to the corresponding one for CTDPF-Optode, except for the stream
+    name, which we specify here
+    """
+    _data_particle_type = DataParticleType.CTD_PARSED
+
+class SBE16NOStatusParticle(SBE19StatusParticle):
+    """
+    This data particle is identical to the corresponding one for CTDPF-Optode, except for the stream
+    name, which we specify here
+    """
+    _data_particle_type = DataParticleType.DEVICE_STATUS
+
+class SBE16NOOptodeSettingsParticle(OptodeSettingsParticle):
+    """
+    This data particle is identical to the corresponding one for CTDPF-Optode, except for the stream
+    name, which we specify here
+    """
+    _data_particle_type = DataParticleType.OPTODE_SETTINGS
 
 
 class SBE16NOHardwareParticleKey(BaseEnum):
@@ -286,6 +310,7 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: volt1_type},
                   ]
 
+        log.debug("Hardware Dictionary: %s" % result)
         return result
     
 
@@ -720,12 +745,12 @@ class SBE16NOProtocol(SBE19Protocol):
         matchers = []
         return_list = []
 
-        matchers.append(SBE19DataParticle.regex_compiled())
+        matchers.append(SBE16NODataParticle.regex_compiled())
         matchers.append(SBE16NOHardwareParticle.regex_compiled())
         matchers.append(SBE16NOCalibrationParticle.regex_compiled())
-        matchers.append(SBE19StatusParticle.regex_compiled())
+        matchers.append(SBE16NOStatusParticle.regex_compiled())
         matchers.append(SBE16NOConfigurationParticle.regex_compiled())
-        matchers.append(OptodeSettingsParticle.regex_compiled())
+        matchers.append(SBE16NOOptodeSettingsParticle.regex_compiled())
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
@@ -739,11 +764,11 @@ class SBE16NOProtocol(SBE19Protocol):
         with the appropriate particle objects and REGEXes. 
         """
         if not (self._extract_sample(SBE16NOHardwareParticle, SBE16NOHardwareParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE19DataParticle, SBE19DataParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE16NODataParticle, SBE16NODataParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16NOCalibrationParticle, SBE16NOCalibrationParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16NOConfigurationParticle, SBE16NOConfigurationParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE19StatusParticle, SBE19StatusParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(OptodeSettingsParticle, OptodeSettingsParticle.regex_compiled(), chunk, timestamp)):
+                self._extract_sample(SBE16NOStatusParticle, SBE16NOStatusParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE16NOOptodeSettingsParticle, SBE16NOOptodeSettingsParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 
     ########################################################################
@@ -757,17 +782,17 @@ class SBE16NOProtocol(SBE19Protocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+                                timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE16NOCalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+                                timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
         result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
@@ -809,7 +834,7 @@ class SBE16NOProtocol(SBE19Protocol):
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
+        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
@@ -829,6 +854,30 @@ class SBE16NOProtocol(SBE19Protocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _build_set_command(self, cmd, param, val):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+        try:
+            str_val = self._param_dict.format(param, val)
+
+            set_cmd = '%s=%s' % (param, str_val)
+            set_cmd = set_cmd + NEWLINE
+
+            # Some set commands need to be sent twice to confirm
+            if(param in ConfirmedParameter.list()):
+                set_cmd = set_cmd + set_cmd
+
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+        return set_cmd
 
     ########################################################################
     # response handlers.
@@ -874,6 +923,24 @@ class SBE16NOProtocol(SBE19Protocol):
         return response
 
 
+    def _validate_GetHD_response(self, response, prompt):
+        """
+        validation handler for GetHD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetHD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetHD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if not SBE16NOHardwareParticle.resp_regex_compiled().search(response):
+            log.error('_validate_GetHD_response: GetHD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetHD command not recognized: %s.' % response)
+
+        return response
 
     ########################################################################
     # Private helpers.
@@ -1014,7 +1081,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE63,
-                             r'SBE 63 = (yes|no)',
+                             r'SBE63 = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1093,3 +1160,28 @@ class SBE16NOProtocol(SBE19Protocol):
                              direct_access = True,
                              default_value = True,
                              visibility=ParameterDictVisibility.IMMUTABLE)
+
+        #Scheduling parameters (driver specific)
+        # Instrument is not aware of these
+        self._param_dict.add(Parameter.CLOCK_INTERVAL,
+                             'bogus',
+                             str,
+                             None,
+                             type=ParameterDictType.STRING,
+                             display_name="Clock Interval",
+                             startup_param = True,
+                             direct_access = False,
+                             default_value = "00:00:00",
+                             init_value= "00:00:00",
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.STATUS_INTERVAL,
+                             'bogus',
+                             str,
+                             None,
+                             type=ParameterDictType.STRING,
+                             display_name="Status Interval",
+                             startup_param = True,
+                             direct_access = False,
+                             default_value = "00:00:00",
+                             init_value= "00:00:00",
+                             visibility=ParameterDictVisibility.READ_WRITE)
