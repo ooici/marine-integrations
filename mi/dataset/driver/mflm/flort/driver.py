@@ -61,9 +61,11 @@ class MflmFLORTDDataSetDriver(MultipleHarvesterDataSetDriver):
             raise ConfigurationException('Tried to build parser for unknown data source key %s' % data_key)
         return parser
 
-    def _build_telemetered_parser(self, parser_state, infile):
+    def _build_telemetered_parser(self, parser_state, stream_in):
         """
-        Build and return the parser
+        Build and return the telemetered parser
+        @param parser_state starting parser state to pass to parser
+        @param stream_in Handle of open file to pass to parser
         """
         config = self._parser_config
         config.update({
@@ -71,36 +73,25 @@ class MflmFLORTDDataSetDriver(MultipleHarvesterDataSetDriver):
             'particle_class': 'FlortdParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._parser = FlortdParser(
+        parser = FlortdParser(
             config,
             parser_state,
-            infile,
+            stream_in,
             lambda state: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_TELEMETERED),
             self._data_callback,
             self._sample_exception_callback
         )
-        return self._parser
+        return parser
 
-    def _build_recovered_parser(self, parser_state, infile):
+    def _build_recovered_parser(self, parser_state, stream_in):
         """
-        Build and return the parser
+        Build and return the recovered parser
+        @param parser_state starting parser state to pass to parser
+        @param stream_in Handle of open file to pass to parser
         """
-        config = self._parser_config
-        config.update({
-            'particle_module': 'mi.dataset.parser.flortd',
-            'particle_class': 'FlortdParserDataParticle'
-        })
-        log.debug("My Config: %s", config)
-        self._parser = FlortdParser(
-            config,
-            parser_state,
-            infile,
-            lambda state: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_RECOVERED),
-            self._data_callback,
-            self._sample_exception_callback,
-            recovered_flag=True
-        )
-        return self._parser
+        # recovered parser is not written yet
+        parser = None
+        return parser
 
     def _build_harvester(self, driver_state):
         """
@@ -119,18 +110,18 @@ class MflmFLORTDDataSetDriver(MultipleHarvesterDataSetDriver):
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.FLORT_DJ_SIO_TELEMETERED)
 
-        if DataSourceKey.FLORT_DJ_SIO_RECOVERED in self._harvester_config:
-            recov_harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataSourceKey.FLORT_DJ_SIO_RECOVERED),
-                driver_state[DataSourceKey.FLORT_DJ_SIO_RECOVERED],
-                lambda file_state, file_ingested: self._file_changed_callback(file_state,
-                                                                              DataSourceKey.FLORT_DJ_SIO_RECOVERED,
-                                                                              file_ingested),
-                self._exception_callback
-            )
-            harvesters.append(recov_harvester)
-        else:
-            log.warn('No configuration for %s harvester, not building', DataSourceKey.FLORT_DJ_SIO_RECOVERED)
+        #if DataSourceKey.FLORT_DJ_SIO_RECOVERED in self._harvester_config:
+        #    recov_harvester = SingleDirectoryHarvester(
+        #        self._harvester_config.get(DataSourceKey.FLORT_DJ_SIO_RECOVERED),
+        #        driver_state[DataSourceKey.FLORT_DJ_SIO_RECOVERED],
+        #        lambda file_state, file_ingested: self._file_changed_callback(file_state,
+        #                                                                      DataSourceKey.FLORT_DJ_SIO_RECOVERED,
+        #                                                                      file_ingested),
+        #        self._exception_callback
+        #    )
+        #    harvesters.append(recov_harvester)
+        #else:
+        #    log.warn('No configuration for %s harvester, not building', DataSourceKey.FLORT_DJ_SIO_RECOVERED)
         return harvesters
 
     # once all mflm drivers are moved to multiple harvester drivers, this will be moved into the sio common driver
