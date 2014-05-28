@@ -24,16 +24,15 @@ try:
     from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticleKey
     from mi.dataset.parser.antelope_orb import AntelopeOrbPacketParticleChannelKey
     from mi.dataset.parser.antelope_orb import ParserConfigKey
-    
-    import _Pkt as _pkt
-    from mi.core.kudu.brttpkt import GetError
-except Exception as e: 
-    log.warn("Failed to import antelope lib: %s", e)
+
+    from mi.core.kudu import _pkt
+    from mi.core.kudu.brttpkt import NoData
+except Exception as e:
+    log.error("Failed to import antelope lib: %s", e)
 
 
 @attr('ANTELOPE', group='mi')
 class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
-
     def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the state callback """
         log.trace("SETTING state_callback_value to " + str(state))
@@ -75,6 +74,7 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
         self.PKT_CHAN = PKT_CHAN = 'chan'
         self.PKT_LOC = PKT_LOC = 'loc'
 
+        from mi.core.kudu import _pkt
         pkt = _pkt._newPkt()
         _pkt._Pkt_pkttype_set(pkt, PKT_TYPE)
         pktchan = _pkt._newPktChannel()
@@ -115,7 +115,8 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
         channels = self.get_data_value(r, AntelopeOrbPacketParticleKey.CHANNELS)
         self.assertEquals(len(channels), 1)
         chan = channels[0]
-        self.assertEquals(self.PKT_DATA, chan[AntelopeOrbPacketParticleChannelKey.DATA])
+        self.assertEquals(self.PKT_DATA,
+                            tuple(chan[AntelopeOrbPacketParticleChannelKey.DATA]))
         self.assertEquals(self.PKT_TIME, chan[AntelopeOrbPacketParticleChannelKey.TIME])
         self.assertEquals(self.PKT_SAMPRATE, chan[AntelopeOrbPacketParticleChannelKey.SAMPRATE])
         self.assertEquals(self.PKT_NET, chan[AntelopeOrbPacketParticleChannelKey.NET])
@@ -144,8 +145,9 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
         self.assertRaises(Exception, self.parser.get_records)
 
     def test_get_error(self):
+        from mi.core.kudu.brttpkt import GetError
         def f(*args, **kwargs):
-            raise GetError()
+            raise NoData()
         self.parser._orbreapthr.get = f
         self.parser.get_records()
 
