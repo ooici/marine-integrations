@@ -33,7 +33,7 @@ from mi.idk.unit_test import DriverTestMixin
 
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.instrument.teledyne.workhorse.adcp.driver import Parameter
+from mi.instrument.teledyne.workhorse.vadcp.driver import Parameter
 from mi.instrument.teledyne.workhorse.adcp.driver import Prompt
 from mi.instrument.teledyne.workhorse.adcp.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse.driver import NEWLINE
@@ -61,7 +61,11 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 
+from mi.instrument.teledyne.driver import TeledyneParameter2
+
 from mi.core.exceptions import InstrumentCommandException
+from mi.core.common import BaseEnum
+
 ###
 #   Driver parameters for tests
 ###
@@ -113,6 +117,10 @@ InstrumentDriverTestCase.initialize(
             Parameter.SAMPLE_AMBIENT_SOUND: 0,
             Parameter.BUFFERED_OUTPUT_PERIOD: '00:00:00',
 
+            Parameter.SYNC_PING_ENSEMBLE: '001',
+            Parameter.RDS3_MODE_SEL: 1,
+            Parameter.SYNCH_DELAY: 100,
+
             Parameter.CLOCK_SYNCH_INTERVAL: '00:00:00',
             Parameter.GET_STATUS_INTERVAL: '00:00:00',
         },
@@ -123,6 +131,13 @@ InstrumentDriverTestCase.initialize(
         }
     }
 )
+
+class TeledynePrompt(BaseEnum):
+    """
+    Device i/o prompts..
+    """
+    COMMAND = '\r\n>\r\n>'
+    ERR = 'ERR:'
 
 ###################################################################
 
@@ -202,6 +217,11 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.BUFFERED_OUTPUT_PERIOD: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00:00:00', VALUE:'00:00:00'},
         Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0},
+
+        Parameter.SYNC_PING_ENSEMBLE: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '001', VALUE: '001'},
+        Parameter.RDS3_MODE_SEL: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        Parameter.SYNCH_DELAY: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
+
         Parameter.CLOCK_SYNCH_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'},
         Parameter.GET_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'}
     }
@@ -1045,31 +1065,537 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         # Test a bad command
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
-    def test_set_ranges(self):
+
+    def _test_set_xmit_power_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for XMIT_POWER ======")
+
+
+        # XMIT_POWER:  -- Int 0-255
+        #log.error("****Sung *******  setting CQ to 0")
+        self.assert_set(TeledyneParameter2.XMIT_POWER, 0)
+        #log.error("****Sung *******  setting CQ to 128")
+
+        self.assert_set(TeledyneParameter2.XMIT_POWER, 128)
+        self.assert_set(TeledyneParameter2.XMIT_POWER, 254)
+
+        self.assert_set_exception(TeledyneParameter2.XMIT_POWER, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.XMIT_POWER, 256)
+        self.assert_set_exception(TeledyneParameter2.XMIT_POWER, -1)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.XMIT_POWER, self._driver_parameter_defaults[TeledyneParameter.XMIT_POWER])
+        self.assert_set(TeledyneParameter2.XMIT_POWER, self._driver_parameters[TeledyneParameter2.XMIT_POWER][self.VALUE])
+        self._tested[TeledyneParameter2.XMIT_POWER] = True
+
+    def _test_set_speed_of_sound_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SPEED_OF_SOUND ======")
+
+        # SPEED_OF_SOUND:  -- Int 1485 (1400 - 1600)
+        self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, 1400)
+        self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, 1450)
+        self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, 1500)
+        self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, 1550)
+        self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, 1600)
+
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, 0)
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, 1399)
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, 1601)
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, -256)
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, -1)
+        self.assert_set_exception(TeledyneParameter2.SPEED_OF_SOUND, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.SPEED_OF_SOUND, self._driver_parameter_defaults[TeledyneParameter.SPEED_OF_SOUND])
+        self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, self._driver_parameters[TeledyneParameter2.SPEED_OF_SOUND][self.VALUE])
+        self._tested[TeledyneParameter2.SPEED_OF_SOUND] = True
+
+    def _test_set_salinity_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SALINITY ======")
+
+        # SALINITY:  -- Int (0 - 40)
+        self.assert_set(TeledyneParameter2.SALINITY, 1)
+        self.assert_set(TeledyneParameter2.SALINITY, 10)
+        self.assert_set(TeledyneParameter2.SALINITY, 20)
+        self.assert_set(TeledyneParameter2.SALINITY, 30)
+        self.assert_set(TeledyneParameter2.SALINITY, 40)
+
+        self.assert_set_exception(TeledyneParameter2.SALINITY, "LEROY JENKINS")
+
+        # AssertionError: Unexpected exception: ES no value match (40 != -1)
+        self.assert_set_exception(TeledyneParameter2.SALINITY, -1)
+
+        # AssertionError: Unexpected exception: ES no value match (35 != 41)
+        self.assert_set_exception(TeledyneParameter2.SALINITY, 41)
+
+        self.assert_set_exception(TeledyneParameter2.SALINITY, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.SALINITY, self._driver_parameter_defaults[TeledyneParameter.SALINITY])
+        self.assert_set(TeledyneParameter2.SALINITY, self._driver_parameters[TeledyneParameter2.SALINITY][self.VALUE])
+        self._tested[TeledyneParameter2.SALINITY] = True
+
+    def _test_set_sensor_source_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SENSOR_SOURCE ======")
+
+        # SENSOR_SOURCE:  -- (0/1) for 7 positions.
+        # note it lacks capability to have a 1 in the #6 position
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "0000000")
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1111101")
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1010101")
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "0101000")
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1100100")
+
+        #
+        # Reset to good value.
+        #
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1111101")
+
+        self.assert_set_exception(TeledyneParameter2.SENSOR_SOURCE, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.SENSOR_SOURCE, 2)
+        self.assert_set_exception(TeledyneParameter2.SENSOR_SOURCE, -1)
+        self.assert_set_exception(TeledyneParameter2.SENSOR_SOURCE, "1111112")
+        self.assert_set_exception(TeledyneParameter2.SENSOR_SOURCE, "11111112")
+        self.assert_set_exception(TeledyneParameter2.SENSOR_SOURCE, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.SENSOR_SOURCE, self._driver_parameter_defaults[TeledyneParameter.SENSOR_SOURCE])
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, self._driver_parameters[TeledyneParameter2.SENSOR_SOURCE][self.VALUE])
+        self._tested[TeledyneParameter2.SENSOR_SOURCE] = True
+
+    def _test_set_time_per_ensemble_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_PER_ENSEMBLE ======")
+
+        # TIME_PER_ENSEMBLE:  -- String 01:00:00.00 (hrs:min:sec.sec/100)
+        self.assert_set(TeledyneParameter2.TIME_PER_ENSEMBLE, "00:00:00.00")
+        self.assert_set(TeledyneParameter2.TIME_PER_ENSEMBLE, "00:00:01.00")
+        self.assert_set(TeledyneParameter2.TIME_PER_ENSEMBLE, "00:01:00.00")
+
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, '30:30:30.30')
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, '59:59:59.99')
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, 2)
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, -1)
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, '99:99:99.99')
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, '-1:-1:-1.+1')
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_ENSEMBLE, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.TIME_PER_ENSEMBLE, self._driver_parameter_defaults[TeledyneParameter.TIME_PER_ENSEMBLE])
+        self.assert_set(TeledyneParameter2.TIME_PER_ENSEMBLE, self._driver_parameters[TeledyneParameter2.TIME_PER_ENSEMBLE][self.VALUE])
+        self._tested[TeledyneParameter2.TIME_PER_ENSEMBLE] = True
+
+    def _test_set_time_of_first_ping_readonly_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
+
+        # Test read only raise exceptions on set.        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+        now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
+
+        self.assert_set_exception(TeledyneParameter2.TIME_OF_FIRST_PING, now_1_hour)
+        self.assert_set_exception(TeledyneParameter2.TIME_OF_FIRST_PING, today_plus_10)
+        self.assert_set_exception(TeledyneParameter2.TIME_OF_FIRST_PING, today_plus_1month)
+        self.assert_set_exception(TeledyneParameter2.TIME_OF_FIRST_PING, today_plus_6month)
+        self._tested[TeledyneParameter2.TIME_OF_FIRST_PING] = True
+
+    def _test_set_time_per_ping_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_PER_PING ======")
+
+        # TIME_PER_PING: '00:01.00'
+        self.assert_set(TeledyneParameter2.TIME_PER_PING, '01:00.00')
+        self.assert_set(TeledyneParameter2.TIME_PER_PING, '59:59.99')
+        self.assert_set(TeledyneParameter2.TIME_PER_PING, '30:30.30')
+
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_PING, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_PING, 2)
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_PING, -1)
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_PING, '99:99.99')
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_PING, '-1:-1.+1')
+        self.assert_set_exception(TeledyneParameter2.TIME_PER_PING, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.TIME_PER_PING, self._driver_parameter_defaults[TeledyneParameter.TIME_PER_PING])
+        self.assert_set(TeledyneParameter2.TIME_PER_PING, self._driver_parameters[TeledyneParameter2.TIME_PER_PING][self.VALUE])
+        self._tested[TeledyneParameter2.TIME_PER_PING] = True
+
+    def _test_set_false_target_threshold_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for FALSE_TARGET_THRESHOLD ======")
+
+        # FALSE_TARGET_THRESHOLD: string of 0-255,0-255
+        self.assert_set(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "000,000")
+        self.assert_set(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "255,000")
+        self.assert_set(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "000,255")
+        self.assert_set(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "255,255")
+
+        self.assert_set_exception(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "256,000")
+        self.assert_set_exception(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "256,255")
+        self.assert_set_exception(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "000,256")
+        self.assert_set_exception(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "255,256")
+        self.assert_set_exception(TeledyneParameter2.FALSE_TARGET_THRESHOLD, -1)
+
+        self.assert_set_exception(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "LEROY JENKINS")
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.FALSE_TARGET_THRESHOLD, self._driver_parameter_defaults[TeledyneParameter.FALSE_TARGET_THRESHOLD])
+        self.assert_set(TeledyneParameter2.FALSE_TARGET_THRESHOLD, self._driver_parameters[TeledyneParameter2.FALSE_TARGET_THRESHOLD][self.VALUE])
+        self._tested[TeledyneParameter2.FALSE_TARGET_THRESHOLD] = True
+
+    def _test_set_bandwidth_control_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BANDWIDTH_CONTROL ======")
+
+        # BANDWIDTH_CONTROL: 0/1,
+        self.assert_set(TeledyneParameter2.BANDWIDTH_CONTROL, 1)
+
+        self.assert_set_exception(TeledyneParameter2.BANDWIDTH_CONTROL, -1)
+        self.assert_set_exception(TeledyneParameter2.BANDWIDTH_CONTROL, 2)
+        self.assert_set_exception(TeledyneParameter2.BANDWIDTH_CONTROL, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.BANDWIDTH_CONTROL, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.BANDWIDTH_CONTROL, self._driver_parameter_defaults[TeledyneParameter.BANDWIDTH_CONTROL])
+        self.assert_set(TeledyneParameter2.BANDWIDTH_CONTROL, self._driver_parameters[TeledyneParameter2.BANDWIDTH_CONTROL][self.VALUE])
+        self._tested[TeledyneParameter2.BANDWIDTH_CONTROL] = True
+
+    def _test_set_correlation_threshold_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for CORRELATION_THRESHOLD ======")
+
+        # CORRELATION_THRESHOLD: int 064, 0 - 255
+        self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, 50)
+        self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, 100)
+        self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, 150)
+        self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, 200)
+        self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, 255)
+
+        self.assert_set_exception(TeledyneParameter2.CORRELATION_THRESHOLD, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.CORRELATION_THRESHOLD, -256)
+        self.assert_set_exception(TeledyneParameter2.CORRELATION_THRESHOLD, -1)
+        self.assert_set_exception(TeledyneParameter2.CORRELATION_THRESHOLD, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.CORRELATION_THRESHOLD, self._driver_parameter_defaults[TeledyneParameter.CORRELATION_THRESHOLD])
+        self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, self._driver_parameters[TeledyneParameter2.CORRELATION_THRESHOLD][self.VALUE])
+        self._tested[TeledyneParameter2.CORRELATION_THRESHOLD] = True
+
+    def _test_set_error_velocity_threshold_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for ERROR_VELOCITY_THRESHOLD ======")
+
+        # ERROR_VELOCITY_THRESHOLD: int (0-5000 mm/s) NOTE it enforces 0-9999
+        # decimals are truncated to ints
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 0)
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 128)
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 1000)
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 2000)
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 3000)
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 4000)
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 5000)
+
+        self.assert_set_exception(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, -1)
+        self.assert_set_exception(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, 10000)
+        self.assert_set_exception(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, -3.1415926)
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, self._driver_parameter_defaults[TeledyneParameter.ERROR_VELOCITY_THRESHOLD])
+        self.assert_set(TeledyneParameter2.ERROR_VELOCITY_THRESHOLD, self._driver_parameters[TeledyneParameter2.ERROR_VELOCITY_THRESHOLD][self.VALUE])
+        self._tested[TeledyneParameter2.ERROR_VELOCITY_THRESHOLD] = True
+
+    def _test_set_blank_after_transmit_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ======")
+
+        # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 0)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 128)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 1000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 2000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 3000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 4000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 5000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 6000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 7000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 8000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 9000)
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 9999)
+
+        self.assert_set_exception(TeledyneParameter2.BLANK_AFTER_TRANSMIT, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.BLANK_AFTER_TRANSMIT, -1)
+        self.assert_set_exception(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 10000)
+        self.assert_set_exception(TeledyneParameter2.BLANK_AFTER_TRANSMIT, -3.1415926)
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, self._driver_parameter_defaults[TeledyneParameter.BLANK_AFTER_TRANSMIT])
+        self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, self._driver_parameters[TeledyneParameter2.BLANK_AFTER_TRANSMIT][self.VALUE])
+        self._tested[TeledyneParameter2.BLANK_AFTER_TRANSMIT] = True
+
+    def _test_set_clip_data_past_bottom_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for CLIP_DATA_PAST_BOTTOM ======")
+
+        # CLIP_DATA_PAST_BOTTOM: True/False,
+        self.assert_set(TeledyneParameter2.CLIP_DATA_PAST_BOTTOM, True)
+        self.assert_set_exception(TeledyneParameter2.CLIP_DATA_PAST_BOTTOM, "LEROY JENKINS")
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.CLIP_DATA_PAST_BOTTOM, self._driver_parameter_defaults[TeledyneParameter.CLIP_DATA_PAST_BOTTOM])
+        self.assert_set(TeledyneParameter2.CLIP_DATA_PAST_BOTTOM, self._driver_parameters[TeledyneParameter2.CLIP_DATA_PAST_BOTTOM][self.VALUE])
+        self._tested[TeledyneParameter2.CLIP_DATA_PAST_BOTTOM] = True
+
+    def _test_set_receiver_gain_select_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for RECEIVER_GAIN_SELECT ======")
+
+        # RECEIVER_GAIN_SELECT: (0/1),
+        self.assert_set(TeledyneParameter2.RECEIVER_GAIN_SELECT, 0)
+        self.assert_set(TeledyneParameter2.RECEIVER_GAIN_SELECT, 1)
+
+        self.assert_set_exception(TeledyneParameter2.RECEIVER_GAIN_SELECT, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.RECEIVER_GAIN_SELECT, 2)
+        self.assert_set_exception(TeledyneParameter2.RECEIVER_GAIN_SELECT, -1)
+        self.assert_set_exception(TeledyneParameter2.RECEIVER_GAIN_SELECT, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, self._driver_parameter_defaults[TeledyneParameter.RECEIVER_GAIN_SELECT])
+        self.assert_set(TeledyneParameter2.RECEIVER_GAIN_SELECT, self._driver_parameters[TeledyneParameter2.RECEIVER_GAIN_SELECT][self.VALUE])
+        self._tested[TeledyneParameter2.RECEIVER_GAIN_SELECT] = True
+
+    def _test_set_receiver_gain_select_readonly_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
+
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(TeledyneParameter2.RECEIVER_GAIN_SELECT, 0)
+        self._tested[TeledyneParameter2.RECEIVER_GAIN_SELECT] = True
+
+    def _test_set_number_of_depth_cells_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for NUMBER_OF_DEPTH_CELLS ======")
+
+        # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
+        self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 1)
+        self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 128)
+        self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 254)
+
+        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 256)
+        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 0)
+        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, -1)
+        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 3.1415926)
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, self._driver_parameter_defaults[TeledyneParameter.NUMBER_OF_DEPTH_CELLS])
+        self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, self._driver_parameters[TeledyneParameter2.NUMBER_OF_DEPTH_CELLS][self.VALUE])
+        self._tested[TeledyneParameter2.NUMBER_OF_DEPTH_CELLS] = True
+
+    def _test_set_pings_per_ensemble_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for PINGS_PER_ENSEMBLE ======")
+
+        # PINGS_PER_ENSEMBLE: -- int  (0-16384) 1,
+        self.assert_set(TeledyneParameter2.PINGS_PER_ENSEMBLE, 0)
+        self.assert_set(TeledyneParameter2.PINGS_PER_ENSEMBLE, 16384)
+
+        self.assert_set_exception(TeledyneParameter2.PINGS_PER_ENSEMBLE, 16385)
+        self.assert_set_exception(TeledyneParameter2.PINGS_PER_ENSEMBLE, -1)
+        self.assert_set_exception(TeledyneParameter2.PINGS_PER_ENSEMBLE, 32767)
+        self.assert_set_exception(TeledyneParameter2.PINGS_PER_ENSEMBLE, 3.1415926)
+        self.assert_set_exception(TeledyneParameter2.PINGS_PER_ENSEMBLE, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.PINGS_PER_ENSEMBLE, self._driver_parameter_defaults[TeledyneParameter.PINGS_PER_ENSEMBLE])
+        self.assert_set(TeledyneParameter2.PINGS_PER_ENSEMBLE, self._driver_parameters[TeledyneParameter2.PINGS_PER_ENSEMBLE][self.VALUE])
+        self._tested[TeledyneParameter2.PINGS_PER_ENSEMBLE] = True
+
+    def _test_set_depth_cell_size_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for DEPTH_CELL_SIZE ======")
+
+        # DEPTH_CELL_SIZE: int 80 - 3200
+        self.assert_set(TeledyneParameter2.DEPTH_CELL_SIZE, 80)
+        self.assert_set_exception(TeledyneParameter2.DEPTH_CELL_SIZE, 3200)
+
+        self.assert_set_exception(TeledyneParameter2.DEPTH_CELL_SIZE, 3201)
+        self.assert_set_exception(TeledyneParameter2.DEPTH_CELL_SIZE, -1)
+        self.assert_set_exception(TeledyneParameter2.DEPTH_CELL_SIZE, 2)
+        self.assert_set_exception(TeledyneParameter2.DEPTH_CELL_SIZE, 3.1415926)
+        self.assert_set_exception(TeledyneParameter2.DEPTH_CELL_SIZE, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, self._driver_parameter_defaults[TeledyneParameter.DEPTH_CELL_SIZE])
+        self.assert_set(TeledyneParameter2.DEPTH_CELL_SIZE, self._driver_parameters[TeledyneParameter2.DEPTH_CELL_SIZE][self.VALUE])
+        self._tested[TeledyneParameter2.DEPTH_CELL_SIZE] = True
+
+    def _test_set_transmit_length_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TRANSMIT_LENGTH ======")
+
+        # TRANSMIT_LENGTH: int 0 to 3200
+        self.assert_set(TeledyneParameter2.TRANSMIT_LENGTH, 80)
+        self.assert_set(TeledyneParameter2.TRANSMIT_LENGTH, 3200)
+
+        self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, 3201)
+        self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, -1)
+        self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, 3.1415926)
+        self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.TRANSMIT_LENGTH, self._driver_parameter_defaults[TeledyneParameter.TRANSMIT_LENGTH])
+        self.assert_set(TeledyneParameter2.TRANSMIT_LENGTH, self._driver_parameters[TeledyneParameter2.TRANSMIT_LENGTH][self.VALUE])
+        self._tested[TeledyneParameter2.TRANSMIT_LENGTH] = True
+
+    def _test_set_ping_weight_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for PING_WEIGHT ======")
+
+        # PING_WEIGHT: (0/1),
+        self.assert_set(TeledyneParameter2.PING_WEIGHT, 0)
+        self.assert_set(TeledyneParameter2.PING_WEIGHT, 1)
+
+        self.assert_set_exception(TeledyneParameter2.PING_WEIGHT, 2)
+        self.assert_set_exception(TeledyneParameter2.PING_WEIGHT, -1)
+        self.assert_set_exception(TeledyneParameter2.PING_WEIGHT, 3.1415926)
+        self.assert_set_exception(TeledyneParameter2.PING_WEIGHT, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.PING_WEIGHT, self._driver_parameter_defaults[TeledyneParameter.PING_WEIGHT])
+        self.assert_set(TeledyneParameter2.PING_WEIGHT, self._driver_parameters[TeledyneParameter2.PING_WEIGHT][self.VALUE])
+        self._tested[TeledyneParameter2.PING_WEIGHT] = True
+
+    def _test_set_ambiguity_velocity_slave(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for AMBIGUITY_VELOCITY ======")
+
+        # AMBIGUITY_VELOCITY: int 2 - 700
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 2)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 111)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 222)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 333)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 444)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 555)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 666)
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 700)
+
+        self.assert_set_exception(TeledyneParameter2.AMBIGUITY_VELOCITY, 0)
+        self.assert_set_exception(TeledyneParameter2.AMBIGUITY_VELOCITY, 1)
+        self.assert_set_exception(TeledyneParameter2.AMBIGUITY_VELOCITY, -1)
+        self.assert_set_exception(TeledyneParameter2.AMBIGUITY_VELOCITY, 3.1415926)
+        self.assert_set_exception(TeledyneParameter2.AMBIGUITY_VELOCITY, "LEROY JENKINS")
+
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, self._driver_parameter_defaults[TeledyneParameter.AMBIGUITY_VELOCITY])
+        self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, self._driver_parameters[TeledyneParameter2.AMBIGUITY_VELOCITY][self.VALUE])
+        self._tested[TeledyneParameter2.AMBIGUITY_VELOCITY] = True
+
+    def test_set_ranges_slave(self):
         self.assert_initialize_driver()
 
 
-        self._test_set_xmit_power()
-        self._test_set_speed_of_sound()
-        self._test_set_pitch()
-        self._test_set_roll()
-        self._test_set_salinity()
-        self._test_set_sensor_source()
-        self._test_set_time_per_ensemble()
-        self._test_set_false_target_threshold()
-        self._test_set_bandwidth_control()
-        self._test_set_correlation_threshold()
-        self._test_set_error_velocity_threshold()
-        self._test_set_blank_after_transmit()
-        self._test_set_clip_data_past_bottom()
-        self._test_set_receiver_gain_select()
-        #self._test_set_water_reference_layer()
-        self._test_set_number_of_depth_cells()
-        self._test_set_pings_per_ensemble()
-        self._test_set_depth_cell_size()
-        self._test_set_transmit_length()
-        self._test_set_ping_weight()
-        self._test_set_ambiguity_velocity()
+        self._test_set_xmit_power_slave()
+        self._test_set_speed_of_sound_slave()
+        self._test_set_pitch_slave()
+        self._test_set_roll_slave()
+        self._test_set_salinity_slave()
+        self._test_set_sensor_source_slave()
+        self._test_set_time_per_ensemble_slave()
+        self._test_set_false_target_threshold_slave()
+        self._test_set_bandwidth_control_slave()
+        self._test_set_correlation_threshold_slave()
+        self._test_set_error_velocity_threshold_slave()
+        self._test_set_blank_after_transmit_slave()
+        self._test_set_clip_data_past_bottom_slave()
+        self._test_set_receiver_gain_select_slave()
+        self._test_set_number_of_depth_cells_slave()
+        self._test_set_pings_per_ensemble_slave()
+        self._test_set_depth_cell_size_slave()
+        self._test_set_transmit_length_slave()
+        self._test_set_ping_weight_slave()
+        self._test_set_ambiguity_velocity_slave()
 
         fail = False
 
@@ -1084,6 +1610,153 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
+
+
+    def setUp(self):
+        InstrumentDriverQualificationTestCase.setUp(self)
+
+    def init_port_agent(self):
+        """
+        @brief Launch the driver process and driver client.  This is used in the
+        integration and qualification tests.  The port agent abstracts the physical
+        interface with the instrument.
+        @retval return the pid to the logger process
+        """
+        if self.port_agent:
+            log.error("Port agent already initialized")
+            return
+
+        log.debug("Startup Port Agent")
+
+        config = self.port_agent_config()
+        log.debug("port agent config: %s", config)
+
+        port_agents = {}
+
+        if config['instrument_type'] != ConfigTypes.MULTI:
+            config = {'only one port agent here!': config}
+        for name, each in config.items():
+            if type(each) != dict:
+                continue
+            port_agent_host = each.get('device_addr')
+            if port_agent_host is not None:
+                port_agent = PortAgentProcess.launch_process(each, timeout=60, test_mode=True)
+
+                port = port_agent.get_data_port()
+                pid = port_agent.get_pid()
+
+                if port_agent_host == LOCALHOST:
+                    log.info('Started port agent pid %s listening at port %s' % (pid, port))
+                else:
+                    log.info("Connecting to port agent on host: %s, port: %s", port_agent_host, port)
+                port_agents[name] = port_agent
+
+        self.addCleanup(self.stop_port_agent)
+        self.port_agents = port_agents
+
+    def stop_port_agent(self):
+        """
+        Stop the port agent.
+        """
+        log.info("Stop port agent")
+        if self.port_agents:
+            log.debug("found port agents, now stop them")
+            for agent in self.port_agents.values():
+                agent.stop()
+        self.port_agents = {}
+
+    def port_agent_comm_config(self):
+        config = {}
+        for name, each in self.port_agents.items():
+            port = each.get_data_port()
+            cmd_port = each.get_command_port()
+
+            config[name] = {
+                'addr': each._config['port_agent_addr'],
+                'port': port,
+                'cmd_port': cmd_port
+            }
+        return config
+
+    def init_instrument_agent_client(self):
+        log.info("Start Instrument Agent Client")
+
+        # Driver config
+        driver_config = {
+            'dvr_mod': self.test_config.driver_module,
+            'dvr_cls': self.test_config.driver_class,
+            'workdir': self.test_config.working_dir,
+            'process_type': (self.test_config.driver_process_type,),
+            'comms_config': self.port_agent_comm_config(),
+            'startup_config': self.test_config.driver_startup_config
+        }
+
+        # Create agent config.
+        agent_config = {
+            'driver_config': driver_config,
+            'stream_config': self.data_subscribers.stream_config,
+            'agent': {'resource_id': self.test_config.agent_resource_id},
+            'test_mode': True  # Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+        log.debug("Agent Config: %s", agent_config)
+
+        # Start instrument agent client.
+        self.instrument_agent_manager.start_client(
+            name=self.test_config.agent_name,
+            module=self.test_config.agent_module,
+            cls=self.test_config.agent_class,
+            config=agent_config,
+            resource_id=self.test_config.agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
+        )
+
+        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def test_direct_access_telnet_mode_master(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1487)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+
+        self.tcp_client.send_data("%smaster:EC1488%s" % (NEWLINE, NEWLINE))
+
+        self.tcp_client.expect(TeledynePrompt.COMMAND)
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        # Direct access is true, it should be set before
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1487)
+
+    def test_direct_access_telnet_mode_slave(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1487)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+
+        self.tcp_client.send_data("%sslave:EC1488%s" % (NEWLINE, NEWLINE))
+
+        self.tcp_client.expect(TeledynePrompt.COMMAND)
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        # Direct access is true, it should be set before
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1487)
 
     def test_recover_from_TG(self):
         """
