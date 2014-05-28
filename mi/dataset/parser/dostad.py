@@ -24,8 +24,15 @@ class DataParticleType(BaseEnum):
     SAMPLE = 'dosta_abcdjm_sio_instrument'
     METADATA = 'dosta_abcdjm_sio_metadata'
 
+class StateKey(BaseEnum):
+    UNPROCESSED_DATA = "unprocessed_data" # holds an array of start and end of unprocessed blocks of data
+    IN_PROCESS_DATA = "in_process_data" # holds an array of start and end of packets of data,
+        # the number of samples in that packet, how many packets have been pulled out currently
+        # being processed
+    METADATA_SENT = "metadata_sent" # store if the metadata particle has been sent
+
 class DostadParserDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = 'controller_timestamp'
+    CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
     ESTIMATED_OXYGEN = 'estimated_oxygen'
     AIR_SATURATION = 'air_saturation'
     OPTODE_TEMPERATURE = 'optode_temperature'
@@ -130,7 +137,7 @@ class DostadMetadataDataParticle(DataParticle):
                  preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                  quality_flag=DataParticleValue.OK,
                  new_sequence=None):
-        super(DostadParserDataParticle, self).__init__(raw_data,
+        super(DostadMetadataDataParticle, self).__init__(raw_data,
                                                       port_timestamp=None,
                                                       internal_timestamp=None,
                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
@@ -156,13 +163,11 @@ class DostadMetadataDataParticle(DataParticle):
         """
         result = []
         if self._data_match:
-            result = [self._encode_value(DostadParserDataParticleKey.PRODUCT_NUMBER,
+            result = [self._encode_value(DostadMetadataDataParticleKey.PRODUCT_NUMBER,
                                          self._data_match.group(1), int),
-                      self._encode_value(DostadParserDataParticleKey.SERIAL_NUMBER,
+                      self._encode_value(DostadMetadataDataParticleKey.SERIAL_NUMBER,
                                          self._data_match.group(2), int)]
         return result
-    
-    
 
 class DostadParser(SioMuleParser):
 
@@ -183,6 +188,9 @@ class DostadParser(SioMuleParser):
                                           exception_callback,
                                           *args,
                                           **kwargs)
+        # initialize the metadata since sio mule common doesn't initialize this field
+        if not StateKey.METADATA_SENT in self._read_state:
+            self._read_state[StateKey.METADATA_SENT] = False
 
     def parse_chunks(self):
         """
@@ -207,6 +215,15 @@ class DostadParser(SioMuleParser):
                 data_match = DATA_MATCHER.search(chunk)
                 if data_match:
                     log.debug('Found data match in chunk %s', chunk[1:32])
+
+                    if not self._read_state.get(StateKey.METADATA_SENT):
+                        metadata_sample = self._extract_sample(DostadMetadataDataParticle, None,
+                                                  header_match.group(3) + data_match.group(0),
+                                                  None)
+                        if metadata_sample:
+                            result_particles.append(metadata_sample)
+                            sample_count += 1
+                            self._read_state[StateKey.METADATA_SENT] = True
 
                     # particle-ize the data block received, return the record
                     sample = self._extract_sample(DostadParserDataParticle, None,
