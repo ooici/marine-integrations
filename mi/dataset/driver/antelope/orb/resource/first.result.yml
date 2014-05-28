@@ -1,0 +1,33 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    internal_timestamp: 2208988801.000000000
+    particle_object: AntelopeOrbPacketParticle
+    particle_type: antelope_orb_packet
+    channels:
+    db:
+    dfile:
+    id:
+    pf:
+    srcname:
+    string:
+    time:
+    type:
+    version:
+  - _index: 2
+    internal_timestamp: 2208988802.000000000
+    particle_object: AntelopeOrbPacketParticle
+    particle_type: antelope_orb_packet
+    channels:
+    db:
+    dfile:
+    id:
+    pf:
+    srcname:
+    string:
+    time:
+    type:
+    version:
+

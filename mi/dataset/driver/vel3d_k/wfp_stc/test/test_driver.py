@@ -79,7 +79,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test that we can get data from multiple files.
         """
-        log.info("================ START INTEG TEST GET =====================")
+        log.info("START INTEG TEST GET")
 
         # Start sampling.
         self.clear_sample_data()
@@ -88,14 +88,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # From sample file A0000010.DEC:
         # Flag record, first and last velocity record, time record.
-        log.info("========== FIRST FILE A0000002 INTEG TEST GET ============")
+        log.info("FIRST FILE A0000002 INTEG TEST GET")
         self.create_sample_data('valid_A0000002.DEC', "A0000002.DEC")
         self.assert_data(None, 'valid_A0000002.yml', 
           count=3, timeout=10)
 
         # From sample file A0000010.DEC:
         # Flag record, first and last velocity records twice, time record.
-        log.info("========= SECOND FILE A0000004 INTEG TEST GET ============")
+        log.info("SECOND FILE A0000004 INTEG TEST GET")
         self.clear_async_data()
         self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
         self.assert_data(None, 'valid_A0000004.yml', 
@@ -103,19 +103,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Made-up data with all flags set to True.
         # Field values may not be realistic.
-        log.info("========= THIRD FILE A0000003 INTEG TEST GET ============")
+        log.info("THIRD FILE A0000003 INTEG TEST GET")
         self.clear_async_data()
         self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
         self.assert_data(None, 'all_A0000003.yml', 
           count=4, timeout=10)
-        log.info("================ END INTEG TEST GET ======================")
+        log.info("END INTEG TEST GET")
 
     def test_incomplete_file(self):
         """
         Test that we can handle a file missing the end of Velocity records.
         Should generate a SampleException.
         """
-        log.info("=========== START INTEG TEST INCOMPLETE  =================")
+        log.info("START INTEG TEST INCOMPLETE")
 
         self.clear_sample_data()
         self.clear_async_data()
@@ -135,14 +135,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Verify that the entire file has been read.
         self.assert_file_ingested(filename)
 
-        log.info("=========== END INTEG TEST INCOMPLETE  ====================")
+        log.info("END INTEG TEST INCOMPLETE")
 
     def test_invalid_flag_record(self):
         """
         Test that we can handle a file with an invalid Flag record.
         Should generate a SampleException.
         """
-        log.info("=========== START INTEG TEST INVALID  ====================")
+        log.info("START INTEG TEST INVALID")
 
         self.clear_sample_data()
         self.clear_async_data()
@@ -160,13 +160,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Verify that the entire file has been read.
         self.assert_file_ingested(filename)
-        log.info("============== END INTEG TEST INVALID  ====================")
+        log.info("END INTEG TEST INVALID")
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        log.info("=========== START INTEG TEST STOP RESUME  ================")
+        log.info("START INTEG TEST STOP RESUME")
         filename_1 = "A0000002.DEC"
         filename_2 = "A0000004.DEC"
 
@@ -193,7 +193,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # (last 2 velocity records plus time record).
         self.assert_data(None, 'valid_partial_A0000004.yml', 
           count=3, timeout=10)
-        log.info("============== END INTEG TEST STOP RESUME  ================")
+        log.info("END INTEG TEST STOP RESUME")
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -209,7 +209,7 @@ class QualificationTest(DataSetQualificationTestCase):
         which means we'll run off the end of the file reading Velocity records.
         Should generate a SampleException.
         """
-        log.info("=========== START QUAL TEST INCOMPLETE FILE ===============")
+        log.info("START QUAL TEST INCOMPLETE FILE")
 
         # From sample file A0000010.DEC:
         # Flag record, first and last velocity record, time record,
@@ -224,14 +224,14 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
 
-        log.info("=========== END QUAL TEST INCOMPLETE FILE ===============")
+        log.info("END QUAL TEST INCOMPLETE FILE")
 
     def test_invalid_flag_record(self):
         """
         Test that we can handle a file with an invalid Flag record.
         Should generate a SampleException.
         """
-        log.info("======== START QUAL TEST INVALID FLAG RECORD ==============")
+        log.info("START QUAL TEST INVALID FLAG RECORD")
 
         # Made-up data with all flags except the first set to True.
         # First flag is not a zero or one.
@@ -245,13 +245,13 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
 
-        log.info("======== END QUAL TEST INVALID FLAG RECORD ==============")
+        log.info("END QUAL TEST INVALID FLAG RECORD")
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once.
         """
-        log.info("=========== START QUAL TEST LARGE IMPORT =================")
+        log.info("START QUAL TEST LARGE IMPORT")
 
         # The sample file referenced in the IDD.
         # Contains 522 velocity data records.
@@ -275,14 +275,14 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-        log.info("=========== END QUAL TEST LARGE IMPORT =================")
+        log.info("END QUAL TEST LARGE IMPORT")
 
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent.
         """
-        log.info("=========== START QUAL TEST PUBLISH PATH =================")
+        log.info("START QUAL TEST PUBLISH PATH")
         self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.dataset_agent_client.set_resource(
@@ -307,14 +307,14 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
-        log.info("=========== END QUAL TEST PUBLISH PATH =================")
+        log.info("END QUAL TEST PUBLISH PATH")
 
     def test_shutdown_restart(self):
         """
         Test the agents ability to start data flowing, shutdown, then restart
         at the correct spot.
         """
-        log.info("========== START QUAL TEST SHUTDOWN RESTART ===============")
+        log.info("START QUAL TEST SHUTDOWN RESTART")
         self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.dataset_agent_client.set_resource(
@@ -362,14 +362,14 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-        log.info("========== END QUAL TEST SHUTDOWN RESTART =================")
+        log.info("END QUAL TEST SHUTDOWN RESTART")
 
     def test_stop_resume_at_time_record(self):
         """
         Test the agents ability to start data flowing, stop after having
         read all the velocity records, then restart at the correct spot.
         """
-        log.info("====== START QUAL TEST STOP RESUME AT TIME RECORD  ========")
+        log.info("START QUAL TEST STOP RESUME AT TIME RECORD")
 
         # Read the velocity records of a 4 velocity record file.
         self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
@@ -390,14 +390,14 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_data_values(result, 'valid_A0000004.yml')
         self.verify_queue_empty()
 
-        log.info("====== END QUAL TEST STOP RESUME AT TIME RECORD  ========")
+        log.info("END QUAL TEST STOP RESUME AT TIME RECORD")
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.info("========== START QUAL TEST STOP START ===============")
+        log.info("START QUAL TEST STOP START")
         self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.dataset_agent_client.set_resource(
@@ -438,7 +438,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-        log.info("========== END QUAL TEST STOP START ===============")
+        log.info("END QUAL TEST STOP START")
 
     def verify_queue_empty(self):
         """

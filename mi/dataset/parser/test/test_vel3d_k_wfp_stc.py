@@ -185,7 +185,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         File is valid.  Has 1 velocity record.
         """
-        log.info("=================== START SIMPLE ======================")
+        log.info("START SIMPLE")
         log.info("Simple length %d", len(TEST_DATA_GOOD_1_REC))
         input_file = StringIO(TEST_DATA_GOOD_1_REC)
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
@@ -205,7 +205,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         ## Must skip past the zero filled end of velocity record also.
         expected_file_position += TIME_RECORD_SIZE + VELOCITY_RECORD_SIZE
         self.verify_file_info(True, expected_file_position)
-        log.info("=================== END SIMPLE ======================")
+        log.info("END SIMPLE")
 
     def test_get_some(self):
         """
@@ -213,7 +213,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         File is valid.  Has 2 velocity records.
         """
-        log.info("=================== START SOME ======================")
+        log.info("START SOME")
         log.info("Some length %d", len(TEST_DATA_GOOD_2_REC))
         input_file = StringIO(TEST_DATA_GOOD_2_REC)
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
@@ -240,7 +240,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         ## Must skip past the zero filled end of velocity record also.
         expected_file_position += TIME_RECORD_SIZE + VELOCITY_RECORD_SIZE
         self.verify_file_info(True, expected_file_position)
-        log.info("=================== END SOME ==========================")
+        log.info("END SOME")
 
     def test_get_many(self):
         """
@@ -248,7 +248,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         File is valid.  Has many velocity records.
         """
-        log.info("=================== START MANY ======================")
+        log.info("START MANY")
         log.info("Many length %d", len(TEST_DATA_GOOD_BIG_FILE))
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
@@ -292,13 +292,13 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         expected_file_position += \
           TIME_RECORD_SIZE + VELOCITY_RECORD_SIZE
         self.verify_file_info(True, expected_file_position)
-        log.info("=================== END MANY ==========================")
+        log.info("END MANY")
 
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
         """
-        log.info("=================== START MID-STATE ======================")
+        log.info("START MID-STATE")
         log.info("Mid-state length %d", len(TEST_DATA_GOOD_BIG_FILE))
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
@@ -319,14 +319,14 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
 
         expected_file_position = position + VELOCITY_RECORD_SIZE
         self.verify_file_info(False, expected_file_position)
-        log.info("=================== END MID-STATE ======================")
+        log.info("END MID-STATE")
 
     def test_set_state(self):
         """
         Test changing to a new state after initializing the parser and 
         reading data, as if new data has been found and the state has changed
         """
-        log.info("=================== SET STATE ======================")
+        log.info("SET STATE")
         log.info("Set state length %d", len(TEST_DATA_GOOD_BIG_FILE))
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
@@ -361,13 +361,13 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         This should raise an exception indicating that the Flag record
         is invalid.
         """
-        log.info("=================== START BAD FLAG ======================")
+        log.info("START BAD FLAG")
         log.info("Bad Flag length %d", len(TEST_DATA_BAD_FLAG_RECORD))
         input_file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3dKWfpStcParser(self.config, input_file, 
               self.state, self.state_callback, self.pub_callback, self.exception_callback)
-        log.info("=================== END BAD FLAG ======================")
+        log.info("END BAD FLAG")
 
     def test_short_flag_record(self):
         """
@@ -375,11 +375,11 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         This should raise an exception indicating that end of file was
         reached while reading the Flag record.
         """
-        log.info("=================== START SHORT FLAG ======================")
+        log.info("START SHORT FLAG")
         log.info("Short Flag length %d", len(TEST_DATA_SHORT_FLAG_RECORD))
         input_file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3dKWfpStcParser(self.config, input_file, 
               self.state, self.state_callback, self.pub_callback, self.exception_callback)
-        log.info("=================== END SHORT FLAG ======================")
+        log.info("END SHORT FLAG")
 

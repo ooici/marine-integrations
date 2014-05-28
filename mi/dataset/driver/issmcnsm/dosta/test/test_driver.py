@@ -66,6 +66,7 @@ SAMPLE_STREAM = 'issmcnsm_dostad_parsed'
 # Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
+@unittest.skip('Test files lost, entire driver needs revisiting')
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
 
@@ -208,10 +209,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
 # Device specific qualification tests are for                                 #
 # testing device specific capabilities                                        #
 ###############################################################################
+@unittest.skip('Test files lost, entire driver needs revisiting')
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
 
     def test_publish_path(self):
         """

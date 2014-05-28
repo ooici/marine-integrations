@@ -155,6 +155,43 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         # Verify we can send in a single parameter as a string, not ALL
         self.assertEqual(['bar'], self.protocol._get_param_list('bar'))
 
+    def test_ring_buffer(self):
+        """
+        verify command thread ring buffer rolls as expected
+        """
+        prompts = ['aa', 'bbb', 'c', 'dddd']
+        self.protocol = CommandResponseInstrumentProtocol(prompts, '\r\n', self.event_callback)
+
+        self.protocol._max_buffer_size = Mock(return_value=5)
+
+        self.protocol.add_to_buffer("a")
+        self.protocol.add_to_buffer("b")
+        self.protocol.add_to_buffer("c")
+        self.protocol.add_to_buffer("d")
+        self.protocol.add_to_buffer("e")
+
+        self.assertEqual(len(self.protocol._linebuf), 5)
+        self.assertEqual(len(self.protocol._promptbuf), 5)
+
+        self.assertEqual(self.protocol._linebuf, "abcde")
+        self.assertEqual(self.protocol._promptbuf, "abcde")
+
+        self.protocol.add_to_buffer("f")
+
+        self.assertEqual(len(self.protocol._linebuf), 5)
+        self.assertEqual(len(self.protocol._promptbuf), 5)
+
+        self.assertEqual(self.protocol._linebuf, "bcdef")
+        self.assertEqual(self.protocol._promptbuf, "bcdef")
+
+        self.protocol.add_to_buffer("gh")
+
+        self.assertEqual(len(self.protocol._linebuf), 5)
+        self.assertEqual(len(self.protocol._promptbuf), 5)
+
+        self.assertEqual(self.protocol._linebuf, "defgh")
+        self.assertEqual(self.protocol._promptbuf, "defgh")
+
     @unittest.skip('Not Written')
     def test_publish_raw(self):
         """

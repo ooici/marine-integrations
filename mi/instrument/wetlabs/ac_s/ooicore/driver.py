@@ -39,9 +39,6 @@ from struct import pack
 # newline.
 NEWLINE = '\n'
 
-# default timeout.
-TIMEOUT = 10
-
 INDEX_OF_PACKET_RECORD_LENGTH = 4
 INDEX_OF_START_OF_SCAN_DATA = 32
 SIZEOF_PACKET_RECORD_LENGTH = 2
@@ -56,10 +53,12 @@ SAMPLE_RECORD_HEADER = (r'^%s' %PACKET_REGISTRATION_PATTERN +
                         '(.{1})' +  # group 2  - packet type
                         '\x01' +    # reserved
                         '(.{1})' +  # group 3  - meter type
+
                         '(.{3})' +  # group 4  - serial number
                         '(.{2})' +  # group 5  - A reference dark counts
                         '(.{2})' +  # group 6  - pressure counts
                         '(.{2})' +  # group 7  - A signal dark counts
+
                         '(.{2})' +  # group 8  - raw external temp counts
                         '(.{2})' +  # group 9  - raw internal temp counts
                         '(.{2})' +  # group 10 - C reference dark counts
@@ -175,7 +174,7 @@ class OPTAA_SampleDataParticle(DataParticle):
         match = SAMPLE_RECORD_HEADER_REGEX.match(record)
         
         if not match:
-            raise SampleException("OPTAA_SampleDataParticle: No regex match of parsed sample data: [%s]", record)
+            raise SampleException("OPTAA_SampleDataParticle: No regex match of parsed sample data: [%s]" %record)
 
         record_length = get_two_byte_value(match.group(1), 0)
         
@@ -410,13 +409,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         The method that splits samples and status
         """
         raw_data_len = len(raw_data)
-        #log.debug("sieve_function: raw_data=<%s>, len=%d" %(raw_data.encode('hex'), raw_data_len))
+        log.debug("sieve_function: raw_data=<%r>, len=%d" %(raw_data.encode('hex'), raw_data_len))
         return_list = []
         
         # look for samples
         for match in PACKET_REGISTRATION_REGEX.finditer(raw_data):
             if match.start() + INDEX_OF_PACKET_RECORD_LENGTH + SIZEOF_PACKET_RECORD_LENGTH < raw_data_len:
                 packet_length = get_two_byte_value(raw_data, match.start() + INDEX_OF_PACKET_RECORD_LENGTH) + SIZEOF_CHECKSUM_PLUS_PAD
+                index = match.start() + INDEX_OF_PACKET_RECORD_LENGTH
                 if match.start() + packet_length <= raw_data_len:
                     return_list.append((match.start(), match.start() + packet_length))
                     
@@ -431,8 +431,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        self._extract_sample(OPTAA_StatusDataParticle, STATUS_REGEX, chunk, timestamp)
-        self._extract_sample(OPTAA_SampleDataParticle, PACKET_REGISTRATION_REGEX, chunk, timestamp)
+
+        #On a rare occurence the particle sample coming in will be missing a byte
+        #trap the exception thrown and log an error
+        try:
+            if self._extract_sample(OPTAA_SampleDataParticle, PACKET_REGISTRATION_REGEX, chunk, timestamp) : return
+        except SampleException:
+            log.debug("==== ERROR WITH SAMPLE " %SampleException.msg)
+
+        try:
+            if self._extract_sample(OPTAA_StatusDataParticle, STATUS_REGEX, chunk, timestamp) : return
+        except SampleException:
+            log.debug("===== ERROR WITH STATUS: %s" %SampleException.msg)
 
 
     def _filter_capabilities(self, events):
@@ -548,8 +558,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.

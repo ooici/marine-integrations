@@ -17,6 +17,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
+import shutil
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -53,12 +54,13 @@ DataSetTestCase.initialize(
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
             DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
             DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
         },
         DataSourceConfigKey.PARSER: {}
     }
 )
 
-SAMPLE_STREAM = 'phsen_parsed'
+SAMPLE_STREAM = 'phsen_abcdef_sio_mule_instrument'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -76,6 +78,50 @@ class IntegrationTest(DataSetIntegrationTestCase):
                             driver_config['harvester']['pattern'])
         if os.path.exists(fullfile):
             os.remove(fullfile)
+
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        data_dir = self.create_data_dir()
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            # need to override this copy to make the time the file is modified change
+            shutil.copy(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
     def test_get(self):
         """
@@ -98,12 +144,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(PhsenParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=1, timeout=10)
+                         count=2, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
         self.clear_async_data()
         self.create_sample_data("node59p1_step4.dat", "node59p1.dat")
-        self.assert_data(PhsenParserDataParticle, count=2, timeout=10)
+        self.assert_data(PhsenParserDataParticle, count=3, timeout=10)
 
         self.driver.stop_sampling()
         # Reset the driver with no memento
@@ -151,13 +197,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DriverStateKey.FILE_SIZE: 911,
+        self.memento = {"node59p1.dat": {DriverStateKey.FILE_SIZE: 911,
                         DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
                         DriverStateKey.FILE_MOD_DATE: mod_time,
                         DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0, 172]],
-                                                     'timestamp': 3583699199.0}
-                        }
+                                                     'unprocessed_data':[[0, 172]]}
+                        }}
 
         self.driver = MflmPHSENDataSetDriver(
             self._driver_config()['startup_config'],
@@ -175,7 +220,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(PhsenParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=1, timeout=10)
+                         count=2, timeout=10)
 
     def test_sequences(self):
         """
@@ -187,19 +232,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
 
-        # step 2 contains 2 blocks, start with this and get both since we used them
-        # separately in other tests (no new sequences)
+        # step 2 contains 3 blocks, start with this and get both since we used them
+        # separately in other tests
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(PhsenParserDataParticle, 'test_data_1-2.txt.result.yml',
-                         count=2, timeout=10)
+                         count=3, timeout=10)
 
         # This file has had a section of data replaced with 0s, this should start a new
         # sequence for the data following the missing data
         self.clear_async_data()
         self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
         self.assert_data(PhsenParserDataParticle, 'test_data_3.txt.result.yml',
-                         count=1, timeout=10)
+                         count=2, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data with a new sequence flag
@@ -226,7 +271,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_data(PhsenParserDataParticle, 'test_data_1-4.txt.result.yml',
-                         count=4, timeout=10)
+                         count=6, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -235,9 +280,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
-        
+
     def clean_file(self):
         # remove just the file we are using
         driver_config = self._driver_config()['startup_config']
@@ -246,6 +289,50 @@ class QualificationTest(DataSetQualificationTestCase):
                             driver_config['harvester']['pattern'])
         if os.path.exists(fullfile):
             os.remove(fullfile)
+
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        data_dir = self.create_data_dir()
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            # need to override this copy to make the time the file is modified change
+            shutil.copy(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
     def test_harvester_new_file_exception(self):
         """
@@ -297,10 +384,10 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test importing a large number of samples from the file at once
         """
-        self.create_sample_data('node59p1_orig.dat', "node59p1.dat")
+        self.create_sample_data('node59p1.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,24,60)
+        result = self.get_samples(SAMPLE_STREAM,200,360)
 
     def test_stop_start(self):
         """
@@ -319,7 +406,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM, 2)
+            result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("RESULT: %s", result)
 
             # Verify values
@@ -333,9 +420,9 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            # Restart sampling and ensure we get the last record of the file
+            # Restart sampling and ensure we get the last records of the file
             self.assert_start_sampling()
-            result2 = self.get_samples(SAMPLE_STREAM, 1)
+            result2 = self.get_samples(SAMPLE_STREAM, 2)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
@@ -346,23 +433,4 @@ class QualificationTest(DataSetQualificationTestCase):
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
-
-    def test_parser_exception(self):
-        """
-        Test an exception is raised after the driver is started during
-        record parsing.
-        """
-        self.clean_file()
-        # file contains invalid sample values
-        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
-
-        self.assert_initialize()
-
-        self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 4)
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-
-        # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
-        self.assert_state_change(ResourceAgentState.STREAMING, 10)
 
