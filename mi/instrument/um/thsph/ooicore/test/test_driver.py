@@ -1,6 +1,6 @@
 """
 @package mi.instrument.um.thsph.thsph.test.test_driver
-@file marine-integrations/mi/instrument/um/thsph/thsph/driver.py
+@file marine-integrations/mi/instrument/um/thsph/ooicore/driver.py
 @author Richard Han
 @brief Test cases for thsph driver
 
@@ -59,11 +59,11 @@ from pyon.agent.agent import ResourceAgentState
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.um.ooicore.ooicore.driver',
+    driver_module='mi.instrument.um.thsph.ooicore.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'WHSSRV',
-    instrument_agent_name = 'um_thsph_thsph',
+    instrument_agent_name = 'um_thsph_ooicore',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {}
@@ -308,7 +308,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_START_AUTOSAMPLE',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+                                       'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                       'DRIVER_EVENT_DISCOVER'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                           'EXECUTE_DIRECT'],
 
@@ -360,7 +361,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE,
                                         DataParticleType.THSPH_PARSED,
                                         self.assert_particle_sample,
-                                        delay=2)
+                                        delay=7)
 
 
     def test_autosample_on(self):
@@ -371,7 +372,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
                                         DataParticleType.THSPH_PARSED,
                                         self.assert_particle_sample,
-                                        delay=2)
+                                        delay=7)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -384,11 +385,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
                                         DataParticleType.THSPH_PARSED,
                                         self.assert_particle_sample,
-                                        delay=2)
+                                        delay=7)
         self.assert_async_particle_generation(DataParticleType.THSPH_PARSED,
                                               self.assert_particle_sample,
                                               particle_count=10,
-                                              timeout=13)
+                                              timeout=55)
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
 
