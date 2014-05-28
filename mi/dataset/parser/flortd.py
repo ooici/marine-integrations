@@ -39,9 +39,12 @@ class FlortdParserDataParticleKey(BaseEnum):
     RAW_SIGNAL_CDOM = 'raw_signal_cdom'
     RAW_INTERNAL_TEMP = 'raw_internal_temp'
 
+# the first two groups make up the sample timestamp (date, time),
+# followed by 7 integer data values, which may be marked as not present by '--'
 DATA_REGEX = r'(\d\d/\d\d/\d\d)\t(\d\d:\d\d:\d\d)\t(\d+|--)\t(\d+|--)\t(\d+|--)\t(\d+|--)\t(\d+|--)\t(\d+|--)\t(\d+|--)'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
+# match the timestamp from the sio mule header
 TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
 TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
 
@@ -64,10 +67,12 @@ class FlortdParserDataParticle(DataParticle):
                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                                                       quality_flag=DataParticleValue.OK,
                                                       new_sequence=None)
+        # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
         timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
         if not timestamp_match:
             raise RecoverableSampleException("FlortdParserDataParticle: No regex match of " \
                                              "timestamp [%s]" % self.raw_data[:8])
+        # now match the flort data, excluding the sio header timestamp in the first 8 bytes
         self._data_match = DATA_MATCHER.match(self.raw_data[8:])
         if not self._data_match:
             raise RecoverableSampleException("FlortdParserDataParticle: No regex match of \
@@ -154,8 +159,6 @@ class FlortdParser(SioMuleParser):
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
-        sample_count = 0
-
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
@@ -166,6 +169,8 @@ class FlortdParser(SioMuleParser):
                     log.debug('Found data match in chunk %s', chunk[1:32])
 
                     # particle-ize the data block received, return the record
+                    # prepend the timestamp from sio mule header to the flort raw data,
+                    # which is stored in header_match.group(3)
                     sample = self._extract_sample(FlortdParserDataParticle, None,
                                                   header_match.group(3) + data_match.group(0),
                                                   None)

@@ -80,7 +80,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         sampling can be started and stopped
         """
 
-        # Start sampling and watch for an exception
+        # Start sampling
         self.driver.start_sampling()
 
         self.clear_async_data()

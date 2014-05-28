@@ -88,13 +88,18 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
                                    self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
+        # 0-69, 944-1000 are incomplete samples, 314-390 and 561-637 are samples that have
+        # parsed but not yet returned (in_process)
         self.assert_result(result,
                            [[314,390,1,0], [561,637,1,0]],
                            [[0,69],[314,390],[561,637],[944,1000]], self.particle_a)
         result = self.parser.get_records(1)
+        # 0-69, 944-1000 are incomplete samples, 561-637 is parsed but not yet 
+        # returned (in_process)
         self.assert_result(result, [[561,637,1,0]],
                            [[0,69],[561,637],[944,1000]], self.particle_b)
         result = self.parser.get_records(1)
+        # all three samples that were parsed have been returned, no more in process
         self.assert_result(result, [],
                            [[0,69],[944,1000]], self.particle_c)
 
@@ -116,6 +121,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle.close()
         self.assertEqual(result,
                          [self.particle_a, self.particle_b, self.particle_c])
+        # 0-69, 944-1000 are incomplete samples
         self.assert_state([],
                         [[0,69],[944,1000]])
         self.assertEqual(self.publish_callback_value[0], self.particle_a)
@@ -155,13 +161,18 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[0], self.particle_a)
         self.assertEqual(result[1], self.particle_b)
         self.assertEqual(result[2], self.particle_c)
-        self.assertEqual(result[-3], self.particle_d)
-        self.assertEqual(result[-2], self.particle_e)
-        self.assertEqual(result[-1], self.particle_f)
+        self.assertEqual(result[3], self.particle_d)
+        self.assertEqual(result[4], self.particle_e)
+        self.assertEqual(result[5], self.particle_f)
+        # 0-69 contains an incomplete block (end of a sample)
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_state([],
             [[0, 69], [1329,1332],[2294,2363],[4092,4161],[4351,4927], [9020,9400]])
-        self.assertEqual(self.publish_callback_value[-2], self.particle_e)
-        self.assertEqual(self.publish_callback_value[-1], self.particle_f)
+        self.assertEqual(self.publish_callback_value[4], self.particle_e)
+        self.assertEqual(self.publish_callback_value[5], self.particle_f)
 
     def test_mid_state_start(self):
         """
@@ -173,11 +184,13 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
+        # 0-69, 944-1000 are incomplete samples
         result = self.parser.get_records(1)
         self.assert_result(result, [[561,637,1,0]],
                            [[0,69],[561,637],[944,1000]],
                            self.particle_b)
         result = self.parser.get_records(1)
+        # 0-69, 944-1000 are incomplete samples
         self.assert_result(result, [],
                            [[0,69],[944,1000]],
                            self.particle_c)
@@ -203,6 +216,11 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_c)
         self.assertEqual(result[1], self.particle_d)
+        # 0-69, 6131-6150 contains an incomplete block
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_state([],
             [[0,69],[1329,1332],[2294,2363],[4092,4161],[4351,4927], [6131,6150]])
         self.assertEqual(self.publish_callback_value[-1], self.particle_d)
@@ -229,9 +247,14 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.parser.set_state(new_state)
         result = self.parser.get_records(1)
         self.stream_handle.close()
+        # 0-69, 6131-6150 contains an incomplete block
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_result(result, [],
                            [[0,69], [1329,1332],[2294,2363],[4092,4161],[4351,4927], [6131,6150]],
-			   self.particle_d)
+                           self.particle_d)
 
     def test_update(self):
         """
@@ -251,6 +274,12 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
                            [[0,69],[314,390],[561,637],[1329,1332],[2294,2363],[4092,4161],[4351,4927],[6053,6150]],
                            self.particle_a)
         result = self.parser.get_records(1)
+        # 0-69, 6131-6150 contains an incomplete block
+        # 314-390 is the zeroed block
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_result(result, [[6053,6131,1,0]],
                            [[0,69],[314,390],[1329,1332],[2294,2363],[4092,4161],[4351,4927],[6053,6150]],
                            self.particle_c)
@@ -263,15 +292,20 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.parser = FlortdParser(self.config, next_state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
-        # first get the old 'in process' records
+        # first get the old 'in process' records from 6053-6131
         # Once those are done, the un processed data will be checked
         result = self.parser.get_records(1)
         self.assert_result(result, [],
                            [[0,69], [314,390], [1329,1332],[2294,2363],[4092,4161],[4351,4927],[6131,6150]],
                            self.particle_d)
 
-        # this should be the first of the newly filled in particles from
+        # this should be the first of the newly filled in particles from 314-390
         result = self.parser.get_records(1)
+        # 0-69, 6131-6150 contains an incomplete block
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_result(result, [],
                            [[0,69], [1329,1332],[2294,2363],[4092,4161],[4351,4927],[6131,6150]],
                            self.particle_b)

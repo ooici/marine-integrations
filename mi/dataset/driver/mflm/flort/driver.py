@@ -15,6 +15,7 @@ import string
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.exceptions import ConfigurationException
 
 from mi.dataset.harvester import SingleFileHarvester
 from mi.dataset.dataset_driver import HarvesterType, MultipleHarvesterDataSetDriver
@@ -52,11 +53,12 @@ class MflmFLORTDDataSetDriver(MultipleHarvesterDataSetDriver):
         @param file_in Filename string to pass to parser
         @param data_key Key to determine which parser type is built
         """
-        parser = None
         if data_key == DataSourceKey.FLORT_DJ_SIO_TELEMETERED:
             parser = self._build_telemetered_parser(parser_state, stream_in)
         elif data_key == DataSourceKey.FLORT_DJ_SIO_RECOVERED:
             parser = self._build_recovered_parser(parser_state, stream_in)
+        else:
+            raise ConfigurationException('Tried to build parser for unknown data source key %s' % data_key)
         return parser
 
     def _build_telemetered_parser(self, parser_state, infile):
@@ -143,14 +145,17 @@ class MflmFLORTDDataSetDriver(MultipleHarvesterDataSetDriver):
         parser_state = None
         if DriverStateKey.PARSER_STATE in self._driver_state[data_key][filename]:
             parser_state = self._driver_state[data_key][filename].get(DriverStateKey.PARSER_STATE)
+
         if parser_state != None and \
             data_key in self._new_file_queue and filename in self._new_file_queue[data_key] and \
             DriverStateKey.FILE_SIZE in self._new_file_queue[data_key][filename] and \
             filename in self._driver_state[data_key] and \
             DriverStateKey.FILE_SIZE in self._driver_state[data_key][filename] and \
             parser_state[StateKey.UNPROCESSED_DATA][-1][1] < self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]:
+
             last_size = self._driver_state[data_key][filename][DriverStateKey.FILE_SIZE]
             new_parser_state = parser_state
+
             # the file is larger, need to update last unprocessed index
             # set the new parser unprocessed data state
             if last_size == new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
@@ -165,4 +170,5 @@ class MflmFLORTDDataSetDriver(MultipleHarvesterDataSetDriver):
                           self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE])
                 new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size,
                                                                     self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]])
+
             self._save_parser_state(new_parser_state, data_key)
