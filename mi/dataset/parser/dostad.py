@@ -43,11 +43,14 @@ class DostadParserDataParticleKey(BaseEnum):
     BLUE_AMPLITUDE = 'blue_amplitude'
     RED_AMPLITUDE = 'red_amplitude'
     RAW_TEMP = 'raw_temperature'
-    
+
+# regex to match the dosta data, header ID 0xff112511, 2 integers for product and serial number,
+# followed by 10 floating point numbers all separated by tabs
 DATA_REGEX = b'\xff\x11\x25\x11(\d+)\t(\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t' \
              '(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\x0d\x0a'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
+# regex to match the timestamp from the sio header
 TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
 TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
 
@@ -70,10 +73,12 @@ class DostadParserDataParticle(DataParticle):
                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                                                       quality_flag=DataParticleValue.OK,
                                                       new_sequence=None)
+        # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
         timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
         if not timestamp_match:
             raise RecoverableSampleException("DostaParserDataParticle: No regex match of " \
                                              "timestamp [%s]" % self.raw_data[:8])
+        # now match the dosta data, excluding the sio header timestamp in the first 8 bytes
         self._data_match = DATA_MATCHER.match(self.raw_data[8:])
         if not self._data_match:
             raise RecoverableSampleException("DostaParserDataParticle: No regex match of " \
@@ -143,10 +148,12 @@ class DostadMetadataDataParticle(DataParticle):
                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                                                       quality_flag=DataParticleValue.OK,
                                                       new_sequence=None)
+        # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
         timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
         if not timestamp_match:
             raise RecoverableSampleException("DostaMetadataDataParticle: No regex match of " \
                                              "timestamp [%s]" % self.raw_data[:8])
+        # now match the dosta data, excluding the sio header timestamp in the first 8 bytes
         self._data_match = DATA_MATCHER.match(self.raw_data[8:])
         if not self._data_match:
             raise RecoverableSampleException("DostaMetadataDataParticle: No regex match of " \
@@ -204,8 +211,6 @@ class DostadParser(SioMuleParser):
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
-        sample_count = 0
-
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
@@ -217,6 +222,9 @@ class DostadParser(SioMuleParser):
                     log.debug('Found data match in chunk %s', chunk[1:32])
 
                     if not self._read_state.get(StateKey.METADATA_SENT):
+                        # create the metadata particle
+                        # prepend the timestamp from sio mule header to the dosta raw data,
+                        # which is stored in header_match.group(3)
                         metadata_sample = self._extract_sample(DostadMetadataDataParticle, None,
                                                   header_match.group(3) + data_match.group(0),
                                                   None)
@@ -225,7 +233,9 @@ class DostadParser(SioMuleParser):
                             sample_count += 1
                             self._read_state[StateKey.METADATA_SENT] = True
 
-                    # particle-ize the data block received, return the record
+                    # create the dosta data particle
+                    # prepend the timestamp from sio mule header to the dosta raw data,
+                    # which is stored in header_match.group(3)
                     sample = self._extract_sample(DostadParserDataParticle, None,
                                                   header_match.group(3) + data_match.group(0),
                                                   None)

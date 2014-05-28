@@ -45,7 +45,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
             '4831\t128\t302.636\t98.918\t16.355\t30.771\t' \
             '30.771\t36.199\t5.429\t1309.9\t1175.7\t299.6\x0d\x0a')
 
-	self.particle_metadata = DostadMetadataDataParticle('51EF0E75\xff\x11\x25\x11' \
+        self.particle_metadata = DostadMetadataDataParticle('51EF0E75\xff\x11\x25\x11' \
             '4831\t128\t302.636\t98.918\t16.355\t30.771\t' \
             '30.771\t36.199\t5.429\t1309.9\t1175.7\t299.6\x0d\x0a')
 
@@ -97,9 +97,17 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # 6300
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
             StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False}
-	self.parser = DostadParser(self.config, self.state, self.stream_handle,
-				  self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = DostadParser(self.config, self.state, self.stream_handle,
+                                  self.state_callback, self.pub_callback, self.exception_callback)
 
+        # the metadata particle and first particle come from the same block of data, first get
+        # the metadata particle (this is why there are 2 particles parsed in the first in process state)
+        # after that there are 3 more dosta samples parsed from 390-507, 637-754, and 6131-6248
+        # 0-69 contains an incomplete block (end of a sample)
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+	# 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+	# the final \x03
 	result = self.parser.get_records(1)
 	self.assert_result(result,
 			   [[197,314,2,1], [390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]],
@@ -107,7 +115,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 			    [4092,4161], [4351, 4927], [6131,6300]], 
 			   self.particle_metadata)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
-	
+	# then get the first dosta data particle, this clears out the block from 197-314
 	result = self.parser.get_records(1)
 	self.assert_result(result,
 			   [[390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]],
@@ -150,6 +158,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle.close()
         self.assertEqual(result,
                          [self.particle_metadata, self.particle_a, self.particle_b, self.particle_c])
+        # 0-69 contains an incomplete block (end of a sample)
         self.assert_state([],
                         [[0,69],[944,1000]])
         self.assertEqual(self.publish_callback_value[0], self.particle_metadata)
@@ -170,13 +179,18 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[1], self.particle_a)
         self.assertEqual(result[2], self.particle_b)
         self.assertEqual(result[3], self.particle_c)
-        self.assertEqual(result[-3], self.particle_d)
-        self.assertEqual(result[-2], self.particle_e)
-        self.assertEqual(result[-1], self.particle_f)
+        self.assertEqual(result[4], self.particle_d)
+        self.assertEqual(result[5], self.particle_e)
+        self.assertEqual(result[6], self.particle_f)
+        # 0-69 contains an incomplete block (end of a sample)
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_state([],
             [[0, 69], [1329,1332], [2294,2363], [4092,4161], [4351, 4927], [9020, 9374]])
-        self.assertEqual(self.publish_callback_value[-2], self.particle_e)
-        self.assertEqual(self.publish_callback_value[-1], self.particle_f)
+        self.assertEqual(self.publish_callback_value[5], self.particle_e)
+        self.assertEqual(self.publish_callback_value[6], self.particle_f)
         self.assertEqual(self.exception_callback_value, None)
 
     def test_mid_state_start(self):
@@ -191,6 +205,11 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.parser = DostadParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
+        # 0-69 contains an incomplete block (end of a sample)
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_result(result, [[637, 754, 1, 0],[6131, 6248, 1, 0]],
                            [[0,69],[637,754],[1329,1332], [2294,2363],
                             [4092,4161], [4351, 4927], [6131,6300]],
@@ -216,8 +235,6 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
 
-        # even though the state says this particle is not a new sequence, since it is the
-        # first after setting the state it will be new
         self.assert_result(result, [[637, 754, 1, 0], [6131, 6248, 1, 0]],
                            [[507,6300]],
                            self.particle_b)
@@ -245,6 +262,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                                   self.state_callback, self.pub_callback, self.exception_callback)
         # there should only be 4 records, make sure we stop there
         result = self.parser.get_records(4)
+        # 0-69 contains an incomplete block (end of a sample)
         self.assert_state([],
             [[0,69],[944,1000]])
         result = self.parser.get_records(1)
@@ -253,6 +271,11 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.parser.set_state(new_state)
         result = self.parser.get_records(1)
         self.stream_handle.close()
+        # 0-69 contains an incomplete block (end of a sample)
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_result(result, [],
                            [[0,69],[1329,1332], [2294,2363], [4092,4161], [4351, 4927],
                            [6248,6300]],
@@ -272,7 +295,13 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.parser = DostadParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
-	result = self.parser.get_records(1)
+        result = self.parser.get_records(1)
+        # 0-69 contains an incomplete block (end of a sample)
+        # 390-570 is the zeroed block
+        # 1329-1332 there are 3 extra \n's between sio blocks
+        # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
+        # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
+        # the final \x03
         self.assert_result(result, [[197,314,2,1], [637,754,1,0], [6131,6248,1,0]],
                            [[0,69], [197,314], [390,507], [637,754], [1329,1332], [2294,2363],
                             [4092,4161], [4351, 4927], [6131,6300]],
@@ -296,7 +325,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.parser = DostadParser(self.config, next_state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
-        # first get the old 'in process' records
+        # first get the old 'in process' records from 6131-6248
         # Once those are done, the un processed data will be checked
         result = self.parser.get_records(1)
         self.assert_result(result, [],
@@ -304,7 +333,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                             [4092,4161], [4351, 4927], [6248,6300]],
                             self.particle_d)
 
-        # this should be the first of the newly filled in particles from
+        # this should be the first of the newly filled in particles from 390-507
         result = self.parser.get_records(1)
         self.assert_result(result, [],
                            [[0,69], [1329,1332], [2294,2363],
