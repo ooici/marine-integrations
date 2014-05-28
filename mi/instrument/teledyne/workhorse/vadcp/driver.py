@@ -688,9 +688,23 @@ class Protocol(WorkhorseProtocol):
 
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
-        #self._connection.send(cmd)
-        self._connection_4Beam.send(cmd)
-        self._connection_5thBeam.send(cmd)
+        log.error('Sung _do_cmd_direct: <%s>' % cmd)
+        if(cmd.find(':') != -1) :  # Found
+            cmd_split = cmd.split(':', 1)
+            log.error('Sung _do_cmd_direct split[0]: <%s>' % cmd_split[0])
+            log.error('Sung _do_cmd_direct split[1]: <%s>' % cmd_split[1])
+            log.error('Sung _do_cmd_direct split[1]: strip <%s>' % cmd_split[0].strip())
+            instrument = cmd_split[0].strip()
+            if(instrument == "master"):
+                log.error('Sung _do_cmd_direct: <%s> to master' % cmd_split[1])
+                self._connection_4Beam.send(NEWLINE + cmd_split[1])
+            if(instrument == "slave"):
+                log.error('Sung _do_cmd_direct: <%s> to slave' % cmd_split[1])
+                self._connection_5thBeam.send(NEWLINE + cmd_split[1])
+        else:
+            log.error('Sung _do_cmd_direct: <%s> to both master and slave' % cmd)
+            self._connection_4Beam.send(cmd)
+            self._connection_5thBeam.send(cmd)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -1462,7 +1476,8 @@ class Protocol(WorkhorseProtocol):
             new_config = self._param_dict2.get_config()
             log.error("Sung update_params2 new_config %s", repr(key))
 
-            if not dict_equal(new_config, old_config, ['TT']):
+            if not dict_equal(new_config, old_config, ['TT', 'TT_5th']):
+                log.error("Sung generate CONFIG Change Event")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             ####
 
@@ -2078,7 +2093,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SYNC_PING_ENSEMBLE,
             r'SA = (\d+) \-+ Synch Before',
-            lambda match: int(match.group(1)),
+            lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
             display_name="Synch ping ensemble",
@@ -2557,7 +2572,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SYNC_PING_ENSEMBLE,
             r'SA = (\d+) \-+ Synch Before',
-            lambda match: int(match.group(1)),
+            lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
             display_name="Synch ping ensemble for 5th beam",
@@ -3475,6 +3490,20 @@ class Protocol(WorkhorseProtocol):
             log.error("TG not allowed to be set. sending a break2 to clear it.")
 
             self._send_break2()
+
+    def _handler_direct_access_execute_direct(self, data):
+        log.debug("IN _handler_direct_access_execute_direct")
+        log.error("Sung IN _handler_direct_access_execute_direct")
+        next_state = None
+        result = None
+        next_agent_state = None
+        self._do_cmd_direct(data)
+
+        # add sent command to list for 'echo' filtering in callback
+        self._sent_cmds.append(data)
+
+        return (next_state, (next_agent_state, result))
+
 
     def _handler_command_acquire_status(self,*args, **kwargs ): # Sung to do
         log.debug("IN _handler_command_acquire_status")
