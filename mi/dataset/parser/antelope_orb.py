@@ -39,6 +39,8 @@ class ParserConfigKey(BaseEnum):
 
 class StateKey(BaseEnum):
     TAFTER = 'tafter' # timestamp of last orb pkt read
+    SELECT  = "select"
+    REJECT  = "reject"
 
 
 class DataParticleType(BaseEnum):
@@ -197,9 +199,9 @@ class AntelopeOrbParser(Parser):
         select = config[ParserConfigKey.SELECT]
         reject = config[ParserConfigKey.REJECT]
 
-        keys = (ParserConfigKey.ORBNAME, ParserConfigKey.SELECT, ParserConfigKey.REJECT)
-        if [orbname, select, reject] != [state.get(k) for k in keys]:
-            log.warning("orbname, select & reject changed; resetting tafter to 0")
+        keys = (ParserConfigKey.SELECT, ParserConfigKey.REJECT)
+        if [select, reject] != [state.get(k) for k in keys]:
+            log.warning("select/reject changed; resetting tafter to 0")
             state.update({k: config[k] for k in keys})
             state[StateKey.TAFTER] = 0.0
 
