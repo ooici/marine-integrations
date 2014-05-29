@@ -62,6 +62,7 @@ from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 
 from mi.instrument.teledyne.driver import TeledyneParameter2
+from mi.instrument.teledyne.driver import TeledyneParameter
 
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.common import BaseEnum
@@ -1018,6 +1019,68 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assertFalse(fail, "See above for un-exercized parameters.")
 
+    def test_scheduled_absolute_acquire_status_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        log.debug("IN test_scheduled_clock_sync_command")
+        self.assert_initialize_driver()
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL,'00:00:10')
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ANCILLARY_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+
+        self.assert_async_particle_generation(DataParticleType.VADCP_COMPASS_CALIBRATION, self.assert_VADCP_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_VADCP_ANCILLARY_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL,'00:00:00')
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+
+
+
+    def test_acquire_status(self):
+        """
+        Verify the acquire_status command is functional
+        """
+
+        log.debug("IN test_acquire_status")
+        self.assert_initialize_driver()
+        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
+
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_VADCP_ANCILLARY_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+
+        self.assert_async_particle_generation(DataParticleType.VADCP_COMPASS_CALIBRATION, self.assert_VADCP_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_VADCP_ANCILLARY_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+
+    def assert_VADCP_TRANSMIT_data(self, data_particle, verify_values = True):
+        '''
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCPT_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        log.debug("IN assert_ADCP_TRANSMIT")
+        self.assert_data_particle_header(data_particle, DataParticleType.VADCP_TRANSMIT_PATH)
+        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
+
+    def assert_VADCP_ANCILLARY_data(self, data_particle, verify_values = True):
+        '''
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCPT_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        log.debug("IN assert_particle_pd0_data")
+        self.assert_data_particle_header(data_particle, DataParticleType.VADCP_ANCILLARY_SYSTEM_DATA)
+        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
+
+    def assert_VADCP_Calibration(self, data_particle, verify_values = True):
+        log.debug("IN assert_Calibration")
+        self.assert_data_particle_header(data_particle, DataParticleType.VADCP_COMPASS_CALIBRATION)
+
+
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -1026,6 +1089,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         ####
         # First test in command mode
         ####
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
 
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=10)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
@@ -1725,7 +1789,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
 
-        self.tcp_client.send_data("%smaster:EC1488%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%smaster::EC1488%s" % (NEWLINE, NEWLINE))
 
         self.tcp_client.expect(TeledynePrompt.COMMAND)
 
@@ -1747,7 +1811,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
 
-        self.tcp_client.send_data("%sslave:EC1488%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sslave::EC1488%s" % (NEWLINE, NEWLINE))
 
         self.tcp_client.expect(TeledynePrompt.COMMAND)
 
