@@ -18,6 +18,12 @@ Release notes:
 __author__ = 'Chris Wingard, Stuart Pearce & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
+## TODO: Make all commands executable in the autosample state
+## TODO: Remove buffering all commands except status, maybe stop autosample
+## TODO: Add timing tests for all functionality
+## TODO: Test that no samples are received when autosample stopped
+## TODO: Add async timeout exceptions
+
 import re
 import time
 import datetime
@@ -95,9 +101,10 @@ CONFIG_WITH_0_AND_F_PADDING = 512
 # Terminator at the end of a configuration string
 CONFIG_TERMINATOR = '00'
 
-PUMP_REAGENT = '02'  # Pump on, valve off
+PUMP_REAGENT = '01'  # Pump on, valve off
 PUMP_DEIONIZED_WATER = '03'  # Pump on, valve on
 PUMP_DURATION_UNITS = 0.125  # 1/8 second
+PUMP_DURATION_50ML = 8
 
 ###
 #    Driver RegEx Definitions
@@ -191,6 +198,8 @@ class SamiProtocolState(BaseEnum):
     SCHEDULED_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_SAMPLE'
     DEIONIZED_WATER_FLUSH = 'PROTOCOL_STATE_DEIONIZED_WATER_FLUSH'
     REAGENT_FLUSH = 'PROTOCOL_STATE_REAGENT_FLUSH'
+    DEIONIZED_WATER_FLUSH_100ML = 'PROTOCOL_STATE_DEIONIZED_WATER_FLUSH_100ML'
+    REAGENT_FLUSH_100ML = 'PROTOCOL_STATE_REAGENT_FLUSH_100ML'
 
 class SamiProtocolEvent(BaseEnum):
     """
@@ -216,6 +225,9 @@ class SamiProtocolEvent(BaseEnum):
 
     DEIONIZED_WATER_FLUSH = 'DRIVER_EVENT_DEIONIZED_WATER_FLUSH'
     REAGENT_FLUSH = 'DRIVER_EVENT_REAGENT_FLUSH'
+    DEIONIZED_WATER_FLUSH_100ML = 'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML'
+    REAGENT_FLUSH_100ML = 'DRIVER_EVENT_REAGENT_FLUSH_100ML'
+
     EXECUTE_FLUSH = 'PROTOCOL_EVENT_EXECUTE_FLUSH'
 
 class SamiCapability(BaseEnum):
@@ -230,6 +242,8 @@ class SamiCapability(BaseEnum):
 
     DEIONIZED_WATER_FLUSH = SamiProtocolEvent.DEIONIZED_WATER_FLUSH
     REAGENT_FLUSH = SamiProtocolEvent.REAGENT_FLUSH
+    DEIONIZED_WATER_FLUSH_100ML = SamiProtocolEvent.DEIONIZED_WATER_FLUSH_100ML
+    REAGENT_FLUSH_100ML = SamiProtocolEvent.REAGENT_FLUSH_100ML
 
 class SamiParameter(DriverParameter):
     """
@@ -259,6 +273,7 @@ class SamiParameter(DriverParameter):
     GLOBAL_CONFIGURATION = 'global_configuration'
     AUTO_SAMPLE_INTERVAL = 'auto_sample_interval'
     FLUSH_DURATION = 'flush_duration'
+    PUMP_100ML_CYCLES = 'pump_100ml_cycles'
 
     # make sure to extend these in the individual drivers with the
     # the portions of the configuration that is unique to each.
@@ -758,6 +773,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             SamiProtocolState.COMMAND, SamiProtocolEvent.REAGENT_FLUSH,
             self._handler_command_reagent_flush)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.COMMAND, SamiProtocolEvent.DEIONIZED_WATER_FLUSH_100ML,
+            self._handler_command_deionized_water_flush_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.COMMAND, SamiProtocolEvent.REAGENT_FLUSH_100ML,
+            self._handler_command_reagent_flush_100ml)
 
         self._protocol_fsm.add_handler(
             SamiProtocolState.DIRECT_ACCESS, SamiProtocolEvent.ENTER,
@@ -886,6 +907,50 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             SamiProtocolState.REAGENT_FLUSH, SamiProtocolEvent.ACQUIRE_STATUS,
             self._handler_queue_acquire_status)
 
+        # this state would be entered whenever a PUMP_DEIONIZED_WATER event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML, SamiProtocolEvent.ENTER,
+            self._handler_deionized_water_flush_enter_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML, SamiProtocolEvent.EXIT,
+            self._handler_deionized_water_flush_exit_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML, SamiProtocolEvent.EXECUTE_FLUSH,
+            self._handler_deionized_water_flush_execute_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML, SamiProtocolEvent.SUCCESS,
+            self._handler_deionized_water_flush_success_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML, SamiProtocolEvent.TIMEOUT,
+            self._handler_deionized_water_flush_timeout_100ml)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML, SamiProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        # this state would be entered whenever a PUMP_REAGENT event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.REAGENT_FLUSH_100ML, SamiProtocolEvent.ENTER,
+            self._handler_reagent_flush_enter_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.REAGENT_FLUSH_100ML, SamiProtocolEvent.EXIT,
+            self._handler_reagent_flush_exit_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.REAGENT_FLUSH_100ML, SamiProtocolEvent.EXECUTE_FLUSH,
+            self._handler_reagent_flush_execute_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.REAGENT_FLUSH_100ML, SamiProtocolEvent.SUCCESS,
+            self._handler_reagent_flush_success_100ml)
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.REAGENT_FLUSH_100ML, SamiProtocolEvent.TIMEOUT,
+            self._handler_reagent_flush_timeout_100ml)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            SamiProtocolState.REAGENT_FLUSH_100ML, SamiProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
         # Construct the parameter dictionary containing device
         # parameters, current parameter values, and set formatting
         # functions.
@@ -896,6 +961,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # engineering parameters can be added in sub classes
         self._engineering_parameters = [SamiParameter.AUTO_SAMPLE_INTERVAL]
         self._engineering_parameters.append(SamiParameter.FLUSH_DURATION)
+        self._engineering_parameters.append(SamiParameter.PUMP_100ML_CYCLES)
 
         # Add build handlers for device commands.
         self._add_build_handler(SamiInstrumentCommand.GET_STATUS, self._build_simple_command)
@@ -1629,29 +1695,26 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         try:
-            flush_duration = self._param_dict.get(SamiParameter.FLUSH_DURATION)
+
+            param = SamiParameter.FLUSH_DURATION
+            flush_duration = self._param_dict.get(param)
+            flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
 
             log.debug('SamiProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
             # Add 5 seconds to timeout make sure pump completes.
-
             flush_timeout = flush_duration_seconds + 5.0
 
             start_time = time.time()
-
-            self._do_cmd_resp(SamiInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-
+            self._do_cmd_resp(SamiInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
             pump_time = time.time() - start_time
-
             log.debug('SamiProtocol._handler_deionized_water_flush_execute(): pump time = %s' % pump_time)
 
             # Make sure pump is off
-
             self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
 
             log.debug('SamiProtocol._handler_deionized_water_flush_execute(): SUCCESS')
-
             self._async_raise_fsm_event(SamiProtocolEvent.SUCCESS)
         except InstrumentTimeoutException:
             log.error('SamiProtocol._handler_deionized_water_flush_execute(): TIMEOUT')
@@ -1717,23 +1780,19 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         try:
-            flush_duration = self._param_dict.get(SamiParameter.FLUSH_DURATION)
+            param = SamiParameter.FLUSH_DURATION
+            flush_duration = self._param_dict.get(param)
+            flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
 
             log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
-            # Add 5 seconds to make sure pump completes.
-
+            # Add 5 seconds to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + 5.0
 
             start_time = time.time()
-
-            time.sleep(1)
-
-            self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-
+            self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
             pump_time = time.time() - start_time
-
             log.debug('SamiProtocol._handler_reagent_flush_execute(): pump time = %s' % pump_time)
 
             # Make sure pump is off
@@ -1743,6 +1802,180 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._async_raise_fsm_event(SamiProtocolEvent.SUCCESS)
         except InstrumentTimeoutException:
             log.error('SamiProtocol._handler_reagent_flush_execute(): TIMEOUT')
+            self._async_raise_fsm_event(SamiProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Deionized water flush 100 ml handlers.
+    ########################################################################
+
+    def _handler_deionized_water_flush_enter_100ml(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('SamiProtocol._handler_deionized_water_flush_enter_100ml')
+
+        self._async_raise_fsm_event(SamiProtocolEvent.EXECUTE_FLUSH)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_deionized_water_flush_exit_100ml(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('SamiProtocol._handler_deionized_water_flush_exit_100ml')
+
+    def _handler_deionized_water_flush_success_100ml(self, *args, **kwargs):
+        """
+        Successfully received a sample from SAMI
+        """
+
+        log.debug('SamiProtocol._handler_deionized_water_flush_success_100ml')
+
+        next_state = SamiProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_deionized_water_flush_timeout_100ml(self, *args, **kwargs):
+        """
+        Sample timeout occurred.
+        """
+
+        log.error('SamiProtocol._handler_deionized_water_flush_timeout_100ml(): Deionized water flush timeout occurred')
+
+        next_state = SamiProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_deionized_water_flush_execute_100ml(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            pump_100ml_cycles = self._param_dict.get(SamiParameter.PUMP_100ML_CYCLES)
+            log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump 100ml cycles = %s' % pump_100ml_cycles)
+
+            flush_duration = PUMP_DURATION_50ML
+            flush_duration_str = str(flush_duration)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 5 seconds to timeout make sure pump completes.
+            flush_timeout = flush_duration_seconds + 5.0
+
+            for pump_num in range(pump_100ml_cycles):
+                start_time = time.time()
+                self._do_cmd_resp(SamiInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+
+            # Make sure pump is off
+            self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): SUCCESS')
+            self._async_raise_fsm_event(SamiProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('SamiProtocol._handler_deionized_water_flush_execute_100ml(): TIMEOUT')
+            self._async_raise_fsm_event(SamiProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Reagent flush 100 ml handlers.
+    ########################################################################
+
+    def _handler_reagent_flush_enter_100ml(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('SamiProtocol._handler_reagent_flush_enter_100ml')
+
+        self._async_raise_fsm_event(SamiProtocolEvent.EXECUTE_FLUSH)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_reagent_flush_exit_100ml(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('SamiProtocol._handler_reagent_flush_exit_100ml')
+
+    def _handler_reagent_flush_success_100ml(self, *args, **kwargs):
+        """
+        Successfully received a sample from SAMI
+        """
+
+        log.debug('SamiProtocol._handler_reagent_flush_success_100ml')
+
+        next_state = SamiProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_reagent_flush_timeout_100ml(self, *args, **kwargs):
+        """
+        Sample timeout occurred.
+        """
+
+        log.error('SamiProtocol._handler_reagent_flush_timeout_100ml(): Reagent flush timeout occurred')
+
+        next_state = SamiProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_reagent_flush_execute_100ml(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            pump_100ml_cycles = self._param_dict.get(SamiParameter.PUMP_100ML_CYCLES)
+            log.debug('SamiProtocol._handler_reagent_flush_execute_100ml(): pump 100ml cycles = %s' % pump_100ml_cycles)
+
+            flush_duration = PUMP_DURATION_50ML
+            flush_duration_str = str(flush_duration)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            log.debug('SamiProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 5 seconds to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + 5.0
+
+            for pump_num in range(pump_100ml_cycles):
+                start_time = time.time()
+                self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+
+            # Make sure pump is off
+            self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('SamiProtocol._handler_reagent_flush_execute_100ml(): SUCCESS')
+            self._async_raise_fsm_event(SamiProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('SamiProtocol._handler_reagent_flush_execute_100ml(): TIMEOUT')
             self._async_raise_fsm_event(SamiProtocolEvent.TIMEOUT)
 
         return None, None
@@ -1764,6 +1997,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(SamiCapability.STOP_AUTOSAMPLE, display_name="stop autosample")
         self._cmd_dict.add(SamiCapability.DEIONIZED_WATER_FLUSH, display_name="deionized water flush")
         self._cmd_dict.add(SamiCapability.REAGENT_FLUSH, display_name="reagent flush")
+        self._cmd_dict.add(SamiCapability.DEIONIZED_WATER_FLUSH_100ML, display_name="deionized water flush 100 ml")
+        self._cmd_dict.add(SamiCapability.REAGENT_FLUSH_100ML, display_name="reagent flush 100 ml")
 
     def _build_driver_dict(self):
         """
@@ -1778,15 +2013,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     # Command handlers.
     ########################################################################
 
-    def _build_pump_command(self, cmd):
+    def _build_pump_command(self, cmd, duration):
 
-        param = SamiParameter.FLUSH_DURATION
-        value = self._param_dict.get(param)
-        flush_duration_str = self._param_dict.format(param, value)
-
-        log.debug('SamiProtocol._build_pump_command(): flush duration value = %s, string = %s' % (value, flush_duration_str))
-
-        pump_command = cmd + ',' + flush_duration_str + NEWLINE
+        pump_command = cmd + ',' + duration + NEWLINE
 
         log.debug('SamiProtocol._build_pump_command(): pump command = %s' % pump_command)
 
@@ -2540,6 +2769,16 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              default_value=0x8,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='flush duration')
+
+        self._param_dict.add(SamiParameter.PUMP_100ML_CYCLES, r'Pump 100ml cycles = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='pump 100ml cycles')
 
     def _pre_sample_processing(self):
         """

@@ -636,7 +636,7 @@ class Pco2wProtocol(SamiProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0xA8,
+                             default_value=0x54,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='cycles between blanks')
 

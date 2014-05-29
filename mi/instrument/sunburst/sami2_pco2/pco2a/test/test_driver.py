@@ -666,7 +666,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.PUMP_PULSE: 0x10,
            Parameter.PUMP_DURATION: 0x20,
            Parameter.SAMPLES_PER_MEASUREMENT: 0xFF,
-           Parameter.CYCLES_BETWEEN_BLANKS: 0xA8,
+           Parameter.CYCLES_BETWEEN_BLANKS: 0x54,
            Parameter.NUMBER_REAGENT_CYCLES: 0x18,
            Parameter.NUMBER_BLANK_CYCLES: 0x1C,
            Parameter.FLUSH_PUMP_INTERVAL: 0x01,
