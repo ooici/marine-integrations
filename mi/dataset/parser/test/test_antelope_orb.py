@@ -109,7 +109,8 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
     def test_build_parsed_values(self):
         self.parser.get_records()
         r = self.publish_callback_values[0][0].generate_dict()
-        log.trace(r)
+        from pprint import pformat
+        log.trace(pformat(r))
         self.assertEquals(self.PKT_ID, self.get_data_value(r, AntelopeOrbPacketParticleKey.ID))
         self.assertEquals(self.PKT_TYPE, self.get_data_value(r, AntelopeOrbPacketParticleKey.TYPE)[1])
         channels = self.get_data_value(r, AntelopeOrbPacketParticleKey.CHANNELS)
