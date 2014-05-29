@@ -17,8 +17,8 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import ConfigurationException
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester
-from mi.dataset.dataset_driver import HarvesterType, MultipleHarvesterDataSetDriver
-from mi.dataset.dataset_driver import DriverStateKey
+from mi.dataset.dataset_driver import HarvesterType
+from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.dostad import DostadParser, DostadParserDataParticle
 from mi.dataset.parser.dostad import DostadMetadataDataParticle, StateKey
 
@@ -29,8 +29,8 @@ class DataSourceKey(BaseEnum):
     DOSTA_ABCDJM_SIO_TELEMETERED = 'dosta_abcdjm_sio_telemetered'
     DOSTA_ABCDJM_SIO_RECOVERED = 'dosta_abcdjm_sio_recovered'
 
-class MflmDOSTADDataSetDriver(MultipleHarvesterDataSetDriver):
-
+class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
+    
     @classmethod
     def stream_config(cls):
         # Fill in below with particle stream
@@ -124,41 +124,3 @@ class MflmDOSTADDataSetDriver(MultipleHarvesterDataSetDriver):
         #    log.warn('No configuration for recovered harvester, not building')
         return self._harvester
 
-    def pre_parse_single(self, filename=None, data_key=None):
-        """
-        Check if the file has grown larger, if it has update the unprocessed data to add the additional section of the file
-        @param filename The filename for this file
-        @param data_key The data key indicating which parser we are working with
-        """
-        # need to check if the file has grown larger, if it has update the last
-        # unprocessed data index
-        parser_state = None
-        if DriverStateKey.PARSER_STATE in self._driver_state[data_key][filename]:
-            parser_state = self._driver_state[data_key][filename].get(DriverStateKey.PARSER_STATE)
-
-        if parser_state != None and \
-            data_key in self._new_file_queue and filename in self._new_file_queue[data_key] and \
-            DriverStateKey.FILE_SIZE in self._new_file_queue[data_key][filename] and \
-            filename in self._driver_state[data_key] and \
-            DriverStateKey.FILE_SIZE in self._driver_state[data_key][filename] and \
-            parser_state[StateKey.UNPROCESSED_DATA][-1][1] < self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]:
-
-            last_size = self._driver_state[data_key][filename][DriverStateKey.FILE_SIZE]
-            new_parser_state = parser_state
-
-            # the file is larger, need to update last unprocessed index
-            # set the new parser unprocessed data state
-            if last_size == new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
-                # if the last unprocessed is the last file size, just increase the last index
-                log.debug('Replacing last unprocessed parser with %d',
-                          self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE])
-                new_parser_state[StateKey.UNPROCESSED_DATA][-1][1] = self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]
-            elif last_size  > new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
-                # if we processed past the last file size, append a new unprocessed block
-                # that goes from the last file size to the new file size
-                log.debug('Appending new unprocessed parser %d,%d', last_size,
-                          self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE])
-                new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size,
-                                                                    self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]])
-
-            self._save_parser_state(new_parser_state, data_key)

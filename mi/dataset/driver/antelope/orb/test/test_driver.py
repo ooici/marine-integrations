@@ -334,7 +334,10 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
             raise NoData()
 
         tafter = 999
-        state={'parser_state': {'tafter': tafter,
+        state={'parser_state': {
+            'tafter': tafter,
+            'select': 'deadbeef',
+            'reject': 'deadbeef',
             }}
 
         self.driver = self._get_driver_object(memento=state)

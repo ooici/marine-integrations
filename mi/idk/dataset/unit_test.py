@@ -297,6 +297,7 @@ class DataSetTestCase(MiIntTestCase):
         @param: dest_filename - name of the file when copied. default to filename
         @param: file mode
         @param: create an empty file in the destination if the source is not found
+        @param: copy_metadata - True to copy file metadata false to not copy metadata
         @return: path to file created
         """
         data_dir = self.create_data_dir()
@@ -335,7 +336,8 @@ class DataSetTestCase(MiIntTestCase):
 
         return dest_path
 
-    def create_sample_data_set_dir(self, filename, dest_dir, dest_filename=None, mode=0644, create=True, copy_metadata=True):
+    def create_sample_data_set_dir(self, filename, dest_dir, dest_filename=None,
+                                   mode=0644, create=True, copy_metadata=True):
         """
         Search for a data file in the driver resource directory and if the file
         is not found there then search using the filename directly.  Then copy
@@ -347,6 +349,7 @@ class DataSetTestCase(MiIntTestCase):
         @param: dest_filename - name of the file when copied. default to filename
         @param: file mode
         @param: create an empty file in the destination if the source is not found
+        @param: copy_metadata - True to copy file metadata false to not copy metadata
         @return: path to file created
         """
         if not os.path.exists(dest_dir):

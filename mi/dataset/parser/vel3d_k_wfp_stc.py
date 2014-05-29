@@ -40,7 +40,7 @@ FLAG_RECORD_SIZE = 26                   # bytes
 FLAG_RECORD_REGEX = b'(\x00|\x01){26}'  # 26 bytes of zeroes or ones
 FLAG_FORMAT = '<26?'                    # 26 booleans
 FLAG_RECORD_MATCHER = re.compile(FLAG_RECORD_REGEX)
-INDEX_FLAG_Time = 0                     # Index into the flags for time field
+INDEX_FLAG_TIME = 0                     # Index into the flags for time field
 OUTPUT_TIME_SIZE = 6                    # 6 bytes for the output time field
 
 TIME_RECORD_SIZE = 8                    # bytes
@@ -100,29 +100,29 @@ VEL3D_PARAMETERS = \
 ]
 
 
-class StateKey(BaseEnum):
+class Vel3dKWfpStcStateKey(BaseEnum):
     FIRST_RECORD = 'first record'   # are we at the beginning of the file?
     POSITION = 'position'           # number of bytes read
     VELOCITY_END = 'velocity end'   # has end of velocity record been found?
 
 
-class DataParticleType(BaseEnum):
-    TIME_PARTICLE = 'vel3d_k_wfp_stc_metadata'
-    VELOCITY_PARTICLE = 'vel3d_k_wfp_stc_instrument'
+class Vel3dKWfpStcDataParticleType(BaseEnum):
+    METADATA_PARTICLE = 'vel3d_k_wfp_stc_metadata'
+    INSTRUMENT_PARTICLE = 'vel3d_k_wfp_stc_instrument'
 
 
-class Vel3dKWfpStcTimeDataParticleKey(BaseEnum):
+class Vel3dKWfpStcMetadataParticleKey(BaseEnum):
     NUMBER_OF_RECORDS = 'vel3d_k_number_of_records'
     TIME_OFF = 'vel3d_k_time_off'
     TIME_ON = 'vel3d_k_time_on'
 
 
-class Vel3dKWfpStcTimeDataParticle(DataParticle):
+class Vel3dKWfpStcMetadataParticle(DataParticle):
     """
     Class for parsing TIME data from the VEL3D_K__stc_imodem data set
     """
 
-    _data_particle_type = DataParticleType.TIME_PARTICLE
+    _data_particle_type = Vel3dKWfpStcDataParticleType.METADATA_PARTICLE
     
     def _build_parsed_values(self):
         """
@@ -136,32 +136,32 @@ class Vel3dKWfpStcTimeDataParticle(DataParticle):
         # extracted and unpacked from the time data record.
         #
         particle = [
-          {
-            DataParticleKey.VALUE_ID: 
-              Vel3dKWfpStcTimeDataParticleKey.TIME_ON, 
-            DataParticleKey.VALUE: self.raw_data[INDEX_TIME_ON]
-          },
-          {
-            DataParticleKey.VALUE_ID: 
-              Vel3dKWfpStcTimeDataParticleKey.TIME_OFF,
-            DataParticleKey.VALUE: self.raw_data[INDEX_TIME_OFF]
-          },
-          {
-            DataParticleKey.VALUE_ID: 
-              Vel3dKWfpStcTimeDataParticleKey.NUMBER_OF_RECORDS, 
-            DataParticleKey.VALUE: self.raw_data[INDEX_RECORDS]
-          }
+            {
+                DataParticleKey.VALUE_ID:
+                    Vel3dKWfpStcMetadataParticleKey.TIME_ON,
+                DataParticleKey.VALUE: self.raw_data[INDEX_TIME_ON]
+            },
+            {
+                DataParticleKey.VALUE_ID:
+                    Vel3dKWfpStcMetadataParticleKey.TIME_OFF,
+                DataParticleKey.VALUE: self.raw_data[INDEX_TIME_OFF]
+            },
+            {
+                DataParticleKey.VALUE_ID:
+                    Vel3dKWfpStcMetadataParticleKey.NUMBER_OF_RECORDS,
+                DataParticleKey.VALUE: self.raw_data[INDEX_RECORDS]
+            }
         ]
 
         return particle
 
 
-class Vel3dKWfpStcVelocityDataParticle(DataParticle):
+class Vel3dKWfpStcInstrumentParticle(DataParticle):
     """
     Class for parsing VELOCITY data from the VEL3D_K__stc_imodem data set
     """
 
-    _data_particle_type = DataParticleType.VELOCITY_PARTICLE
+    _data_particle_type = Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE
     
     def _build_parsed_values(self):
         """
@@ -184,7 +184,7 @@ class Vel3dKWfpStcVelocityDataParticle(DataParticle):
             #
             key = VEL3D_PARAMETERS[flag][INDEX_KEY]
             if flags[flag]:
-                if flag == INDEX_FLAG_Time:
+                if flag == INDEX_FLAG_TIME:
                     #
                     # This returns a tuple, but particle wants a list.
                     #
@@ -210,6 +210,10 @@ class Vel3dKWfpStcVelocityDataParticle(DataParticle):
 
 class Vel3dKWfpStcParser(BufferLoadingParser):
 
+    _timestamp = None
+    _state = None
+    _read_state = None
+
     #
     # Default all flags to False.
     # These will be overridden when the Flag record is read.
@@ -217,16 +221,17 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
     global flags
     flags = [False for x in range(FLAG_RECORD_SIZE)]
 
-    def __init__(self, config, input_file, state, 
+    def __init__(self, config, state, file_handle,
       state_callback, publish_callback, exception_callback):
         """
         Constructor for the Vel3d_k__stc_imodemParser class.
         Arguments:
           config - The parser configuration.
-          input_file - A reference (handle) to the input file.
           state - The latest parser state.
+          file_handle - A reference (handle) to the input file.
           state_callback - Callback for state changes.
           publish_callback - Callback to publish a particle.
+          exception_callback - Callback for an exception
         """
 
         #
@@ -234,7 +239,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
         # 
         (valid_flag_record, velocity_regex, end_of_velocity_regex, 
           self.velocity_format, self.velocity_record_size, 
-          time_fields) = self.get_file_parameters(input_file)
+          time_fields) = self.get_file_parameters(file_handle)
 
         #
         # If the Flag record was valid,
@@ -243,13 +248,13 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
         #
         if valid_flag_record:
             self._timestamp = 0.0
-            self.input_file = input_file
+            self.input_file = file_handle
             if state:
                 self.set_state(state)
             else:
-                initial_state = {StateKey.FIRST_RECORD: True,
-                  StateKey.POSITION: 0,
-                  StateKey.VELOCITY_END: False}
+                initial_state = {Vel3dKWfpStcStateKey.FIRST_RECORD: True,
+                                 Vel3dKWfpStcStateKey.POSITION: 0,
+                                 Vel3dKWfpStcStateKey.VELOCITY_END: False}
                 self.set_state(initial_state)
 
             self.time_on = int(time_fields[INDEX_TIME_ON])
@@ -265,16 +270,17 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             self.velocity_end_record_matcher = \
               re.compile(end_of_velocity_regex)
 
-        super(Vel3dKWfpStcParser, self).__init__(config, input_file,
-          state, self.sieve_function, state_callback, publish_callback, exception_callback)
+        super(Vel3dKWfpStcParser, self).__init__(config, file_handle,
+            state, self.sieve_function, state_callback, publish_callback,
+            exception_callback)
 
     def calculate_record_number(self):
         """
         This function calculates the record number based on the current 
         position in the file and the size of each velocity data record.
         """
-        return (self._read_state[StateKey.POSITION] - FLAG_RECORD_SIZE) / \
-          self.velocity_record_size
+        return (self._read_state[Vel3dKWfpStcStateKey.POSITION] - FLAG_RECORD_SIZE) \
+          / self.velocity_record_size
 
     def calculate_timestamp(self):
         """
@@ -375,9 +381,9 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
         """
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
-        if not (StateKey.FIRST_RECORD in state_obj) or \
-          not (StateKey.POSITION in state_obj) or \
-          not (StateKey.VELOCITY_END in state_obj):
+        if not (Vel3dKWfpStcStateKey.FIRST_RECORD in state_obj) or \
+           not (Vel3dKWfpStcStateKey.POSITION in state_obj) or \
+           not (Vel3dKWfpStcStateKey.VELOCITY_END in state_obj):
             raise DatasetParserException("Invalid state keys")
 
         #
@@ -388,14 +394,14 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
 
         self._state = state_obj
         self._read_state = state_obj
-        self.input_file.seek(self._read_state[StateKey.POSITION], 0)  
+        self.input_file.seek(self._read_state[Vel3dKWfpStcStateKey.POSITION], 0)  
 
     def _increment_state(self, bytes_read):
         """
         Increment the parser state
         @param bytes_read The number of bytes just read
         """
-        self._read_state[StateKey.POSITION] += bytes_read
+        self._read_state[Vel3dKWfpStcStateKey.POSITION] += bytes_read
 
     def parse_chunks(self):
         """
@@ -416,7 +422,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             # with a Flag record if the size of the velocity records are 
             # greater than or equal to the Flag record size.
             #
-            if self._read_state[StateKey.FIRST_RECORD] and \
+            if self._read_state[Vel3dKWfpStcStateKey.FIRST_RECORD] and \
               FLAG_RECORD_MATCHER.match(chunk):
                 self._increment_state(FLAG_RECORD_SIZE)
 
@@ -424,7 +430,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             # If we haven't reached the end of the Velocity record,
             # see if this next record is the last one (all zeroes).
             #
-            elif not self._read_state[StateKey.VELOCITY_END]:
+            elif not self._read_state[Vel3dKWfpStcStateKey.VELOCITY_END]:
                 velocity_end = self.velocity_end_record_matcher.match(chunk)
                 self._increment_state(self.velocity_record_size)
 
@@ -433,7 +439,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
                 # a data particle.
                 #
                 if velocity_end:
-                    self._read_state[StateKey.VELOCITY_END] = True
+                    self._read_state[Vel3dKWfpStcStateKey.VELOCITY_END] = True
                 else:
                     #
                     # If the file is missing an end of velocity record,
@@ -450,11 +456,11 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
                         ntp_time = ntplib.system_to_ntp_time(timestamp)
 
                         particle = self._extract_sample(
-                          Vel3dKWfpStcVelocityDataParticle,
-                          None, velocity_fields, ntp_time)
+                            Vel3dKWfpStcInstrumentParticle,
+                            None, velocity_fields, ntp_time)
 
                         result_particles.append((particle,
-                          copy.copy(self._read_state)))
+                            copy.copy(self._read_state)))
 
                     #
                     # Ran off the end of the file.  Tell 'em the bad news.
@@ -488,21 +494,19 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
                     ntp_time = ntplib.system_to_ntp_time(self.time_on)
 
                     particle = self._extract_sample(
-                      Vel3dKWfpStcTimeDataParticle, 
-                      None, time_fields, ntp_time)
+                        Vel3dKWfpStcMetadataParticle, None, time_fields, ntp_time)
 
                     self._increment_state(TIME_RECORD_SIZE)
-                    result_particles.append((particle,
-                      copy.copy(self._read_state)))
+                    result_particles.append((particle, copy.copy(self._read_state)))
 
                 else:
                     log.warn("EOF reading time record")
                     raise SampleException("EOF reading time record")
 
-            self._read_state[StateKey.FIRST_RECORD] = False
+            self._read_state[Vel3dKWfpStcStateKey.FIRST_RECORD] = False
 
             (timestamp, chunk, start, 
-              end) = self._chunker.get_next_data_with_index()
+                end) = self._chunker.get_next_data_with_index()
 
         return result_particles
 
@@ -543,7 +547,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             #
             valid_flag_record = True
             flags = struct.unpack(FLAG_FORMAT, 
-              flag_record.group(0)[0:FLAG_RECORD_SIZE])
+                flag_record.group(0)[0:FLAG_RECORD_SIZE])
 
             #
             # The format string for unpacking the velocity data record
@@ -569,7 +573,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
                 if flags[x]:
                     record_length += VEL3D_PARAMETERS[x][INDEX_DATA_BYTES]
                     format_unpack_velocity = format_unpack_velocity + \
-                      VEL3D_PARAMETERS[x][INDEX_FORMAT]
+                        VEL3D_PARAMETERS[x][INDEX_FORMAT]
 
             #
             # Create the velocity data record regular expression
@@ -583,7 +587,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             regex_end_velocity_record = "[\\x00]{%d}" % record_length
 
         return valid_flag_record, regex_velocity_record, \
-          regex_end_velocity_record, format_unpack_velocity, record_length
+            regex_end_velocity_record, format_unpack_velocity, record_length
 
     def parse_time_record(self, record):
         """
@@ -601,7 +605,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             time_data = None
         else:
             time_data = struct.unpack(TIME_FORMAT, 
-              time_record.group(0)[0:TIME_RECORD_SIZE])
+                time_record.group(0)[0:TIME_RECORD_SIZE])
 
         return time_data
 
@@ -648,7 +652,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
             velocity_fields = None
         else:
             velocity_fields = struct.unpack(self.velocity_format,
-              velocity_record.group(0)[0:self.velocity_record_size])
+                velocity_record.group(0)[0:self.velocity_record_size])
 
         return velocity_fields
 
@@ -687,7 +691,6 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
         # to the return list.
         #
         while start_index < source_length:
-
             #
             # Compute the end index for the next Velocity record.
             #
@@ -712,4 +715,3 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
                 start_index = end_index
 
         return indices_list
-
