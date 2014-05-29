@@ -26,7 +26,11 @@ from mi.core.log import get_logger;
 
 log = get_logger()
 
+<<<<<<< HEAD
 from mi.core.common import BaseEnum, InstErrorCode, Units
+=======
+from mi.core.common import BaseEnum, InstErrorCode
+>>>>>>> Upstream merge, including sio mule driver.
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverConfigKey
@@ -62,7 +66,10 @@ WAKEUP_TIMEOUT = 3
 # The time to look for response to a wake up attempt
 RESPONSE_TIMEOUT = 1
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> Upstream merge, including sio mule driver.
 class ScheduledJob(BaseEnum):
     AUTO_SAMPLE = 'auto_sample'
 
@@ -80,7 +87,11 @@ class Command(BaseEnum):
     Instrument command strings
     """
     GET_SAMPLE = 'aH*'  # Gets data sample from ADC
+<<<<<<< HEAD
     COMM_TEST = 'aP*'  # Communication test, returns aP#
+=======
+    COMM_TEST = 'aP*'   # Communication test, returns aP#
+>>>>>>> Upstream merge, including sio mule driver.
 
 
 class ProtocolState(BaseEnum):
@@ -139,6 +150,7 @@ class Prompt(BaseEnum):
 # Data Particles
 ###############################################################################
 class THSPHDataParticleKey(BaseEnum):
+<<<<<<< HEAD
     HIGH_IMPEDANCE_ELECTRODE_1 = "thsph_hie1"  # High Impedance Electrode 1 for pH
     HIGH_IMPEDANCE_ELECTRODE_2 = "thsph_hie2"  # High Impedance Electrode 2 for pH
     H2_ELECTRODE = "thsph_h2electrode"  # H2 electrode
@@ -147,6 +159,16 @@ class THSPHDataParticleKey(BaseEnum):
     THERMOCOUPLE2 = "thsph_thermocouple2"  # Type E thermocouple 2-low
     REFERENCE_THERMISTOR = "thsph_rthermistor"  # Reference Thermistor
     BOARD_THERMISTOR = "thsph_bthermistor"  # Board Thermistor
+=======
+    HIGH_IMPEDANCE_ELECTRODE_1 = "hie1"   # High Impedance Electrode 1 for pH
+    HIGH_IMPEDANCE_ELECTRODE_2 = "hie2"   # High Impedance Electrode 2 for pH
+    H2_ELECTRODE = "h2electrode"          # H2 electrode
+    S2_ELECTRODE = "s2electrode"          # Sulfide Electrode
+    THERMOCOUPLE1 = "thermocouple1"       # Type E thermocouple 1-high
+    THERMOCOUPLE2 = "thermocouple2"       # Type E thermocouple 2-low
+    REFERENCE_THERMISTOR = "rthermistor"  # Reference Thermistor
+    BOARD_THERMISTOR = "bthermistor"      # Board Thermistor
+>>>>>>> Upstream merge, including sio mule driver.
 
 
 class THSPHParticle(DataParticle):
@@ -183,7 +205,11 @@ class THSPHParticle(DataParticle):
         Regular expression to match a sample pattern
         @return: regex string
         """
+<<<<<<< HEAD
         pattern = r'aH'  # pattern starts with 'aH'
+=======
+        pattern = r'aH'              # pattern starts with 'aH'
+>>>>>>> Upstream merge, including sio mule driver.
         pattern += r'([0-9A-F]{4})'  # Chanel 1 High Input Impedance Electrode
         pattern += r'([0-9A-F]{4})'  # Chanel 2 High Input Impedance Electrode
         pattern += r'([0-9A-F]{4})'  # H2 Electrode
@@ -192,7 +218,11 @@ class THSPHParticle(DataParticle):
         pattern += r'([0-9A-F]{4})'  # Type E Thermocouple 2
         pattern += r'([0-9A-F]{4})'  # Reference Thermistor
         pattern += r'([0-9A-F]{4})'  # Board Thermocouple
+<<<<<<< HEAD
         pattern += r'#'  # pattern ends with '#'
+=======
+        pattern += r'#'              # pattern ends with '#'
+>>>>>>> Upstream merge, including sio mule driver.
         return pattern
 
     @staticmethod
@@ -252,18 +282,39 @@ class THSPHParticle(DataParticle):
         return result
 
 
+<<<<<<< HEAD
     def hex2value(self, hex_value):
         """
         Convert a ADC hex value to an int value.
         @param hex_value: string to convert
         @return: int of the converted value
+=======
+    def hex2value(self, hex_value, divisor=None):
+        """
+        Convert a ADC hex value to an int value.  If a divisor is passed in as
+        a parameter, the int value will be divided by the divisor.
+        @param hex_value: string to convert
+        @param divisor: conversion value
+        @return: int or float of the converted value
+>>>>>>> Upstream merge, including sio mule driver.
         """
 
         if not isinstance(hex_value, str):
             raise InstrumentParameterException("hex value not a string")
 
+<<<<<<< HEAD
         value = int(hex_value, 16)
         return value
+=======
+        if divisor != None and divisor == 0:
+            raise InstrumentParameterException("divisor can not be 0")
+
+        value = int(hex_value, 16)
+        if(divisor != None):
+            return float(value) / divisor
+        else:
+            return value
+>>>>>>> Upstream merge, including sio mule driver.
 
 
 ###############################################################################
@@ -340,6 +391,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
                                        self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
+<<<<<<< HEAD
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
                                        self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
@@ -350,6 +402,17 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                                        self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,
                                        self._handler_direct_access_stop_direct)
+=======
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_autosample_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+>>>>>>> Upstream merge, including sio mule driver.
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -371,6 +434,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         self._chunker = StringChunker(THSPHProtocol.sieve_function)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -382,18 +449,30 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         matchers.append(THSPHParticle.regex_compiled())
 
         for matcher in matchers:
+<<<<<<< HEAD
             log.trace('matcher: %r raw_data: %r', matcher.pattern, raw_data)
+=======
+            log.debug('matcher: %r raw_data: %r', matcher.pattern, raw_data)
+>>>>>>> Upstream merge, including sio mule driver.
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
 
         return return_list
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+<<<<<<< HEAD
         if not self._extract_sample(THSPHParticle, THSPHParticle.regex_compiled(), chunk, timestamp):
+=======
+        if not (self._extract_sample(THSPHParticle, THSPHParticle.regex_compiled(), chunk, timestamp)):
+>>>>>>> Upstream merge, including sio mule driver.
             raise InstrumentProtocolException("Unhandled chunk")
 
     def _build_driver_dict(self):
@@ -425,27 +504,48 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
+<<<<<<< HEAD
                              units=Units.SECOND,
+=======
+>>>>>>> Upstream merge, including sio mule driver.
                              display_name="Polled Interval",
                              startup_param=True,
                              direct_access=False,
                              default_value=5)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
         """
         return [x for x in events if Capability.has(x)]
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     ########################################################################
     # Unknown State handlers.
     ########################################################################
     def _handler_unknown_enter(self, *args, **kwargs):
+<<<<<<< HEAD
 
+=======
+        """
+        Enter unknown state.
+        """
+>>>>>>> Upstream merge, including sio mule driver.
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
@@ -460,9 +560,15 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         log.debug('_handler_unknown_discover ')
 
         next_state = ProtocolState.COMMAND
+<<<<<<< HEAD
         next_agent_state = ResourceAgentState.IDLE
 
         return next_state, next_agent_state
+=======
+        result = ResourceAgentState.IDLE
+
+        return next_state, result
+>>>>>>> Upstream merge, including sio mule driver.
 
     ########################################################################
     # Command State handlers.
@@ -479,15 +585,32 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(Command.GET_SAMPLE, timeout=TIMEOUT)
 
+<<<<<<< HEAD
         return next_state, (next_agent_state, result)
 
     def _handler_command_enter(self, *args, **kwargs):
+=======
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_enter(self, *args, **kwargs):
+        """
+        Enter command state.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the update commands and not recognized.
+        """
+>>>>>>> Upstream merge, including sio mule driver.
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_exit(self, *args, **kwargs):
+<<<<<<< HEAD
+=======
+        """
+        Exit command state.
+        """
+>>>>>>> Upstream merge, including sio mule driver.
         pass
 
 
@@ -500,7 +623,15 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         Assuming our _update_params is updating all parameter values properly then we can
         ensure that all data will be fresh.  Nobody likes stale data!
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+<<<<<<< HEAD
         """
+=======
+        @raise InstrumentParameterException if missing or invalid parameter.
+        @raise InstrumentParameterExpirationException If we fail to update a parameter
+        on the second pass this exception will be raised on expired data
+        """
+        log.debug("_handler_command_get enter ")
+>>>>>>> Upstream merge, including sio mule driver.
         return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
@@ -509,8 +640,14 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         @param args[0] parameter : value dict.
         @retval (next_state, result) tuple, (None, None).
         @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+<<<<<<< HEAD
         not a dict, or if parameter can't be properly formatted.
 
+=======
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+>>>>>>> Upstream merge, including sio mule driver.
         """
         next_state = None
         result = None
@@ -537,10 +674,17 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         self._set_params(params, startup)
 
         new_config = self._param_dict.get_config()
+<<<<<<< HEAD
         if old_config != new_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         return next_state, result
+=======
+        if old_config != new_config :
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+        return (next_state, result)
+>>>>>>> Upstream merge, including sio mule driver.
 
 
     def _set_params(self, *args, **kwargs):
@@ -557,19 +701,31 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         # Sampling interval is the only parameter that is set by the driver.
         # Do a range check before we start all sets
         for (key, val) in params.iteritems():
+<<<<<<< HEAD
             if key == Parameter.INTERVAL and not (val > 0 and val < 601):
+=======
+            if(key == Parameter.INTERVAL and val not in range(1,601)):
+>>>>>>> Upstream merge, including sio mule driver.
                 log.debug("Auto Sample Interval not in 1 to 600 range ")
                 raise InstrumentParameterException("sample interval out of range")
             log.debug('key = (%s), value = (%s)' % (key, val))
 
         self._param_dict.set_value(Parameter.INTERVAL, params[Parameter.INTERVAL])
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
         """
         pass
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -578,6 +734,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+<<<<<<< HEAD
+=======
+        log.debug("_handler_command_start_autosample ")
+>>>>>>> Upstream merge, including sio mule driver.
 
         next_state = None
         next_agent_state = None
@@ -586,7 +746,11 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
+<<<<<<< HEAD
         return next_state, (next_agent_state, result)
+=======
+        return (next_state, (next_agent_state, result))
+>>>>>>> Upstream merge, including sio mule driver.
 
 
     def _handler_command_start_direct(self):
@@ -600,7 +764,11 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         result = None
 
         log.debug("_handler_command_start_direct: entering DA mode")
+<<<<<<< HEAD
         return next_state, (next_agent_state, result)
+=======
+        return (next_state, (next_agent_state, result))
+>>>>>>> Upstream merge, including sio mule driver.
 
     #######################################################################
     # Autosample State handlers.
@@ -612,10 +780,20 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         polled we need to ensure the scheduler is added when we are in an
         autosample state.  This scheduler raises events to poll the
         instrument for data.
+<<<<<<< HEAD
         @retval next_state, (next_agent_state, result)
         """
         log.debug("_handler_autosample_enter ")
 
+=======
+        """
+        log.debug("_handler_autosample_enter ")
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+>>>>>>> Upstream merge, including sio mule driver.
         self._init_params()
 
         self._setup_autosample_config()
@@ -627,7 +805,12 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+<<<<<<< HEAD
         return None, (None, None)
+=======
+        return (next_state, (next_agent_state, result))
+
+>>>>>>> Upstream merge, including sio mule driver.
 
     def _setup_autosample_config(self):
         """
@@ -651,10 +834,19 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         }
         self.set_init_params(config)
 
+<<<<<<< HEAD
+=======
+        #self._scheduler.add_config(config)
+
+>>>>>>> Upstream merge, including sio mule driver.
         # Start the scheduler if it is not running
         if not self._scheduler:
             self.initialize_scheduler()
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit auto sample state. Remove the auto sample task
@@ -667,12 +859,23 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+<<<<<<< HEAD
+=======
+    def _handler_autosample_start_autosample(self, *args, **kwargs):
+        pass
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Remove the auto sample task. Exit Auto sample state
         """
         log.debug("_handler_autosample_stop_autosample ")
 
+<<<<<<< HEAD
+=======
+        next_state = None
+        next_agent_state = None
+>>>>>>> Upstream merge, including sio mule driver.
         result = None
 
         # Stop the Auto Poll scheduling
@@ -680,7 +883,12 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
+<<<<<<< HEAD
         return next_state, (next_agent_state, result)
+=======
+        return (next_state, (next_agent_state, result))
+
+>>>>>>> Upstream merge, including sio mule driver.
 
     ########################################################################
     # Direct access handlers.
@@ -704,6 +912,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         pass
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _handler_direct_access_execute_direct(self, data):
         """
         Execute direct command
@@ -735,6 +947,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _build_simple_command(self, cmd):
         """
         Build handler for basic THSPH commands.
@@ -750,10 +966,15 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         @param param the parameter key to set.
         @param val the parameter value to set.
         @ retval The set command to be sent to the device.
+<<<<<<< HEAD
         @throws InstrumentParameterException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         @throws InstrumentProtocolException if there is no build handler for the
         communication test command.
+=======
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+>>>>>>> Upstream merge, including sio mule driver.
         """
         try:
             str_val = self._param_dict.format(param, val)
@@ -769,6 +990,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         return set_cmd
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Upstream merge, including sio mule driver.
     def _wakeup(self, wakeup_timeout=WAKEUP_TIMEOUT, response_timeout=RESPONSE_TIMEOUT):
         """
         waking this instrument up by sending MAX_COM_TEST communication test commands
@@ -780,7 +1005,16 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         log.debug("_wakeup ")
 
         sleep_time = CMD_RESP_TIME
+<<<<<<< HEAD
         cmd_line = self._build_simple_command(Command.COMM_TEST)
+=======
+        cmd = Command.COMM_TEST
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            log.error('_wakeup: no handler for command: %s' % (cmd))
+            raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
+        cmd_line = build_handler(cmd)
+>>>>>>> Upstream merge, including sio mule driver.
 
         # Grab start time for overall wakeup timeout.
         start_time = time.time()
@@ -806,7 +1040,11 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         if test_count != MAX_COMM_TEST:
             log.debug('instrument failed to wakeup in %d seconds time' % wakeup_timeout)
             raise InstrumentTimeoutException(
+<<<<<<< HEAD
                 "_wakeup(): instrument failed to wakeup in %d seconds time" % wakeup_timeout)
+=======
+                    "_wakeup(): instrument failed to wakeup in %d seconds time" % wakeup_timeout)
+>>>>>>> Upstream merge, including sio mule driver.
 
         else:
             return Prompt.COMM_RESPONSE

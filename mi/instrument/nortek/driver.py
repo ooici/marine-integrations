@@ -6,6 +6,7 @@
 @author Ronald Ronquillo
 @brief Base class for Nortek instruments
 """
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 
 
 __author__ = 'Rachel Manoni, Ronald Ronquillo'
@@ -14,6 +15,7 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import base64
+import sys
 
 from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
@@ -980,6 +982,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         date/time stamp.
         @retval A string of 6 binary characters
         """
+        log.debug("convert_datetime_to_words: Converting date/time: %s", int_array)
         if len(int_array) != 6:
             raise SampleException("Invalid number of bytes in date/time input! Found %s" % len(int_array))
 
