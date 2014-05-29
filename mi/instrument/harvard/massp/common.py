@@ -1,0 +1,7 @@
+__author__ = 'Pete Cable'
+__license__ = 'Apache 2.0'
+
+
+
+MASSP_STATE_ERROR = 'PROTOCOL_STATE_ERROR'
+MASSP_CLEAR_ERROR = 'PROTOCOL_EVENT_CLEAR'
