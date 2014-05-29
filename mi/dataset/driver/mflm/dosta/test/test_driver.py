@@ -215,11 +215,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.driver.start_sampling()
 
-        self.create_sample_data("node59p1_all_good1.dat", "node59p1.dat")
-        self.assert_data(DostadParserDataParticle, 'test_data_1-2.txt.result.yml',
-                         count=2)
+        self.create_sample_data_set_dir("node59p1_all_good1.dat", TELEM_DIR, "node59p1.dat")
+        self.assert_data((DostadParserDataParticle, DostadMetadataDataParticle),
+            'test_data_1-2.txt.result.yml', count=3)
 
-        self.create_sample_data("node59p1_all_good.dat", "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_all_good.dat", TELEM_DIR, "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_all_good.txt.result.yml',
                          count=1)
 
