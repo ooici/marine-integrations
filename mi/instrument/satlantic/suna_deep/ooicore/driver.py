@@ -11,7 +11,7 @@ initial_rev
 __author__ = 'Anton Kueltz'
 __license__ = 'Apache 2.0'
 
-from mi.core.log import get_logger
+from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
 
 import re
@@ -19,7 +19,7 @@ import json
 import time
 import pprint
 
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units
 from mi.core.common import InstErrorCode
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -208,6 +208,11 @@ SUNA_TEST_REGEX = re.compile(SUNA_TEST_PATTERN)
 ###
 #    Driver Constant Definitions
 ###
+
+class ParameterUnit(BaseEnum):
+    DECISIEMENS = 'dS'
+    MEGABYTE = 'MB'
+
 
 class DataParticleType(BaseEnum):
     """
@@ -525,7 +530,7 @@ class SUNAStatusDataParticle(DataParticle):
             "nutnr_extl_dev", "nutnr_ext_dev_prerun_time", "nutnr_ext_dev_during_acq", "nutnr_watchdog_timer",
             "nutnr_countdown", "nutnr_fixed_time_duration", "nutnr_periodic_interval", "nutnr_periodic_offset",
             "nutnr_periodic_duration", "nutnr_periodic_samples", "nutnr_polled_timeout", "nutnr_apf_timeout",
-            "nutnr_satbility_time",  "nutnr_ref_min_lamp_on", "nutnr_skip_sleep", "nutnr_lamp_switchoff_temp",
+            "nutnr_satbility_time", "nutnr_ref_min_lamp_on", "nutnr_skip_sleep", "nutnr_lamp_switchoff_temp",
             "nutnr_spec_integration_period", "drkavers", "lgtavers", "refsmpls", "nutnr_dark_samples",
             "nutnr_light_samples", "nutnr_dark_duration", "nutnr_light_duration", "nutnr_temp_comp",
             "nutnr_salinity_fit", "nutnr_bromide_tracing", "nutnr_baseline_order", "nutnr_concentrations_fit",
@@ -572,7 +577,7 @@ class SUNATestDataParticle(DataParticle):
         data_names = [
             "nutnr_external_disk_size", "nutnr_external_disk_free", "nutnr_internal_disk_size",
             "nutnr_internal_disk_free", "nutnr_fiberlite_odometer", "nutnr_temperatures_hs", "nutnr_temperatures_sp",
-            "nutnr_temperatures_lm", "nutnr_humidity",  "nutnr_electrical_mn", "nutnr_electrical_bd",
+            "nutnr_temperatures_lm", "nutnr_humidity", "nutnr_electrical_mn", "nutnr_electrical_bd",
             "nutnr_electrical_pr", "nutnr_electrical_c", "nutnr_lamp_power", "nutnr_spec_dark_av", "nutnr_spec_dark_sd",
             "nutnr_spec_dark_mi", "nutnr_spec_dark_ma", "nutnr_spec_lght_av", "nutnr_spec_lght_sd",
             "nutnr_spec_lght_mi", "nutnr_spec_lght_ma", "nutnr_test_result"
@@ -633,6 +638,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+     #logging level
+    __metaclass__ = get_logging_metaclass(log_level='debug')
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -654,62 +662,38 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add event handlers for protocol state machine.
         # UNKNOWN State
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
         # COMMAND State
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_POLL, self._handler_command_start_poll)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_POLL, self._handler_command_start_poll)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
 
         # DIRECT ACCESS State
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # POLL State
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.ENTER, self._handler_poll_enter)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.RESET, self._handler_poll_reset)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_poll_enter)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.RESET, self._handler_poll_reset)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
 
         # AUTOSAMPLE State
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.RESET, self._handler_autosample_reset)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.RESET, self._handler_autosample_reset)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -785,150 +769,376 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("_param_dict is %s: %s", self._param_dict, self._param_dict.get_all())
 
-        ''' TODO!!! WITHOUT STARTUP CONFIG NO REGEX TO MATCH VAL IN CONFIG POSSIBLE (Hence arg 2 is r'') '''
+        # TODO!!! WITHOUT STARTUP CONFIG NO REGEX TO MATCH VAL IN CONFIG POSSIBLE (Hence arg 2 is r'') '''
 
         # DATA ACQUISITION
         # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.OPERATION_MODE, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Polled", visibility=ParameterDictVisibility.READ_WRITE,
+        self._param_dict.add(Parameter.OPERATION_MODE,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Polled",
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="opermode")
+
         # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.OPERATION_CONTROL, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Samples", visibility=ParameterDictVisibility.READ_WRITE,
+        self._param_dict.add(Parameter.OPERATION_CONTROL,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Samples",
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="operctrl")
 
         # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.LIGHT_SAMPLES, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="lgtsmpls")
+        self._param_dict.add(Parameter.LIGHT_SAMPLES,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=5,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="lgtsmpls")
 
         # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.DARK_SAMPLES, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="drksmpls")
+        self._param_dict.add(Parameter.DARK_SAMPLES,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="drksmpls")
 
         # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.LIGHT_DURATION, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=10,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="lgtdurat", units="s")
+        self._param_dict.add(Parameter.LIGHT_DURATION,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=10,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="lgtdurat",
+                             units=Units.SECOND)
 
         # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.DARK_DURATION, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="drkdurat", units="s")
+        self._param_dict.add(Parameter.DARK_DURATION,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=5,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="drkdurat",
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.POLLED_TIMEOUT, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=65535,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="polltout", units="s")
+        self._param_dict.add(Parameter.POLLED_TIMEOUT,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=65535,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="polltout",
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.SKIP_SLEEP_AT_START, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="ON",
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="skpsleep")
+        self._param_dict.add(Parameter.SKIP_SLEEP_AT_START,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="ON",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="skpsleep")
 
-        self._param_dict.add(Parameter.COUNTDOWN, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=15,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="countdwn", units="s")
+        self._param_dict.add(Parameter.COUNTDOWN,
+                             r'',
+                             lambda match:
+                             int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=15,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="countdwn",
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.REF_MIN_AT_LAMP_ON, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="reflimit")
+        self._param_dict.add(Parameter.REF_MIN_AT_LAMP_ON,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="reflimit")
 
-        self._param_dict.add(Parameter.LAMP_STABIL_TIME, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="stbltime", units="ds")
+        self._param_dict.add(Parameter.LAMP_STABIL_TIME,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=5,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="stbltime",
+                             units=ParameterUnit.DECISIEMENS)
 
-        self._param_dict.add(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=35,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="lamptoff")
+        self._param_dict.add(Parameter.LAMP_SWITCH_OFF_TEMPERATURE,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=35,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="lamptoff")
 
-        self._param_dict.add(Parameter.SPECTROMETER_INTEG_PERIOD, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="spintper", units="ms")
+        self._param_dict.add(Parameter.SPECTROMETER_INTEG_PERIOD,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="spintper",
+                             units=Units.MILLISECOND)
 
         # INPUT / OUTPUT
-        self._param_dict.add(Parameter.MESSAGE_LEVEL, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Info", visibility=ParameterDictVisibility.IMMUTABLE,
+        self._param_dict.add(Parameter.MESSAGE_LEVEL,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Info",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="msglevel")
 
-        self._param_dict.add(Parameter.MESSAGE_FILE_SIZE, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=0,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="msgfsize", units="MB")
+        self._param_dict.add(Parameter.MESSAGE_FILE_SIZE,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="msgfsize",
+                             units=ParameterUnit.MEGABYTE)
 
-        self._param_dict.add(Parameter.DATA_FILE_SIZE, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="datfsize", units="MB")
+        self._param_dict.add(Parameter.DATA_FILE_SIZE,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=5,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="datfsize",
+                             units=ParameterUnit.MEGABYTE)
 
-        self._param_dict.add(Parameter.OUTPUT_FRAME_TYPE, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Full_ASCII", visibility=ParameterDictVisibility.IMMUTABLE,
+        self._param_dict.add(Parameter.OUTPUT_FRAME_TYPE,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Full_ASCII",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="outfrtyp")
 
-        self._param_dict.add(Parameter.OUTPUT_DARK_FRAME, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Output", visibility=ParameterDictVisibility.IMMUTABLE,
+        self._param_dict.add(Parameter.OUTPUT_DARK_FRAME,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Output",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="outdrkfr")
 
         # DATA PROCESSING
-        self._param_dict.add(Parameter.TEMP_COMPENSATION, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="Off",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="tempcomp")
+        self._param_dict.add(Parameter.TEMP_COMPENSATION,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Off",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="tempcomp")
 
-        self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW, r'', lambda match: float(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="wfit_low", units="nm")
+        self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW,
+                             r'',
+                             lambda match: float(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="wfit_low",
+                             units=Units.NANOMETER)
 
-        self._param_dict.add(Parameter.FIT_WAVELENGTH_HIGH, r'', lambda match: float(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="wfit_hgh", units="nm")
+        self._param_dict.add(Parameter.FIT_WAVELENGTH_HIGH,
+                             r'',
+                             lambda match: float(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="wfit_hgh",
+                             units=Units.NANOMETER)
 
-        self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH, r'', lambda match: str(match.group(1)), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="217,240", visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="wfitboth", units="nm")
+        self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH,
+                             r'',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="217,240",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="wfitboth",
+                             units=Units.NANOMETER)
 
-        self._param_dict.add(Parameter.CONCENTRATIONS_IN_FIT, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="fitconcs")
+        self._param_dict.add(Parameter.CONCENTRATIONS_IN_FIT,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="fitconcs")
 
-        self._param_dict.add(Parameter.BASELINE_ORDER, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="bl_order")
+        self._param_dict.add(Parameter.BASELINE_ORDER,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="bl_order")
 
-        self._param_dict.add(Parameter.DARK_CORRECTION_METHOD, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="SpecAverage", visibility=ParameterDictVisibility.READ_WRITE,
+        self._param_dict.add(Parameter.DARK_CORRECTION_METHOD,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="SpecAverage",
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="drkcormt")
 
-        self._param_dict.add(Parameter.SALINITY_FITTING, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="On",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="salinfit")
+        self._param_dict.add(Parameter.SALINITY_FITTING,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="On",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="salinfit")
 
-        self._param_dict.add(Parameter.BROMIDE_TRACING, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="Off",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="brmtrace")
+        self._param_dict.add(Parameter.BROMIDE_TRACING,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Off",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="brmtrace")
 
-        self._param_dict.add(Parameter.ABSORBANCE_CUTOFF, r'', lambda match: float(match.group(1)), str,
-                             type=ParameterDictType.FLOAT, startup_param=True, direct_access=True, default_value=1.3,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="a_cutoff")
+        self._param_dict.add(Parameter.ABSORBANCE_CUTOFF,
+                             r'',
+                             lambda match: float(match.group(1)),
+                             str,
+                             type=ParameterDictType.FLOAT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1.3,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="a_cutoff")
 
-        self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="On",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intpradj")
+        self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT,
+                             r'',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="On",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="intpradj")
 
-        self._param_dict.add(Parameter.INTEG_TIME_FACTOR, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intprfac")
+        self._param_dict.add(Parameter.INTEG_TIME_FACTOR,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="intprfac")
 
-        self._param_dict.add(Parameter.INTEG_TIME_STEP, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=20,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intadstp")
+        self._param_dict.add(Parameter.INTEG_TIME_STEP,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=20,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="intadstp")
 
-        self._param_dict.add(Parameter.INTEG_TIME_MAX, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=20,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intadmax")
+        self._param_dict.add(Parameter.INTEG_TIME_MAX,
+                             r'',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=20,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="intadmax")
 
         log.debug("PARAM DICT %s", self._param_dict.get_all())
 
@@ -1009,6 +1219,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self):
         """
         Discover current state
+        Always starts in command state
         @retval (next_state, result)
         """
         self._wakeup(20)
@@ -1016,7 +1227,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+        return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
     # Command handlers.
@@ -1048,7 +1259,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
         self._send_dollar()
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_acquire_status(self):
         """
@@ -1060,7 +1271,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.STATUS)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_start_direct(self):
         """
@@ -1071,7 +1282,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_start_poll(self):
         """
@@ -1084,7 +1295,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Polled")
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_start_autosample(self):
         """
@@ -1097,7 +1308,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Continuous")
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
 
-        return (next_state, (next_agent_state,  result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get(self, params=None):
         """
@@ -1132,7 +1343,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     result[param] = type_func(self._get_from_instrument(param))  # we always get str type from instrument
 
         log.debug("Get finished, next: %s, result: %s,", next_state, result)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_set(self, params, *args):
         """
@@ -1177,7 +1388,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("Parameter %s already set to %s", key, params[key])
 
         log.debug("Set finished, next: %s, result: %s", next_state, result)
-        return (next_state, None)
+        return next_state, None
 
     def _handler_command_test(self):
         """
@@ -1189,7 +1400,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.SELFTEST)
 
-        return (next_state, (next_state_agent, result))
+        return next_state, (next_state_agent, result)
 
     def _handler_command_exit(self):
         """
@@ -1201,7 +1412,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-        return (ProtocolState.UNKNOWN, (None, None))
+        return ProtocolState.UNKNOWN, (None, None)
 
     ########################################################################
     # Direct access handlers.
@@ -1229,7 +1440,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_direct_access_stop_direct(self):
         """
@@ -1239,7 +1450,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Poll handlers.
@@ -1253,7 +1464,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_poll_acquire_sample(self):
         """
@@ -1265,7 +1476,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_poll_measure_n(self):
         """
@@ -1277,7 +1488,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, self.num_samples, timeout=100)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_poll_measure_0(self):
         """
@@ -1289,7 +1500,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 0)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_poll_timed_n(self):
         """
@@ -1301,7 +1512,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.TIMED, self.time_samples, timeout=100)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_poll_reset(self):
         """
@@ -1315,7 +1526,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)  # go to cmd line
         self._do_cmd_no_resp(InstrumentCommand.REBOOT, timeout=100)  # reboot the device
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_poll_stop_poll(self):
         """
@@ -1332,7 +1543,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Could not interrupt hardware!")
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Autosample handlers.
@@ -1346,7 +1557,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_autosample_reset(self):
         """
@@ -1362,7 +1573,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Polled")  # DONT RETURN TO AUTOSAMPLING
         self._do_cmd_no_resp(InstrumentCommand.REBOOT, timeout=100)  # reboot the device
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_autosample_stop_autosample(self):
         """
@@ -1377,7 +1588,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Build handlers

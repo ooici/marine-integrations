@@ -21,12 +21,12 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 import struct
 import json
 import time
-import traceback
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -36,17 +36,9 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver
 from mi.instrument.satlantic.suna_deep.ooicore.driver import DataParticleType
@@ -65,9 +57,7 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.exceptions import InstrumentTimeoutException
 
-from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
-from pyon.core.exception import Conflict
 
 ###
 #   Driver parameters for the tests
@@ -76,11 +66,11 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.suna_deep.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '1BQY0H',
-    instrument_agent_name = 'satlantic_suna_deep_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
+    instrument_agent_resource_id='1BQY0H',
+    instrument_agent_name='satlantic_suna_deep_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config={}
 )
 
 #################################### RULES ####################################
@@ -165,7 +155,6 @@ SUNA_ASCII_SAMPLE = "SATSDF0344,2014125,21.278082,0.00,0.0000,0.0000,0.0000,0.00
                     "0.000000,0.000000,,,,,203\r\n"
 
 
-
 SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nINTWIPER Available\r\nEXTPPORT Missing\r\n" \
                     "LMPSHUTR Missing\r\nREFDTECT Missing\r\nPROTECTR Available\r\nSUPRCAPS Available\r\n" \
                     "PWRSVISR Available\r\nUSBSWTCH Available\r\nRELAYBRD Available\r\nSDI12BRD Available\r\n" \
@@ -198,16 +187,16 @@ SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
                   "$Ok"
 
 ###############################################################################
-#                        DATA PARTICLE TEST MIXIN      		                  #
+#                        DATA PARTICLE TEST MIXIN      	                  #
 #     Defines a set of constants and assert methods used for data particle    #
-#     verification 														      #
+#     verification      #
 #                                                                             #
 #  In python mixin classes are classes designed such that they wouldn't be    #
 #  able to stand on their own, but are inherited by other classes generally   #
 #  using multiple inheritance.                                                #
 #                                                                             #
 # This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.									  #
+# methods for validating data particles.	  #
 ###############################################################################
 class DriverTestMixinSub(DriverTestMixin):
 
@@ -395,13 +384,14 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         self.assert_data_particle_parameters(data_particle, self._reference_status_parameters, verify_values)
 
-    def assert_data_particle_test(self, data_particle, verify_values=False):
+    def assert_data_particle(self, data_particle, verify_values=False):
         """
         Verify a SUNA test data particle
         @param data_particle: a SUNA test data particle
         @param verify_values: bool, should we verify values against definition?
         """
         self.assert_data_particle_parameters(data_particle, self._reference_test_parameters, verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -479,7 +469,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         #validate data particles
         self.assert_particle_published(driver, SUNA_ASCII_SAMPLE, self.assert_data_particle_sample, True)
         self.assert_particle_published(driver, SUNA_ASCII_STATUS, self.assert_data_particle_status, True)
-        #self.assert_particle_published(driver, SUNA_ASCII_TEST, self.assert_data_particle_test, True)
+        self.assert_particle_published(driver, SUNA_ASCII_TEST, self.assert_data_particle, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -647,7 +637,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.TEST, DataParticleType.SUNA_TEST,
-                                        self.assert_data_particle_test, delay=15)
+                                        self.assert_data_particle, delay=15)
 
     def test_polled_sample(self):
         """
@@ -881,7 +871,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         Verify the value for a SUNA sample data particle
         """
 
-        if (isinstance(val, SUNASampleDataParticle)):
+        if isinstance(val, SUNASampleDataParticle):
             sample_dict = json.loads(val.generate())
         else:
             sample_dict = val
@@ -950,9 +940,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
     def test_reset(self):
         pass # done in Integration Testing
 
-    @unittest.skip("SKIP")
-    def test_direct_access_telnet_closed(self):
-        pass # tested in direct access
+    # @unittest.skip("SKIP")
+    # def test_direct_access_telnet_closed(self):
+    #     pass # tested in direct access
 
     @unittest.skip("SKIP")
     def test_agent_save_and_restore(self):
@@ -960,68 +950,73 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     @unittest.skip("SKIP")
     def test_direct_access_exit_from_autosample(self):
-        pass # no D/A from auto-sample
-
-    @unittest.skip("SKIP")
-    def test_driver_notification_messages(self, timeout=15):
+        """
+        Override - no D/A from auto-sample state
+        """
         pass
 
-    @unittest.skip("SKIP")
-    def test_get_device_signature(self):
-        pass
-
-    @unittest.skip("SKIP")
-    def test_transaction_management_messages(self):
-        pass
-
-    @unittest.skip("SKIP")
+    #@unittest.skip("SKIP")
     def test_discover(self):
-        pass # discover only ever discovers to command mode
-    """
-    def test_direct_access_telnet_mode(self):
-        '''
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the
-               physical instrument. (telnet mode)
-        '''
-        self.assert_direct_access_start_telnet()
-        self.assertTrue(self.tcp_client)
 
-        ###
-        #   Add instrument specific code here.
-        ###
-        self.tcp_client.send_data("get opermode\r\n")
-        self.tcp_client.expect("SUNA>")
-
-        self.tcp_client.send_data("set opermode Continuous\r\n")
-        self.tcp_client.expect("SUNA>")
-
-        self.assert_direct_access_stop_telnet()
-
+        # Verify the agent is in command mode
         self.assert_enter_command_mode()
 
-        # assert that getting param values works
-        self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
-    """
+        # Now reset and try to discover.  This will stop the driver which holds the current
+        # instrument state.
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+        # Now put the instrument in streaming and reset the driver again.
+        self.assert_start_autosample()
+        self.assert_reset()
+
+        # When the driver reconnects it should be streaming
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+
+        #pass # discover only ever discovers to command mode
+
+    # def test_direct_access_telnet_mode(self):
+    #     """
+    #     @brief This test manually tests that the Instrument Driver properly supports direct access to the
+    #            physical instrument. (telnet mode)
+    #     """
+    #     self.assert_direct_access_start_telnet()
+    #     self.assertTrue(self.tcp_client)
+    #
+    #     ###
+    #     #   Add instrument specific code here.
+    #     ###
+    #     self.tcp_client.send_data("get opermode\r\n")
+    #     self.tcp_client.expect("SUNA>")
+    #
+    #     self.tcp_client.send_data("set opermode Continuous\r\n")
+    #     self.tcp_client.expect("SUNA>")
+    #
+    #     self.assert_direct_access_stop_telnet()
+    #
+    #     self.assert_enter_command_mode()
+    #
+    #     # assert that getting param values works
+    #     self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
 
     def test_poll(self):
-        '''
+        """
         Poll for a single sample
-        '''
+        """
         self.assert_sample_polled(self.assertSampleDataParticle, DataParticleType.SUNA_SAMPLE)
 
     def test_autosample(self):
-        '''
+        """
         start and stop autosample and verify data particle
-        '''
+        """
         self.assert_sample_autosample(self.assertSampleDataParticle, DataParticleType.SUNA_SAMPLE)
 
-        #self.assert_stop_autosample()  # in case something goes wrong ensure to NOT STAY IN AUTO
-
     def test_get_set_parameters(self):
-        '''
+        """
         verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
-        '''
+        """
         self.assert_enter_command_mode()
 
         # assert that getting param values works
@@ -1033,26 +1028,25 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_get_parameter(Parameter.COUNTDOWN, 15)
 
         # assert that setting works, then set back to default values
-        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration") # default = Samples
+        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration")  # default = Samples
         self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Samples")
-        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57) # default = 58
+        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57)              # default = 58
         self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 58)
-        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)  # default = 2
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)                # default = 2
         self.assert_set_parameter(Parameter.DARK_SAMPLES, 2)
-        self.assert_set_parameter(Parameter.COUNTDOWN, 14)    # default = 15
+        self.assert_set_parameter(Parameter.COUNTDOWN, 14)                  # default = 15
         self.assert_set_parameter(Parameter.COUNTDOWN, 15)
 
     def test_get_capabilities(self):
-        '''
+        """
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
-        '''
+        """
         self.assert_enter_command_mode()
 
         ##################
         #  Command Mode
         ##################
-
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: [
                 ResourceAgentEvent.CLEAR,
@@ -1088,7 +1082,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ##################
         #  Polled Mode
         ##################
-
         capabilities[AgentCapabilityType.AGENT_COMMAND] = [
             ResourceAgentEvent.CLEAR,
             ResourceAgentEvent.RESET,
@@ -1097,27 +1090,23 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
             ResourceAgentEvent.PAUSE,
         ]
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.ACQUIRE_SAMPLE, ProtocolEvent.STOP_POLL, ProtocolEvent.MEASURE_N, ProtocolEvent.MEASURE_0,
+            ProtocolEvent.ACQUIRE_SAMPLE,
+            ProtocolEvent.STOP_POLL,
+            ProtocolEvent.MEASURE_N,
+            ProtocolEvent.MEASURE_0,
             ProtocolEvent.TIMED_N
         ]
 
         self.assert_switch_driver_state(ProtocolEvent.START_POLL, DriverProtocolState.POLL)
-
         self.assert_capabilities(capabilities)
-
         self.assert_switch_driver_state(ProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
 
         ##################
         #  Streaming Mode
         ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            ProtocolEvent.STOP_AUTOSAMPLE
-        ]
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_AUTOSAMPLE]
 
         self.assert_start_autosample()
-
         self.assert_capabilities(capabilities)
-
         self.assert_stop_autosample()
