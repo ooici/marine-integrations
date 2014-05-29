@@ -265,12 +265,11 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	self.assert_result(result,[[232, 290, 1, 0], [290, 348, 1, 0]],
 			   [[232,600]], self.particle_d)
 	
-	result = self.parser.get_records(1)
+	result = self.parser.get_records(2)
 	self.assertEqual(result[0], self.particle_e)
-	result = self.parser.get_records(1)
-	self.assertEqual(result[0], self.particle_f)
-	#log.debug('raw data in result:::::: %s',result[1].raw_data)
-	#log.debug('raw data in self.particle_f::::::: %s',self.particle_f.raw_data)
+	self.assertEqual(result[1], self.particle_f)
+	log.debug('raw data in result:::::: %s',result[1].raw_data)
+	log.debug('raw data in self.particle_f::::::: %s',self.particle_f.raw_data)
 	
 	self.assert_state([],[[348,600]])
 	
@@ -283,10 +282,39 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        pass
+        log.debug('-------------------------------------------------------------Starting test_set_state	')
+	
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
+					       'STA15908.DAT'))
+	# NOTE: using the unprocessed data state of 0,1000 limits the file to reading
+	# just 700 bytes, so even though the file is longer it only reads the first
+	# 700
+	self.state = {StateKey.UNPROCESSED_DATA:[[0, 700]],
+	    StateKey.IN_PROCESS_DATA:[]}
+	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
+				  self.state_callback, self.pub_callback,self.exception_callback)
+	
+	result = self.parser.get_records(1)
+	self.assertEqual(result, [self.particle_a])
+	
+	new_state2 = {StateKey.IN_PROCESS_DATA:[[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],StateKey.UNPROCESSED_DATA:[[174,600]]}
+	log.debug("\n******************\nCurrent state: %s", self.parser._read_state)
+	log.debug("----------------- Setting State!------------")
+	log.debug("New_state: %s", new_state2)
+	self.parser.set_state(new_state2)
+	log.debug("Post parser.set_state to: %s\n************\n", self.parser._read_state)
+	
+	#self.assert_state([[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
+	#    [[174,600]])
+	
+	result = self.parser.get_records(2)
+	self.assertEqual(result[0], self.particle_d)
+	self.assertEqual(result[1], self.particle_e)
+	#log.debug('raw data in result:::::: %s',result[1].raw_data)
+	#log.debug('raw data in self.particle_f::::::: %s',self.particle_f.raw_data)
+	
+	self.assert_state([],[[348,600]])
+	
 
-    def test_bad_data(self):
-        """
-        Ensure that bad data is skipped when it exists.
-        """
-        pass
+	self.stream_handle.close()	
+	

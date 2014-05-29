@@ -148,14 +148,15 @@ class SioEngSioMuleParser(SioMuleParser):
                     sample = self._extract_sample(self._particle_class, ENG_MATCHER, chunk, self._timestamp)
                     if sample:
                         # create particle
-                        #log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
+                        log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
                         result_particles.append(sample)
-                        self._chunk_sample_count.append(1)
+                        sample_count +=1
+                        log.debug("_+_+_+__+_ Sample: %s _+_+__+_++_+ Sample Count: %s", sample, sample_count)
+                        
+            self._chunk_sample_count.append(sample_count)
             
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
-            
 
         return result_particles
 
-    
