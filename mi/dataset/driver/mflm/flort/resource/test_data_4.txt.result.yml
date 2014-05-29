@@ -6,8 +6,8 @@ header:
 
 data:
   - _index: 1
-    internal_timestamp: '2013-07-24T06:00:05'
-    controller_timestamp: 1374645601
+    internal_timestamp: '2013-07-24T06:00:01'
+    sio_controller_timestamp: 1374645601
     date_string: '07/24/13'
     time_string: '06:00:05'
     measurement_wavelength_beta: 700

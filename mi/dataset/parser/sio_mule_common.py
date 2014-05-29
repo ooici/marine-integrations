@@ -13,16 +13,13 @@ __license__ = 'Apache 2.0'
 
 import re
 import struct
-import binascii
 import gevent
 import time
 import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
-from mi.core.instrument.chunker import StringChunker
-from mi.core.exceptions import DatasetParserException
-from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.exceptions import DatasetParserException, NotImplementedException
 from mi.dataset.dataset_parser import Parser
 
 # SIO Main controller header and data for ctdmo in binary
@@ -214,9 +211,9 @@ class SioMuleParser(Parser):
         unprocessed.  This keeps track of which data has been received,
         since blocks may come out of order or appear at a later time in an already
         processed file.
-        @param timestamp The NTP4 timestamp
+        @param returned_records Number of records to return 
         """
-        log.debug("Incrementing current state: %s", self._read_state)
+        log.trace("Incrementing current state: %s", self._read_state)
 
         while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
             # if we were in the middle of processing, we need to drop the parsed
@@ -252,7 +249,7 @@ class SioMuleParser(Parser):
                     if self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] >= this_packet[SAMPLES_PARSED]:
                         # this packet has had all the samples pulled out from it, remove it from in process
                         adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
-                        ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                        self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
                         n_removed += 1
                     elif self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] < 0:
                         self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] = 0
@@ -262,7 +259,7 @@ class SioMuleParser(Parser):
                 else:
                     # this packet has no samples, no need to process further
                     adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
-                    ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                    self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
                     n_removed += 1
 
             if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
@@ -291,7 +288,7 @@ class SioMuleParser(Parser):
                             self._read_state[StateKey.UNPROCESSED_DATA].append([packet[END_IDX], unproc[END_IDX]])
                         # once we have found which unprocessed section this packet is in,
                         # move on to next packet
-                        break;
+                        break
                 self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
                 self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
                     self._read_state[StateKey.UNPROCESSED_DATA])
@@ -322,6 +319,7 @@ class SioMuleParser(Parser):
     def get_num_records(self, num_records):
         """
         Loop through all the in process or unprocessed data until the requested number of records are found
+        @param num records number of records to get
         """
         if self.all_data == None:
             # need to read in the entire data file first and store it because escape sequences shift position of
@@ -442,6 +440,7 @@ class SioMuleParser(Parser):
         """
         Using the UNPROCESSED_DATA state, determine if there are any more unprocessed blocks,
         and if there are read in the next one
+        @param unproc The unprocessed state
         @retval The next unprocessed data packet, or [] if no more unprocessed data
         """
         # see if there is more unprocessed data at a later file position (don't go backwards)
@@ -451,16 +450,11 @@ class SioMuleParser(Parser):
             next_idx = next_idx + 1
 
         if len(unproc) > next_idx:
-            data_len = unproc[next_idx][END_IDX] - unproc[next_idx][START_IDX]
-            # only seek forwards, if we have already read part of a unprocessed section
-            # don't go back to the beginning
-            if unproc[next_idx][START_IDX] > self._position[END_IDX]:
-                self._position[START_IDX] = unproc[next_idx][START_IDX]
             data = self.all_data[unproc[next_idx][START_IDX]:unproc[next_idx][END_IDX]]
-            self._position[END_IDX] = self._position[START_IDX] + data_len
+            self._position = unproc[next_idx]
             log.debug('got %d bytes starting at %d', len(data), self._position[START_IDX])
         else:
-            log.debug('Found no data, %s, next_idx=%d', unproc, next_idx)
+            log.debug('Found no data, next_idx=%d', next_idx)
             data = []
         return data
 
@@ -468,8 +462,8 @@ class SioMuleParser(Parser):
         """
         Get particles out of the buffer and publish them. Update the state
         of what has been published, too.
-        @param num_records The number of particles to remove from the buffer
-        @retval A list with num_records elements from the buffer. If num_records
+        @param num_to_fetch The number of particles to remove from the buffer
+        @retval A list with num_to_fetch elements from the buffer. If num_to_fetch
         cannot be collected (perhaps due to an EOF), the list will have the
         elements it was able to collect.
         """

@@ -55,6 +55,7 @@ DataSetTestCase.initialize(
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
             DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
             DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
         },
         DataSourceConfigKey.PARSER: {}
     }
@@ -177,14 +178,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # This file has had a section of AD data replaced with 0s, this should start a new
         # sequence for the data following the missing AD data
         self.clear_async_data()
-        self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
+        self.create_sample_data('node59p1_step3.dat', "node59p1.dat", copy_metadata=False)
         self.assert_data(AdcpsParserDataParticle, 'test_data_3.txt.result.yml',
                          count=4, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data with a new sequence flag
         self.clear_async_data()
-        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat", copy_metadata=False)
         self.assert_data(AdcpsParserDataParticle, 'test_data_4.txt.result.yml',
                          count=1, timeout=10)
 
