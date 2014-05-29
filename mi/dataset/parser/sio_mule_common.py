@@ -216,7 +216,7 @@ class SioMuleParser(Parser):
         processed file.
         @param timestamp The NTP4 timestamp
         """
-        log.debug("Incrementing current state: %s", self._read_state)
+        log.trace("Incrementing current state: %s", self._read_state)
 
         while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
             # if we were in the middle of processing, we need to drop the parsed
@@ -451,16 +451,11 @@ class SioMuleParser(Parser):
             next_idx = next_idx + 1
 
         if len(unproc) > next_idx:
-            data_len = unproc[next_idx][END_IDX] - unproc[next_idx][START_IDX]
-            # only seek forwards, if we have already read part of a unprocessed section
-            # don't go back to the beginning
-            if unproc[next_idx][START_IDX] > self._position[END_IDX]:
-                self._position[START_IDX] = unproc[next_idx][START_IDX]
             data = self.all_data[unproc[next_idx][START_IDX]:unproc[next_idx][END_IDX]]
-            self._position[END_IDX] = self._position[START_IDX] + data_len
+            self._position = unproc[next_idx]
             log.debug('got %d bytes starting at %d', len(data), self._position[START_IDX])
         else:
-            log.debug('Found no data, %s, next_idx=%d', unproc, next_idx)
+            log.debug('Found no data, next_idx=%d', next_idx)
             data = []
         return data
 
