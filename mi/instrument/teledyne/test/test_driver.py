@@ -24,6 +24,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.core.time import get_timestamp_delayed
 from mi.core.exceptions import NotImplementedException
+from mi.instrument.teledyne.workhorse.driver import DataParticleType
 
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
@@ -179,6 +180,20 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL,'00:00:00')
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
+    def test_scheduled_absolute_acquire_status_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        log.debug("IN test_scheduled_clock_sync_command")
+        self.assert_initialize_driver()
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL,'00:00:10')
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ANCILLARY_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL,'00:00:00')
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+
 
     def test_scheduled_clock_sync_autosample(self):
         """
@@ -190,6 +205,43 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=350)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
+
+    def test_acquire_status(self):
+        """
+        Verify the acquire_status command is functional
+        """
+
+        log.debug("IN test_acquire_status")
+        self.assert_initialize_driver()
+        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ANCILLARY_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+
+    def assert_TRANSMIT_data(self, data_particle, verify_values = True):
+        '''
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCPT_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        log.debug("IN assert_ADCP_TRANSMIT")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
+        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
+
+    def assert_ANCILLARY_data(self, data_particle, verify_values = True):
+        '''
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCPT_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        log.debug("IN assert_Ancillary_data")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
+        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
+
+    def assert_Calibration(self, data_particle, verify_values = True):
+        log.debug("IN assert_Calibration")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
+
 
     def _test_set_instrument_id(self):
         ###
@@ -216,8 +268,12 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         log.debug("====== Testing ranges for XMIT_POWER ======")
 
+
         # XMIT_POWER:  -- Int 0-255
+        log.error("****Sung *******  setting CQ to 0")
         self.assert_set(TeledyneParameter.XMIT_POWER, 0)
+        log.error("****Sung *******  setting CQ to 128")
+
         self.assert_set(TeledyneParameter.XMIT_POWER, 128)
         self.assert_set(TeledyneParameter.XMIT_POWER, 254)
 
@@ -753,16 +809,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #self.assert_set_exception(TeledyneParameter.SERIAL_OUT_FW_SWITCHES, '110100100')
         self._tested[TeledyneParameter.SERIAL_OUT_FW_SWITCHES] = True
 
-    def _test_set_water_profiling_mode_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for WATER_PROFILING_MODE ======")
-
-        # Test read only raise exceptions on set.
-
-        self.assert_set_exception(TeledyneParameter.WATER_PROFILING_MODE, 0)
-        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
 
     def _test_set_parameter_test(self):
         self.assert_set(TeledyneParameter.HEADING_ALIGNMENT, "+10000")
