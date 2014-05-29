@@ -131,8 +131,8 @@ class DriverTestMixinSub(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.SERIAL_NUM: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 'Ser 123.123.12'},
-        Parameter.FIRMWARE_VERSION: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 'Ber 16.02'},
+        #Parameter.SERIAL_NUM: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 'Ser 123.123.12'},
+        #Parameter.FIRMWARE_VERSION: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 'Ber 16.02'},
         Parameter.MEASUREMENTS_PER_REPORTED: {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: None, VALUE: 18},
         Parameter.MEASUREMENT_1_DARK_COUNT: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 51},
         Parameter.MEASUREMENT_1_SLOPE: {TYPE: float, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 1.814},
@@ -143,14 +143,14 @@ class DriverTestMixinSub(DriverTestMixin):
         Parameter.MEASUREMENTS_PER_PACKET: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: None, VALUE: 7},
         Parameter.PACKETS_PER_SET: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.PREDEFINED_OUTPUT_SEQ: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.BAUD_RATE: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
+        #Parameter.BAUD_RATE: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
         Parameter.RECORDING_MODE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.DATE: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: None, VALUE: '01/01/01'},
-        Parameter.TIME: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: None, VALUE: '12:00:03'},
-        Parameter.SAMPLING_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '00:05:00'},
+        Parameter.DATE: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '01/01/01'},
+        Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '12:00:03'},
+        #Parameter.SAMPLING_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '00:05:00'},
         Parameter.MANUAL_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 0, VALUE: 0},
-        Parameter.MANUAL_START_TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '17:00:00'},
-        Parameter.INTERNAL_MEMORY: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 4095},
+        #Parameter.MANUAL_START_TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '17:00:00'},
+        #Parameter.INTERNAL_MEMORY: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 4095},
         Parameter.RUN_WIPER_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:01:00'},
         Parameter.RUN_CLOCK_SYNC_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '12:00:00'},
         Parameter.RUN_ACQUIRE_STATUS_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '12:00:00'}
@@ -245,15 +245,15 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.FLORTD_SAMPLE)
         self.assert_data_particle_parameters(data_particle, self._flortD_sample_parameters, verify_values)
 
-    def assert_param_not_equal(self, param, value):
-        """
-        Verify the parameter is not equal to the value passed.  Used to determine if a READ ONLY param value
-        has changed (it should not).
-        """
-        getParams = [param]
-        result = self.instrument_agent_client.get_resource(getParams, timeout=10)
-        log.debug("Asserting param: %s does not equal %s", param, value)
-        self.assertNotEqual(result[param], value)
+    # def assert_param_not_equal(self, param, value):
+    #     """
+    #     Verify the parameter is not equal to the value passed.  Used to determine if a READ ONLY param value
+    #     has changed (it should not).
+    #     """
+    #     getParams = [param]
+    #     result = self.instrument_agent_client.get_resource(getParams, timeout=10)
+    #     log.debug("Asserting param: %s does not equal %s", param, value)
+    #     self.assertNotEqual(result[param], value)
 
 
 ###############################################################################
@@ -356,8 +356,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER,
-                                         ProtocolEvent.START_DIRECT],
+            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER], #,
+                                         #ProtocolEvent.START_DIRECT],
 
             ProtocolState.COMMAND:      [ProtocolEvent.GET,
                                          ProtocolEvent.SET,
@@ -494,18 +494,18 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEqual(cmd, '$m2d 34' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$m1s', Parameter.MEASUREMENT_1_SLOPE, 23.1341)
         self.assertEqual(cmd, '$m1s 23.1341' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$int', Parameter.SAMPLING_INTERVAL, 3)
-        self.assertEqual(cmd, '$int 3' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$ser', Parameter.SERIAL_NUM, '1.232.1231F')
-        self.assertEqual(cmd, '$ser 1.232.1231F' + NEWLINE)
+        # cmd = protocol._build_single_parameter_command('$int', Parameter.SAMPLING_INTERVAL, 3)
+        # self.assertEqual(cmd, '$int 3' + NEWLINE)
+        # cmd = protocol._build_single_parameter_command('$ser', Parameter.SERIAL_NUM, '1.232.1231F')
+        # self.assertEqual(cmd, '$ser 1.232.1231F' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$dat', Parameter.DATE, '041014')
         self.assertEqual(cmd, '$dat 041014' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$clk', Parameter.TIME, '010034')
         self.assertEqual(cmd, '$clk 010034' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$int', Parameter.SAMPLING_INTERVAL, '110034')
-        self.assertEqual(cmd, '$int 110034' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$mst', Parameter.MANUAL_START_TIME, '012134')
-        self.assertEqual(cmd, '$mst 012134' + NEWLINE)
+        # cmd = protocol._build_single_parameter_command('$int', Parameter.SAMPLING_INTERVAL, '110034')
+        # self.assertEqual(cmd, '$int 110034' + NEWLINE)
+        # cmd = protocol._build_single_parameter_command('$mst', Parameter.MANUAL_START_TIME, '012134')
+        # self.assertEqual(cmd, '$mst 012134' + NEWLINE)
 
 
 ###############################################################################
@@ -577,7 +577,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test read/write parameter
-        self.assert_set(Parameter.MEASUREMENTS_PER_REPORTED, 15)
+        self.assert_set(Parameter.MEASUREMENTS_PER_REPORTED, 20)
 
         #test setting intervals for scheduled events, immutable
         self.assert_set(Parameter.RUN_WIPER_INTERVAL, '05:00:23', startup=True, no_get=True)
@@ -585,14 +585,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         return_value = reply.get(Parameter.RUN_WIPER_INTERVAL)
         self.assertEqual(return_value, '05:00:23')
 
-        #test setting date/time
-        self.assert_set(Parameter.DATE, get_timestamp_delayed("%m/%d/%y"))
-
         #test read only parameter - should not be set, value should not change
-        self.assert_set(Parameter.SERIAL_NUM, '123.45.678', no_get=True)
-        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SERIAL_NUM])
-        return_value = reply.get(Parameter.SERIAL_NUM)
-        self.assertNotEqual(return_value, '123.45.678')
+        #self.assert_set_exception(Parameter.SERIAL_NUM, '123.45.678')
 
     def test_direct_access(self):
         """
@@ -602,6 +596,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_state_change(ProtocolState.COMMAND, 5)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        log.debug('leaving direct access')
 
 
 ###############################################################################
@@ -629,11 +627,38 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.tcp_client.expect("Pkt 128")
         log.debug("DA Parameter Measurements_per_packet_value Updated")
 
+        # log.debug("DA Server Started.  Adjust DA Parameter.")
+        # self.tcp_client.send_data("$ave 20" + NEWLINE)
+        # self.tcp_client.expect("Ave 20")
+        # log.debug("DA Parameter $ave Updated")
+        #
+        # log.debug("DA Server Started.  Adjust DA Parameter.")
+        # self.tcp_client.send_data("$seq 1" + NEWLINE)
+        # self.tcp_client.expect("Seq 1")
+        # log.debug("DA Parameter $seq Updated")
+        #
+        # log.debug("DA Server Started.  Adjust DA Parameter.")
+        # self.tcp_client.send_data("$man 1" + NEWLINE)
+        # self.tcp_client.expect("Man 1")
+        # log.debug("DA Parameter $man Updated")
+        #
+        # log.debug("DA Server Started.  Adjust DA Parameter.")
+        # self.tcp_client.send_data("$rec 1" + NEWLINE)
+        # self.tcp_client.expect("Rec 1")
+        # log.debug("DA Parameter $rec Updated")
+        #
+        # log.debug("DA Server Started.  Adjust DA Parameter.")
+        # self.tcp_client.send_data("$set 5" + NEWLINE)
+        # self.tcp_client.expect("Set 5")
+        # log.debug("DA Parameter $set Updated")
+
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
         self.assert_get_parameter(Parameter.MEASUREMENTS_PER_PACKET, 0)
+
+        #todo = verify other settings were restored as well
 
         ###
         # Test direct access inactivity timeout
@@ -707,69 +732,93 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
         self.assert_enter_command_mode()
 
-        self.assert_set_parameter(Parameter.SERIAL_NUM, '123.45.678', verify=False)
-        self.assert_param_not_equal(Parameter.SERIAL_NUM, '123.45.678')
+        # self.assert_read_only_parameter(Parameter.SERIAL_NUM, '123.45.678')
+        # self.assert_set_parameter(Parameter.SERIAL_NUM, '123.45.678', verify=False)
 
-        self.assert_set_parameter(Parameter.FIRMWARE_VERSION, 'FW123', verify=False)
-        self.assert_param_not_equal(Parameter.FIRMWARE_VERSION, 'FW123')
+        #will be specific to instrument
+        # result = self.instrument_agent_client.get_resource(Parameter.SERIAL_NUM, timeout=10)
+        # self.assert_param_not_equal(Parameter.SERIAL_NUM, result)
+        #
+        # # self.assert_set_parameter(Parameter.FIRMWARE_VERSION, 'FW123', verify=False)
+        # # self.assert_param_not_equal(Parameter.FIRMWARE_VERSION, 'FW123')
+        # self.assert_read_only_parameter(Parameter.FIRMWARE_VERSION, 'FW123')
 
-        self.assert_set_parameter(Parameter.MEASUREMENTS_PER_REPORTED, 128)
+        self.assert_set_parameter(Parameter.MEASUREMENTS_PER_REPORTED, 1)
 
-        self.assert_set_parameter(Parameter.MEASUREMENTS_PER_PACKET, 16, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENTS_PER_PACKET, 16)
+        # self.assert_set_parameter(Parameter.MEASUREMENTS_PER_PACKET, 16, verify=False)
+        # self.assert_param_not_equal(Parameter.MEASUREMENTS_PER_PACKET, 16)
+        self.assert_read_only_parameter(Parameter.MEASUREMENTS_PER_PACKET, 16)
 
-        self.assert_set_parameter(Parameter.MEASUREMENT_1_DARK_COUNT, 10, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENT_1_DARK_COUNT, 10)
+        #self.assert_set_parameter(Parameter.MEASUREMENT_1_DARK_COUNT, 10, verify=False)
+        #self.assert_param_not_equal(Parameter.MEASUREMENT_1_DARK_COUNT, 10)
+        self.assert_read_only_parameter(Parameter.MEASUREMENT_1_DARK_COUNT, 10)
 
-        self.assert_set_parameter(Parameter.MEASUREMENT_2_DARK_COUNT, 20, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENT_2_DARK_COUNT, 20)
+        #self.assert_set_parameter(Parameter.MEASUREMENT_2_DARK_COUNT, 20, verify=False)
+        #self.assert_param_not_equal(Parameter.MEASUREMENT_2_DARK_COUNT, 20)
+        self.assert_read_only_parameter(Parameter.MEASUREMENT_2_DARK_COUNT, 20)
 
-        self.assert_set_parameter(Parameter.MEASUREMENT_3_DARK_COUNT, 30, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENT_3_DARK_COUNT, 30)
+        #self.assert_set_parameter(Parameter.MEASUREMENT_3_DARK_COUNT, 30, verify=False)
+        #self.assert_param_not_equal(Parameter.MEASUREMENT_3_DARK_COUNT, 30)
+        self.assert_read_only_parameter(Parameter.MEASUREMENT_3_DARK_COUNT, 30)
 
-        self.assert_set_parameter(Parameter.MEASUREMENT_1_SLOPE, 12.00, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENT_1_SLOPE, 12.00)
+        # self.assert_set_parameter(Parameter.MEASUREMENT_1_SLOPE, 12.00, verify=False)
+        # self.assert_param_not_equal(Parameter.MEASUREMENT_1_SLOPE, 12.00)
+        self.assert_read_only_parameter(Parameter.MEASUREMENT_1_SLOPE, 12.00)
 
-        self.assert_set_parameter(Parameter.MEASUREMENT_2_SLOPE, 13.00, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENT_2_SLOPE, 13.00)
+        # self.assert_set_parameter(Parameter.MEASUREMENT_2_SLOPE, 13.00, verify=False)
+        # self.assert_param_not_equal(Parameter.MEASUREMENT_2_SLOPE, 13.00)
+        self.assert_read_only_parameter(Parameter.MEASUREMENT_2_SLOPE, 13.00)
 
-        self.assert_set_parameter(Parameter.MEASUREMENT_3_SLOPE, 14.00, verify=False)
-        self.assert_param_not_equal(Parameter.MEASUREMENT_3_SLOPE, 14.00)
+        # self.assert_set_parameter(Parameter.MEASUREMENT_3_SLOPE, 14.00, verify=False)
+        # self.assert_param_not_equal(Parameter.MEASUREMENT_3_SLOPE, 14.00)
+        self.assert_read_only_parameter(Parameter.MEASUREMENT_3_SLOPE, 14.00)
 
-        self.assert_set_parameter(Parameter.PREDEFINED_OUTPUT_SEQ, 3, verify=False)
-        self.assert_param_not_equal(Parameter.PREDEFINED_OUTPUT_SEQ, 3)
+        # self.assert_set_parameter(Parameter.PREDEFINED_OUTPUT_SEQ, 3, verify=False)
+        # self.assert_param_not_equal(Parameter.PREDEFINED_OUTPUT_SEQ, 3)
+        self.assert_read_only_parameter(Parameter.PREDEFINED_OUTPUT_SEQ, 0)
 
-        self.assert_set_parameter(Parameter.BAUD_RATE, 2422, verify=False)
-        self.assert_param_not_equal(Parameter.BAUD_RATE, 2422)
+        # self.assert_set_parameter(Parameter.BAUD_RATE, 2422, verify=False)
+        # self.assert_param_not_equal(Parameter.BAUD_RATE, 2422)
+        #self.assert_read_only_parameter(Parameter.BAUD_RATE, 2422)
 
-        self.assert_set_parameter(Parameter.PACKETS_PER_SET, 10, verify=False)
-        self.assert_param_not_equal(Parameter.PACKETS_PER_SET, 10)
+        # self.assert_set_parameter(Parameter.PACKETS_PER_SET, 10, verify=False)
+        # self.assert_param_not_equal(Parameter.PACKETS_PER_SET, 10)
+        self.assert_read_only_parameter(Parameter.PACKETS_PER_SET, 0)
 
-        self.assert_set_parameter(Parameter.RECORDING_MODE, 3, verify=False)
-        self.assert_param_not_equal(Parameter.RECORDING_MODE, 3)
+        # self.assert_set_parameter(Parameter.RECORDING_MODE, 3, verify=False)
+        # self.assert_param_not_equal(Parameter.RECORDING_MODE, 3)
+        self.assert_read_only_parameter(Parameter.RECORDING_MODE, 0)
 
-        self.assert_set_parameter(Parameter.MANUAL_MODE, 1, verify=False)
-        self.assert_param_not_equal(Parameter.MANUAL_MODE, 1)
+        # self.assert_set_parameter(Parameter.MANUAL_MODE, 1, verify=False)
+        # self.assert_param_not_equal(Parameter.MANUAL_MODE, 1)
+        self.assert_read_only_parameter(Parameter.MANUAL_MODE, 0)
 
-        self.assert_set_parameter(Parameter.SAMPLING_INTERVAL, "003000", verify=False)
-        self.assert_param_not_equal(Parameter.SAMPLING_INTERVAL, "003000")
+        # self.assert_set_parameter(Parameter.SAMPLING_INTERVAL, "003000", verify=False)
+        # self.assert_param_not_equal(Parameter.SAMPLING_INTERVAL, "003000")
+        #self.assert_read_only_parameter(Parameter.SAMPLING_INTERVAL, "003000")
 
-        self.assert_set_parameter(Parameter.DATE, get_timestamp_delayed("%m/%d/%y"))
+        self.assert_read_only_parameter(Parameter.DATE, get_timestamp_delayed("%m/%d/%y"))
+        self.assert_read_only_parameter(Parameter.TIME, get_timestamp_delayed("%H:%M:%S"))
 
-        self.assert_set_parameter(Parameter.MANUAL_START_TIME, "15:10:45", verify=False)
-        self.assert_param_not_equal(Parameter.MANUAL_START_TIME, "15:10:45")
+        # self.assert_set_parameter(Parameter.MANUAL_START_TIME, "15:10:45", verify=False)
+        # self.assert_param_not_equal(Parameter.MANUAL_START_TIME, "15:10:45")
+        #self.assert_read_only_parameter(Parameter.MANUAL_START_TIME, "15:10:45")
 
-        self.assert_set_parameter(Parameter.INTERNAL_MEMORY, 512, verify=False)
-        self.assert_param_not_equal(Parameter.INTERNAL_MEMORY, 512)
+        # self.assert_set_parameter(Parameter.INTERNAL_MEMORY, 512, verify=False)
+        # self.assert_param_not_equal(Parameter.INTERNAL_MEMORY, 512)
+        #self.assert_read_only_parameter(Parameter.INTERNAL_MEMORY, 512)
 
-        self.assert_set_parameter(Parameter.RUN_WIPER_INTERVAL, "12:23:00", verify=False)
-        self.assert_param_not_equal(Parameter.RUN_WIPER_INTERVAL, "12:23:00")
+        # self.assert_set_parameter(Parameter.RUN_WIPER_INTERVAL, "12:23:00", verify=False)
+        # self.assert_param_not_equal(Parameter.RUN_WIPER_INTERVAL, "12:23:00")
+        self.assert_read_only_parameter(Parameter.RUN_WIPER_INTERVAL, "00:00:00")
 
-        self.assert_set_parameter(Parameter.RUN_CLOCK_SYNC_INTERVAL, "23:00:02", verify=False)
-        self.assert_param_not_equal(Parameter.RUN_CLOCK_SYNC_INTERVAL, "23:00:02")
+        # self.assert_set_parameter(Parameter.RUN_CLOCK_SYNC_INTERVAL, "23:00:02", verify=False)
+        # self.assert_param_not_equal(Parameter.RUN_CLOCK_SYNC_INTERVAL, "23:00:02")
+        self.assert_read_only_parameter(Parameter.RUN_CLOCK_SYNC_INTERVAL, "00:00:00")
 
-        self.assert_set_parameter(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:02", verify=False)
-        self.assert_param_not_equal(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:02")
+        # self.assert_set_parameter(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:02", verify=False)
+        # self.assert_param_not_equal(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:02")
+        self.assert_read_only_parameter(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:00")
 
     def test_get_capabilities(self):
         """
