@@ -54,10 +54,10 @@ class AdcpsParserDataParticleKey(BaseEnum):
     SUBSAMPLING_PARAMETER = 'subsampling_parameter'
     ADCPS_JLN_STARTBIN = 'adcps_jln_startbin'
     ADCPS_JLN_BINS = 'adcps_jln_bins'
-    ADCPS_JLN_COMPONENT1 = 'adcps_jln_component1' # error, east
-    ADCPS_JLN_COMPONENT2 = 'adcps_jln_component2' # up, was north
-    ADCPS_JLN_COMPONENT3 = 'adcps_jln_component3' # north, was up
-    ADCPS_JLN_COMPONENT4 = 'adcps_jln_component4' # east, was error
+    ADCPS_JLN_ERR = 'adcps_jln_vel_error' 
+    ADCPS_JLN_UP = 'adcps_jln_vel_up' 
+    ADCPS_JLN_NORTH = 'adcps_jln_vel_north' 
+    ADCPS_JLN_EAST = 'adcps_jln_vel_east'
 
 DATA_WRAPPER_REGEX = b'<Executing/>\x0d\x0a<SampleData ID=\'0x[0-9a-f]+\' LEN=\'[0-9]+\' ' \
                      'CRC=\'(0x[0-9a-f]+)\'>([\x00-\xFF]+)</SampleData>\x0d\x0a<Executed/>\x0d\x0a'
@@ -198,10 +198,10 @@ class AdcpsParserDataParticle(DataParticle):
                       self._encode_value(AdcpsParserDataParticleKey.SUBSAMPLING_PARAMETER, (fields[12]&240) >> 4, int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_STARTBIN, fields[13], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_BINS, fields[14], int),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT1, vel_err, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT2, vel_up, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT3, vel_north, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT4, vel_east, list)]
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_ERR, vel_err, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_UP, vel_up, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_NORTH, vel_north, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_EAST, vel_east, list)]
 
         log.trace('AdcpsParserDataParticle: particle=%s', result)
         return result
