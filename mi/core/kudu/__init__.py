@@ -12,3 +12,7 @@ os.environ['ANTELOPE_PYTHON_GILRELEASE'] = '1'
 # versions.
 sys.path.append('/opt/antelope/5.3/data/python/antelope')
 
+import _Pkt as _pkt
+
+__all__ = ['_pkt']
+
