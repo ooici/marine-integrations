@@ -135,6 +135,12 @@ class VADCP_COMPASS_CALIBRATION_DataParticle(ADCP_COMPASS_CALIBRATION_DataPartic
 class VADCP_SYSTEM_CONFIGURATION_DataParticle(ADCP_SYSTEM_CONFIGURATION_DataParticle):
     _data_particle_type = "adcp_5thbeam_system_configuration"
 
+class VADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE):
+    _data_particle_type = "vadcp_ancillary_system_data"
+
+class VADCP_TRANSMIT_PATH_PARTICLE(ADCP_TRANSMIT_PATH_PARTICLE):
+    _data_particle_type = "vadcp_transmit_path"
+
 class VADCP_PD0_PARSED_DataParticle(ADCP_PD0_PARSED_DataParticle):
     _data_particle_type = "VADCP"
     _slave = True
@@ -689,8 +695,8 @@ class Protocol(WorkhorseProtocol):
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         log.error('Sung _do_cmd_direct: <%s>' % cmd)
-        if(cmd.find(':') != -1) :  # Found
-            cmd_split = cmd.split(':', 1)
+        if(cmd.find('::') != -1) :  # Found
+            cmd_split = cmd.split('::', 1)
             log.error('Sung _do_cmd_direct split[0]: <%s>' % cmd_split[0])
             log.error('Sung _do_cmd_direct split[1]: <%s>' % cmd_split[1])
             log.error('Sung _do_cmd_direct split[1]: strip <%s>' % cmd_split[0].strip())
@@ -1059,6 +1065,7 @@ class Protocol(WorkhorseProtocol):
         if data_length > 0:
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
                 self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                log.error("Sung send Direct Access data %s", repr(data))
 
             self.add_to_buffer2(data)
 
@@ -1068,30 +1075,84 @@ class Protocol(WorkhorseProtocol):
                 self._got_chunk2(chunk, timestamp)
                 (timestamp, chunk) = self._chunker2.get_next_data()
 
+    def _got_chunk(self, chunk, timestamp):
+        """
+        The base class got_data has gotten a chunk from the chunker.
+        Pass it to extract_sample with the appropriate particle
+        objects and REGEXes.
+        """
+        log.error("Sung in got_chunch %s", repr(chunk))
+        if (self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
+                                 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
+            log.error("Sung _got_chunk2 - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
+
+        if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
+                                 ADCP_PD0_PARSED_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for ADCP_PD0_PARSED_DataParticle")
+            log.error("Sung _got_chunk2 - successful match for ADCP_PD0_PARSED_DataParticle")
+
+        if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
+                                 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+            log.error("Sung _got_chunk2 - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+
+        if (self._extract_sample(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
+                                 ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
+            log.error("Sung _got_chunk2 - successful match for ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
+
+        if (self._extract_sample(ADCP_TRANSMIT_PATH_PARTICLE,
+                                 ADCP_TRANSMIT_PATH_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
+            log.error("Sung _got_chunk2 - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
+
     def _got_chunk2(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.
         Pass it to extract_sample with the appropriate particle
         objects and REGEXes.
         """
-
+        log.error("Sung in got_chunch2 %s", repr(chunk))
         if (self._extract_sample(VADCP_COMPASS_CALIBRATION_DataParticle,
                                  ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
-            log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
+            log.debug("_got_chunk2 - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
         if (self._extract_sample(VADCP_PD0_PARSED_DataParticle,
                                  ADCP_PD0_PARSED_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
-            log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
+            log.debug("_got_chunk2 - successful match for ADCP_PD0_PARSED_DataParticle")
 
         if (self._extract_sample(VADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
-            log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+            log.debug("_got_chunk2 - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+
+        if (self._extract_sample(VADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
+                                 ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for VADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
+
+        if (self._extract_sample(VADCP_TRANSMIT_PATH_PARTICLE,
+                                 ADCP_TRANSMIT_PATH_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk2 - successful match for VADCP_TRANSMIT_PATH_PARTICLE")
 
     def got_raw(self, port_agent_packet):
         """
@@ -1115,8 +1176,10 @@ class Protocol(WorkhorseProtocol):
         particle = RawDataParticle_5thbeam(port_agent_packet.get_as_dict(),
                                    port_timestamp=port_agent_packet.get_timestamp())
 
+        parsed_sample = particle.generate()
         if self._driver_event:
-            self._driver_event(DriverAsyncEvent.SAMPLE, particle.generate())
+            self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+            log.error("Sung send raw2 sample %s", repr(parsed_sample))
 
     def add_to_buffer2(self, data):
         '''
@@ -3306,15 +3369,36 @@ class Protocol(WorkhorseProtocol):
         else:
             log.error("Sung test test 007 %s", repr(params))
             if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
+                log.error("Sung the param is either CLOCK_SYNCH_INTERVAL or GET_STATUS_INTERVAL")
                 if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
+                    log.error("Sung the param CLOCK_SYNCH_INTERVAL is changed")
                     self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
                     self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            else:
-                 log.error("Sung test test002 %s", repr(params))
-                 result = self._set_params(params, startup)
-                 log.error("Sung test test003 %s", repr(params))
-                 result2 = self._set_params2(params, startup)
+
+            if(TeledyneParameter.GET_STATUS_INTERVAL in params):
+                if(params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(TeledyneParameter.GET_STATUS_INTERVAL)) :
+                    log.error("Sung the param GET_STATUS_INTERVAL is changed")
+                    self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL, params[TeledyneParameter.GET_STATUS_INTERVAL] )
+                    self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                #params.remove()
+                #if(len(params)>1):
+                #    log.error("Sung test test00555 %s", repr(params))
+                #    result = self._set_params(params, startup)
+
+            result = self._set_params(params, startup)
+
+            #if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
+            #    if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
+            #        self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
+            #        self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+            #        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            #else:
+            #     log.error("Sung test test002 %s", repr(params))
+            #     result = self._set_params(params, startup)
+            #     log.error("Sung test test003 %s", repr(params))
+            #     result2 = self._set_params2(params, startup)
 
         return (next_state, result)
 
@@ -3377,6 +3461,35 @@ class Protocol(WorkhorseProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_get_status(self, *args, **kwargs):
+        """
+        execute a get status on the leading edge of a second change
+        @retval (next_state, result) tuple, (None, (None, )) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        #timeout = kwargs.get('timeout', TIMEOUT)
+        #prompt = self._wakeup(timeout=3)
+        #self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
+        #output = self._do_cmd_resp(TeledyneInstrumentCmds., *args, **kwargs)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        #result_AC = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        #result_PT2 = self._sanitize(base64.b64decode(output))
+        time.sleep(.05)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
+        #result_PT4 = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
+        return (next_state, (next_agent_state, result))
 
 
     def _handler_autosample_get_calibration(self, *args, **kwargs):
@@ -3512,34 +3625,34 @@ class Protocol(WorkhorseProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
-        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
-        result_AC = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
-        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
-        result_PT2 = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
-        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
-        result_PT4 = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        #result_AC = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        #result_PT2 = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
+        #result_PT4 = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
 
-        output = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
-        result2_AC = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
-        output = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
-        result2_PT2 = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
-        output = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
-        result2_PT4 = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        #result2_AC = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        #result2_PT2 = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
+        #result2_PT4 = self._sanitize(base64.b64decode(output))
+        #time.sleep(.05)
 
-        result_start = "4 beam status outputs:" + result_AC
-        result2_start = "5th beam status outputs:" +result2_AC
+        #result_start = "4 beam status outputs:" + result_AC
+        #result2_start = "5th beam status outputs:" +result2_AC
 
-        result_4beam = ", ".join([result_start,result_PT2,result_PT4])
-        result_5thBeam = ", ".join([result2_start,result2_PT2,result2_PT4])
+        #result_4beam = ", ".join([result_start,result_PT2,result_PT4])
+        #result_5thBeam = ", ".join([result2_start,result2_PT2,result2_PT4])
 
-        result = result_4beam + " " + result_5thBeam
-        return (next_state, result)
+        #result = result_4beam + " " + result_5thBeam
+        return (next_state, None)
 
     def _wakeup(self, timeout=3, delay=1):
         """
