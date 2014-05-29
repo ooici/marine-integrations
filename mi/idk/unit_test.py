@@ -2539,7 +2539,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             result = self.instrument_agent_client.get_resource(get_params, timeout=GET_TIMEOUT)
             self.assertEqual(result[name], value)
 
-    def assert_read_only_parameter(self, name, value):
+    def assert_read_only_parameter(self, name, value, verify=True):
         """
         verify that parameters are read only.  Ensure an exception is thrown
         when set is called and that the value returned is the same as the
@@ -2549,11 +2549,17 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         getParams = [name]
 
         # Call set, but verify the command failed.
-        #self.instrument_agent_client.set_resource(setParams)
-
-        # Call get and verify the value is correct.
-        #result = self.instrument_agent_client.get_resource(getParams)
-        #self.assertEqual(result[name], value)
+        try:
+            self.instrument_agent_client.set_resource(setParams)
+        except InstrumentParameterException:
+            log.debug('Expected exception raised')
+        except Exception as e:
+            self.fail("Unexpected exception: %s" % e)
+        finally:
+            # Call get and verify the value is correct.
+            if verify:
+                result = self.instrument_agent_client.get_resource(getParams)
+                self.assertEqual(result[name], value)
 
     def assert_stop_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         """
