@@ -238,7 +238,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Capability.START1: {STATES: [ProtocolState.COMMAND]},
         Capability.START2: {STATES: [ProtocolState.START1]},
         Capability.SAMPLE: {STATES: [ProtocolState.START2]},
-        Capability.STANDBY: {STATES: [ProtocolState.SAMPLE]},
+        Capability.STANDBY: {STATES: [ProtocolState.WAITING_TURBO, ProtocolState.WAITING_RGA, ProtocolState.SAMPLE]},
         Capability.CLEAR: {STATES: [ProtocolState.ERROR]},
         Capability.IONREG: {STATES: [ProtocolState.COMMAND]},
         Capability.NAFREG: {STATES: [ProtocolState.COMMAND]},
@@ -267,12 +267,20 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.STOPPING: ['PROTOCOL_EVENT_STANDBY',
                                  'PROTOCOL_EVENT_ERROR'],
         ProtocolState.WAITING_RGA: ['PROTOCOL_EVENT_SAMPLE',
+                                    'PROTOCOL_EVENT_STANDBY',
                                     'DRIVER_EVENT_CALIBRATE',
                                     'PROTOCOL_EVENT_ERROR'],
         ProtocolState.WAITING_TURBO: ['PROTOCOL_EVENT_START2',
+                                      'PROTOCOL_EVENT_STANDBY',
                                       'PROTOCOL_EVENT_ERROR'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR']
+        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR',
+                              'PROTOCOL_EVENT_START1_COMPLETE',
+                              'PROTOCOL_EVENT_START2_COMPLETE',
+                              'PROTOCOL_EVENT_SAMPLE_COMPLETE',
+                              'PROTOCOL_EVENT_CALIBRATE_COMPLETE',
+                              'PROTOCOL_EVENT_IONREG_COMPLETE',
+                              'PROTOCOL_EVENT_NAFREG_COMPLETE']
     }
 
     """
@@ -355,7 +363,7 @@ class DriverTestMixinSub(DriverTestMixin):
     def assert_mcu_status_particle(self, particle, verify_values=False):
         log.debug('PRETTY PARTICLE: %s', pprint.pformat(json.loads(particle)))
         self.assert_data_particle_keys(McuStatusParticleKey, self._status_parameters)
-        self.assert_data_particle_header(particle, DataParticleType.STATUS)
+        self.assert_data_particle_header(particle, DataParticleType.MCU_STATUS)
         self.assert_data_particle_parameters(particle, self._status_parameters, verify_values)
 
 
