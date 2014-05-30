@@ -81,14 +81,14 @@ TIMEOUT = 10
 UNIX_EPOCH = datetime.datetime(1970, 1, 1)
 SAMI_EPOCH = datetime.datetime(1904, 1, 1)
 SAMI_UNIX_OFFSET = UNIX_EPOCH - SAMI_EPOCH
-
 FIVE_YEARS_IN_SECONDS = 0x0968A480
-
 ONE_YEAR_IN_SECONDS = 0x01E13380
 
 ## Time delay between retrieving system time and setting SAMI time.  Multiple commands are sent before the time.
 ##   Each command has a wakeup which takes 1 second.
 TIME_WAKEUP_DELAY = 8
+
+WAKEUP_DELAY = 0.5 # Time between sending newlines to wakeup SAMI
 
 # Length of configuration string with '0' padding
 # used to calculate number of '0' padding
@@ -101,10 +101,18 @@ CONFIG_WITH_0_AND_F_PADDING = 512
 # Terminator at the end of a configuration string
 CONFIG_TERMINATOR = '00'
 
-PUMP_REAGENT = '01'  # Pump on, valve off
-PUMP_DEIONIZED_WATER = '03'  # Pump on, valve on
-PUMP_DURATION_UNITS = 0.125  # 1/8 second
+# Pump on, valve off
+PUMP_REAGENT = '01'
+# Pump on, valve on
+PUMP_DEIONIZED_WATER = '03'
+# 1/8 second
+PUMP_DURATION_UNITS = 0.125
+# 1/8 second increments to pump 50ml
 PUMP_DURATION_50ML = 8
+# Sleep time between 50ml pumps
+PUMP_SLEEP_50ML = 2.0
+# Value added to pump duration for timeout
+PUMP_TIMEOUT_OFFSET = 5.0
 
 ###
 #    Driver RegEx Definitions
@@ -1382,6 +1390,32 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_deionized_water_flush_100ml(self):
+        """
+        Flush with deionized water
+        """
+
+        log.debug('SamiProtocol._handler_command_deionized_water_flush_100ml()')
+
+        next_state = SamiProtocolState.DEIONIZED_WATER_FLUSH_100ML
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_reagent_flush_100ml(self):
+        """
+        Flush with reagent
+        """
+
+        log.debug('SamiProtocol._handler_command_reagent_flush_100ml()')
+
+        next_state = SamiProtocolState.REAGENT_FLUSH_100ML
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
     ########################################################################
     # Direct access handlers.
     ########################################################################
@@ -1704,7 +1738,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug('SamiProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
             # Add 5 seconds to timeout make sure pump completes.
-            flush_timeout = flush_duration_seconds + 5.0
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
 
             start_time = time.time()
             self._do_cmd_resp(SamiInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
@@ -1788,7 +1822,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
             # Add 5 seconds to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + 5.0
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
 
             start_time = time.time()
             self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
@@ -1874,13 +1908,20 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
             # Add 5 seconds to timeout make sure pump completes.
-            flush_timeout = flush_duration_seconds + 5.0
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
 
             for pump_num in range(pump_100ml_cycles):
                 start_time = time.time()
                 self._do_cmd_resp(SamiInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
                 pump_time = time.time() - start_time
                 log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+                start_time = time.time()
+                self._do_cmd_resp(SamiInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
 
             # Make sure pump is off
             self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
@@ -1961,13 +2002,20 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug('SamiProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
             # Add 5 seconds to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + 5.0
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
 
             for pump_num in range(pump_100ml_cycles):
                 start_time = time.time()
                 self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
                 pump_time = time.time() - start_time
                 log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+                start_time = time.time()
+                self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('SamiProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
 
             # Make sure pump is off
             self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
@@ -2129,10 +2177,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # Send 2 newlines to wake up SAMI.
         log.debug('SamiProtocol._wakeup: Send first newline to wake up')
         self._do_cmd_direct(NEWLINE)
-        time.sleep(0.5)
+        time.sleep(WAKEUP_DELAY)
         log.debug('SamiProtocol._wakeup: Send second newline to wake up')
         self._do_cmd_direct(NEWLINE)
-        time.sleep(0.5)
+        time.sleep(WAKEUP_DELAY)
 
     def apply_startup_params(self):
 

@@ -147,6 +147,8 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
                                                   ProtocolState.COMMAND]},
         Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
         Capability.REAGENT_FLUSH:         {STATES: [ProtocolState.COMMAND]},
+        Capability.DEIONIZED_WATER_FLUSH_100ML: {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH_100ML:         {STATES: [ProtocolState.COMMAND]},
         Capability.RUN_EXTERNAL_PUMP:     {STATES: [ProtocolState.COMMAND]}
     }
 
@@ -254,6 +256,8 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         Parameter.EXTERNAL_PUMP_DELAY:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 360, VALUE: 360},
         Parameter.FLUSH_DURATION:           {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                             DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
+        Parameter.PUMP_100ML_CYCLES:        {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
 
@@ -454,12 +458,22 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
                                          'DRIVER_EVENT_START_AUTOSAMPLE',
                                          'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
                                          'DRIVER_EVENT_REAGENT_FLUSH',
+                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML',
+                                         'DRIVER_EVENT_REAGENT_FLUSH_100ML',
                                          'DRIVER_EVENT_RUN_EXTERNAL_PUMP'],
         ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.DEIONIZED_WATER_FLUSH_100ML: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH_100ML:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
@@ -685,7 +699,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x1E,
            Parameter.EXTERNAL_PUMP_DELAY: 10,
            Parameter.AUTO_SAMPLE_INTERVAL: 3600,
-           Parameter.FLUSH_DURATION: 8
+           Parameter.FLUSH_DURATION: 8,
+           Parameter.PUMP_100ML_CYCLES: 1
         }
 
         new_values = {
@@ -701,7 +716,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x40,
            Parameter.EXTERNAL_PUMP_DELAY: 300,
            Parameter.AUTO_SAMPLE_INTERVAL: 600,
-           Parameter.FLUSH_DURATION: 1
+           Parameter.FLUSH_DURATION: 1,
+           Parameter.PUMP_100ML_CYCLES: 14
         }
 
         self.assert_initialize_driver()
@@ -729,7 +745,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.NUMBER_EXTRA_PUMP_CYCLES, 88)
         self.assert_set(Parameter.EXTERNAL_PUMP_SETTINGS, 40)
         self.assert_set(Parameter.EXTERNAL_PUMP_DELAY, 60)
-        self.assert_set(Parameter.FLUSH_DURATION, 8)
+        self.assert_set(Parameter.FLUSH_DURATION, 1)
+        self.assert_set(Parameter.PUMP_100ML_CYCLES, 14)
 
         self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
         self.assert_set_readonly(Parameter.STOP_TIME_FROM_START, 84600)
@@ -751,7 +768,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
             Parameter.NUMBER_EXTRA_PUMP_CYCLES: 88,
             Parameter.EXTERNAL_PUMP_SETTINGS: 40,
             Parameter.EXTERNAL_PUMP_DELAY: 60,
-            Parameter.FLUSH_DURATION: 8
+            Parameter.FLUSH_DURATION: 1,
+            Parameter.PUMP_100ML_CYCLES:14
         }
         self.assert_set_bulk(new_values)
 
@@ -959,6 +977,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
         self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
+        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15.0)
+        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15.0)
 
     def test_run_external_pump(self):
         """
@@ -1067,8 +1087,10 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
         self.assert_particle_polled(ProtocolEvent.RUN_EXTERNAL_PUMP, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=200)
 
-        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
@@ -1121,6 +1143,8 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
                 ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
                 ProtocolEvent.DEIONIZED_WATER_FLUSH,
                 ProtocolEvent.REAGENT_FLUSH,
+                ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML,
+                ProtocolEvent.REAGENT_FLUSH_100ML,
                 ProtocolEvent.RUN_EXTERNAL_PUMP
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
