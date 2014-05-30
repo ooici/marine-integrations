@@ -22,10 +22,7 @@ from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProt
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
@@ -38,6 +35,7 @@ from xml.dom.minidom import parseString
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ParameterUnit
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Protocol
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19CalibrationParticle
@@ -1018,15 +1016,15 @@ class SBE43Protocol(SBE19Protocol):
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             #expiration=0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             startup_param = False,
+                             direct_access = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Is Logging",
-                             #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PTYPE,
                              r'pressure sensor = ([\w\s]+),',
@@ -1187,6 +1185,7 @@ class SBE43Protocol(SBE19Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = 500,
+                             units=ParameterUnit.HERTZ,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PUMP_DELAY,
                              r'pump delay = ([\d]+) sec',
@@ -1197,6 +1196,7 @@ class SBE43Protocol(SBE19Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = 60,
+                             units=ParameterUnit.SECONDS,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',

@@ -16,17 +16,10 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.util import dict_equal
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
@@ -37,6 +30,7 @@ from xml.dom.minidom import parseString
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ParameterUnit
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SendOptodeCommand
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Protocol
@@ -51,9 +45,7 @@ from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 
 from mi.instrument.seabird.driver import NEWLINE
 from mi.instrument.seabird.driver import TIMEOUT
-from mi.instrument.seabird.driver import DEFAULT_ENCODER_KEY
 
-import mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver
 
 WAKEUP_TIMEOUT = 60
 
@@ -960,8 +952,9 @@ class SBE16NOProtocol(SBE19Protocol):
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             #expiration=0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             startup_param = False,
+                             direct_access = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
@@ -1129,6 +1122,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = 500,
+                             units=ParameterUnit.HERTZ,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PUMP_DELAY,
                              r'pump delay = ([\d]+) sec',
@@ -1139,6 +1133,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = 60,
+                             units=ParameterUnit.SECONDS,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',
@@ -1149,6 +1144,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
+                             units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.IGNORE_SWITCH,
                              r'ignore magnetic switch = (yes|no)',
@@ -1159,6 +1155,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
+                             units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
         #Scheduling parameters (driver specific)
@@ -1173,6 +1170,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              direct_access = False,
                              default_value = "00:00:00",
                              init_value= "00:00:00",
+                             units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.STATUS_INTERVAL,
                              'bogus',
@@ -1184,4 +1182,5 @@ class SBE16NOProtocol(SBE19Protocol):
                              direct_access = False,
                              default_value = "00:00:00",
                              init_value= "00:00:00",
+                             units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)

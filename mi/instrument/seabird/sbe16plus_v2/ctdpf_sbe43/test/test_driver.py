@@ -470,7 +470,7 @@ class SBE43Mixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        Parameter.DATE_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
         Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
@@ -485,9 +485,9 @@ class SBE43Mixin(DriverTestMixin):
         Parameter.OPTODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.SBE63 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.NUM_AVG_SAMPLES : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 4, VALUE: 4},
-        Parameter.MIN_COND_FREQ : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 500, VALUE: 500},
-        Parameter.PUMP_DELAY : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 60, VALUE: 60},
+        Parameter.NUM_AVG_SAMPLES : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 4, VALUE: 4},
+        Parameter.MIN_COND_FREQ : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 500, VALUE: 500},
+        Parameter.PUMP_DELAY : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 60, VALUE: 60},
         Parameter.AUTO_RUN : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.IGNORE_SWITCH : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
@@ -705,7 +705,7 @@ class SBE43UnitTestCase(SeaBirdUnitTest, SBE43Mixin):
 
         baseline = driver._protocol._param_dict.get_current_timestamp()
 
-        # First verify that parse ds sets all know parameters.
+        # First verify that parse ds sets all known parameters.
         driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
         pd = driver._protocol._param_dict.get_all(baseline)
         log.debug("Param Dict Values: %s" % pd)
@@ -959,7 +959,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
 
-    @unittest.skip("pass")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
@@ -990,7 +989,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.OUTPUT_FORMAT, 0)
 
-    @unittest.skip("pass")
     def test_direct_access_telnet_mode_autosample(self):
         """
         @brief Same as the previous DA test except in this test
@@ -998,11 +996,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
                DA.  Then we need to verify the transition back
                to the driver works as expected.
         """
-        ###
-        # First test direct access and exit with a go command
-        # call.  Also add a parameter change to verify DA
-        # parameters are restored on DA exit.
-        ###
         self.assert_enter_command_mode()
 
         # go into direct access, and muck up a setting.
@@ -1024,8 +1017,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         #now stop autosampling
         self.assert_stop_autosample()
 
-
-    @unittest.skip("pass")
     def test_direct_access_telnet_timeout(self):
         """
         Verify that direct access times out as expected and the agent transitions back to command mode.
@@ -1055,7 +1046,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
 
         self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 120)
 
-    @unittest.skip("pass")
     def test_poll(self):
         '''
         Verify that we can poll for a sample.  Take sample for this instrument
@@ -1071,7 +1061,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
 
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
 
-    @unittest.skip("pass")
     def test_autosample(self):
         """
         Verify autosample works and data particles are created
@@ -1100,7 +1089,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         # Restart autosample and gather a couple samples
         self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
 
-    @unittest.skip("pass")
     def test_execute_clock_sync(self):
         """
         Verify we can synchronize the instrument internal clock
@@ -1123,7 +1111,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         # Now verify that the time matches to within 15 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 15)
 
-    @unittest.skip("pass")
     def test_get_set_parameters(self):
         '''
         verify that parameters can be set properly
@@ -1142,7 +1129,6 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 4)
         self.assert_get_parameter(Parameter.PUMP_DELAY, 60)
 
-    @unittest.skip("pass")
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities

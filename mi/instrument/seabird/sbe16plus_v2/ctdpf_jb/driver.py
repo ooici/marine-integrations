@@ -57,6 +57,14 @@ WAKEUP_TIMEOUT = 60
 
 SEND_OPTODE_COMMAND = "sendoptode="
 
+###
+# Driver Constant Definitions
+###
+class ParameterUnit(BaseEnum):
+    HERTZ = 'Hz'
+    SECONDS = 'seconds'
+    TIME_INTERVAL = 'HH:MM:SS'
+
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
     CLOCK_SYNC = 'clock_sync'
@@ -188,6 +196,7 @@ class DriverParameter(BaseEnum):
     """
     CLOCK_INTERVAL = Parameter.CLOCK_INTERVAL
     STATUS_INTERVAL = Parameter.STATUS_INTERVAL
+
 
 ###############################################################################
 # Data Particles
@@ -1879,8 +1888,9 @@ class SBE19Protocol(SBE16Protocol):
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             #expiration=0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             startup_param = False,
+                             direct_access = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
@@ -2038,6 +2048,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = 500,
+                             units=ParameterUnit.HERTZ,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PUMP_DELAY,
                              r'pump delay = ([\d]+) sec',
@@ -2048,6 +2059,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = 60,
+                             units=ParameterUnit.SECONDS,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',
@@ -2081,6 +2093,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = "00:00:00",
+                             units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.STATUS_INTERVAL,
                              'bogus',
@@ -2091,6 +2104,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = "00:00:00",
+                             units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
 

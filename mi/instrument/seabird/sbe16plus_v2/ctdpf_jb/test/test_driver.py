@@ -1107,11 +1107,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
                DA.  Then we need to verify the transition back
                to the driver works as expected.
         """
-        ###
-        # First test direct access and exit with a go command
-        # call.  Also add a parameter change to verify DA
-        # parameters are restored on DA exit.
-        ###
         self.assert_enter_command_mode()
 
         # go into direct access, and muck up a setting.
