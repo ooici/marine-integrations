@@ -16,6 +16,7 @@ from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle
+from mi.dataset.parser.phsen import PhsenControlDataParticle
 
 from mi.idk.config import Config
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
@@ -43,11 +44,14 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.phsen',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'PhsenParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_CLASS: ['PhsenParserDataParticle',
+                                                     'PhsenControlDataParticle']
             }
         # Define test data particles and their associated timestamps which will be 
         # compared with returned results
         # starts file index 367
+        self.particle_control = PhsenControlDataParticle('51EFC1C1*2B1281CE1572\x93\xf4' \
+            '\x82\x1e\xd3\x1e\x82\xfe0004000000000236A6\r')
         self.particle_a = PhsenParserDataParticle('51EFC1C1^0A\r*2BE70ACE15724007EF0C5'
             '707A208AA09E10C5F07A008AD09E10C6007A108AB09E00C5907A408AA09E10C6007A408AA'
             '09E00C5C07A308A809E00C5B07A108A609E00C62079E08AC09D80C5E076808A809720C5E0'
@@ -130,6 +134,11 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
+        self.assert_result(result, [[367, 911, 2, 1], [1106, 1610, 1, 0], [1804, 2308, 1, 0]],
+                           [[0, 172], [367,911], [1106, 1610], [1804, 2308], [4100, 4171],
+                            [5899, 5968], [7697, 7764], [8636, 9000]], 
+                           self.particle_control)
+        result = self.parser.get_records(1)
         self.assert_result(result, [[1106, 1610, 1, 0], [1804, 2308, 1, 0]],
                            [[0, 172], [1106, 1610], [1804, 2308], [4100, 4171],
                             [5899, 5968], [7697, 7764], [8636, 9000]], 
@@ -153,21 +162,22 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.parser = PhsenParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
-        result = self.parser.get_records(6)
+        result = self.parser.get_records(7)
         self.stream_handle.close()
         self.assertEqual(result,
-                         [self.particle_a, self.particle_b, self.particle_c,
-                          self.particle_d, self.particle_e, self.particle_f])
+                         [self.particle_control, self.particle_a, self.particle_b, 
+                          self.particle_c, self.particle_d, self.particle_e, self.particle_f])
         # the remaining in process data is actually a particle with a bad sample
         self.assert_state([[15536, 16040, 1, 0], [16301, 16805, 1, 0], [16998, 17502, 1, 0]],
             [[0, 172], [4100, 4171], [5899, 5968], [7697, 7764],[9654,9723], 
              [11451,11520], [15536, 16040], [16301, 16805], [16998, 17600]])
-        self.assertEqual(self.publish_callback_value[0], self.particle_a)
-        self.assertEqual(self.publish_callback_value[1], self.particle_b)
-        self.assertEqual(self.publish_callback_value[2], self.particle_c)
-        self.assertEqual(self.publish_callback_value[3], self.particle_d)
-        self.assertEqual(self.publish_callback_value[4], self.particle_e)
-        self.assertEqual(self.publish_callback_value[5], self.particle_f)
+        self.assertEqual(self.publish_callback_value[0], self.particle_control)
+        self.assertEqual(self.publish_callback_value[1], self.particle_a)
+        self.assertEqual(self.publish_callback_value[2], self.particle_b)
+        self.assertEqual(self.publish_callback_value[3], self.particle_c)
+        self.assertEqual(self.publish_callback_value[4], self.particle_d)
+        self.assertEqual(self.publish_callback_value[5], self.particle_e)
+        self.assertEqual(self.publish_callback_value[6], self.particle_f)
 
     def test_mid_state_start(self):
         """
@@ -229,8 +239,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                                                'node59p1_shorter.dat'))
         self.parser = PhsenParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
-        # there should only be 3 records, make sure we stop there
-        result = self.parser.get_records(3)
+        # there should only be 4 records, make sure we stop there
+        result = self.parser.get_records(4)
         self.assert_state([], [[0, 172], [4100, 4171], [5899, 5968],
                                 [7697, 7764], [8636, 9000]])
         result = self.parser.get_records(1)
@@ -280,6 +290,11 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                             [11451, 11520], [14646,14700]],
                            self.particle_e)
         # now get the filled in record
+        result = self.parser.get_records(1)
+        self.assert_result(result, [[367,911,2,1]],
+                           [[0, 172], [367,911], [4100, 4171], [5899, 5968], [7697, 7764], [9654, 9723],
+                            [11451, 11520], [14646,14700]],
+                           self.particle_control)
         result = self.parser.get_records(1)
         self.assert_result(result, [],
                            [[0, 172], [4100, 4171], [5899, 5968], [7697, 7764], [9654, 9723],

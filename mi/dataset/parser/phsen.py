@@ -25,26 +25,50 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey, Data
 from mi.core.exceptions import SampleException, DatasetParserException, RecoverableSampleException
 from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 
-DATA_REGEX = b'(\^0A\r\*|\*)([0-9A-Fa-f]{4}0A)([\x00-\xFF]{8})([0-9A-Fa-f]{450})\r'
+# match the ascii hex ph records
+# the timestamp may have non hex ascii characters, if this happens the value will be set to none
+# (which is why there is the 8 bytes binary search in the middle)
+DATA_REGEX = b'(\^0A\r\*)([0-9A-Fa-f]{4}0A)([\x00-\xFF]{8})([0-9A-Fa-f]{450})\r'
 DATA_MATCHER = re.compile(DATA_REGEX)
+
+# match the ascii hex control record, there is an optional 2 byte field at the end
+# this also allows for non hex ascii characters in the timestamp, flags and number of records
+CONTROL_REGEX = b'(\*)([0-9A-Fa-f]{4}[8-9A-Fa-f][0-9A-Fa-f])([\x00-\xFF]{30}[0-9A-Fa-f]{2,6})\r'
+CONTROL_MATCHER = re.compile(CONTROL_REGEX)
+
+# control messages are hex 80 or greater, so the first ascii char must be greater than 8 hex
+CONTROL_ID_REGEX = b'[8-9A-Fa-f][0-9A-Fa-f]'
+CONTROL_ID_MATCHER = re.compile(CONTROL_ID_REGEX)
 
 TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
 TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
 
+PH_ID = '0A'
+# the control message has an optional data or battery field for some control IDs
+DATA_CONTROL_IDS = ['BF', 'FF']
+BATT_CONTROL_IDS = ['CO', 'C1']
+
+SIO_HEADER_BYTES = 33
+NORMAL_CONTROL_LEN = 40
+OPTIONAL_CONTROL_LEN = 44
+
 class DataParticleType(BaseEnum):
     SAMPLE = 'phsen_abcdef_sio_mule_instrument'
-
-class PhsenParserDataParticleKey(BaseEnum):
+    CONTROL = 'phsen_abcdef_sio_mule_metadata'
+    
+class PhsenCommonDataParticleKey(BaseEnum):
     CONTROLLER_TIMESTAMP = 'controller_timestamp'
     UNIQUE_ID = 'unique_id'
     RECORD_TYPE = 'record_type'
     RECORD_TIME = 'record_time_1904_uint32'
+    PASSED_CHECKSUM = 'passed_checksum'
+
+class PhsenParserDataParticleKey(PhsenCommonDataParticleKey):
     THERMISTOR_START = 'thermistor_start'
     REFERENCE_LIGHT_MEASUREMENTS = 'reference_light_measurements'
     LIGHT_MEASUREMENTS = 'light_measurements'
     VOLTAGE_BATTERY = 'voltage_battery'
     THERMISTOR_END = 'thermistor_end'
-    PASSED_CHECKSUM = 'passed_checksum'
 
 class PhsenParserDataParticle(DataParticle):
     """
@@ -96,7 +120,8 @@ class PhsenParserDataParticle(DataParticle):
                     ref_meas.append(this_ref)
                 except Exception as e:
                     ref_meas.append(None)
-                    self._encoding_errors.append({PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS: "Error encoding %d: %s" % (i, e)})
+                    self._encoding_errors.append({PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS: \
+                                                  "Error encoding %d: %s" % (i, e)})
     
             light_meas = []
             for i in range(0, 23):
@@ -108,7 +133,8 @@ class PhsenParserDataParticle(DataParticle):
                         light_meas.append(this_meas)
                     except Exception as e:
                         light_meas.append(None)
-                        self._encoding_errors.append({PhsenParserDataParticleKey.LIGHT_MEASUREMENTS: "Error encoding (%d,%d): %s" % (i, s, e)})
+                        self._encoding_errors.append({PhsenParserDataParticleKey.LIGHT_MEASUREMENTS: \
+                                                      "Error encoding (%d,%d): %s" % (i, s, e)})
     
             # calculate the checksum and compare with the received checksum
             passed_checksum = True
@@ -162,6 +188,226 @@ class PhsenParserDataParticle(DataParticle):
         else:
             return PhsenParserDataParticle.encode_int_16(timestamp_str)
 
+class PhsenControlDataParticleKey(PhsenCommonDataParticleKey):
+    CLOCK_ACTIVE = 'clock_active'
+    RECORDING_ACTIVE = 'recording_active'
+    RECORD_END_ON_TIME = 'record_end_on_time'
+    RECORD_MEMORY_FULL = 'record_memory_full'
+    RECORD_END_ON_ERROR = 'record_end_on_error'
+    DATA_DOWNLOAD_OK = 'data_download_ok'
+    FLASH_MEMORY_OPEN = 'flash_memory_open'
+    BATTERY_LOW_PRESTART = 'battery_low_prestart'
+    BATTERY_LOW_MEASUREMENT = 'battery_low_measurement'
+    BATTERY_LOW_BLANK = 'battery_low_blank'
+    BATTERY_LOW_EXTERNAL = 'battery_low_external'
+    EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
+    EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
+    EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
+    FLASH_ERASED = 'flash_erased'
+    POWER_ON_INVALID = 'power_on_invalid'
+    NUM_DATA_RECORDS = 'num_data_records'
+    NUM_ERROR_RECORDS = 'num_error_records'
+    NUM_BYTES_STORED = 'num_bytes_stored'
+    DATA = 'data'
+    VOLTAGE_BATTERY = 'voltage_battery'
+    
+class PhsenControlDataParticle(DataParticle):
+    """
+    Class for parsing data from the mflm_phsen instrument
+    """
+
+    _data_particle_type = DataParticleType.CONTROL
+
+    def __init__(self, raw_data,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
+        super(PhsenControlDataParticle, self).__init__(raw_data,
+                                                      port_timestamp=None,
+                                                      internal_timestamp=None,
+                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                                                      quality_flag=DataParticleValue.OK,
+                                                      new_sequence=None)
+        timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
+        if not timestamp_match:
+            raise RecoverableSampleException("PhsenControlDataParticle: No regex match of " \
+                                             "timestamp [%s]" % self.raw_data[:8])
+        self._data_match = CONTROL_MATCHER.match(self.raw_data[8:])
+        if not self._data_match:
+            raise RecoverableSampleException("PhsenControlDataParticle: No regex match of " \
+                                             "parsed sample data [%s]" % self.raw_data[8:])
+
+        # use the timestamp from the sio header as internal timestamp
+        sec_since_1970 = int(self.raw_data[:8], 16)
+        self.set_internal_timestamp(unix_time=sec_since_1970)
+
+    def _build_parsed_values(self):
+        """
+        Take something in the data format and turn it into
+        a particle with the appropriate tag.
+        @throws SampleException If there is a problem with sample creation
+        """
+        result = []
+        if self._data_match:
+            control_id = self._data_match.group(2)[4:6]
+            if (control_id in DATA_CONTROL_IDS or control_id in BATT_CONTROL_IDS):
+                if len(self._data_match.group(0)) != OPTIONAL_CONTROL_LEN:
+                    raise RecoverableSampleException("PhsenControlDataParticle: for id %s size does not match %d",
+                                                     control_id, OPTIONAL_CONTROL_LEN)
+            elif len(self._data_match.group(0)) != NORMAL_CONTROL_LEN:
+                raise RecoverableSampleException("PhsenControlDataParticle: for id %s size does not match %d",
+                                                     control_id, NORMAL_CONTROL_LEN)
+
+            # calculate the checksum and compare with the received checksum
+            passed_checksum = True
+            try: 
+                chksum = PhsenParserDataParticle.encode_int_16(self._data_match.group(0)[-3:-1])
+                sum_bytes = 0
+                # subtract the 3 bytes for the '*' and unique ID, 2 for the checksum, and 1 for the last \r
+                control_len = len(self._data_match.group(0)) - 6
+                for i in range(3, control_len, 2):
+                    sum_bytes += int(self._data_match.group(0)[i:i+2], 16)
+                calc_chksum = sum_bytes & 255
+                if calc_chksum != chksum:
+                    passed_checksum = False
+                    log.debug('Calculated internal checksum %d does not match received %d', calc_chksum, chksum)
+            except Exception as e:
+                log.debug('Error calculating checksums: %s, setting passed checksum to False', e)
+                passed_checksum = False
+
+            # turn the flag value from a hex-ascii value into a string of binary values
+            try:
+                flags = bin(int(self._data_match.group(3)[8:12], 16))[2:].zfill(16)
+                valid_flags = True
+            except Exception:
+                valid_flags = False
+
+            result = [
+                self._encode_value(PhsenControlDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[:8],
+                                   PhsenParserDataParticle.encode_int_16),
+                self._encode_value(PhsenControlDataParticleKey.UNIQUE_ID, self._data_match.group(2)[0:2],
+                                   PhsenParserDataParticle.encode_int_16),
+                self._encode_value(PhsenControlDataParticleKey.RECORD_TYPE, control_id,
+                                   PhsenParserDataParticle.encode_int_16),
+                self._encode_value(PhsenControlDataParticleKey.RECORD_TIME, self._data_match.group(3)[0:8],
+                                   PhsenParserDataParticle.encode_timestamp)]
+            # if the flag is valid, fill in the values, otherwise set to None
+            if valid_flags:
+                result.extend([
+                    self._encode_value(PhsenControlDataParticleKey.CLOCK_ACTIVE, flags[0],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.RECORDING_ACTIVE, flags[1],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.RECORD_END_ON_TIME, flags[2],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.RECORD_MEMORY_FULL, flags[3],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.RECORD_END_ON_ERROR, flags[4],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.DATA_DOWNLOAD_OK, flags[5],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.FLASH_MEMORY_OPEN, flags[6],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.BATTERY_LOW_PRESTART, flags[7],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.BATTERY_LOW_MEASUREMENT, flags[8],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.BATTERY_LOW_BLANK, flags[9],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.BATTERY_LOW_EXTERNAL, flags[10],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.EXTERNAL_DEVICE1_FAULT, flags[11],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.EXTERNAL_DEVICE2_FAULT, flags[12],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.EXTERNAL_DEVICE3_FAULT, flags[13],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.FLASH_ERASED, flags[14],
+                                       bool),
+                    self._encode_value(PhsenControlDataParticleKey.POWER_ON_INVALID, flags[15],
+                                       bool)])
+            else:
+                result.extend([
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.CLOCK_ACTIVE,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.RECORDING_ACTIVE,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.RECORD_END_ON_TIME,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.RECORD_MEMORY_FULL,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.RECORD_END_ON_ERROR,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.DATA_DOWNLOAD_OK,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.FLASH_MEMORY_OPEN,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.BATTERY_LOW_PRESTART,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.BATTERY_LOW_BLANK,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.BATTERY_LOW_EXTERNAL,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.FLASH_ERASED,
+                     DataParticleKey.VALUE: None},
+                    {DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.POWER_ON_INVALID,
+                     DataParticleKey.VALUE: None}])
+            # these 3 may also have invalid hex values, allow for none when encoding 
+            # so exceptions are not thrown here
+            result.extend([
+                self._encode_value(PhsenControlDataParticleKey.NUM_DATA_RECORDS,
+                                   self._data_match.group(3)[12:18],
+                                   PhsenControlDataParticle.encode_int_16_or_none),
+                self._encode_value(PhsenControlDataParticleKey.NUM_ERROR_RECORDS,
+                                   self._data_match.group(3)[18:24],
+                                   PhsenControlDataParticle.encode_int_16_or_none),
+                self._encode_value(PhsenControlDataParticleKey.NUM_BYTES_STORED,
+                                   self._data_match.group(3)[24:30],
+                                   PhsenControlDataParticle.encode_int_16_or_none)])
+
+            # check if this is a control id that has one of the optional fields
+            if control_id in DATA_CONTROL_IDS:
+                result.append(self._encode_value(PhsenControlDataParticleKey.DATA,
+                                                 self._data_match.group(3)[30:34],
+                                                 PhsenParserDataParticle.encode_int_16))
+            else:
+                result.append({DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.DATA,
+                               DataParticleKey.VALUE: None})
+            if control_id in BATT_CONTROL_IDS:
+                result.append(self._encode_value(PhsenControlDataParticleKey.VOLTAGE_BATTERY,
+                                                 self._data_match.group(3)[30:34],
+                                                 PhsenParserDataParticle.encode_int_16))
+            else:
+                result.append({DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.VOLTAGE_BATTERY,
+                               DataParticleKey.VALUE: None})
+            result.append(self._encode_value(PhsenControlDataParticleKey.PASSED_CHECKSUM, passed_checksum,
+                                         bool))
+        return result
+
+    @staticmethod
+    def encode_int_16_or_none(int_val):
+        """
+        Use to convert from hex-ascii to int when encoding data particle values,
+        but it is not an error to not match, return None without failing encoding
+        """
+        result = None
+        try:
+            result = int(int_val, 16)
+        except Exception:
+            # the result will stay at None if we fail the encoding
+            pass
+        return result
+
 class PhsenParser(SioMuleParser):
 
     def __init__(self,
@@ -195,23 +441,43 @@ class PhsenParser(SioMuleParser):
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
-        sample_count = 0
-
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             if header_match.group(1) == 'PH':
-
-                for data_match in DATA_MATCHER.finditer(chunk):
-                    log.debug('Found data match in chunk %s', chunk[1:32])
-                    # particle-ize the data block received, return the record
-                    sample = self._extract_sample(PhsenParserDataParticle, None,
-                                                  header_match.group(3) + data_match.group(0),
-                                                  None)
-                    if sample:
-                        # create particle
-                        result_particles.append(sample)
-                        sample_count += 1
+                # start after the sio header
+                index = SIO_HEADER_BYTES
+                chunk_len = len(chunk)
+                while index < chunk_len:
+                    data_match = DATA_MATCHER.match(chunk[index:])
+                    control_match = CONTROL_MATCHER.match(chunk[index:])
+                    if data_match:
+                        log.debug('Found data match in chunk %s', chunk[1:32])
+                        # particle-ize the data block received, return the record
+                        # pre-pend the sio header timestamp to the data record (in header_match.group(3))
+                        sample = self._extract_sample(PhsenParserDataParticle, None,
+                                                      header_match.group(3) + data_match.group(0),
+                                                      None)
+                        if sample:
+                            # create particle
+                            result_particles.append(sample)
+                            sample_count += 1
+                        index += len(data_match.group(0))
+                    elif control_match:
+                        log.debug('Found control match in chunk %s', chunk[1:32])
+                        # particle-ize the data block received, return the record
+                        # pre-pend the sio header timestamp to the control record (in header_match.group(3))
+                        sample = self._extract_sample(PhsenControlDataParticle, None,
+                                                      header_match.group(3) + control_match.group(0),
+                                                      None)
+                        if sample:
+                            # create particle
+                            result_particles.append(sample)
+                            sample_count += 1
+                        index += len(control_match.group(0))
+                    else:
+                        log.warning("extra data found between records in chunk %s", chunk[1:32])
+                        index += 1
 
             self._chunk_sample_count.append(sample_count)
 
