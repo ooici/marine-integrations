@@ -201,25 +201,11 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def my_send(self, driver):
         def inner(data):
-            my_response = None
-            log.debug('my_send data: %r', data)
-            if InstrumentCommand.START1 in data:
-                my_response = Prompt.OK + NEWLINE
-            elif InstrumentCommand.START2 in data:
-                my_response = Prompt.OK + NEWLINE
-            elif InstrumentCommand.SAMPLE in data:
-                my_response = Prompt.OK + NEWLINE
-            elif InstrumentCommand.CAL in data:
-                my_response = Prompt.OK + NEWLINE
-            elif InstrumentCommand.STANDBY in data:
-                my_response = Prompt.OK + NEWLINE
-            elif InstrumentCommand.BEAT in data:
-                my_response = Prompt.BEAT + NEWLINE
+            my_response = self.responses.get(data.strip())
+            log.debug("my_send: data: %r, my_response: %r", data, my_response)
             if my_response is not None:
-                log.debug("my_send: data: %r, my_response: %r", data, my_response)
-                self._send_port_agent_packet(driver, my_response)
+                self._send_port_agent_packet(driver, my_response + NEWLINE)
                 return len(my_response)
-
         return inner
 
     responses = {
@@ -227,7 +213,7 @@ class DriverTestMixinSub(DriverTestMixin):
         InstrumentCommand.START2: Prompt.OK,
         InstrumentCommand.SAMPLE: Prompt.SAMPLE_START,
         InstrumentCommand.CAL: Prompt.OK,
-        InstrumentCommand.STANDBY: Prompt.OK,
+        InstrumentCommand.STANDBY: Prompt.OK + NEWLINE + Prompt.STANDBY,
         InstrumentCommand.BEAT: Prompt.BEAT
     }
 
@@ -245,9 +231,12 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _capabilities = {
-        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER', 'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER',
+                                'DRIVER_EVENT_START_DIRECT',
+                                'PROTOCOL_EVENT_ERROR'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
+                                'PROTOCOL_EVENT_ERROR',
                                 'DRIVER_EVENT_START_DIRECT',
                                 'PROTOCOL_EVENT_NAFREG',
                                 'PROTOCOL_EVENT_IONREG',
@@ -361,7 +350,6 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     def assert_mcu_status_particle(self, particle, verify_values=False):
-        log.debug('PRETTY PARTICLE: %s', pprint.pformat(json.loads(particle)))
         self.assert_data_particle_keys(McuStatusParticleKey, self._status_parameters)
         self.assert_data_particle_header(particle, DataParticleType.MCU_STATUS)
         self.assert_data_particle_parameters(particle, self._status_parameters, verify_values)
@@ -497,6 +485,33 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
+    def test_already_in_sequence(self):
+        sent = []
+        def wait(s, timeout=10):
+            end_time = time.time() + timeout
+            while not s in sent:
+                if time.time() > end_time:
+                    self.fail('Failed to receive expected response')
+                log.debug('test_already_in_sequence: waiting for %r', s)
+                time.sleep(.1)
+            sent.remove(s)
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        driver._connection.send.side_effect = lambda x: sent.append(x)
+        driver._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
+        driver._protocol._async_raise_fsm_event(ProtocolEvent.DISCOVER)
+        wait(InstrumentCommand.BEAT + NEWLINE)
+        self._send_port_agent_packet(driver, Prompt.BEAT + NEWLINE)
+        wait(InstrumentCommand.STANDBY + NEWLINE)
+        self._send_port_agent_packet(driver, Prompt.IN_SEQUENCE + NEWLINE)
+        wait(InstrumentCommand.ABORT + NEWLINE)
+        self._send_port_agent_packet(driver, Prompt.ABORTED + NEWLINE)
+        wait(InstrumentCommand.START1 + NEWLINE)
+        self._send_port_agent_packet(driver, Prompt.START1 + NEWLINE)
+        wait(InstrumentCommand.STANDBY + NEWLINE)
+        self._send_port_agent_packet(driver, Prompt.STANDBY + NEWLINE)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -506,14 +521,22 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
     def test_connect(self):
         self.assert_initialize_driver()
+
+    def test_start1(self):
+        self.assert_initialize_driver()
         self.assert_driver_command(Capability.START1)
         self.assert_state_change(ProtocolState.WAITING_TURBO, 60)
+        self.assert_driver_command(Capability.STANDBY)
+
+    def test_data_particle(self):
+        self.assert_initialize_driver()
+        self.assert_async_particle_generation(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=60)
 
     def test_set_bogus_parameter(self):
         self.assert_initialize_driver()
@@ -534,6 +557,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
+
+    def test_data_particle(self):
+        self.assert_enter_command_mode()
+        self.assert_particle_async(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=60)
 
     def test_direct_access_telnet_mode(self):
         """

@@ -477,9 +477,15 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         Verify we can set all parameters
         """
         self.assert_initialize_driver()
+        constraints = ParameterConstraints.dict()
+        parameters = Parameter.reverse_dict()
         startup_params = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
         for key, value in startup_params.items():
-            self.assert_set(key, value + 1)
+            if key in parameters and parameters[key] in constraints:
+                _, minimum, maximum = constraints[parameters[key]]
+                self.assert_set(key, maximum-1)
+            else:
+                self.assert_set(key, value + 1)
 
         self.assert_set_bulk(startup_params)
 
@@ -571,9 +577,16 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
-        for key, value in startup_config[DriverConfigKey.PARAMETERS].iteritems():
+        constraints = ParameterConstraints.dict()
+        parameters = Parameter.reverse_dict()
+        startup_params = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
+        for key, value in startup_params.items():
             self.assert_get_parameter(key, value)
-            self.assert_set_parameter(key, value + 1)
+            if key in parameters and parameters[key] in constraints:
+                _, minimum, maximum = constraints[parameters[key]]
+                self.assert_set_parameter(key, maximum-1)
+            else:
+                self.assert_set_parameter(key, value + 1)
 
     def test_reset(self):
         """

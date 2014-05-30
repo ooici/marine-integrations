@@ -10,7 +10,7 @@ MCU driver for the MASSP in-situ mass spectrometer
 
 import re
 import functools
-from mi.core.exceptions import SampleException, InstrumentParameterException
+from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentTimeoutException
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.log import get_logger
 from mi.core.log import get_logging_metaclass
@@ -133,6 +133,8 @@ class Prompt(BaseEnum):
     CAL_FINISHED = "M CAL end"
     NAFREG_FINISHED = "M Nafion Reg finished"
     IONREG_FINISHED = "M Ion Reg finished"
+    ABORTED = "M ABORTED"
+    IN_SEQUENCE = 'E001 already in sequence'
 
 
 class InstrumentCommand(BaseEnum):
@@ -491,6 +493,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.EXIT, self._handler_unknown_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -501,6 +504,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START1, self._handler_command_start1),
                 (ProtocolEvent.NAFREG, self._handler_command_nafreg),
                 (ProtocolEvent.IONREG, self._handler_command_ionreg),
+                (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.START1: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
@@ -657,10 +661,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         if sample:
             return
 
-        # we don't want to act on any responses in direct access mode
+        # we don't want to act on any responses in direct access or command mode
         # so just return here if that's the case...
         current_state = self.get_current_state()
-        if current_state == ProtocolState.DIRECT_ACCESS:
+        if current_state in [ProtocolState.DIRECT_ACCESS, ProtocolState.COMMAND]:
             return
 
         # These responses (may) come from the instrument asynchronously, so they are handled
@@ -707,6 +711,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         if params:
             raise InstrumentParameterException('Attempted to set unknown parameters: %r' % params)
 
+    def _abort_sequence(self):
+        """
+        Abort the current sequence.
+        Run the ASTART1 sequence to return to a known state.
+        Return to STANDBY
+        """
+        self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED)
+        self._do_cmd_resp(InstrumentCommand.START1, expected_prompt=Prompt.START1, timeout=120)
+        self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
+
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -741,6 +755,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         Enter command state.
         """
         self._do_cmd_resp(InstrumentCommand.BEAT)
+
+        try:
+            result = self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE])
+            if Prompt.STANDBY in result:
+                log.info('MCU in standby, proceeding to COMMAND')
+            elif result == Prompt.IN_SEQUENCE:
+                # wait it out or break out?
+                self._abort_sequence()
+        except InstrumentTimeoutException:
+            # something else is wrong, pass the buck to the operator
+            self._async_raise_fsm_event(ProtocolEvent.ERROR)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -947,6 +972,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         if current_state in non_sequence_states:
             # instrument is not in a sequence, go straight to standby
             self._do_cmd_resp(InstrumentCommand.STANDBY)
+        else:
+            self._abort_sequence()
 
         return next_state, (next_agent_state, result)
 

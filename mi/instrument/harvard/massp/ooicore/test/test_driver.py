@@ -543,12 +543,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
             exception_str = 'Oh no, something bad happened!'
             self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
-    def test_get(self):
+    def test_get_parameters(self):
         self.assert_initialize_driver()
         for key, value in startup_config[DriverConfigKey.PARAMETERS].iteritems():
             self.assert_get(key, value)
 
-    def test_set(self):
+    def test_set_parameters(self):
         self.assert_initialize_driver()
 
         parameters = Parameter.dict()
@@ -627,13 +627,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         if failed:
             self.fail('Failed to throw exception on missing parameter')
 
-    def test_9_acquire_sample(self):
+    def test_acquire_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.ACQUIRE_SAMPLE)
         self.assert_state_change(ProtocolState.POLL, 10)
         self.assert_state_change(ProtocolState.COMMAND, 800)
 
-    def test_9_autosample(self):
+    def test_autosample(self):
         """
         Start autosample, verify we generate three RGA status particles, indicating two
         complete sampling cycles and the start of a third...
@@ -651,14 +651,14 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_state_change(ProtocolState.COMMAND, timeout=interval)
 
     @unittest.skip('instrument MUST be in water to run this command!')
-    def test_9_nafreg(self):
+    def test_nafreg(self):
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_NAFION)
         self.assert_state_change(ProtocolState.NAFION_REGEN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
     @unittest.skip('instrument MUST be in water to run this command!')
-    def test_9_ionreg(self):
+    def test_ionreg(self):
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_ION)
         self.assert_state_change(ProtocolState.ION_REGEN, 10)

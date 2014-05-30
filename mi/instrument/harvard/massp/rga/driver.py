@@ -258,6 +258,7 @@ class RGAStatusParticle(DataParticle):
     def _build_parsed_values(self):
         result = []
         for key, value in self.raw_data.items():
+            key = 'massp_%s' % key
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
         log.debug('STATUS PARTICLE: %r', result)
@@ -650,7 +651,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # step through the list of parameters
         for key, val in params_to_set.iteritems():
             # if constraint exists, verify we have not violated it
-            constraint_key = parameters[key]
+            constraint_key = parameters.get(key)
             if constraint_key in constraints:
                 var_type, minimum, maximum = constraints[constraint_key]
                 try:
