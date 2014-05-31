@@ -29,6 +29,8 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.instrument.sunburst.driver import Prompt
@@ -56,7 +58,19 @@ from mi.instrument.sunburst.driver import SamiCapability
 #    Driver Constant Definitions
 ###
 
+## TODO: Add constant comments
+
 SAMPLE_DELAY = 240
+
+# 1/4 second
+PUMP_DURATION_UNITS = 0.250
+
+PUMP_SLEEP_SEAWATER_1375ML = 2.0
+PUMP_CYCLES_SEAWATER_1375ML = 55
+PUMP_DURATION_SEAWATER_1375ML = 1
+
+PUMP_SLEEP_REAGENT_50ML = 1.0
+PUMP_DURATION_REAGENT_50ML = 2
 
 ###
 #    Driver RegEx Definitions
@@ -134,21 +148,25 @@ class ProtocolState(SamiProtocolState):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
-
+    SEAWATER_FLUSH_1375ML = 'PROTOCOL_STATE_SEAWATER_FLUSH_1375ML'
+    REAGENT_FLUSH_50ML = 'PROTOCOL_STATE_REAGENT_FLUSH_50ML'
+    SEAWATER_FLUSH = 'PROTOCOL_STATE_SEAWATER_FLUSH'
 
 class ProtocolEvent(SamiProtocolEvent):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
-
+    SEAWATER_FLUSH_1375ML = 'DRIVER_EVENT_SEAWATER_FLUSH_1375ML'
+    REAGENT_FLUSH_50ML = 'DRIVER_EVENT_REAGENT_FLUSH_50ML'
+    SEAWATER_FLUSH = 'DRIVER_EVENT_SEAWATER_FLUSH'
 
 class Capability(SamiCapability):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
+    SEAWATER_FLUSH_1375ML = ProtocolEvent.SEAWATER_FLUSH_1375ML
+    REAGENT_FLUSH_50ML = ProtocolEvent.REAGENT_FLUSH_50ML
+    SEAWATER_FLUSH = ProtocolEvent.SEAWATER_FLUSH
 
 class DataParticleType(SamiDataParticleType):
     """
@@ -177,14 +195,14 @@ class Parameter(SamiParameter):
     MEASURE_TO_PUMP_ON = 'measure_to_pump_on'
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
+    FLUSH_CYCLES = 'flush_cycles'
 
 class InstrumentCommand(SamiInstrumentCommand):
     """
     Device specific Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
-    pass
-
+    PUMP_SEAWATER_PHSEN = 'P' + PUMP_DEIONIZED_WATER
 
 ###############################################################################
 # Data Particles
@@ -465,11 +483,270 @@ class Protocol(SamiProtocol):
         # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH_1375ML,
+            self._handler_command_seawater_flush_1375ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.REAGENT_FLUSH_50ML,
+            self._handler_command_reagent_flush_50ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH,
+            self._handler_command_seawater_flush)
+
+        # this state would be entered whenever a SEAWATER_FLUSH_1375ML event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.ENTER,
+            self._execution_state_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.EXIT,
+            self._execution_state_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.EXECUTE,
+            self._handler_seawater_flush_execute_1375ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.SUCCESS,
+            self._execution_success_to_command_state)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.TIMEOUT,
+            self._execution_timeout_to_command_state)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        # this state would be entered whenever a PUMP_REAGENT_100ML event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.ENTER,
+            self._execution_state_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.EXIT,
+            self._execution_state_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.EXECUTE,
+            self._handler_reagent_flush_execute_50ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.SUCCESS,
+            self._execution_success_to_command_state)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.TIMEOUT,
+            self._execution_timeout_to_command_state)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        # this state would be entered whenever a SEAWATER_FLUSH event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.ENTER,
+            self._execution_state_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.EXIT,
+            self._execution_state_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.EXECUTE,
+            self._handler_seawater_flush_execute)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.SUCCESS,
+            self._execution_success_to_command_state)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.TIMEOUT,
+            self._execution_timeout_to_command_state)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        self._engineering_parameters.append(Parameter.FLUSH_CYCLES)
+
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # build the chunker bot
         self._chunker = StringChunker(Protocol.sieve_function)
+
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _handler_command_seawater_flush_1375ml(self):
+        """
+        Flush with seawater
+        """
+
+        log.debug('Protocol._handler_command_seawater_flush_1375ml()')
+
+        next_state = ProtocolState.SEAWATER_FLUSH_1375ML
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_reagent_flush_50ml(self):
+        """
+        Flush with reagent
+        """
+
+        log.debug('Protocol._handler_command_reagent_flush_50ml()')
+
+        next_state = ProtocolState.REAGENT_FLUSH_50ML
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_seawater_flush(self):
+        """
+        Flush with seawater
+        """
+
+        log.debug('Protocol._handler_command_seawater_flush()')
+
+        next_state = ProtocolState.SEAWATER_FLUSH
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Seawater flush 1375 ml handlers.
+    ########################################################################
+
+    def _handler_seawater_flush_execute_1375ml(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            pump_100ml_cycles = self._param_dict.get(Pco2wSamiParameter.PUMP_100ML_CYCLES)
+            log.debug('Protocol._handler_seawater_flush_execute_1375ml(): pump 100ml cycles = %s' % pump_100ml_cycles)
+
+            flush_duration = PUMP_DURATION_50ML
+            flush_duration_str = str(flush_duration)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            log.debug('Protocol._handler_seawater_flush_execute_1375ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 5 seconds to timeout make sure pump completes.
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+
+            for pump_num in range(pump_100ml_cycles):
+                start_time = time.time()
+                self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('Protocol._handler_seawater_flush_execute_1375ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+                start_time = time.time()
+                self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('Protocol._handler_seawater_flush_execute_1375ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+            # Make sure pump is off
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('Protocol._handler_seawater_flush_execute_1375ml(): SUCCESS')
+            self._async_raise_fsm_event(Pco2wProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Protocol._handler_seawater_flush_execute_1375ml(): TIMEOUT')
+            self._async_raise_fsm_event(Pco2wProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Reagent flush 100 ml handlers.
+    ########################################################################
+
+    def _handler_reagent_flush_execute_50ml(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            pump_100ml_cycles = self._param_dict.get(Pco2wSamiParameter.PUMP_100ML_CYCLES)
+            log.debug('Protocol._handler_reagent_flush_enter_50ml(): pump 50ml cycles = %s' % pump_100ml_cycles)
+
+            flush_duration = PUMP_DURATION_50ML
+            flush_duration_str = str(flush_duration)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            log.debug('Protocol._handler_reagent_flush_enter_50ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 5 seconds to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+
+            for pump_num in range(pump_100ml_cycles):
+                start_time = time.time()
+                self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('Protocol._handler_reagent_flush_enter_50ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+                start_time = time.time()
+                self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('Protocol._handler_reagent_flush_enter_50ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+            # Make sure pump is off
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('Protocol._handler_reagent_flush_enter_50ml(): SUCCESS')
+            self._async_raise_fsm_event(Pco2wProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Protocol._handler_reagent_flush_enter_50ml(): TIMEOUT')
+            self._async_raise_fsm_event(Pco2wProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Seawater flush ml handlers.
+    ########################################################################
+
+    def _handler_seawater_flush_execute(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            pump_100ml_cycles = self._param_dict.get(Pco2wSamiParameter.PUMP_100ML_CYCLES)
+            log.debug('Protocol._handler_seawater_flush_execute(): pump 100ml cycles = %s' % pump_100ml_cycles)
+
+            flush_duration = PUMP_DURATION_50ML
+            flush_duration_str = str(flush_duration)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            log.debug('Protocol._handler_seawater_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 5 seconds to timeout make sure pump completes.
+            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+
+            for pump_num in range(pump_100ml_cycles):
+                start_time = time.time()
+                self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('Protocol._handler_seawater_flush_execute(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+                start_time = time.time()
+                self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
+                pump_time = time.time() - start_time
+                log.debug('Protocol._handler_seawater_flush_execute(): pump num = %s, pump time = %s' % (pump_num, pump_time))
+                time.sleep(PUMP_SLEEP_50ML)
+
+            # Make sure pump is off
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('Protocol._handler_seawater_flush_execute(): SUCCESS')
+            self._async_raise_fsm_event(Pco2wProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Protocol._handler_seawater_flush_execute(): TIMEOUT')
+            self._async_raise_fsm_event(Pco2wProtocolEvent.TIMEOUT)
+
+        return None, None
 
     def _filter_capabilities(self, events):
         """
@@ -513,6 +790,21 @@ class Protocol(SamiProtocol):
 
         if sample:
             self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
+
+    ########################################################################
+    # Build Command
+    ########################################################################
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+
+        log.debug('Protocol._build_command_dict')
+
+        SamiProtocol._build_command_dict(self)
+        self._cmd_dict.add(Capability.SEAWATER_FLUSH_1375ML, display_name="seawater flush 1375 ml")
+        self._cmd_dict.add(Capability.REAGENT_FLUSH_50ML, display_name="reagent flush 50 ml")
 
         ####################################################################
         # Build Parameter dictionary
@@ -720,6 +1012,26 @@ class Protocol(SamiProtocol):
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='salinity delay')
+
+        self._param_dict.add(Parameter.FLUSH_CYCLES, r'flush cycles = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='seawater 1375ml and reagent 50ml flush cycles')
+
+        self._param_dict.add(Parameter.FLUSH_DURATION, r'Flush duration = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='flush duration')
 
     def _get_specific_configuration_string_parameters(self):
         log.debug('Protocol._build_configuration_string_specific()')

@@ -461,23 +461,23 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
                                          'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML',
                                          'DRIVER_EVENT_REAGENT_FLUSH_100ML',
                                          'DRIVER_EVENT_RUN_EXTERNAL_PUMP'],
-        ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+        ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+        ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.DEIONIZED_WATER_FLUSH_100ML: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+        ProtocolState.DEIONIZED_WATER_FLUSH_100ML: ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.REAGENT_FLUSH_100ML:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+        ProtocolState.REAGENT_FLUSH_100ML:         ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.RUN_EXTERNAL_PUMP:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
+        ProtocolState.RUN_EXTERNAL_PUMP:     ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
@@ -487,25 +487,25 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
                                          'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
                                          'DRIVER_EVENT_STOP_DIRECT'],
-        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
+        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_EXECUTE',
                                           'PROTOCOL_EVENT_SUCCESS',
                                           'PROTOCOL_EVENT_TIMEOUT',
                                           'DRIVER_EVENT_ACQUIRE_STATUS',
                                           'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                           'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
-        ProtocolState.POLLED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
+        ProtocolState.POLLED_BLANK_SAMPLE: ['PROTOCOL_EVENT_EXECUTE',
                                             'PROTOCOL_EVENT_SUCCESS',
                                             'PROTOCOL_EVENT_TIMEOUT',
                                             'DRIVER_EVENT_ACQUIRE_STATUS',
                                             'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                             'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
-        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_TAKE_SAMPLE',
+        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_EXECUTE',
                                            'PROTOCOL_EVENT_SUCCESS',
                                            'PROTOCOL_EVENT_TIMEOUT',
                                            'DRIVER_EVENT_ACQUIRE_STATUS',
                                            'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                            'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
-        ProtocolState.SCHEDULED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
+        ProtocolState.SCHEDULED_BLANK_SAMPLE: ['PROTOCOL_EVENT_EXECUTE',
                                                'PROTOCOL_EVENT_SUCCESS',
                                                'PROTOCOL_EVENT_TIMEOUT',
                                                'DRIVER_EVENT_ACQUIRE_STATUS',
@@ -897,60 +897,34 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_queued_command(self):
         """
-        Verify commands are queued while samples are being taken
+        Verify status is queued while samples are being taken
         """
         self.assert_initialize_driver()
 
-        ## Queue sample and status
+        ## Queue status
         self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
 
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=2, timeout=220)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=2, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=1, timeout=220)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=1, timeout=60)
         self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
-
-        ## Queue blank sample and status
-        self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
 
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_queued_autosample(self):
         """
-        Verify commands are queued while samples are being taken
+        Verify status is queued while samples are being taken
         """
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
 
-        ## Queue sample and status
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        ## Queue status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=2, timeout=220)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=2, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=1, timeout=220)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=1, timeout=60)
         self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
-
-        ## Queue blank sample and status
-        self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
 
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 

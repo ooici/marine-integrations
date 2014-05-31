@@ -442,19 +442,19 @@ class Protocol(Pco2wProtocol):
         # occurred while in the COMMAND state
         self._protocol_fsm.add_handler(
             ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.ENTER,
-            self._handler_run_external_pump_enter)
+            self._execution_state_enter)
         self._protocol_fsm.add_handler(
             ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.EXIT,
-            self._handler_run_external_pump_exit)
+            self._execution_state_exit)
         self._protocol_fsm.add_handler(
-            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.TAKE_SAMPLE,
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.EXECUTE,
             self._handler_run_external_pump_execute)
         self._protocol_fsm.add_handler(
             ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.SUCCESS,
-            self._handler_run_external_pump_success)
+            self._execution_success_to_command_state)
         self._protocol_fsm.add_handler(
             ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.TIMEOUT,
-            self._handler_run_external_pump_timeout)
+            self._execution_timeout_to_command_state)
         ## Events to queue - intended for schedulable events occurring when a sample is being taken
         self._protocol_fsm.add_handler(
             ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.ACQUIRE_STATUS,
@@ -504,54 +504,6 @@ class Protocol(Pco2wProtocol):
     ########################################################################
     # Run external pump handlers.
     ########################################################################
-
-    def _handler_run_external_pump_enter(self, *args, **kwargs):
-        """
-        Enter state.
-        """
-
-        log.debug('Protocol._handler_run_external_pump_enter')
-
-        self._async_raise_fsm_event(ProtocolEvent.TAKE_SAMPLE)
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_run_external_pump_exit(self, *args, **kwargs):
-        """
-        Exit state.
-        """
-
-        log.debug('Protocol._handler_run_external_pump_exit')
-
-    def _handler_run_external_pump_success(self, *args, **kwargs):
-        """
-        Successfully received a dev1 sample (external pump) from SAMI
-        """
-
-        log.debug('Protocol._handler_run_external_pump_success')
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ProtocolState.COMMAND
-
-        self._async_agent_state_change(next_agent_state)
-
-        return (next_state, next_agent_state)
-
-    def _handler_run_external_pump_timeout(self, *args, **kwargs):
-        """
-        Dev1 sample (external pump) timeout occurred.
-        """
-
-        log.error('Protocol._handler_run_external_pump_timeout(): Run external pump timeout occurred')
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        self._async_agent_state_change(next_agent_state)
-
-        return (next_state, next_agent_state)
 
     def _handler_run_external_pump_execute(self, *args, **kwargs):
         """
