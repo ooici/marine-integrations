@@ -186,6 +186,7 @@ SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
                   "Spec Lght av sd mi ma , 22308 (+/- 12009) [  455:52004]\r\n" \
                   "$Ok"
 
+
 ###############################################################################
 #                        DATA PARTICLE TEST MIXIN      	                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -201,19 +202,19 @@ SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
 class DriverTestMixinSub(DriverTestMixin):
 
     _reference_sample_parameters = {
-        "frame_type" : {'type': unicode, 'value': "SDF"},
-        "serial_number" : {'type': unicode, 'value': "0344"},
-        "date_of_sample" : {'type': int, 'value': 2014125},
-        "time_of_sample" : {'type': float, 'value': 21.278082},
-        "nitrate_concentration" : {'type': float, 'value': 0.00},
-        "nutnr_nitrogen_in_nitrate" : {'type': float, 'value': 0.0000},
-        "nutnr_absorbance_at_254_nm" : {'type': float, 'value': 0.0000},
-        "nutnr_absorbance_at_350_nm" : {'type': float, 'value': 0.0000},
-        "nutnr_bromide_trace" : {'type': float, 'value': 0.00},
-        "nutnr_spectrum_average" : {'type': int, 'value': 476},
-        "nutnr_dark_value_used_for_fit" : {'type': int, 'value': 0},
-        "nutnr_integration_time_factor" : {'type': int, 'value': 1},
-        "spectral_channels" : {'type': list, 'value': [475,483,494,465,487,490,488,
+        "frame_type": {'type': unicode, 'value': "SDF"},
+        "serial_number": {'type': unicode, 'value': "0344"},
+        "date_of_sample": {'type': int, 'value': 2014125},
+        "time_of_sample": {'type': float, 'value': 21.278082},
+        "nitrate_concentration": {'type': float, 'value': 0.00},
+        "nutnr_nitrogen_in_nitrate": {'type': float, 'value': 0.0000},
+        "nutnr_absorbance_at_254_nm": {'type': float, 'value': 0.0000},
+        "nutnr_absorbance_at_350_nm": {'type': float, 'value': 0.0000},
+        "nutnr_bromide_trace": {'type': float, 'value': 0.00},
+        "nutnr_spectrum_average": {'type': int, 'value': 476},
+        "nutnr_dark_value_used_for_fit": {'type': int, 'value': 0},
+        "nutnr_integration_time_factor": {'type': int, 'value': 1},
+        "spectral_channels": {'type': list, 'value': [475,483,494,465,487,490,488,
                     477,465,471,477,476,475,469,477,482,485,485,481,481,474,467,484,472,469,483,489,488,484,497,488,
                     482,484,474,461,455,485,469,495,481,485,474,487,464,491,477,464,485,492,492,475,485,478,479,477,
                     465,455,471,482,486,482,480,486,478,484,488,480,485,485,473,480,481,485,462,469,466,455,487,488,
@@ -225,25 +226,25 @@ class DriverTestMixinSub(DriverTestMixin):
                     469,473,463,477,466,473,485,489,486,476,471,475,470,455,471,456,459,467,457,467,477,467,475,489,
                     485,484,470,489,482,481,474,471,479,479,468,479,481,484,480,491,468,479,474,474,468,471,477,480,
                     490,484,493,480,485,464,469,477,276]},
-        "temp_interior" : {'type': float, 'value': 0.0},
-        "temp_spectrometer" : {'type': float, 'value': 0.0},
-        "temp_lamp" : {'type': float, 'value': -99.0},
-        "lamp_time" : {'type': int, 'value': 172578},
-        "humidity" : {'type': float, 'value': 6.2},
-        "voltage_main" : {'type': float, 'value': 12.0},
-        "voltage_lamp" : {'type': float, 'value': 0.1},
-        "nutnr_voltage_int" : {'type': float, 'value': 5.0},
-        "nutnr_current_main" : {'type': float, 'value': 54.0},
-        "aux_fitting_1" : {'type': float, 'value': 0.00},
-        "aux_fitting_2" : {'type': float, 'value': 0.00},
-        "nutnr_fit_base_1" : {'type': float, 'value': 0.0000},
-        "nutnr_fit_base_2" : {'type': float, 'value': 0.000000},
-        "nutnr_fit_rmse" : {'type': float, 'value': 0.0000000},
+        "temp_interior": {'type': float, 'value': 0.0},
+        "temp_spectrometer": {'type': float, 'value': 0.0},
+        "temp_lamp": {'type': float, 'value': -99.0},
+        "lamp_time": {'type': int, 'value': 172578},
+        "humidity": {'type': float, 'value': 6.2},
+        "voltage_main": {'type': float, 'value': 12.0},
+        "voltage_lamp": {'type': float, 'value': 0.1},
+        "nutnr_voltage_int": {'type': float, 'value': 5.0},
+        "nutnr_current_main": {'type': float, 'value': 54.0},
+        "aux_fitting_1": {'type': float, 'value': 0.00},
+        "aux_fitting_2": {'type': float, 'value': 0.00},
+        "nutnr_fit_base_1": {'type': float, 'value': 0.0000},
+        "nutnr_fit_base_2": {'type': float, 'value': 0.000000},
+        "nutnr_fit_rmse": {'type': float, 'value': 0.0000000},
         #"ctd_time" : {'type': int, 'value': 13},
         #"ctd_salinity" : {'type': float, 'value': 524288.0},
         #"ctd_temperature" : {'type': float, 'value': 1048576.0},
         #"ctd_pressure" : {'type': float, 'value': 2097152.0},
-        "checksum" : {'type': int, 'value': 203}
+        "checksum": {'type': int, 'value': 203}
     }
 
     _reference_status_parameters = {
@@ -931,23 +932,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
             elif(x['value_id'] == 'checksum'): self.assertTrue(isinstance(x['value'], int))
             else: self.assertFalse(True) # Shouldn't get here.  If we have then we aren't checking a parameter
 
-    # override common unit tests that have been tested already or don't apply
-    @unittest.skip("SKIP")
-    def test_instrument_agent_common_state_model_lifecycle(self):
-        pass
-
-    @unittest.skip("SKIP")
-    def test_reset(self):
-        pass # done in Integration Testing
-
-    # @unittest.skip("SKIP")
-    # def test_direct_access_telnet_closed(self):
-    #     pass # tested in direct access
-
-    @unittest.skip("SKIP")
-    def test_agent_save_and_restore(self):
-        pass # skip for now
-
     @unittest.skip("SKIP")
     def test_direct_access_exit_from_autosample(self):
         """
@@ -957,7 +941,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     #@unittest.skip("SKIP")
     def test_discover(self):
-
+        """
+        Override - instrument will always start up in Command mode.  Instrument will instruct instrument into
+        Command mode as well.
+        """
         # Verify the agent is in command mode
         self.assert_enter_command_mode()
 
@@ -973,32 +960,31 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         # When the driver reconnects it should be streaming
         self.assert_discover(ResourceAgentState.COMMAND)
 
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the
+               physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
 
-        #pass # discover only ever discovers to command mode
+        ###
+        #   Add instrument specific code here.
+        ###
+        self.tcp_client.send_data("get opermode\r\n")
+        self.tcp_client.expect("SUNA>")
 
-    # def test_direct_access_telnet_mode(self):
-    #     """
-    #     @brief This test manually tests that the Instrument Driver properly supports direct access to the
-    #            physical instrument. (telnet mode)
-    #     """
-    #     self.assert_direct_access_start_telnet()
-    #     self.assertTrue(self.tcp_client)
-    #
-    #     ###
-    #     #   Add instrument specific code here.
-    #     ###
-    #     self.tcp_client.send_data("get opermode\r\n")
-    #     self.tcp_client.expect("SUNA>")
-    #
-    #     self.tcp_client.send_data("set opermode Continuous\r\n")
-    #     self.tcp_client.expect("SUNA>")
-    #
-    #     self.assert_direct_access_stop_telnet()
-    #
-    #     self.assert_enter_command_mode()
-    #
-    #     # assert that getting param values works
-    #     self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
+        self.tcp_client.send_data("set opermode Continuous\r\n")
+        self.tcp_client.expect("SUNA>")
+
+        self.assert_direct_access_stop_telnet()
+
+        self.assert_enter_command_mode()
+
+        # assert that getting param values works
+        self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
+
+        #todo - will want to test most if not all params
 
     def test_poll(self):
         """

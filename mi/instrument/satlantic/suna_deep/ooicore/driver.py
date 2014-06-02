@@ -16,7 +16,6 @@ log = get_logger()
 
 import re
 import json
-import time
 import pprint
 
 from mi.core.common import BaseEnum, Units
@@ -299,9 +298,9 @@ class Parameter(DriverParameter):
 
     #Data Processing
     TEMP_COMPENSATION = "tempcomp"
-    FIT_WAVELENGTH_LOW = "wfit_low"  # read only
-    FIT_WAVELENGTH_HIGH = "wfit_hgh"  # read only
-    FIT_WAVELENGTH_BOTH = "wfitboth"
+    FIT_WAVELENGTH_LOW = "wfit_low"     # read/get only
+    FIT_WAVELENGTH_HIGH = "wfit_hgh"    # read/get only
+    FIT_WAVELENGTH_BOTH = "wfitboth"    # set only
     CONCENTRATIONS_IN_FIT = "fitconcs"
     BASELINE_ORDER = "bl_order"
     DARK_CORRECTION_METHOD = "drkcormt"
@@ -316,7 +315,6 @@ class Parameter(DriverParameter):
     #Driver Parameters
     NUM_LIGHT_SAMPLES = "nmlgtspl"
     TIME_LIGHT_SAMPLE = "tlgtsmpl"
-    #ACTIVECALFILE_NAME = "actvcalf"
 
     #Data Acquisition
     REF_MIN_AT_LAMP_ON = "reflimit"  # read only
@@ -362,6 +360,8 @@ class Prompt(BaseEnum):
     ERROR = r'.*\r\n\$Error: (\d+)\s+'
     WAKEUP = "Charging power loss protector."
 
+    SAMPLING = 'SAT'
+
 
 class InstrumentCommand(BaseEnum):
     """
@@ -403,6 +403,37 @@ class LastSampleState(BaseEnum):
     AUTO = "auto"
 
 
+class SUNASampleDataParticleKey(BaseEnum):
+    FRAME_TYPE = "frame_type"
+    SERIAL_NUM = "serial_number"
+    SAMPLE_DATE = "date_of_sample"
+    SAMPLE_TIME = "time_of_sample"
+    NITRATE_CONCEN = "nitrate_concentration"
+    NITROGEN = "nutnr_nitrogen_in_nitrate"
+    ABSORB_254 = "nutnr_absorbance_at_254_nm"
+    ABSORB_350 = "nutnr_absorbance_at_350_nm"
+    BROMIDE_TRACE = "nutnr_bromide_trace"
+    SPECTRUM_AVE = "nutnr_spectrum_average"
+    FIT_DARK_VALUE = "nutnr_dark_value_used_for_fit"
+    TIME_FACTOR = "nutnr_integration_time_factor"
+    SPECTRAL_CHANNELS = "spectral_channels"
+    TEMP_SPECTROMETER = "temp_spectrometer"
+    TEMP_INTERIOR = "temp_interior"
+    TEMP_LAMP = "temp_lamp"
+    LAMP_TIME = "lamp_time"
+    HUMIDITY = "humidity"
+    VOLTAGE_MAIN = "voltage_main"
+    VOLTAGE_LAMP = "voltage_lamp"
+    VOLTAGE_INT = "nutnr_voltage_int"
+    CURRENT_MAIN = "nutnr_current_main"
+    FIT_1 = "aux_fitting_1"
+    FIT_2 = "aux_fitting_2"
+    FIT_BASE_1 = "nutnr_fit_base_1"
+    FIT_BASE_2 = "nutnr_fit_base_2"
+    FIT_RMSE = "nutnr_fit_rmse"
+    CHECKSUM = "checksum"
+
+
 ###############################################################################
 # Data Particles
 ###############################################################################
@@ -417,61 +448,136 @@ class SUNASampleDataParticle(DataParticle):
                                   self.raw_data)
         try:
             parsed_data_list = [
-                str(matched.group(1)),      # frame type
-                str(matched.group(2)),      # serial number
-                int(matched.group(3)),      # date year day-of-year
-                float(matched.group(4)),    # time, hours of day
-                float(matched.group(5)),    # nitrogen concentration
-                float(matched.group(6)),    # nitrogen in nitrate
-                float(matched.group(7)),    # absorbance at 254nm
-                float(matched.group(8)),    # absorbance at 350nm
-                float(matched.group(9)),    # bromide trace
-                int(matched.group(10)),     # spectrum average
-                int(matched.group(11)),     # dark value used for fit
-                int(matched.group(12)),     # integration time factor
-                [int(s) for s in matched.group(13).split(',')],    # spectrum channels
-                float(matched.group(14)),   # internal temperature
-                float(matched.group(15)),   # spectrometer temperature
-                float(matched.group(16)),   # lamp temperature
-                int(matched.group(17)),     # cumulative lamp-on time
-                float(matched.group(18)),   # relative humidity
-                float(matched.group(19)),   # main voltage
-                float(matched.group(20)),   # lamp voltage
-                float(matched.group(21)),   # internal voltage
-                float(matched.group(22)),   # main current
-                float(matched.group(23)),   # fit aux 1
-                float(matched.group(24)),   # fit aux 2
-                float(matched.group(25)),   # fit base 1
-                float(matched.group(26)),   # fit base 2
-                float(matched.group(27)),   # fit RMSE
-                #int(matched.group(28)),     # CTD time
-                #float(matched.group(29)),   # CTD salinity
-                #float(matched.group(30)),   # CTD temperature
-                #float(matched.group(31)),   # CTD pressure
-                int(matched.group(28))]     # check sum
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(1))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: str(matched.group(2))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SAMPLE_DATE, DataParticleKey.VALUE: int(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SAMPLE_TIME, DataParticleKey.VALUE: float(matched.group(4))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.NITRATE_CONCEN, DataParticleKey.VALUE: float(matched.group(5))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.NITROGEN, DataParticleKey.VALUE: float(matched.group(6))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.ABSORB_254, DataParticleKey.VALUE: float(matched.group(7))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.ABSORB_350, DataParticleKey.VALUE: float(matched.group(8))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.BROMIDE_TRACE, DataParticleKey.VALUE: float(matched.group(9))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SPECTRUM_AVE, DataParticleKey.VALUE: int(matched.group(10))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_DARK_VALUE, DataParticleKey.VALUE: int(matched.group(11))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TIME_FACTOR, DataParticleKey.VALUE: int(matched.group(12))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SPECTRAL_CHANNELS, DataParticleKey.VALUE: [int(s) for s in matched.group(13).split(',')]},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TEMP_SPECTROMETER, DataParticleKey.VALUE: float(matched.group(14))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TEMP_INTERIOR, DataParticleKey.VALUE: float(matched.group(15))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TEMP_LAMP, DataParticleKey.VALUE: float(matched.group(16))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(17))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.HUMIDITY, DataParticleKey.VALUE: float(matched.group(18))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.VOLTAGE_MAIN, DataParticleKey.VALUE: float(matched.group(19))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.VOLTAGE_LAMP, DataParticleKey.VALUE: float(matched.group(20))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.VOLTAGE_INT, DataParticleKey.VALUE: float(matched.group(21))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.CURRENT_MAIN, DataParticleKey.VALUE: float(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_1, DataParticleKey.VALUE: float(matched.group(23))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_2, DataParticleKey.VALUE: float(matched.group(24))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_BASE_1, DataParticleKey.VALUE: float(matched.group(25))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_BASE_2, DataParticleKey.VALUE: float(matched.group(26))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_RMSE, DataParticleKey.VALUE: float(matched.group(27))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.CHECKSUM, DataParticleKey.VALUE: int(matched.group(28))}]
 
         except ValueError:
             raise SampleException("ValueError while parsing data [%s]" %
                                   self.raw_data)
 
-        data_names = [
-            "frame_type", "serial_number", "date_of_sample",
-            "time_of_sample", "nitrate_concentration", "nutnr_nitrogen_in_nitrate",
-            "nutnr_absorbance_at_254_nm", "nutnr_absorbance_at_350_nm", "nutnr_bromide_trace",
-            "nutnr_spectrum_average", "nutnr_dark_value_used_for_fit", "nutnr_integration_time_factor",
-            "spectral_channels", "temp_interior", "temp_spectrometer",
-            "temp_lamp", "lamp_time", "humidity",
-            "voltage_main", "voltage_lamp", "nutnr_voltage_int", "nutnr_current_main",
-            "aux_fitting_1", "aux_fitting_2", "nutnr_fit_base_1", "nutnr_fit_base_2", "nutnr_fit_rmse",
-            #"ctd_time", "ctd_salinity", "ctd_temp", "ctd_pressure",
-            "checksum"]
+        return parsed_data_list
 
-        result = []
-        for (data_name, parsed_data) in zip(data_names, parsed_data_list):
-            result.append({DataParticleKey.VALUE_ID: data_name,
-                           DataParticleKey.VALUE: parsed_data})
 
-        return result
+class SUNAStatusDataParticleKey(BaseEnum):
+    SENSOR_TYPE = "nutnr_sensor_type"
+    SENSOR_VERSION = "nutnr_sensor_version"
+    SERIAL_NUMBER = "serial_number"
+    INTEGRATED_WIPER = "nutnr_integrated_wiper"
+    EXT_POWER_PORT = "nutnr_ext_power_port"
+    LAMP_SHUTTER = "nutnr_lamp_shutter"
+    REF_DETECTOR = "nutnr_reference_detector"
+    PROTECTR = "protectr",
+    SUPER_CAPACITORS = "nutnr_super_capacitors"
+    PSB_SUPERVISOR = "nutnr_psb_supervisor"
+    USB_COMM = "nutnr_usb_communication"
+    RELAY_MODULE = "nutnr_relay_module"
+    SDII2_INTERFACE = "nutnr_sdi12_interface"
+    ANALOG_OUTPUT = "nutnr_analog_output"
+    DATA_LOGGING = "nutnr_int_data_logging"
+    APF_INTERFACE = "nutnr_apf_interface"
+    SCHEDULING = "nutnr_scheduling"
+    LAMP_FAN = "nutnr_lamp_fan"
+    ADDR_LAMP_TEMP = "nutnr_sensor_address_lamp_temp"
+    ADDR_SPEC_TEMP = "nutnr_sensor_address_spec_temp"
+    SENSOR_ADDR_HOUS_TEMP = "nutnr_sensor_address_hous_temp"
+    SERIAL_NUM_SPECT = "nutnr_serial_number_spec"
+    SERIAL_NUM_LAMP = "nutnr_serial_number_lamp"
+    STUPSTUS = "stupstus",
+    BRNHOURS = "brnhours"
+    BRNNUMBER = "brnnumbr"
+    DARK_HOURS = "drkhours"
+    DARK_NUM = "drknumbr"
+    CHRLDURA = "chrldura"
+    CHRDDURA = "chrddura"
+    BAUD_RATE = "baud_rate"
+    MSG_LEVEL = "nutnr_msg_level"
+    MSG_FILE_SIZE = "nutnr_msg_file_size"
+    DATA_FILE_SIZE = "nutnr_data_file_size"
+    OUTPUT_FRAME_TYPE = "nutnr_output_frame_type"
+    LOGGING_FRAME_TYPE = "nutnr_logging_frame_type"
+    OUTPUT_DARK_FRAME = "nutnr_output_dark_frame"
+    LOGGING_DARK_FRAME = "nutnr_logging_dark_frame"
+    TIMERESL = "timeresl"
+    LOG_FILE_TYPE = "nutnr_log_file_type"
+    ACQCOUNT = "acqcount",
+    CNTCOUNT = "cntcount",
+    NITRATE_MIN = "nutnr_dac_nitrate_min"
+    NITRATE_MAX = "nutnr_dac_nitrate_max"
+    WAVELENGTH_LOW = "nutnr_data_wavelength_low"
+    WAVELENGTH_HIGH = "nutnr_data_wavelength_high"
+    SDI12_ADDR = "nutnr_sdi12_address"
+    DATAMODE = "datamode"
+    OPERATING_MODE = "operating_mode"
+    OPERATION_CTRL = "nutnr_operation_ctrl"
+    EXTL_DEV = "nutnr_extl_dev"
+    PRERUN_TIME = "nutnr_ext_dev_prerun_time"
+    DEV_DURING_ACQ = "nutnr_ext_dev_during_acq"
+    WATCHDOG_TIME = "nutnr_watchdog_timer"
+    COUNTDOWN = "nutnr_countdown"
+    FIXED_TIME = "nutnr_fixed_time_duration"
+    PERIODIC_INTERVAL = "nutnr_periodic_interval"
+    PERIODIC_OFFSET = "nutnr_periodic_offset"
+    PERIODIC_DURATION = "nutnr_periodic_duration"
+    PERIODIC_SAMPLES = "nutnr_periodic_samples"
+    POLLED_TIMEOUT = "nutnr_polled_timeout"
+    APF_TIMEOUT = "nutnr_apf_timeout"
+    STABILITY_TIME = "nutnr_stability_time"
+    MIN_LAMP_ON = "nutnr_ref_min_lamp_on"
+    SKIP_SLEEP = "nutnr_skip_sleep"
+    SWITCHOFF_TEMP = "nutnr_lamp_switchoff_temp"
+    SPEC_PERIOD = "nutnr_spec_integration_period"
+    DRKAVERS = "drkavers"
+    LGTAVERS = "lgtavers"
+    REFSAMPLES = "refsmpls"
+    DARK_SAMPLES = "nutnr_dark_samples",
+    LIGHT_SAMPLES = "nutnr_light_samples"
+    DARK_DURATION = "nutnr_dark_duration"
+    LIGHT_DURATION = "nutnr_light_duration"
+    TEMP_COMP = "nutnr_temp_comp",
+    SALINITY_FIT = "nutnr_salinity_fit"
+    BROMIDE_TRACING = "nutnr_bromide_tracing"
+    BASELINE_ORDER = "nutnr_baseline_order"
+    CONCENTRATIONS_FIT = "nutnr_concentrations_fit"
+    DARK_CORR_METHOD = "nutnr_dark_corr_method"
+    DRKCOEFS = "drkcoefs"
+    DAVGPRM_0 = "davgprm0"
+    DAVGPRM_1 = "davgprm1"
+    DAVGPRM_2 = "davgprm2"
+    DAVGPRM_3 = "davgprm3"
+    ABSORBANCE_CUTOFF = "nutnr_absorbance_cutoff"
+    TIME_ADJ = "nutnr_int_time_adj"
+    TIME_FACTOR = "nutnr_int_time_factor"
+    TIME_STEP = "nutnr_int_time_step"
+    TIME_MAX = "nutnr_int_time_max"
+    FIT_WAVE_LOW = "nutnr_fit_wavelength_low"
+    FIT_WAVE_HIGH = "nutnr_fit_wavelength_high"
+    LAMP_TIME = "lamp_time"
 
 
 class SUNAStatusDataParticle(DataParticle):
@@ -481,70 +587,133 @@ class SUNAStatusDataParticle(DataParticle):
         matched = SUNA_STATUS_REGEX.match(self.raw_data)
 
         if not matched:
-            raise SampleException("No regex match for status [%s]" %
-                                  self.raw_data)
+            raise SampleException("No regex match for status [%s]" % self.raw_data)
         try:
             parsed_data_list = [
-                str(matched.group(1)), str(matched.group(2)), int(matched.group(3)), str(matched.group(4)),
-                str(matched.group(5)), str(matched.group(6)), str(matched.group(7)), str(matched.group(8)),
-                str(matched.group(9)), str(matched.group(10)), str(matched.group(11)), str(matched.group(12)),
-                str(matched.group(13)), str(matched.group(14)), str(matched.group(15)), str(matched.group(16)),
-                str(matched.group(17)), str(matched.group(18)), str(matched.group(19)), str(matched.group(20)),
-                str(matched.group(21)), int(matched.group(22)), str(matched.group(23)), str(matched.group(24)),
-                int(matched.group(25)), int(matched.group(26)), int(matched.group(27)), int(matched.group(28)),
-                int(matched.group(29)), int(matched.group(30)), int(matched.group(31)),
-                str(matched.group(32)), int(matched.group(33)), int(matched.group(34)), str(matched.group(35)),
-                str(matched.group(36)), str(matched.group(37)), str(matched.group(38)), str(matched.group(39)),
-                str(matched.group(40)), int(matched.group(41)), int(matched.group(42)), float(matched.group(43)),
-                float(matched.group(44)), float(matched.group(45)), float(matched.group(46)), int(matched.group(47)),
-                str(matched.group(48)), str(matched.group(49)), str(matched.group(50)), str(matched.group(51)),
-                int(matched.group(52)), str(matched.group(53)), str(matched.group(54)), int(matched.group(55)),
-                int(matched.group(56)), str(matched.group(57)), int(matched.group(58)), int(matched.group(59)),
-                int(matched.group(60)), int(matched.group(61)), float(matched.group(62)), int(matched.group(63)),
-                int(matched.group(64)), str(matched.group(65)), int(matched.group(66)), int(matched.group(67)),
-                int(matched.group(68)), int(matched.group(69)), int(matched.group(70)), int(matched.group(71)),
-                int(matched.group(72)), int(matched.group(73)), int(matched.group(74)), str(matched.group(75)),
-                str(matched.group(76)), str(matched.group(77)), int(matched.group(78)), int(matched.group(79)),
-                str(matched.group(80)), str(matched.group(81)), float(matched.group(82)), float(matched.group(83)),
-                float(matched.group(84)), float(matched.group(85)), float(matched.group(86)), str(matched.group(87)),
-                int(matched.group(88)), int(matched.group(89)), int(matched.group(90)), float(matched.group(91)),
-                float(matched.group(92)), int(matched.group(93))
-            ]
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_TYPE, DataParticleKey.VALUE: str(matched.group(1))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_VERSION, DataParticleKey.VALUE: str(matched.group(2))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUMBER, DataParticleKey.VALUE: int(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.INTEGRATED_WIPER, DataParticleKey.VALUE: str(matched.group(4))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXT_POWER_PORT, DataParticleKey.VALUE: str(matched.group(5))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_SHUTTER, DataParticleKey.VALUE: str(matched.group(6))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.REF_DETECTOR, DataParticleKey.VALUE: str(matched.group(7))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PROTECTR, DataParticleKey.VALUE: str(matched.group(8))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SUPER_CAPACITORS, DataParticleKey.VALUE: str(matched.group(9))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PSB_SUPERVISOR, DataParticleKey.VALUE: str(matched.group(10))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.USB_COMM, DataParticleKey.VALUE: str(matched.group(11))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.RELAY_MODULE, DataParticleKey.VALUE: str(matched.group(12))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SDII2_INTERFACE, DataParticleKey.VALUE: str(matched.group(13))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ANALOG_OUTPUT, DataParticleKey.VALUE: str(matched.group(14))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DATA_LOGGING, DataParticleKey.VALUE: str(matched.group(15))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.APF_INTERFACE, DataParticleKey.VALUE: str(matched.group(16))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SCHEDULING, DataParticleKey.VALUE: str(matched.group(17))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_FAN, DataParticleKey.VALUE: str(matched.group(18))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ADDR_LAMP_TEMP, DataParticleKey.VALUE: str(matched.group(19))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ADDR_SPEC_TEMP, DataParticleKey.VALUE: str(matched.group(20))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_ADDR_HOUS_TEMP, DataParticleKey.VALUE: str(matched.group(21))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_SPECT, DataParticleKey.VALUE: int(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_LAMP, DataParticleKey.VALUE: str(matched.group(23))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.STUPSTUS, DataParticleKey.VALUE: str(matched.group(24))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BRNHOURS, DataParticleKey.VALUE: int(matched.group(25))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BRNNUMBER, DataParticleKey.VALUE: int(matched.group(26))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_HOURS, DataParticleKey.VALUE: int(matched.group(27))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_NUM, DataParticleKey.VALUE: int(matched.group(28))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CHRLDURA, DataParticleKey.VALUE: int(matched.group(29))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CHRDDURA, DataParticleKey.VALUE: int(matched.group(30))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BAUD_RATE, DataParticleKey.VALUE: int(matched.group(31))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.MSG_LEVEL, DataParticleKey.VALUE: str(matched.group(32))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.MSG_FILE_SIZE, DataParticleKey.VALUE: int(matched.group(33))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DATA_FILE_SIZE, DataParticleKey.VALUE: int(matched.group(34))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OUTPUT_FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(35))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LOGGING_FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(36))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OUTPUT_DARK_FRAME, DataParticleKey.VALUE: str(matched.group(37))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LOGGING_DARK_FRAME, DataParticleKey.VALUE: str(matched.group(38))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIMERESL, DataParticleKey.VALUE: str(matched.group(39))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LOG_FILE_TYPE, DataParticleKey.VALUE: str(matched.group(40))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ACQCOUNT, DataParticleKey.VALUE: int(matched.group(41))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CNTCOUNT, DataParticleKey.VALUE: int(matched.group(42))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.NITRATE_MIN, DataParticleKey.VALUE: float(matched.group(43))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.NITRATE_MAX, DataParticleKey.VALUE: float(matched.group(44))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.WAVELENGTH_LOW, DataParticleKey.VALUE: float(matched.group(45))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.WAVELENGTH_HIGH, DataParticleKey.VALUE: float(matched.group(46))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SDI12_ADDR, DataParticleKey.VALUE: int(matched.group(47))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DATAMODE, DataParticleKey.VALUE: str(matched.group(48))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OPERATING_MODE, DataParticleKey.VALUE: str(matched.group(49))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OPERATION_CTRL, DataParticleKey.VALUE: str(matched.group(50))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXTL_DEV, DataParticleKey.VALUE: str(matched.group(51))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PRERUN_TIME, DataParticleKey.VALUE: int(matched.group(52))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DEV_DURING_ACQ, DataParticleKey.VALUE: str(matched.group(53))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.WATCHDOG_TIME, DataParticleKey.VALUE: str(matched.group(54))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.COUNTDOWN, DataParticleKey.VALUE: int(matched.group(55))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIXED_TIME, DataParticleKey.VALUE: int(matched.group(56))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_INTERVAL, DataParticleKey.VALUE: str(matched.group(57))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_OFFSET, DataParticleKey.VALUE: int(matched.group(58))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_DURATION, DataParticleKey.VALUE: int(matched.group(59))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_SAMPLES, DataParticleKey.VALUE: int(matched.group(60))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.POLLED_TIMEOUT, DataParticleKey.VALUE: int(matched.group(61))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.APF_TIMEOUT, DataParticleKey.VALUE: float(matched.group(62))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.STABILITY_TIME, DataParticleKey.VALUE: int(matched.group(63))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.MIN_LAMP_ON, DataParticleKey.VALUE: int(matched.group(64))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SKIP_SLEEP, DataParticleKey.VALUE: str(matched.group(65))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SWITCHOFF_TEMP, DataParticleKey.VALUE: int(matched.group(66))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SPEC_PERIOD, DataParticleKey.VALUE: int(matched.group(67))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DRKAVERS, DataParticleKey.VALUE: int(matched.group(68))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LGTAVERS, DataParticleKey.VALUE: int(matched.group(69))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.REFSAMPLES, DataParticleKey.VALUE: int(matched.group(70))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_SAMPLES, DataParticleKey.VALUE: int(matched.group(71))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LIGHT_SAMPLES, DataParticleKey.VALUE: int(matched.group(72))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_DURATION, DataParticleKey.VALUE: int(matched.group(73))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LIGHT_DURATION, DataParticleKey.VALUE: int(matched.group(74))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TEMP_COMP, DataParticleKey.VALUE: str(matched.group(75))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SALINITY_FIT, DataParticleKey.VALUE: str(matched.group(76))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BROMIDE_TRACING, DataParticleKey.VALUE: str(matched.group(77))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BASELINE_ORDER, DataParticleKey.VALUE: int(matched.group(78))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CONCENTRATIONS_FIT, DataParticleKey.VALUE: int(matched.group(79))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_CORR_METHOD, DataParticleKey.VALUE: str(matched.group(80))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DRKCOEFS, DataParticleKey.VALUE: str(matched.group(81))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_0, DataParticleKey.VALUE: float(matched.group(82))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_1, DataParticleKey.VALUE: float(matched.group(83))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_2, DataParticleKey.VALUE: float(matched.group(84))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_3, DataParticleKey.VALUE: float(matched.group(85))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ABSORBANCE_CUTOFF, DataParticleKey.VALUE: float(matched.group(86))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_ADJ, DataParticleKey.VALUE: str(matched.group(87))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_FACTOR, DataParticleKey.VALUE: int(matched.group(88))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_STEP, DataParticleKey.VALUE: int(matched.group(89))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_MAX, DataParticleKey.VALUE: int(matched.group(90))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_LOW, DataParticleKey.VALUE: float(matched.group(91))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_HIGH, DataParticleKey.VALUE: float(matched.group(92))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(93))}]
 
         except ValueError:
-            raise SampleException("ValueError while parsing data [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
-        data_names = [
-            "nutnr_sensor_type", "nutnr_sensor_version", "serial_number", "nutnr_integrated_wiper",
-            "nutnr_ext_power_port", "nutnr_lamp_shutter", "nutnr_reference_detector", "protectr",
-            "nutnr_super_capacitors", "nutnr_psb_supervisor", "nutnr_usb_communication", "nutnr_relay_module",
-            "nutnr_sdi12_interface", "nutnr_analog_output", "nutnr_int_data_logging", "nutnr_apf_interface",
-            "nutnr_scheduling", "nutnr_lamp_fan", "nutnr_sensor_address_lamp_temp", "nutnr_sensor_address_spec_temp",
-            "nutnr_sensor_address_hous_temp", "nutnr_serial_number_spec", "nutnr_serial_number_lamp", "stupstus",
-            "brnhours", "brnnumbr", "drkhours", "drknumbr", "chrldura", "chrddura", "baud_rate", "nutnr_msg_level",
-            "nutnr_msg_file_size", "nutnr_data_file_size", "nutnr_output_frame_type", "nutnr_logging_frame_type",
-            "nutnr_output_dark_frame", "nutnr_logging_dark_frame", "timeresl", "nutnr_log_file_type", "acqcount",
-            "cntcount", "nutnr_dac_nitrate_min", "nutnr_dac_nitrate_max", "nutnr_data_wavelength_low",
-            "nutnr_data_wavelength_high", "nutnr_sdi12_address", "datamode", "operating_mode", "nutnr_operation_ctrl",
-            "nutnr_extl_dev", "nutnr_ext_dev_prerun_time", "nutnr_ext_dev_during_acq", "nutnr_watchdog_timer",
-            "nutnr_countdown", "nutnr_fixed_time_duration", "nutnr_periodic_interval", "nutnr_periodic_offset",
-            "nutnr_periodic_duration", "nutnr_periodic_samples", "nutnr_polled_timeout", "nutnr_apf_timeout",
-            "nutnr_satbility_time", "nutnr_ref_min_lamp_on", "nutnr_skip_sleep", "nutnr_lamp_switchoff_temp",
-            "nutnr_spec_integration_period", "drkavers", "lgtavers", "refsmpls", "nutnr_dark_samples",
-            "nutnr_light_samples", "nutnr_dark_duration", "nutnr_light_duration", "nutnr_temp_comp",
-            "nutnr_salinity_fit", "nutnr_bromide_tracing", "nutnr_baseline_order", "nutnr_concentrations_fit",
-            "nutnr_dark_corr_method", "drkcoefs", "davgprm0", "davgprm1", "davgprm2", "davgprm3",
-            "nutnr_absorbance_cutoff", "nutnr_int_time_adj", "nutnr_int_time_factor", "nutnr_int_time_step",
-            "nutnr_int_time_max", "nutnr_fit_wavelength_low", "nutnr_fit_wavelength_high", "lamp_time"
-        ]
+        return parsed_data_list
 
-        result = []
-        for (data_name, parsed_data) in zip(data_names, parsed_data_list):
-            result.append({DataParticleKey.VALUE_ID: data_name,
-                           DataParticleKey.VALUE: parsed_data})
 
-        return result
+class SUNATestDataParticleKey(BaseEnum):
+    EXT_DISK_SIZE = "nutnr_external_disk_size"
+    EXT_DISK_FREE = "nutnr_external_disk_free"
+    INT_DISK_SIZE = "nutnr_internal_disk_size"
+    INT_DISK_FREE = "nutnr_internal_disk_free"
+    ODOMETER = "nutnr_fiberlite_odometer"
+    TEMP_HS = "nutnr_temperatures_hs"
+    TEMP_SP = "nutnr_temperatures_sp"
+    TEMP_LM = "nutnr_temperatures_lm"
+    HUMIDITY = "nutnr_humidity"
+    ELECTRICAL_MN = "nutnr_electrical_mn"
+    ELECTRICAL_BD = "nutnr_electrical_bd"
+    ELECTRICAL_PR = "nutnr_electrical_pr"
+    ELECTRICAL_C = "nutnr_electrical_c"
+    LAMP_POWER = "nutnr_lamp_power"
+    SPEC_DARK_AV = "nutnr_spec_dark_av"
+    SPEC_DARK_SD = "nutnr_spec_dark_sd"
+    SPEC_DARK_MI = "nutnr_spec_dark_mi"
+    SPEC_DARK_MA = "nutnr_spec_dark_ma"
+    SPEC_LIGHT_AV = "nutnr_spec_lght_av"
+    SPEC_LIGHT_SD = "nutnr_spec_lght_sd"
+    SPEC_LIGHT_MI = "nutnr_spec_lght_mi"
+    SPEC_LIGHT_MA = "nutnr_spec_lght_ma"
+    TEST_RESULT = "nutnr_test_result"
 
 
 class SUNATestDataParticle(DataParticle):
@@ -558,37 +727,35 @@ class SUNATestDataParticle(DataParticle):
                                   self.raw_data)
         try:
             parsed_data_list = [
-                int(matched.group(1)), int(matched.group(2)),
-                int(matched.group(3)), int(matched.group(4)),
-                str(matched.group(5)),
-                float(matched.group(6)), float(matched.group(7)), float(matched.group(8)),
-                float(matched.group(9)),
-                float(matched.group(10)), float(matched.group(11)), float(matched.group(12)), float(matched.group(13)),
-                int(matched.group(14)),
-                int(matched.group(15)), int(matched.group(16)), int(matched.group(17)), int(matched.group(18)),
-                int(matched.group(19)), int(matched.group(20)), int(matched.group(21)), int(matched.group(22)),
-                str(matched.group(23))
-            ]
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(1))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(2))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(4))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ODOMETER, DataParticleKey.VALUE: str(matched.group(5))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_HS, DataParticleKey.VALUE: float(matched.group(6))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_SP, DataParticleKey.VALUE: float(matched.group(7))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_LM, DataParticleKey.VALUE: float(matched.group(8))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.HUMIDITY, DataParticleKey.VALUE: float(matched.group(9))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_MN, DataParticleKey.VALUE: float(matched.group(10))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_BD, DataParticleKey.VALUE: float(matched.group(11))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_PR, DataParticleKey.VALUE: float(matched.group(12))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_C, DataParticleKey.VALUE: float(matched.group(13))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.LAMP_POWER, DataParticleKey.VALUE: int(matched.group(14))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_AV, DataParticleKey.VALUE: int(matched.group(15))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_SD, DataParticleKey.VALUE: int(matched.group(16))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_MI, DataParticleKey.VALUE: int(matched.group(17))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_MA, DataParticleKey.VALUE: int(matched.group(18))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_AV, DataParticleKey.VALUE: int(matched.group(19))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_SD, DataParticleKey.VALUE: int(matched.group(20))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_MI, DataParticleKey.VALUE: int(matched.group(21))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_MA, DataParticleKey.VALUE: int(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEST_RESULT, DataParticleKey.VALUE: str(matched.group(23))}]
 
         except ValueError:
             raise SampleException("ValueError while parsing data [%s]" %
                                   self.raw_data)
 
-        data_names = [
-            "nutnr_external_disk_size", "nutnr_external_disk_free", "nutnr_internal_disk_size",
-            "nutnr_internal_disk_free", "nutnr_fiberlite_odometer", "nutnr_temperatures_hs", "nutnr_temperatures_sp",
-            "nutnr_temperatures_lm", "nutnr_humidity", "nutnr_electrical_mn", "nutnr_electrical_bd",
-            "nutnr_electrical_pr", "nutnr_electrical_c", "nutnr_lamp_power", "nutnr_spec_dark_av", "nutnr_spec_dark_sd",
-            "nutnr_spec_dark_mi", "nutnr_spec_dark_ma", "nutnr_spec_lght_av", "nutnr_spec_lght_sd",
-            "nutnr_spec_lght_mi", "nutnr_spec_lght_ma", "nutnr_test_result"
-        ]
-
-        result = []
-        for (data_name, parsed_data) in zip(data_names, parsed_data_list):
-            result.append({DataParticleKey.VALUE_ID: data_name,
-                           DataParticleKey.VALUE: parsed_data})
-
-        return result
+        return parsed_data_list
 
 
 ###############################################################################
@@ -641,6 +808,9 @@ class Protocol(CommandResponseInstrumentProtocol):
      #logging level
     __metaclass__ = get_logging_metaclass(log_level='debug')
 
+    #used for storing parameter values before they are changed during DA, used for restoring system
+    da_param_restore = []
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -680,6 +850,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        #self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
 
         # POLL State
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_poll_enter)
@@ -714,17 +885,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.GET, self._parse_get_response)
         self._add_response_handler(InstrumentCommand.SET, self._parse_set_response)
+        self._add_response_handler(InstrumentCommand.CMD_LINE, self._parse_cmd_line_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
-        # Add sample handlers.
-
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
     @staticmethod
@@ -1151,19 +1320,19 @@ class Protocol(CommandResponseInstrumentProtocol):
             if self._extract_sample(SUNASampleDataParticle, SUNA_SAMPLE_REGEX, chunk, timestamp):
                 return
         except SampleException:
-            log.debug("==== ERROR WITH SAMPLE")
+            raise SampleException('Error extracting SUNASampleDataParticle')
 
         try:
             if self._extract_sample(SUNAStatusDataParticle, SUNA_STATUS_REGEX, chunk, timestamp):
                 return
         except SampleException:
-            log.debug("==== ERROR WITH STATUS")
+            raise SampleException('Error extracting SUNAStatusDataParticle')
 
         try:
             if self._extract_sample(SUNATestDataParticle, SUNA_TEST_REGEX, chunk, timestamp):
                 return
         except SampleException:
-            log.debug("==== ERROR WITH TEST")
+            raise SampleException('Error extracting SUNATestDataParticle')
 
     def _filter_capabilities(self, events):
         """
@@ -1171,38 +1340,38 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return [x for x in events if Capability.has(x)]
 
-    def _do_cmd_no_resp(self, cmd, *args, **kwargs):
-        """
-        Issue a command to the instrument after clearing of
-        buffers. No response is handled as a result of the command.
-
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup timeout.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built.
-        """
-        timeout = kwargs.get('timeout', 15)
-        write_delay = kwargs.get('write_delay', 0)
-
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
-        cmd_line = build_handler(cmd, *args)
-        log.debug("AK DEBUG SENDING CMD LINE %s", cmd_line)
-
-        # Clear line and prompt buffers for result.
-        #self._linebuf = ''
-        #self._promptbuf = ''
-
-        # Send command.
-        log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
-        if write_delay == 0:
-            self._connection.send(cmd_line)
-        else:
-            for char in cmd_line:
-                self._connection.send(char)
-                time.sleep(write_delay)
+    # def _do_cmd_no_resp(self, cmd, *args, **kwargs):
+    #     """
+    #     Issue a command to the instrument after clearing of
+    #     buffers. No response is handled as a result of the command.
+    #
+    #     @param cmd The command to execute.
+    #     @param args positional arguments to pass to the build handler.
+    #     @param timeout=timeout optional wakeup timeout.
+    #     @raises InstrumentTimeoutException if the response did not occur in time.
+    #     @raises InstrumentProtocolException if command could not be built.
+    #     """
+    #     timeout = kwargs.get('timeout', 15)
+    #     write_delay = kwargs.get('write_delay', 0)
+    #
+    #     build_handler = self._build_handlers.get(cmd, None)
+    #     if not build_handler:
+    #         raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
+    #     cmd_line = build_handler(cmd, *args)
+    #     log.debug("AK DEBUG SENDING CMD LINE %s", cmd_line)
+    #
+    #     # Clear line and prompt buffers for result.
+    #     #self._linebuf = ''
+    #     #self._promptbuf = ''
+    #
+    #     # Send command.
+    #     log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
+    #     if write_delay == 0:
+    #         self._connection.send(cmd_line)
+    #     else:
+    #         for char in cmd_line:
+    #             self._connection.send(char)
+    #             time.sleep(write_delay)
 
     ########################################################################
     # Unknown handlers.
@@ -1223,7 +1392,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result)
         """
         self._wakeup(20)
-        self._send_dollar()
+        log.debug('SENT WAKEUP')
+        ret_prompt = self._send_dollar()
+        log.debug('SENT DOLLAR prompt = %r', ret_prompt)
+
+        #came from autosampling/polling, need to resend '$' one more time to get it into command mode
+        if ret_prompt == Prompt.POLLED:
+            ret_prompt = self._send_dollar()
+            log.debug('SENT DOLLAR prompt = %r', ret_prompt)
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
@@ -1336,11 +1512,13 @@ class Protocol(CommandResponseInstrumentProtocol):
                     result[param] = self.num_samples
                 elif param == Parameter.TIME_LIGHT_SAMPLE:
                     result[param] = self.time_samples
-
                 # handle instrument parameters
                 else:
-                    type_func = PARAM_TYPE_FUNC.get(param)
-                    result[param] = type_func(self._get_from_instrument(param))  # we always get str type from instrument
+                    if param == Parameter.FIT_WAVELENGTH_BOTH:  #wfitboth is a set only param and cannot be read from the instrument
+                        result[param] = self._param_dict.get(Parameter.FIT_WAVELENGTH_BOTH)
+                    else:
+                        type_func = PARAM_TYPE_FUNC.get(param)
+                        result[param] = type_func(self._get_from_instrument(param))  # we always get str type from instrument
 
         log.debug("Get finished, next: %s, result: %s,", next_state, result)
         return next_state, result
@@ -1422,10 +1600,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
+        #get the DA params and store their values for future use in restoring the state after leaving DA
+        da_params = self.get_direct_access_params()
+        self.da_param_restore = {}
+        for param in da_params:
+            self.da_param_restore[param] = self._param_dict.get(param)
+
+        log.debug(' SAVED da_param_restore %r', self.da_param_restore)
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
 
     def _handler_direct_access_execute_direct(self, data):
@@ -1449,6 +1634,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
+
+        #restore DA params
+        log.debug("da_param_restore = %s,", self.da_param_restore)
+        self._set_params(self.da_param_restore, startup=True)
+
 
         return next_state, (next_agent_state, result)
 
@@ -1684,6 +1874,22 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return response
 
+    def _parse_cmd_line_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a $ command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The response as is, None is there is no response
+        """
+        for search_prompt in (Prompt.POLLED, Prompt.COMMAND):
+            start = response.find(search_prompt)
+            if start != -1:
+                log.debug("_parse_cmd_line_response: response=%r", response[start:start+len(search_prompt)])
+                return response[start:start+len(search_prompt)]
+
+        return None
+
     ########################################################################
     # Helpers
     ########################################################################
@@ -1705,6 +1911,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             except InstrumentProtocolException as ex:
                 pass   # GET failed, so retry again
         else:
+            log.debug('FAILED TO GET PARAM: %s', param)
             # retries exhausted, so raise exception
             raise ex
 
@@ -1722,8 +1929,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("Sending $ char")
 
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE, timeout=timeout,
-                             expected_prompt=Prompt.COMMAND)
+        ret_prompt = self._do_cmd_resp(InstrumentCommand.CMD_LINE, timeout=timeout,
+                             expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
+
+        return ret_prompt
 
     def _set_params(self, *args, **kwargs):
         """
