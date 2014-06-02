@@ -549,8 +549,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     """
     __metaclass__ = get_logging_metaclass(log_level='info')
 
-    da_param_restore = []
-
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -588,6 +586,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.RUN_WIPER_SCHEDULED, self._handler_autosample_run_wiper)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_autosample_acquire_status)
+        #GET is only used for configuring the driver when it discovers that it is in AUTOSAMPLE
+        #will not be shown on the State Diagram
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -905,9 +906,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, *args, timeout=TIMEOUT,
                                    response_regex=MNU_REGEX_MATCHER)
 
-        self._protocol_fsm.current_state = DriverProtocolState.COMMAND
-        self._handler_command_enter(*args, **kwargs)
-        self._protocol_fsm.current_state = DriverProtocolState.AUTOSAMPLE
+        self._init_params()
 
         self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, *args, timeout=TIMEOUT,
                                    response_regex=SAMPLE_REGEX_MATCHER)
@@ -1025,13 +1024,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
-        da_params = self.get_direct_access_params()
-        self.da_param_restore = {}
-        for param in da_params:
-            self.da_param_restore[param] = self._param_dict.get(param)
-
-        log.debug(' SAVED da_param_restore %r', self.da_param_restore)
-
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
@@ -1071,17 +1063,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         for param in da_params:
 
             log.debug('Trying to reset param %s', param)
-
-            #if setting the mvs interval or clock sync interval, do not send a command
-            if param == Parameter.RUN_WIPER_INTERVAL or param == Parameter.RUN_CLOCK_SYNC_INTERVAL or param == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
-                self._param_dict.set_value(param, self.da_param_restore.get(param))
-            #else if setting the clock or date, run clock sync command
-            elif param == Parameter.TIME or param == Parameter.DATE:
-                self._sync_clock()
-            #else perform regular command
-            else:
-                self._param_dict.set_value(param, self.da_param_restore.get(param))
-                self._do_cmd_resp(InstrumentCommand.SET, param, self.da_param_restore.get(param), response_regex=MNU_REGEX_MATCHER)
+            self._do_cmd_resp(InstrumentCommand.SET, param, self._param_dict.get(param), response_regex=MNU_REGEX_MATCHER)
 
         if next_state == DriverProtocolState.AUTOSAMPLE:
             #go into autosample mode
