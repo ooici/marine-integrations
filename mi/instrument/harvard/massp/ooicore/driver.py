@@ -424,9 +424,8 @@ class Protocol(InstrumentProtocol):
         """
         name = kwargs.get('name')
         if name is not None and name in self._slave_protocols:
-            log.debug('name: %s states: %s %s', name, self.get_current_state(), self._get_slave_states())
             # only react to slave protocol events once we have transitioned out of unknown
-            if self.get_current_state() != ProtocolState.UNKNOWN:
+            if self.get_current_state() != ProtocolState.UNKNOWN or event == DriverAsyncEvent.ERROR:
                 if event == DriverAsyncEvent.STATE_CHANGE:
                     self._react()
                 elif event == DriverAsyncEvent.CONFIG_CHANGE:
@@ -434,6 +433,7 @@ class Protocol(InstrumentProtocol):
                     pass
                 else:
                     # pass the event up to the instrument agent
+                    log.debug('Passing event up to the Instrument agent: %r %r %r', event, args, kwargs)
                     self._driver_event(event, *args)
 
     def _build_param_dict(self):
