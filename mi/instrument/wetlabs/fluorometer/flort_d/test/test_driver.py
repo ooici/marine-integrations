@@ -37,7 +37,8 @@ from mi.core.time import get_timestamp_delayed
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver
+from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver, FlortDMNU_Particle, FlortDMET_Particle, \
+    FlortDSample_Particle
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import DataParticleType
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentCommand
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import ProtocolState
@@ -62,7 +63,7 @@ from mi.instrument.wetlabs.fluorometer.flort_d.test.sample_data import SAMPLE_MN
 from mi.instrument.wetlabs.fluorometer.flort_d.test.sample_data import SAMPLE_SAMPLE_RESPONSE
 from mi.instrument.wetlabs.fluorometer.flort_d.test.sample_data import SAMPLE_MET_RESPONSE
 
-from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import InstrumentCommandException, SampleException
 
 ###
 #   Driver parameters for the tests
@@ -77,9 +78,9 @@ InstrumentDriverTestCase.initialize(
 
     driver_startup_config={
         DriverConfigKey.PARAMETERS:
-            {Parameter.RUN_WIPER_INTERVAL: '00:00:10',
-             Parameter.RUN_CLOCK_SYNC_INTERVAL: '00:00:10',
-             Parameter.RUN_ACQUIRE_STATUS_INTERVAL: '00:00:10'}}
+            {Parameter.RUN_WIPER_INTERVAL: '00:10:00',
+             Parameter.RUN_CLOCK_SYNC_INTERVAL: '00:10:00',
+             Parameter.RUN_ACQUIRE_STATUS_INTERVAL: '00:10:00'}}
 )
 
 #################################### RULES ####################################
@@ -245,16 +246,6 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.FLORTD_SAMPLE)
         self.assert_data_particle_parameters(data_particle, self._flortD_sample_parameters, verify_values)
 
-    # def assert_param_not_equal(self, param, value):
-    #     """
-    #     Verify the parameter is not equal to the value passed.  Used to determine if a READ ONLY param value
-    #     has changed (it should not).
-    #     """
-    #     getParams = [param]
-    #     result = self.instrument_agent_client.get_resource(getParams, timeout=10)
-    #     log.debug("Asserting param: %s does not equal %s", param, value)
-    #     self.assertNotEqual(result[param], value)
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -317,6 +308,19 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_SAMPLE_RESPONSE, 32)
         self.assert_chunker_combined_sample(chunker, SAMPLE_SAMPLE_RESPONSE)
 
+    def test_corrupt_data_sample(self):
+        particle = FlortDMNU_Particle(SAMPLE_MNU_RESPONSE.replace('Ave 1', 'Ave foo'))
+        with self.assertRaises(SampleException):
+            particle.generate()
+
+        particle = FlortDMET_Particle(SAMPLE_MET_RESPONSE.replace('Sig_1', 'Sig_8'))
+        with self.assertRaises(SampleException):
+            particle.generate()
+
+        particle = FlortDSample_Particle(SAMPLE_SAMPLE_RESPONSE.replace('700', 'foo'))
+        with self.assertRaises(SampleException):
+            particle.generate()
+
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -356,8 +360,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER], #,
-                                         #ProtocolEvent.START_DIRECT],
+            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER],
 
             ProtocolState.COMMAND:      [ProtocolEvent.GET,
                                          ProtocolEvent.SET,
@@ -487,25 +490,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         cmd = protocol._build_simple_command('$run')
         self.assertEqual(cmd, '$run' + NEWLINE)
 
-        #parameters - do a subset
+        #parameters
         cmd = protocol._build_single_parameter_command('$ave', Parameter.MEASUREMENTS_PER_REPORTED, 14)
         self.assertEqual(cmd, '$ave 14' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$m2d', Parameter.MEASUREMENT_2_DARK_COUNT, 34)
         self.assertEqual(cmd, '$m2d 34' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$m1s', Parameter.MEASUREMENT_1_SLOPE, 23.1341)
         self.assertEqual(cmd, '$m1s 23.1341' + NEWLINE)
-        # cmd = protocol._build_single_parameter_command('$int', Parameter.SAMPLING_INTERVAL, 3)
-        # self.assertEqual(cmd, '$int 3' + NEWLINE)
-        # cmd = protocol._build_single_parameter_command('$ser', Parameter.SERIAL_NUM, '1.232.1231F')
-        # self.assertEqual(cmd, '$ser 1.232.1231F' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$dat', Parameter.DATE, '041014')
         self.assertEqual(cmd, '$dat 041014' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$clk', Parameter.TIME, '010034')
         self.assertEqual(cmd, '$clk 010034' + NEWLINE)
-        # cmd = protocol._build_single_parameter_command('$int', Parameter.SAMPLING_INTERVAL, '110034')
-        # self.assertEqual(cmd, '$int 110034' + NEWLINE)
-        # cmd = protocol._build_single_parameter_command('$mst', Parameter.MANUAL_START_TIME, '012134')
-        # self.assertEqual(cmd, '$mst 012134' + NEWLINE)
 
 
 ###############################################################################
@@ -700,7 +695,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         # verify the setting got restored.
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
         self.assert_get_parameter(Parameter.MEASUREMENTS_PER_PACKET, 0)
-        self.assert_get_parameter(Parameter.MEASUREMENTS_PER_REPORTED, 1)
+        self.assert_get_parameter(Parameter.MEASUREMENTS_PER_REPORTED, 18)
         self.assert_get_parameter(Parameter.PREDEFINED_OUTPUT_SEQ, 0)
         self.assert_get_parameter(Parameter.MANUAL_MODE, 0)
         self.assert_get_parameter(Parameter.RECORDING_MODE, 0)
@@ -742,7 +737,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         Verify Direct Access can start autosampling for the instrument, and if stopping DA, the
         driver will resort to Autosample State. Also, testing disconnect
         """
-        #todo - broken
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
@@ -759,7 +753,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         """
         start and stop autosample
         """
-        #todo - broken
         self.assert_enter_command_mode()
 
         self.assert_start_autosample()
@@ -770,16 +763,22 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         Verify that all parameters can be get/set properly.  This includes ensuring that
         read only parameters cannot be set.
         """
-
         self.assert_enter_command_mode()
 
+        #read/write
         self.assert_set_parameter(Parameter.MEASUREMENTS_PER_REPORTED, 20, verify=True)
 
+        #read only
         self.assert_get_parameter(Parameter.MEASUREMENTS_PER_PACKET, 0)
         self.assert_get_parameter(Parameter.PREDEFINED_OUTPUT_SEQ, 0)
         self.assert_get_parameter(Parameter.PACKETS_PER_SET, 0)
         self.assert_get_parameter(Parameter.RECORDING_MODE, 0)
         self.assert_get_parameter(Parameter.MANUAL_MODE, 0)
+        self.assert_get_parameter(Parameter.RUN_WIPER_INTERVAL, "00:10:00")
+        self.assert_get_parameter(Parameter.RUN_CLOCK_SYNC_INTERVAL, "00:10:00")
+        self.assert_get_parameter(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:10:00")
+
+        #NOTE: these parameters have no default values and cannot be tested
         #self.assert_get_parameter(Parameter.MEASUREMENT_1_DARK_COUNT, 10)
         #self.assert_get_parameter(Parameter.MEASUREMENT_2_DARK_COUNT, 20)
         #self.assert_get_parameter(Parameter.MEASUREMENT_3_DARK_COUNT, 30)
@@ -794,9 +793,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         #self.assert_get_parameter(Parameter.MANUAL_START_TIME, "15:10:45")
         #self.assert_get_parameter(Parameter.INTERNAL_MEMORY, 512)
         #self.assert_get_parameter(Parameter.BAUD_RATE, 2422)
-        self.assert_get_parameter(Parameter.RUN_WIPER_INTERVAL, "00:10:00")
-        self.assert_get_parameter(Parameter.RUN_CLOCK_SYNC_INTERVAL, "00:10:00")
-        self.assert_get_parameter(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:10:00")
 
     def test_get_capabilities(self):
         """
@@ -815,7 +811,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
                                                    ProtocolEvent.START_AUTOSAMPLE,
                                                    ProtocolEvent.START_DIRECT,
                                                    ProtocolEvent.RUN_WIPER],
-                                                   #ProtocolEvent.SET],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }

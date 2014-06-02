@@ -214,7 +214,7 @@ RUN_REGEX_MATCHER = re.compile(RUN_REGEX, re.DOTALL)
 MET_REGEX = r"(Sig_1\S*).*?(Sig_2\S*).*?(Sig_3,counts,,SO,\S*?,\d+)"
 MET_REGEX_MATCHER = re.compile(MET_REGEX, re.DOTALL)
 
-TIME_INTERVAL = r"[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"
+TIME_INTERVAL = r"blahblahblahfakeregexdon'tmatchme"
 
 SAMPLE_REGEX = r"(\d+/\d+/\d+\s+\d+:\d+:\d+(\s+\d+){7}\r\n)"
 SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX)
@@ -280,28 +280,30 @@ class FlortDMNU_Particle(DataParticle):
         log.debug("%% IN FlortDMNU_Particle:_build_parsed_values")
         log.debug("raw data = %r", self.raw_data)
 
-        serial_num = str(re.compile(self.LINE01).search(self.raw_data).group(1))
-        firmware_ver = str(re.compile(self.LINE02).search(self.raw_data).group(1))
-        ave = int(re.compile(self.LINE03).search(self.raw_data).group(1))
-        pkt = int(re.compile(self.LINE04).search(self.raw_data).group(1))
-        m1d = int(re.compile(self.LINE05).search(self.raw_data).group(1))
-        m2d = int(re.compile(self.LINE06).search(self.raw_data).group(1))
-        m3d = int(re.compile(self.LINE07).search(self.raw_data).group(1))
-        m1s = float(re.compile(self.LINE08).search(self.raw_data).group(1))
-        m2s = float(re.compile(self.LINE09).search(self.raw_data).group(1))
-        m3s = float(re.compile(self.LINE10).search(self.raw_data).group(1))
-        seq = int(re.compile(self.LINE11).search(self.raw_data).group(1))
-        rat = int(re.compile(self.LINE12).search(self.raw_data).group(1))
-        set = int(re.compile(self.LINE13).search(self.raw_data).group(1))
-        rec = int(re.compile(self.LINE14).search(self.raw_data).group(1))
-        man = int(re.compile(self.LINE15).search(self.raw_data).group(1))
-        interval = str(re.compile(self.LINE16).search(self.raw_data).group(1))
-        dat = str(re.compile(self.LINE17).search(self.raw_data).group(1))
-        clk = str(re.compile(self.LINE18).search(self.raw_data).group(1))
-        mst = str(re.compile(self.LINE19).search(self.raw_data).group(1))
-        mem = int(re.compile(self.LINE20).search(self.raw_data).group(1))
+        try:
 
-        result = [{DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.SERIAL_NUM, DataParticleKey.VALUE: serial_num},
+            serial_num = str(re.compile(self.LINE01).search(self.raw_data).group(1))
+            firmware_ver = str(re.compile(self.LINE02).search(self.raw_data).group(1))
+            ave = int(re.compile(self.LINE03).search(self.raw_data).group(1))
+            pkt = int(re.compile(self.LINE04).search(self.raw_data).group(1))
+            m1d = int(re.compile(self.LINE05).search(self.raw_data).group(1))
+            m2d = int(re.compile(self.LINE06).search(self.raw_data).group(1))
+            m3d = int(re.compile(self.LINE07).search(self.raw_data).group(1))
+            m1s = float(re.compile(self.LINE08).search(self.raw_data).group(1))
+            m2s = float(re.compile(self.LINE09).search(self.raw_data).group(1))
+            m3s = float(re.compile(self.LINE10).search(self.raw_data).group(1))
+            seq = int(re.compile(self.LINE11).search(self.raw_data).group(1))
+            rat = int(re.compile(self.LINE12).search(self.raw_data).group(1))
+            set = int(re.compile(self.LINE13).search(self.raw_data).group(1))
+            rec = int(re.compile(self.LINE14).search(self.raw_data).group(1))
+            man = int(re.compile(self.LINE15).search(self.raw_data).group(1))
+            interval = str(re.compile(self.LINE16).search(self.raw_data).group(1))
+            dat = str(re.compile(self.LINE17).search(self.raw_data).group(1))
+            clk = str(re.compile(self.LINE18).search(self.raw_data).group(1))
+            mst = str(re.compile(self.LINE19).search(self.raw_data).group(1))
+            mem = int(re.compile(self.LINE20).search(self.raw_data).group(1))
+
+            result = [{DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.SERIAL_NUM, DataParticleKey.VALUE: serial_num},
                   {DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.FIRMWARE_VER, DataParticleKey.VALUE: firmware_ver},
                   {DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.AVE, DataParticleKey.VALUE: ave},
                   {DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.PKT, DataParticleKey.VALUE: pkt},
@@ -322,9 +324,14 @@ class FlortDMNU_Particle(DataParticle):
                   {DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.MST, DataParticleKey.VALUE: mst},
                   {DataParticleKey.VALUE_ID: FlortDMNU_ParticleKey.MEM, DataParticleKey.VALUE: mem}]
 
-        log.debug('parsed particle = %r', result)
+            log.debug('parsed particle = %r', result)
 
-        return result
+            return result
+
+        except Exception:
+            raise SampleException('Error building FlortDMNU_Particle')
+
+
 
 
 class FlortDMET_ParticleKey(BaseEnum):
@@ -378,21 +385,23 @@ class FlortDMET_Particle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.raw_data)
 
-        sig_1_data = match.group(1)
-        data = sig_1_data.split(',')
-        sig_1_offset = float(data[4])
-        sig_1_scale = int(data[5])
+        try:
+            sig_1_data = match.group(1)
+            data = sig_1_data.split(',')
+            sig_1_offset = float(data[4])
+            sig_1_scale = int(data[5])
 
-        sig_2_data = match.group(2)
-        data = sig_2_data.split(',')
-        sig_2_offset = float(data[4])
-        sig_2_scale = int(data[5])
+            sig_2_data = match.group(2)
+            data = sig_2_data.split(',')
+            sig_2_offset = float(data[4])
+            sig_2_scale = int(data[5])
 
-        sig_3_data = match.group(3)
-        data = sig_3_data.split(',')
-        sig_3_offset = float(data[4])
-        sig_3_scale = int(data[5])
-
+            sig_3_data = match.group(3)
+            data = sig_3_data.split(',')
+            sig_3_offset = float(data[4])
+            sig_3_scale = int(data[5])
+        except Exception:
+            raise SampleException('Error parsing particle FlortDMET_Particle')
 
         result = [{DataParticleKey.VALUE_ID: FlortDMET_ParticleKey.SIG_1_OFFSET, DataParticleKey.VALUE: sig_1_offset},
             {DataParticleKey.VALUE_ID: FlortDMET_ParticleKey.SIG_1_SCALE_FACTOR, DataParticleKey.VALUE: sig_1_scale},
@@ -458,17 +467,21 @@ class FlortDSample_Particle(DataParticle):
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
 
-        split_data = match.group(0).split('\t')
-        date_str = str(split_data[0])
-        time_str = str(split_data[1])
-        wave_beta = int(split_data[2])
-        raw_sig_beta = int(split_data[3])
-        wave_chl = int(split_data[4])
-        raw_sig_chl = int(split_data[5])
-        wave_cdom = int(split_data[6])
-        raw_sig_cdom = int(split_data[7])
-        raw_temp = int(split_data[8])
+        try:
 
+            split_data = match.group(0).split('\t')
+            date_str = str(split_data[0])
+            time_str = str(split_data[1])
+            wave_beta = int(split_data[2])
+            raw_sig_beta = int(split_data[3])
+            wave_chl = int(split_data[4])
+            raw_sig_chl = int(split_data[5])
+            wave_cdom = int(split_data[6])
+            raw_sig_cdom = int(split_data[7])
+            raw_temp = int(split_data[8])
+
+        except Exception:
+            raise SampleException('FlortDSample_Particle: cannot parse thru data')
 
         result = [{DataParticleKey.VALUE_ID: FlortDSample_ParticleKey.date_string, DataParticleKey.VALUE: date_str},
             {DataParticleKey.VALUE_ID: FlortDSample_ParticleKey.time_string, DataParticleKey.VALUE: time_str},
@@ -556,8 +569,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        #TODO - WHY DID I HAVE THIS?
-        #self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_start_direct)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
@@ -890,16 +901,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        log.debug('%% IN _handler_autosample_enter: state change')
 
         self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, *args, timeout=TIMEOUT,
                                    response_regex=MNU_REGEX_MATCHER)
-        log.debug('%% IN _handler_autosample_enter: interrupt instrument')
-        self._init_params()
-        log.debug('%% IN _handler_autosample_enter: init params')
+
+        self._protocol_fsm.current_state = DriverProtocolState.COMMAND
+        self._handler_command_enter(*args, **kwargs)
+        self._protocol_fsm.current_state = DriverProtocolState.AUTOSAMPLE
+
         self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, *args, timeout=TIMEOUT,
                                    response_regex=SAMPLE_REGEX_MATCHER)
-        log.debug('%% IN _handler_autosample_enter: run samples')
 
         #Start scheduling for running the wiper and syncing the clock
         log.debug("Configuring the scheduler to run wiper %s", self._param_dict.get(Parameter.RUN_WIPER_INTERVAL))
@@ -914,8 +925,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if self._param_dict.get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL) != '00:00:00':
             self.start_scheduled_job(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS)
 
-        log.debug("Leaving _handler_autosample_enter")
-
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
@@ -924,7 +933,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command misunderstood or incorrect prompt received.
         """
 
-        #Stop scheduled run of wiper & clock sync
+        #Stop scheduled run of wiper, clock sync, & acquire status
         self.stop_scheduled_job(ScheduledJob.RUN_WIPER)
         self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
         self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
@@ -1057,20 +1066,11 @@ class Protocol(CommandResponseInstrumentProtocol):
             #go into command mode
             self._do_cmd_no_resp(InstrumentCommand.INTERRUPT_INSTRUMENT)
 
-
-        # log.debug("da_param_restore = %s,", self.da_param_restore)
-        # self._set_params(self.da_param_restore)
-
         da_params = self.get_direct_access_params()
         log.debug("DA params to reset: %s", da_params)
         for param in da_params:
 
             log.debug('Trying to reset param %s', param)
-
-            #old_val = self._param_dict.get(param)
-            #new_val = self._param_dict.get_default_value(param)
-
-            #log.debug('Comparing %s == %s', old_val, new_val)
 
             #if setting the mvs interval or clock sync interval, do not send a command
             if param == Parameter.RUN_WIPER_INTERVAL or param == Parameter.RUN_CLOCK_SYNC_INTERVAL or param == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
@@ -1097,17 +1097,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     ########################################################################
-    # Startup parameter handlers
-    ########################################################################
-    # def apply_startup_params(self):
-    #     """
-    #     Apply all startup parameters.  First we check the instrument to see if we need to set the parameters.
-    #     If they are they are set correctly then we don't do anything.
-    #     """
-    #     log.debug('%% IN apply_startup_params')
-    #     self._set_params(self.get_startup_config(), True)
-
-    ########################################################################
     # Private helpers.
     ########################################################################
     def _set_params(self, *args, **kwargs):
@@ -1128,6 +1117,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             #if setting the mvs interval/clock sync interval/acquire status interval, do not send a command
             if key == Parameter.RUN_WIPER_INTERVAL or key == Parameter.RUN_CLOCK_SYNC_INTERVAL or key == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
                 self._param_dict.set_value(key, val)
+                log.debug('set value %s vs %s', val, self._param_dict.get(key))
             #else if setting the clock or date, run clock sync command
             elif key == Parameter.TIME or key == Parameter.DATE:
                 self._sync_clock()
@@ -1145,9 +1135,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if not dict_equal(old_config, new_config, ignore_keys=Parameter.TIME):
             log.debug("configuration has changed.  Send driver event")
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-        # except InstrumentParameterException:
-        #     log.debug("Attempt to set read only parameter(s) (%s)", params)
 
     def _build_single_parameter_command(self, cmd, param, val):
         """
@@ -1305,7 +1292,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Measurements per reported value",
                              description='Number of measurements for each reported value.',
-                             default_value=1,
+                             default_value=18,
                              startup_param=True,
                              direct_access=True)
 
