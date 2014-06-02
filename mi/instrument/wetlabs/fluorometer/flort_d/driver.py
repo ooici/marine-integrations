@@ -150,20 +150,20 @@ class Parameter(DriverParameter):
     MEASUREMENT_3_DARK_COUNT = "m3d"      # Measurement 3 dark count           int
     MEASUREMENT_3_SLOPE = "m3s"           # Measurement 3 slope value          float
     MEASUREMENTS_PER_PACKET = "pkt"       # Measurements per packet            int
-    #BAUD_RATE = "rat"                     # Baud rate                          int
+    BAUD_RATE = "rat"                     # Baud rate                          int
     PACKETS_PER_SET = "set"               # Packets per set                    int
     PREDEFINED_OUTPUT_SEQ = "seq"         # Predefined output sequence         int
     RECORDING_MODE = "rec"                # Recording mode                     int
     MANUAL_MODE = "man"                   # Manual mode                        int
-    #SAMPLING_INTERVAL = "int"             # Sampling interval                  str
+    SAMPLING_INTERVAL = "int"             # Sampling interval                  str
     DATE = "dat"                          # Date                               str
     TIME = "clk"                          # Time                               str
-    #MANUAL_START_TIME = "mst"             # Manual start time                  str
+    MANUAL_START_TIME = "mst"             # Manual start time                  str
 
     #Hardware Data
-    # SERIAL_NUM = "ser"                    # Serial number                      str
-    # FIRMWARE_VERSION = "ver"              # Firmware version                   str
-    #INTERNAL_MEMORY = "mem"               # Internal memory                    int
+    SERIAL_NUM = "ser"                    # Serial number                      str
+    FIRMWARE_VERSION = "ver"              # Firmware version                   str
+    INTERNAL_MEMORY = "mem"               # Internal memory                    int
 
     #Engineering param
     RUN_WIPER_INTERVAL = "wiper_interval"           # Interval to schedule running wiper    str
@@ -1268,34 +1268,33 @@ class Protocol(CommandResponseInstrumentProtocol):
         Populate the parameter dictionary with parameters. For each parameter key, add match string, match lambda
         function, and value formatting function for set commands.
         """
-        # Add parameter handlers to parameter dict.
 
-        #
         # StatusData
-        #
-        # self._param_dict.add(Parameter.SERIAL_NUM,
-        #                      FlortDMNU_Particle.LINE01,
-        #                      lambda match: match.group(1),
-        #                      str,
-        #                      type=ParameterDictType.STRING,
-        #                      expiration=None,
-        #                      visibility=ParameterDictVisibility.READ_ONLY,
-        #                      display_name="serial number",
-        #                      default_value=None,
-        #                      startup_param=False,
-        #                      direct_access=False)
-        #
-        # self._param_dict.add(Parameter.FIRMWARE_VERSION,
-        #                      FlortDMNU_Particle.LINE02,
-        #                      lambda match: match.group(1),
-        #                      str,
-        #                      type=ParameterDictType.STRING,
-        #                      expiration=None,
-        #                      visibility=ParameterDictVisibility.READ_ONLY,
-        #                      display_name="firmware version",
-        #                      default_value=None,
-        #                      startup_param=False,
-        #                      direct_access=False)
+        self._param_dict.add(Parameter.SERIAL_NUM,
+                             FlortDMNU_Particle.LINE01,
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Serial number",
+                             description='Instrument Serial Number',
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
+
+        self._param_dict.add(Parameter.FIRMWARE_VERSION,
+                             FlortDMNU_Particle.LINE02,
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Firmware version",
+                             description='Firmware Version',
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.MEASUREMENTS_PER_REPORTED,
                              FlortDMNU_Particle.LINE03,
@@ -1304,7 +1303,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="measurements per reported value",
+                             display_name="Measurements per reported value",
+                             description='Number of measurements for each reported value.',
                              default_value=1,
                              startup_param=True,
                              direct_access=True)
@@ -1316,7 +1316,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="measurements per packet",
+                             display_name="Measurements per packet",
+                             description='Number of individual measurements in each packet. 0 is continuous operation.',
                              default_value=0,
                              startup_param=True,
                              direct_access=True)
@@ -1328,7 +1329,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="measurement 1 dark count",
+                             display_name="Measurement 1 dark count",
+                             description='Measurement 1 dark count value for calculating engineering unit output.',
                              default_value=None,
                              units=ParameterUnit.COUNTS,
                              startup_param=False,
@@ -1341,7 +1343,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="measurement 2 dark count",
+                             display_name="Measurement 2 dark count",
+                             description='Measurement 2 dark count value for calculating engineering unit output.',
                              default_value=None,
                              units=ParameterUnit.COUNTS,
                              startup_param=False,
@@ -1354,7 +1357,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="measurement 3 dark count",
+                             display_name="Measurement 3 dark count",
+                             description='Measurement 3 dark count value for calculating engineering unit output.',
                              default_value=None,
                              units=ParameterUnit.COUNTS,
                              startup_param=False,
@@ -1367,7 +1371,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.FLOAT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="measurement 1 slope value",
+                             display_name="Measurement 1 slope value",
+                             description='Measurement 1 slope value used for calculating engineering unit output.',
                              default_value=None,
                              units=ParameterUnit.PART_PER_METER_STERADIAN,
                              startup_param=False,
@@ -1380,7 +1385,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.FLOAT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="measurement 2 slope value",
+                             display_name="Measurement 2 slope value",
+                             description='Measurement 2 slope value used for calculating engineering unit output.',
                              default_value=None,
                              units=ParameterUnit.MICROGRAMS_PER_LITER,
                              startup_param=False,
@@ -1393,7 +1399,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.FLOAT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="measurement 3 slope value",
+                             display_name="Measurement 3 slope value",
+                             description='Measurement 3 slope value used for calculating engineering unit output.',
                              default_value=None,
                              units=ParameterUnit.PARTS_PER_MILLION,
                              startup_param=False,
@@ -1406,22 +1413,24 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="predefined output sequence",
+                             display_name="Predefined output sequence",
+                             description='Selects which of the pre-defined output sequences to use when outputting data.',
                              default_value=0,
                              startup_param=True,
                              direct_access=True)
 
-        # self._param_dict.add(Parameter.BAUD_RATE,
-        #                      FlortDMNU_Particle.LINE12,
-        #                      lambda match: int(match.group(1)),
-        #                      self._int_to_string,
-        #                      type=ParameterDictType.INT,
-        #                      expiration=None,
-        #                      visibility=ParameterDictVisibility.READ_ONLY,
-        #                      display_name="baud rate",
-        #                      default_value=None,
-        #                      startup_param=False,
-        #                      direct_access=False)
+        self._param_dict.add(Parameter.BAUD_RATE,
+                             FlortDMNU_Particle.LINE12,
+                             lambda match: int(match.group(1)),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Baud rate",
+                             description='Baud rate for instrument communications.',
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.PACKETS_PER_SET,
                              FlortDMNU_Particle.LINE13,
@@ -1430,7 +1439,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="packets per set",
+                             display_name="Recording mode",
+                             description='Number of packets in a set. 0 results in the stored configuration repeating continuously.',
                              default_value=0,
                              startup_param=True,
                              direct_access=True)
@@ -1442,7 +1452,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="recording mode",
+                             display_name="Packets per set",
+                             description='Enables (1) or disables (0) data recording to internal memory.',
                              default_value=0,
                              startup_param=True,
                              direct_access=True)
@@ -1454,23 +1465,25 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="manual mode",
+                             display_name="Manual mode",
+                             description='Enables (1) or disables (0) manual start time.',
                              default_value=0,
                              startup_param=True,
                              direct_access=True)
 
-        # self._param_dict.add(Parameter.SAMPLING_INTERVAL,
-        #                      FlortDMNU_Particle.LINE16,
-        #                      lambda match: match.group(1),
-        #                      str,
-        #                      type=ParameterDictType.STRING,
-        #                      expiration=None,
-        #                      visibility=ParameterDictVisibility.READ_ONLY,
-        #                      display_name="time interval between packets",
-        #                      default_value=None,
-        #                      units=ParameterUnit.TIME_INTERVAL,
-        #                      startup_param=False,
-        #                      direct_access=False)
+        self._param_dict.add(Parameter.SAMPLING_INTERVAL,
+                             FlortDMNU_Particle.LINE16,
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Time interval between packets",
+                             default_value=None,
+                             description='Time from the start of one packet to the start of the next packet in a set.',
+                             units=ParameterUnit.TIME_INTERVAL,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.DATE,
                              FlortDMNU_Particle.LINE17,
@@ -1479,7 +1492,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="date",
+                             display_name="Date",
+                             description='Date in the Real Time Clock.',
                              default_value=None,
                              units=ParameterUnit.DATE_INTERVAL,
                              startup_param=False,
@@ -1492,36 +1506,39 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="time",
+                             display_name="Time",
+                             description='Time in the Real Time Clock.',
                              default_value=None,
                              startup_param=False,
                              units=ParameterUnit.TIME_INTERVAL,
                              direct_access=False)
 
-        # self._param_dict.add(Parameter.MANUAL_START_TIME,
-        #                      FlortDMNU_Particle.LINE19,
-        #                      lambda match: match.group(1),
-        #                      str,
-        #                      type=ParameterDictType.STRING,
-        #                      expiration=None,
-        #                      visibility=ParameterDictVisibility.READ_ONLY,
-        #                      display_name="manual start time",
-        #                      default_value=None,
-        #                      units=ParameterUnit.TIME_INTERVAL,
-        #                      startup_param=False,
-        #                      direct_access=False)
+        self._param_dict.add(Parameter.MANUAL_START_TIME,
+                             FlortDMNU_Particle.LINE19,
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Manual start time",
+                             description='Manual start time.',
+                             default_value=None,
+                             units=ParameterUnit.TIME_INTERVAL,
+                             startup_param=False,
+                             direct_access=False)
 
-        # self._param_dict.add(Parameter.INTERNAL_MEMORY,
-        #                      FlortDMNU_Particle.LINE20,
-        #                      lambda match: int(match.group(1)),
-        #                      self._int_to_string,
-        #                      type=ParameterDictType.INT,
-        #                      expiration=None,
-        #                      visibility=ParameterDictVisibility.READ_ONLY,
-        #                      display_name="internal memory size",
-        #                      default_value=None,
-        #                      startup_param=False,
-        #                      direct_access=False)
+        self._param_dict.add(Parameter.INTERNAL_MEMORY,
+                             FlortDMNU_Particle.LINE20,
+                             lambda match: int(match.group(1)),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Internal memory size",
+                             description='Amount of internal memory.',
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
         ########################
         # Engineering Parameters
         ########################
@@ -1532,8 +1549,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="run wiper interval",
+                             display_name="Run wiper interval",
                              default_value='00:00:00',
+                             description='Time interval for running the wiper command.',
                              units=ParameterUnit.TIME_INTERVAL,
                              startup_param=True,
                              direct_access=False)
@@ -1545,7 +1563,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="run clock sync interval",
+                             display_name="Run clock sync interval",
+                             description='Time interval for running clock sync.',
                              default_value='00:00:00',
                              units=ParameterUnit.TIME_INTERVAL,
                              startup_param=True,
@@ -1558,15 +1577,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="acquire status interval",
+                             display_name="Acquire status interval",
+                             description='Time interval for running acquiring status.',
                              default_value='00:00:00',
                              units=ParameterUnit.TIME_INTERVAL,
                              startup_param=True,
                              direct_access=False)
-
-        #set the values of the dictionary using set_default
-        # for param in self._param_dict.get_keys():
-        #     self._param_dict.set_value(param, self._param_dict.get_default_value(param))
-
-
 ################################ /Protocol #############################
