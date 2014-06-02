@@ -330,8 +330,6 @@ class SBE16NOMixin(DriverTestMixin):
 "</StatusData>" + NEWLINE
 
     VALID_SEND_OPTODE_RESPONSE = "" + \
-'S>sendoptode=get analog output' + NEWLINE + \
-'Sending Optode: get analog output' + NEWLINE + NEWLINE + \
 'Optode RX = Analog Output	4831	134	CalPhase' + NEWLINE + \
 'Optode RX = CalPhase[Deg]	4831	134	30.050' + NEWLINE + \
 'S>sendoptode=get enable temperature' + NEWLINE + \
@@ -515,7 +513,7 @@ class SBE16NOMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        Parameter.DATE_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
         Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 3, VALUE: 3},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
@@ -762,6 +760,11 @@ class SBE16NOUnitTestCase(SeaBirdUnitTest, SBE16NOMixin):
 
         # First verify that parse ds sets all know parameters.
         driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
+
+        # Set param dict values not parsed in from the instrument response
+        driver._protocol._param_dict.set_value(Parameter.CLOCK_INTERVAL, "00:00:00")
+        driver._protocol._param_dict.set_value(Parameter.STATUS_INTERVAL, "00:00:00")
+
         pd = driver._protocol._param_dict.get_all(baseline)
         log.debug("Param Dict Values: %s" % pd)
         log.debug("Param Sample: %s" % source)
