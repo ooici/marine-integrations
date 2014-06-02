@@ -32,17 +32,41 @@ from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver, DataTypeKey
+# ## ## NEW IMPORT
+from mi.dataset.driver.moas.gl.dosta.driver import DataTypeKey
+# ## ## OLD IMPORT
+from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver
 
-from mi.dataset.parser.glider import DostaTelemeteredDataParticle, DostaRecoveredDataParticle
+from mi.dataset.parser.glider import DostaTelemeteredDataParticle, DostaRecoveredDataParticle, DataParticleType
 
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import ResourceAgentErrorEvent
 
+# ## ##  OLD DATASETTESTCASE FUNCTION
+# DataSetTestCase.initialize(
+#     driver_module='mi.dataset.driver.moas.gl.dosta.driver',
+#     driver_class="DOSTADataSetDriver",
+#
+#     agent_resource_id = '123xyz',
+#     agent_name = 'Agent007',
+#     agent_packet_config = DOSTADataSetDriver.stream_config(),
+#     startup_config = {
+#         DataSourceConfigKey.HARVESTER:
+#         {
+#             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dostaTelemeteredTest',
+#             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaTelemeteredTest',
+#             DataSetDriverConfigKeys.PATTERN: '*.mrg',
+#             DataSetDriverConfigKeys.FREQUENCY: 1,
+#         },
+#         DataSourceConfigKey.PARSER: {}
+#     }
+# )
+###############################################################################################
 TELEMETERED_TEST_DIR = '/tmp/dostaTelemeteredTest'
 RECOVERED_TEST_DIR = '/tmp/dostaRecoveredTest'
 
+# ## ##  new DATASETTESTCASE FUNCTION
 DataSetTestCase.initialize(
 
     driver_module='mi.dataset.driver.moas.gl.dosta.driver',
@@ -54,14 +78,14 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'dosta',
         DataSourceConfigKey.HARVESTER:
         {
-            DataTypeKey.GLIDER_TELEMETERED:
+            DataTypeKey.DOSTA_TELEMETERED:
             {
                 DataSetDriverConfigKeys.DIRECTORY: TELEMETERED_TEST_DIR,
                 DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaTelemeteredTest',
                 DataSetDriverConfigKeys.PATTERN: '*.mrg',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             },
-            DataTypeKey.GLIDER_RECOVERED:
+            DataTypeKey.DOSTA_RECOVERED:
             {
                 DataSetDriverConfigKeys.DIRECTORY: RECOVERED_TEST_DIR,
                 DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaRecoveredTest',
@@ -70,7 +94,7 @@ DataSetTestCase.initialize(
             }
         },
         DataSourceConfigKey.PARSER: {
-            DataTypeKey.GLIDER_TELEMETERED: {}, DataTypeKey.GLIDER_RECOVERED: {}
+            DataTypeKey.DOSTA_TELEMETERED: {}, DataTypeKey.DOSTA_RECOVERED: {}
         }
     }
 
@@ -85,6 +109,7 @@ SAMPLE_STREAM = 'dosta_abcdjm_glider_instrument'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
+    ## DONE
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver sampling
@@ -96,53 +121,70 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data_set_dir('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
         self.assert_data(DostaTelemeteredDataParticle,
                          'single_dosta_record.mrg.result.yml',
                          count=1, timeout=10)
-        #
-        # self.clear_async_data()
-        # self.create_sample_data('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
-        # self.assert_data(DostaTelemeteredDataParticle,
-        #                  'multiple_dosta_record.mrg.result.yml',
-        #                  count=4, timeout=10)
-        #
-        # self.clear_async_data()
-        # self.create_sample_data('single_dosta_record.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
-        # self.assert_data(DostaRecoveredDataParticle,
-        #                  'single_dosta_record.mrg.result.yml',
-        #                  count=1, timeout=10)
-        #
-        # self.clear_async_data()
-        # self.create_sample_data('multiple_dosta_record.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
-        # self.assert_data(DostaRecoveredDataParticle,
-        #                  'multiple_dosta_record.mrg.result.yml',
-        #                  count=4, timeout=10)
-        #
-        #
-        # log.debug("Start second file ingestion - Telemetered")
-        # # Verify sort order isn't ascii, but numeric
-        # self.clear_async_data()
-        # self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        # self.assert_data(DostaTelemeteredDataParticle, DostaRecoveredDataParticle, count=60, timeout=30)
-        #
-        # log.debug("Start second file ingestion - Recovered")
-        # # Verify sort order isn't ascii, but numeric
-        # self.clear_async_data()
-        # self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        # self.assert_data(DostaRecoveredDataParticle, count=60, timeout=30)
 
+        self.clear_async_data()
+        self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+        self.assert_data(DostaTelemeteredDataParticle,
+                         'multiple_dosta_record.mrg.result.yml',
+                         count=4, timeout=10)
+
+        self.clear_async_data()
+        self.create_sample_data_set_dir('single_dosta_record_recovered.mrg',
+                                        RECOVERED_TEST_DIR,
+                                        "unit_363_2013_245_6_6.mrg")
+        self.assert_data(DostaRecoveredDataParticle,
+                         'single_dosta_record_recovered.mrg.result.yml',
+                         count=1, timeout=10)
+
+        self.clear_async_data()
+        self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg',
+                                        RECOVERED_TEST_DIR,
+                                        "unit_363_2013_245_7_6.mrg")
+        self.assert_data(DostaRecoveredDataParticle,
+                         'multiple_dosta_record_recovered.mrg.result.yml',
+                         count=4, timeout=10)
+
+
+        log.debug("Start second file ingestion - Telemetered")
+        # Verify sort order isn't ascii, but numeric
+        self.clear_async_data()
+        self.create_sample_data_set_dir('unit_363_2013_245_6_6.mrg',
+                                        TELEMETERED_TEST_DIR,
+                                        'unit_363_2013_245_10_6.mrg')
+        self.assert_data(DostaTelemeteredDataParticle, count=60, timeout=30)
+
+        log.debug("Start second file ingestion - Recovered")
+        # Verify sort order isn't ascii, but numeric
+        self.clear_async_data()
+        self.create_sample_data_set_dir('unit_363_2013_245_6_6_recovered.mrg',
+                                RECOVERED_TEST_DIR,
+                                "unit_363_2013_245_10_6.mrg")
+        self.assert_data(DostaRecoveredDataParticle, count=60, timeout=30)
+
+    ## DONE
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        path_1 = self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_8.mrg")
-        path_2 = self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
+        path_1 = self.create_sample_data_set_dir('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_8.mrg")
+        path_2 = self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_9.mrg")
+        path_3 = self.create_sample_data_set_dir('single_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_6_8.mrg")
+        path_4 = self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_6_9.mrg")
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
+            DataTypeKey.DOSTA_TELEMETERED: {
+            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1085),
             'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 1085)
+            },
+            DataTypeKey.DOSTA_RECOVERED: {
+            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_3, True, 1351),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_4, False, 1346)
+            }
         }
         self.driver = self._get_driver_object(memento=state)
 
@@ -151,9 +193,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        # verify data is produced
+        # verify data is produced for telemetered particle
         self.assert_data(DostaTelemeteredDataParticle, 'merged_dosta_record.mrg.result.yml', count=3, timeout=10)
 
+        # verify data is produced for recovered particle
+        self.assert_data(DostaRecoveredDataParticle, 'merged_multiple_dosta_record_recovered.mrg.result.yml', count=3, timeout=10)
+
+    ## DONE
     def test_stop_start_ingest(self):
         """
         Test the ability to stop and restart sampling, and ingesting files in the correct order
@@ -163,53 +209,96 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
+        self.create_sample_data_set_dir('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
         self.assert_data(DostaTelemeteredDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
-        self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
+        self.assert_file_ingested("unit_363_2013_245_6_6.mrg", DataTypeKey.DOSTA_TELEMETERED)
         self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
         self.assert_data(DostaTelemeteredDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
-        self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
+        self.assert_file_ingested("unit_363_2013_245_7_6.mrg", DataTypeKey.DOSTA_TELEMETERED)
 
+        ####
+        ## Repeat for Recovered Particle
+        ####
+        self.create_sample_data_set_dir('single_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+        self.assert_data(DostaRecoveredDataParticle, 'single_dosta_record_recovered.mrg.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_6_6.mrg", DataTypeKey.DOSTA_RECOVERED)
+        self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
+
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+
+        self.assert_data(DostaRecoveredDataParticle, 'multiple_dosta_record_recovered.mrg.result.yml', count=4, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_7_6.mrg", DataTypeKey.DOSTA_RECOVERED)
+
+    ## DONE
     def test_bad_sample(self):
         """
         Test a bad sample.  To do this we set a state to the middle of a record
         """
-        # create some data to parse
-        self.clear_async_data()
-
-        path = self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
+        path_2 = self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_9.mrg")
+        path_4 = self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_6_9.mrg")
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1085),
+            DataTypeKey.DOSTA_TELEMETERED: {
+             'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 1085)
+            },
+            DataTypeKey.DOSTA_RECOVERED: {
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_4, False, 1346)
+            }
         }
         self.driver = self._get_driver_object(memento=state)
 
+        # create some data to parse
+        self.clear_async_data()
+
         self.driver.start_sampling()
 
-        # verify data is produced
-        self.assert_data(DostaTelemeteredDataParticle, 'bad_sample_dosta_record.mrg.result.yml', count=3, timeout=10)
+        # verify data is produced for telemetered particle
+        self.assert_data(DostaTelemeteredDataParticle, 'merged_dosta_record.mrg.result.yml', count=3, timeout=10)
 
-    def test_sample_exception(self):
+        # verify data is produced for recovered particle
+        self.assert_data(DostaRecoveredDataParticle, 'merged_multiple_dosta_record_recovered.mrg.result.yml', count=3, timeout=10)
+
+    ## DONE
+    def test_sample_exception_telemetered(self):
         """
         test that a file is marked as parsed if it has a sample exception (which will happen with an empty file)
         """
         self.clear_async_data()
 
-        config = self._driver_config()['startup_config']['harvester']['pattern']
+        config = self._driver_config()['startup_config']['harvester'][DataTypeKey.DOSTA_TELEMETERED]['pattern']
         filename = config.replace("*", "foo")
-        self.create_sample_data(filename)
+        self.create_sample_data_set_dir(filename, TELEMETERED_TEST_DIR)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested(filename)
+        self.assert_file_ingested(filename, DataTypeKey.DOSTA_TELEMETERED)
+
+    ## DONE
+    def test_sample_exception_recovered(self):
+        """
+        test that a file is marked as parsed if it has a sample exception (which will happen with an empty file)
+        """
+        self.clear_async_data()
+
+        config = self._driver_config()['startup_config']['harvester'][DataTypeKey.DOSTA_RECOVERED]['pattern']
+        filename = config.replace("*", "foo")
+        self.create_sample_data_set_dir(filename, RECOVERED_TEST_DIR)
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+        self.assert_file_ingested(filename, DataTypeKey.DOSTA_RECOVERED)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -221,18 +310,19 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
+    ## DONE
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('single_dosta_record.mrg', 'unit_363_2013_245_6_9.mrg')
+        self.create_sample_data_set_dir('single_dosta_record.mrg', TELEMETERED_TEST_DIR, 'unit_363_2013_245_6_9.mrg')
         self.assert_initialize()
 
         # Verify we get one sample
         try:
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 1)
+            log.debug("Telemetered RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
@@ -240,24 +330,44 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
+        # Again for the recovered particle
+        self.create_sample_data_set_dir('single_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, 'unit_363_2013_245_6_9.mrg')
+
+        # Verify we get one sample
+        try:
+            result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 1)
+            log.debug("Recovered RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'single_dosta_record_recovered.mrg.result.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+    ## DONE
     def test_large_import(self):
         """
         There is a bug when activating an instrument go_active times out and
         there was speculation this was due to blocking behavior in the agent.
         https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
         """
-        self.create_sample_data('unit_363_2013_245_6_6.mrg')
+        self.create_sample_data_set_dir('unit_363_2013_245_6_6.mrg', TELEMETERED_TEST_DIR)
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,60,120)
+        result1 = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT,60,120)
+
+        # again for recovered
+        self.create_sample_data_set_dir('unit_363_2013_245_6_6_recovered.mrg', RECOVERED_TEST_DIR)
+        result2 = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED,60,120)
+
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
+        log.info("## ## ## CONFIG: %s", self._agent_config())
+        self.create_sample_data_set_dir('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -265,30 +375,51 @@ class QualificationTest(DataSetQualificationTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT)
+            log.debug("## ## ## RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            #self.assert_all_queue_empty()
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-            self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
+            #Stop sampling: Telemetered
+            self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
             # Now read the first three records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 1)
-            log.debug("got result 1 %s", result)
+            result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT)
+            #result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 1)
+            log.debug("## ## ## Got result 1 %s", result)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_all_queue_empty()
+            #self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-            # Restart sampling and ensure we get the last 5 records of the file
-            self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
-            log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
+            # # Restart sampling and ensure we get the last 3 records of the file
+            # self.assert_start_sampling()
+            # result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 3)
+            # log.debug("got result 2 %s", result)
+            # self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
+            # #self.assert_all_queue_empty()
+            # self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            # #Stop sampling: Recovered
+            # self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+            # # Now read the first three records of the second file then stop
+            # result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 1)
+            # log.debug("got result 1 %s", result)
+            # self.assert_stop_sampling()
+            # self.assert_all_queue_empty()
+            # #self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            #
+            # # Restart sampling and ensure we get the last 3 records of the file
+            # self.assert_start_sampling()
+            # result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 3)
+            # log.debug("got result 2 %s", result)
+            # self.assert_data_values(result, 'merged_multiple_dosta_record_recovered.mrg.result.yml')
+            # self.assert_all_queue_empty()
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")

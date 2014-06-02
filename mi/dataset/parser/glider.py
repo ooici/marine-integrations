@@ -808,6 +808,8 @@ class GliderParser(BufferLoadingParser):
                  exception_callback,
                  *args, **kwargs):
 
+        log.debug(" ######################### GliderParser._init_(): MY CONFIG: %s", config)
+
         self._stream_handle = stream_handle
 
         self._record_buffer = []  # holds tuples of (record, state)
@@ -1061,11 +1063,11 @@ class GliderParser(BufferLoadingParser):
         self.handle_non_data(non_data, non_start, non_end, start)
 
         while data_record is not None:
-            log.debug("data record: %s", data_record)
+            log.debug("## GliderParser.parse_chunks(): data record: %s", data_record)
 
             if self._whitespace_regex.match(data_record):
 
-                log.debug("Only whitespace detected in record. Ignoring.")
+                log.debug("## GliderParser.parse_chunks(): Only whitespace detected in record. Ignoring.")
                 self._increment_state(end)
 
                 # parse the data record into a data dictionary to pass to the particle class
@@ -1087,10 +1089,10 @@ class GliderParser(BufferLoadingParser):
                     if not exception_detected:
                         record_time = data_dict['m_present_time']['Data']
                         timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                        log.debug("## GliderParser.parse_chunks(): Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
                 except KeyError:
                     exception_detected = True
-                    self._exception_callback(SampleException("unable to find timestamp in data"))
+                    self._exception_callback(SampleException("## GliderParser.parse_chunks():unable to find timestamp in data"))
 
                 if exception_detected:
                     # We are done processing this record if we have detected an exception
@@ -1135,7 +1137,8 @@ class GliderParser(BufferLoadingParser):
         """
         Examine the data_dict to see if it contains science data.
         """
-        log.debug("Looking for data in science parameters: %s", self._particle_class.science_parameters)
+        log.debug("## ## ## GliderParser._has_science_data(): _particle_class is %s", self._particle_class)
+        log.debug("# GliderParser._has_science_data(): Looking for data in science parameters: %s", self._particle_class.science_parameters)
         for key in data_dict.keys():
             if key in self._particle_class.science_parameters:
                 value = data_dict[key]['Data']

@@ -21,34 +21,79 @@ from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import DostaTelemeteredDataParticle
 from mi.dataset.parser.glider import DostaRecoveredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType, SimpleDataSetDriver
 
 class DataTypeKey(BaseEnum):
-    GLIDER_TELEMETERED = 'glider_telemetered'
-    GLIDER_RECOVERED = 'glider_recovered'
+    DOSTA_TELEMETERED = 'dosta_telemetered'
+    DOSTA_RECOVERED = 'dosta_recovered'
 
 
 class DOSTADataSetDriver(MultipleHarvesterDataSetDriver):
-
-    def __init__(self, config, memento, data_callback, state_callback,
-                 event_callback, exception_callback):
-
-        data_keys = [DataTypeKey.GLIDER_TELEMETERED, DataTypeKey.GLIDER_RECOVERED]
-        harvester_type = {DataTypeKey.GLIDER_TELEMETERED: HarvesterType.SINGLE_DIRECTORY,
-                          DataTypeKey.GLIDER_RECOVERED: HarvesterType.SINGLE_DIRECTORY}
-
-        log.info(" ## ## STACKTRACE: %s", inspect.stack())
-
-        super(DOSTADataSetDriver, self).__init__(config, memento, data_callback,
-                                                 state_callback, event_callback,
-                                                 exception_callback, data_keys, harvester_type)
 
     @classmethod
     def stream_config(cls):
         return [DostaTelemeteredDataParticle.type(),
                 DostaRecoveredDataParticle.type()]
 
-    def _build_parser(self, parser_state, infile, data_key=None):
+    def __init__(self, config, memento, data_callback, state_callback,
+                 event_callback, exception_callback):
+
+        data_keys = [DataTypeKey.DOSTA_TELEMETERED, DataTypeKey.DOSTA_RECOVERED]
+
+        harvester_type = {DataTypeKey.DOSTA_TELEMETERED: HarvesterType.SINGLE_DIRECTORY,
+                          DataTypeKey.DOSTA_RECOVERED: HarvesterType.SINGLE_DIRECTORY}
+
+        super(DOSTADataSetDriver, self).__init__(config, memento, data_callback,
+                                                 state_callback, event_callback,
+                                                 exception_callback, data_keys, harvester_type)
+
+    # def _build_parser(self, parser_state, infile, data_key):
+    #     """
+    #     Build and return the specified parser as indicated by the data_key.
+    #     """
+    #     config = self._parser_config
+    #
+    #     config.update({
+    #         'particle_module': 'mi.dataset.parser.glider',
+    #         'particle_class': ['DostaTelemeteredDataParticle',
+    #                            'DostaRecoveredDataParticle']
+    #     })
+    #
+    #     # particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
+    #     # log.info(type(config.get("particle_class")))
+    #     # someFingVar = getattr(particle_module, config.get("particle_class"))
+    #     # log.info(someFingVar)
+    #
+    #     log.debug(" ######################### DOSTADataSetDriver._build_parser(): MY CONFIG: %s", config)
+    #
+    #     parser = GliderParser(config,
+    #                                 parser_state,
+    #                                 infile,
+    #                                 lambda state, ingested: self._save_parser_state(state, data_key, ingested),
+    #                                 self._data_callback,
+    #                                 self._sample_exception_callback)
+    #
+    #     return parser
+
+
+    def _build_parser(self, parser_state, infile, data_key):
+        """
+        Build and return the specified parser as indicated by the data_key.
+        @param parser_state previous parser state to initialize parser with
+        @param data_key harvester / parser key
+        @param infile file name
+        """
+        parser = None
+
+        if data_key == DataTypeKey.DOSTA_TELEMETERED:
+            parser = self._build_dosta_telemetered_parser(parser_state, infile, data_key)
+
+        elif data_key == DataTypeKey.DOSTA_RECOVERED:
+            parser = self._build_dosta_recovered_parser(parser_state, infile, data_key)
+
+        return parser
+
+    def _build_dosta_telemetered_parser(self, parser_state, infile, data_key):
         """
         Build and return the specified parser as indicated by the data_key.
         """
@@ -56,20 +101,37 @@ class DOSTADataSetDriver(MultipleHarvesterDataSetDriver):
 
         config.update({
             'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': ['DostaTelemeteredDataParticle',
-                               'DostaRecoveredDataParticle']
+            'particle_class': 'DostaTelemeteredDataParticle'
         })
 
-        log.debug("MYCONFIG: %s", config)
+        parser = GliderParser(config,
+                              parser_state,
+                              infile,
+                              lambda state, ingested: self._save_parser_state(state, data_key, ingested),
+                              self._data_callback,
+                              self._sample_exception_callback)
 
-        self._parser = GliderParser(config,
-                                    parser_state,
-                                    infile,
-                                    lambda state, ingested: self._save_parser_state(state, data_key, ingested),
-                                    self._data_callback,
-                                    self._sample_exception_callback)
+        return parser
 
-        return self._parser
+    def _build_dosta_recovered_parser(self, parser_state, infile, data_key):
+        """
+        Build and return the specified parser as indicated by the data_key.
+        """
+        config = self._parser_config
+
+        config.update({
+            'particle_module': 'mi.dataset.parser.glider',
+            'particle_class': 'DostaRecoveredDataParticle'
+        })
+
+        parser = GliderParser(config,
+                              parser_state,
+                              infile,
+                              lambda state, ingested: self._save_parser_state(state, data_key, ingested),
+                              self._data_callback,
+                              self._sample_exception_callback)
+
+        return parser
 
     def _build_harvester(self, driver_state):
         """
@@ -103,3 +165,42 @@ class DOSTADataSetDriver(MultipleHarvesterDataSetDriver):
             log.warn('No configuration for %s harvester, not building', data_key)
 
         return harvester
+
+
+#### ORIGINAL DOSTA DRIVER
+# class DOSTADataSetDriver(SimpleDataSetDriver):
+#     @classmethod
+#     def stream_config(cls):
+#         return [DostaTelemeteredDataParticle.type()]
+#
+#     def _build_parser(self, parser_state, infile):
+#         config = self._parser_config
+#         config.update({
+#             'particle_module': 'mi.dataset.parser.glider',
+#             'particle_class': 'DostaTelemeteredDataParticle'
+#         })
+#         log.debug("MYCONFIG: %s", config)
+#         self._parser = GliderParser(
+#             config,
+#             parser_state,
+#             infile,
+#             self._save_parser_state,
+#             self._data_callback,
+#             self._sample_exception_callback
+#         )
+#
+#         return self._parser
+#
+#     def _build_harvester(self, driver_state):
+#         """
+# Build and return the harvester
+# """
+#         self._harvester = SingleDirectoryHarvester(
+#             self._harvester_config,
+#             driver_state,
+#             self._new_file_callback,
+#             self._modified_file_callback,
+#             self._exception_callback
+#         )
+#         return self._harvester
+
