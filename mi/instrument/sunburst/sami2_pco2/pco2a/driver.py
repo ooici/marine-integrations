@@ -50,8 +50,6 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 #    Driver Constant Definitions
 ###
 
-SAMPLE_DELAY = 180
-
 # Imported from base class
 
 ###
@@ -529,17 +527,3 @@ class Protocol(Pco2wProtocol):
         @retval configuration string regex matcher
         """
         return CONFIGURATION_REGEX_MATCHER
-
-    def _get_blank_sample_timeout(self):
-        """
-        Get blank sample timeout.
-        @retval blank sample timeout in seconds.
-        """
-        return SAMPLE_DELAY
-
-    def _get_sample_timeout(self):
-        """
-        Get sample timeout.
-        @retval sample timeout in seconds.
-        """
-        return SAMPLE_DELAY

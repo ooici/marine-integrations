@@ -57,8 +57,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 #    Driver Constant Definitions
 ###
 
-SAMPLE_DELAY = 180
-
 # Imported from base class
 
 ###
@@ -550,7 +548,9 @@ class Protocol(Pco2wProtocol):
         log.debug('Protocol._take_dev1_sample(): Dev1 Timeout = ' + str(dev1_timeout))
 
         ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = dev1_timeout, response_regex=DEV1_SAMPLE_REGEX_MATCHER)
+        self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1,
+                          timeout = dev1_timeout,
+                          response_regex=DEV1_SAMPLE_REGEX_MATCHER)
 
         sample_time = time.time() - start_time
 
@@ -771,17 +771,3 @@ class Protocol(Pco2wProtocol):
         @retval configuration string regex matcher
         """
         return CONFIGURATION_REGEX_MATCHER
-
-    def _get_blank_sample_timeout(self):
-        """
-        Get blank sample timeout.
-        @retval blank sample timeout in seconds.
-        """
-        return SAMPLE_DELAY
-
-    def _get_sample_timeout(self):
-        """
-        Get sample timeout.
-        @retval sample timeout in seconds.
-        """
-        return SAMPLE_DELAY

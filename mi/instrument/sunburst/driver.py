@@ -22,6 +22,9 @@ __license__ = 'Apache 2.0'
 ## TODO: Add timing tests for all functionality
 ## TODO: Test that no samples are received when autosample stopped
 ## TODO: Add async timeout exceptions
+## TODO: What to do if error occurs when waiting for a newline?
+## TODO: Test time outs
+## TODO: Test discover timeout
 
 import re
 import time
@@ -100,8 +103,6 @@ CONFIG_WITH_0_AND_F_PADDING = 512
 # Terminator at the end of a configuration string
 CONFIG_TERMINATOR = '00'
 
-# Pump on, valve off
-## PUMP_REAGENT = '01' TODO: opposite between PHSEN and PCO2W, rename for specificity
 # Value added to pump duration for timeout
 PUMP_TIMEOUT_OFFSET = 5.0
 
@@ -150,16 +151,7 @@ THERMISTOR_VOLTAGE_REGEX_MATCHER = re.compile(BATTERY_VOLTAGE_REGEX)
 ERROR_REGEX = r'[\?]([0-9A-Fa-f]{2})' + NEWLINE
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 
-## These are returned immediately after SAMI sample commands
-BLANK_SAMPLE_RETURN_REGEX = (r'\^05')
-BLANK_SAMPLE_RETURN_REGEX_MATCHER = re.compile(BLANK_SAMPLE_RETURN_REGEX)
-SAMPLE_RETURN_REGEX = (r'\^04')
-SAMPLE_RETURN_REGEX_MATCHER = re.compile(SAMPLE_RETURN_REGEX)
-
-# Currently used to handle unexpected responses
-WILD_CARD_REGEX  = r'.*' + NEWLINE
-WILD_CARD_REGEX_MATCHER = re.compile(WILD_CARD_REGEX)
-
+# Newline returned from SAMI
 NEW_LINE_REGEX = NEWLINE
 NEW_LINE_REGEX_MATCHER = re.compile(NEW_LINE_REGEX)
 
@@ -304,7 +296,6 @@ class SamiInstrumentCommand(BaseEnum):
     ACQUIRE_SAMPLE_SAMI = 'R'
     ESCAPE_BOOT = 'u'
 
-    PUMP_REAGENT_SAMI = 'P' + PUMP_REAGENT
     PUMP_OFF = 'P'
 
 ###############################################################################
@@ -869,7 +860,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(SamiInstrumentCommand.GET_STATUS, self._build_simple_command)
-        self._add_build_handler(SamiInstrumentCommand.START_STATUS, self._build_simple_command)  # Never want to do this
+        self._add_build_handler(SamiInstrumentCommand.START_STATUS, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.STOP_STATUS, self._build_simple_command)
 
         self._add_build_handler(SamiInstrumentCommand.GET_CONFIG, self._build_simple_command)
@@ -883,7 +874,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(SamiInstrumentCommand.STOP, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ESCAPE_BOOT, self._build_simple_command)
-        self._add_build_handler(SamiInstrumentCommand.PUMP_REAGENT_SAMI, self._build_pump_command)
         self._add_build_handler(SamiInstrumentCommand.PUMP_OFF, self._build_simple_command)
 
         # Add response handlers for device commands.
@@ -892,10 +882,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(SamiInstrumentCommand.GET_CONFIG, self._parse_response_get_config)
         self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._parse_response_set_config)
         self._add_response_handler(SamiInstrumentCommand.GET_BATTERY_VOLTAGE, self._parse_response_get_battery_voltage)
-        self._add_response_handler(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE, self._parse_response_get_thermistor_voltage)
+        self._add_response_handler(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE,
+                                   self._parse_response_get_thermistor_voltage)
         self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._parse_response_erase_all)
         self._add_response_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._parse_response_sample_sami)
-        self._add_response_handler(SamiInstrumentCommand.PUMP_REAGENT_SAMI, self._parse_response_pump_reagent_sami)
         self._add_response_handler(SamiInstrumentCommand.PUMP_OFF, self._parse_response_pump_off_sami)
 
         # Add sample handlers.
@@ -976,6 +966,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                 self._do_cmd_resp(command, duration, timeout=timeout, response_regex=NEW_LINE_REGEX_MATCHER)
                 time.sleep(delay)
 
+        # Make sure pump is off
+        self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
     ########################################################################
     # Events to queue handlers.
     ########################################################################
@@ -1053,6 +1046,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.error('SamiProtocol._execution_timeout_to_command_state(): %s: Timeout occurred' % self.get_current_state())
 
+        self._driver_event(DriverAsyncEvent.ERROR, InstrumentTimeoutException("in %s" % self.get_current_state()))
+
         next_state = SamiProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -1065,7 +1060,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Sample timeout occurred.
         """
 
-        log.error('SamiProtocol._execution_timeout_to_autosample_state(): %s: Timeout occurred' % self.get_current_state())
+        log.error('SamiProtocol._execution_timeout_to_autosample_state(): %s: Timeout occurred' %
+                  self.get_current_state())
+
+        self._driver_event(DriverAsyncEvent.ERROR, InstrumentTimeoutException("in %s" % self.get_current_state()))
 
         next_state = SamiProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1089,12 +1087,20 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         result = None
 
         try:
-            self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=TIMEOUT, response_regex=REGULAR_STATUS_REGEX_MATCHER)
-            self._do_cmd_resp(SamiInstrumentCommand.GET_BATTERY_VOLTAGE, timeout=TIMEOUT, response_regex=BATTERY_VOLTAGE_REGEX_MATCHER)
-            self._do_cmd_resp(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE, timeout=TIMEOUT, response_regex=THERMISTOR_VOLTAGE_REGEX_MATCHER)
+            self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS,
+                              timeout=TIMEOUT,
+                              response_regex=REGULAR_STATUS_REGEX_MATCHER)
+            self._do_cmd_resp(SamiInstrumentCommand.GET_BATTERY_VOLTAGE,
+                              timeout=TIMEOUT,
+                              response_regex=BATTERY_VOLTAGE_REGEX_MATCHER)
+            self._do_cmd_resp(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE,
+                              timeout=TIMEOUT,
+                              response_regex=THERMISTOR_VOLTAGE_REGEX_MATCHER)
 
             configuration_string_regex = self._get_configuration_string_regex_matcher()
-            self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=TIMEOUT, response_regex=configuration_string_regex)
+            self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG,
+                              timeout=TIMEOUT,
+                              response_regex=configuration_string_regex)
 
         except InstrumentTimeoutException:
 
@@ -1511,35 +1517,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_reagent_flush_execute(self, *args, **kwargs):
         """
-        Execute pump command, sleep to make sure it completes and make sure pump is off
+        Overridden by device specific subclasses.
         """
 
-        try:
-            param = SamiParameter.FLUSH_DURATION
-            flush_duration = self._param_dict.get(param)
-            flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
-
-            log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
-
-            # Add offset to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
-
-            start_time = time.time()
-            self._do_cmd_resp(SamiInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-            pump_time = time.time() - start_time
-            log.debug('SamiProtocol._handler_reagent_flush_execute(): pump time = %s' % pump_time)
-
-            # Make sure pump is off
-            self._do_cmd_resp(SamiInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
-
-            log.debug('SamiProtocol._handler_reagent_flush_execute(): SUCCESS')
-            self._async_raise_fsm_event(SamiProtocolEvent.SUCCESS)
-        except InstrumentTimeoutException:
-            log.error('SamiProtocol._handler_reagent_flush_execute(): TIMEOUT')
-            self._async_raise_fsm_event(SamiProtocolEvent.TIMEOUT)
-
-        return None, None
+        raise NotImplementedException()
 
     ####################################################################
     # Build Command & Parameter dictionary
@@ -1601,7 +1582,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('SamiProtocol._parse_response_get_battery_voltage')
 
         try:
-            self._extract_sample(SamiBatteryVoltageDataParticle, BATTERY_VOLTAGE_REGEX_MATCHER, response + NEWLINE, None)
+            self._extract_sample(SamiBatteryVoltageDataParticle,
+                                 BATTERY_VOLTAGE_REGEX_MATCHER,
+                                 response + NEWLINE,
+                                 None)
         except Exception as ex:
             log.error('Unexpected exception generating SamiBatteryVoltageDataParticle: ' + str(ex))
 
@@ -1614,7 +1598,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('SamiProtocol._parse_response_get_thermistor_voltage')
 
         try:
-            self._extract_sample(SamiThermistorVoltageDataParticle, THERMISTOR_VOLTAGE_REGEX_MATCHER, response + NEWLINE, None)
+            self._extract_sample(SamiThermistorVoltageDataParticle,
+                                 THERMISTOR_VOLTAGE_REGEX_MATCHER,
+                                 response + NEWLINE,
+                                 None)
         except Exception as ex:
             log.error('Unexpected exception generating SamiThermistorVoltageDataParticle: ' + str(ex))
 
@@ -1754,7 +1741,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Stop status and check for boot prompt
         try:
-            response = self._do_cmd_resp(SamiInstrumentCommand.STOP_STATUS, timeout=2, expected_prompt=Prompt.BOOT_PROMPT)
+            response = self._do_cmd_resp(SamiInstrumentCommand.STOP_STATUS,
+                                         timeout=2,
+                                         expected_prompt=Prompt.BOOT_PROMPT)
             log.debug('SamiProtocol._discover: boot prompt present = ' + str(response))
             self._do_cmd_direct(SamiInstrumentCommand.ESCAPE_BOOT + NEWLINE)
         except InstrumentTimeoutException:
@@ -1836,7 +1825,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Acquire the current instrument status
         log.debug('SamiProtocol._set_configuration: GET_STATUS')
-        status = self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=TIMEOUT, response_regex=REGULAR_STATUS_REGEX_MATCHER)
+        status = self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS,
+                                   timeout=TIMEOUT,
+                                   response_regex=REGULAR_STATUS_REGEX_MATCHER)
         log.debug('SamiProtocol._set_configuration: status = ' + status)
 
         log.debug('SamiProtocol._set_configuration: ERASE_ALL')
@@ -1856,9 +1847,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._verify_and_update_configuration(configuration_string)
 
         # Send status, don't need to send configuration, it's sent in _verify_and_update_configuration()
-        self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=TIMEOUT, response_regex=REGULAR_STATUS_REGEX_MATCHER)
-        self._do_cmd_resp(SamiInstrumentCommand.GET_BATTERY_VOLTAGE, timeout=TIMEOUT, response_regex=BATTERY_VOLTAGE_REGEX_MATCHER)
-        self._do_cmd_resp(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE, timeout=TIMEOUT, response_regex=THERMISTOR_VOLTAGE_REGEX_MATCHER)
+        self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS,
+                          timeout=TIMEOUT,
+                          response_regex=REGULAR_STATUS_REGEX_MATCHER)
+        self._do_cmd_resp(SamiInstrumentCommand.GET_BATTERY_VOLTAGE,
+                          timeout=TIMEOUT,
+                          response_regex=BATTERY_VOLTAGE_REGEX_MATCHER)
+        self._do_cmd_resp(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE,
+                          timeout=TIMEOUT,
+                          response_regex=THERMISTOR_VOLTAGE_REGEX_MATCHER)
 
     @staticmethod
     def _int_to_hexstring(val, slen):
@@ -1923,9 +1920,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval parameter value string
         """
         value = self._param_dict.get(param)
-        log.debug('SamiProtocol._get_config_value_str(): self._param_dict.get_config_value(param) = ' + param + ' = ' + str(value))
+        log.debug('SamiProtocol._get_config_value_str(): self._param_dict.get_config_value(param) = ' +
+                  param + ' = ' + str(value))
         value_str = self._param_dict.format(param, value)
-        log.debug('SamiProtocol._get_config_value_str(): self._param_dict.format(param, value) = ' + param + ' = ' + value_str)
+        log.debug('SamiProtocol._get_config_value_str(): self._param_dict.format(param, value) = ' +
+                  param + ' = ' + value_str)
 
         return value_str
 
@@ -1937,19 +1936,22 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval configuration_string
         """
         config_string_length_no_padding = len(configuration_string)
-        log.debug('Protocol._add_config_str_padding(): config_string_length_no_padding = ' + str(config_string_length_no_padding))
+        log.debug('Protocol._add_config_str_padding(): config_string_length_no_padding = ' +
+                  str(config_string_length_no_padding))
 
         zero_padding_length = CONFIG_WITH_0_PADDING - config_string_length_no_padding
         zero_padding = '0' * zero_padding_length
         configuration_string += zero_padding
         config_string_length_0_padding = len(configuration_string)
-        log.debug('Protocol._add_config_str_padding(): config_string_length_0_padding = ' + str(config_string_length_0_padding))
+        log.debug('Protocol._add_config_str_padding(): config_string_length_0_padding = ' +
+                  str(config_string_length_0_padding))
 
         f_padding_length = CONFIG_WITH_0_AND_F_PADDING - config_string_length_0_padding
         f_padding = 'F' * f_padding_length
         configuration_string += f_padding
         config_string_length_0_and_f_padding = len(configuration_string)
-        log.debug('Protocol._add_config_str_padding(): config_string_length_0_and_f_padding = ' + str(config_string_length_0_and_f_padding))
+        log.debug('Protocol._add_config_str_padding(): config_string_length_0_and_f_padding = ' +
+                  str(config_string_length_0_and_f_padding))
 
         return configuration_string
 
@@ -1979,7 +1981,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             configuration_string += config_value_hex_str
 
         config_string_length_no_padding = len(configuration_string)
-        log.debug('Protocol._build_configuration_string_base(): config_string_length_no_padding = ' + str(config_string_length_no_padding))
+        log.debug('Protocol._build_configuration_string_base(): config_string_length_no_padding = ' +
+                  str(config_string_length_no_padding))
 
         configuration_string = SamiProtocol._add_config_str_padding(configuration_string)
 
@@ -1997,9 +2000,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         configuration_string_regex = self._get_configuration_string_regex_matcher()
 
-        instrument_configuration_string = self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=TIMEOUT, response_regex=configuration_string_regex)
+        instrument_configuration_string = self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG,
+                                                            timeout=TIMEOUT,
+                                                            response_regex=configuration_string_regex)
 
-        log.debug('SamiProtocol._verify_and_update_configuration: instrument_configuration_string = ' + instrument_configuration_string)
+        log.debug('SamiProtocol._verify_and_update_configuration: instrument_configuration_string = ' +
+                  instrument_configuration_string)
 
         # if configuration_string == instrument_configuration_string.strip(NEWLINE):
         if configuration_string == instrument_configuration_string:
@@ -2038,7 +2044,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         start_time = time.time()
 
         ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, timeout = self._get_sample_timeout(), response_regex=self._get_sample_regex())
+        self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI,
+                          timeout = self._get_sample_timeout(),
+                          response_regex=self._get_sample_regex())
 
         sample_time = time.time() - start_time
 
@@ -2054,7 +2062,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             if engineering_parameter in params:
                 old_value = self._param_dict.get(engineering_parameter)
                 new_value = params.pop(engineering_parameter)
-                log.debug('SamiProtocol.check_for_engineering_parameters(): %s old/new = %d/%d' %
+                log.debug('SamiProtocol.check_for_engineering_parameters(): %s old/new = %s/%s' %
                           (engineering_parameter , old_value, new_value))
                 if new_value != old_value:
                     self._param_dict.set_value(engineering_parameter,

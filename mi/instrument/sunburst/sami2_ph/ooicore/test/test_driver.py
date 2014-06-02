@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.instrument.port_agent_client import PortAgentPacket
 
 __author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
@@ -19,7 +20,7 @@ __license__ = 'Apache 2.0'
 import unittest
 import time
 import copy
-
+import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
 
@@ -171,10 +172,10 @@ class DriverTestMixinSub(SamiMixin):
                                                   ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
                                                   ProtocolState.COMMAND]},
-        Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
-        Capability.REAGENT_FLUSH:         {STATES: [ProtocolState.COMMAND]},
-        Capability.DEIONIZED_WATER_FLUSH_100ML: {STATES: [ProtocolState.COMMAND]},
-        Capability.REAGENT_FLUSH_100ML:         {STATES: [ProtocolState.COMMAND]}
+        Capability.SEAWATER_FLUSH_1375ML: {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH_50ML:         {STATES: [ProtocolState.COMMAND]},
+        Capability.SEAWATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH:         {STATES: [ProtocolState.COMMAND]}
     }
 
     _driver_parameters = {
@@ -252,7 +253,7 @@ class DriverTestMixinSub(SamiMixin):
                                              DEFAULT: 0x38, VALUE: 3600},
         Parameter.FLUSH_DURATION:           {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                              DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
-        Parameter.PUMP_100ML_CYCLES:        {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+        Parameter.FLUSH_CYCLES:        {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
 
@@ -379,6 +380,29 @@ class DriverTestMixinSub(SamiMixin):
                                              self._configuration_parameters,
                                              verify_values)
 
+    @staticmethod
+    def send_port_agent_packet(protocol, data):
+        ts = ntplib.system_to_ntp_time(time.time())
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(data)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        protocol.got_data(port_agent_packet)
+        protocol.got_raw(port_agent_packet)
+        log.debug('Sent port agent packet containing: %r', data)
+
+    def send_side_effect(self, protocol):
+        def inner(data):
+            my_response = '\r'
+            if my_response is not None:
+                log.debug("my_send: data: %r, my_response: %r", data, my_response)
+                time.sleep(.1)
+                self.send_port_agent_packet(protocol, my_response)
+                return len(my_response)
+
+        return inner
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -405,23 +429,23 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
                                          'DRIVER_EVENT_ACQUIRE_STATUS',
                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                          'DRIVER_EVENT_START_AUTOSAMPLE',
-                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
-                                         'DRIVER_EVENT_REAGENT_FLUSH',
-                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML',
-                                         'DRIVER_EVENT_REAGENT_FLUSH_100ML'],
-        ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE',
+                                         'DRIVER_EVENT_SEAWATER_FLUSH_1375ML',
+                                         'DRIVER_EVENT_REAGENT_FLUSH_50ML',
+                                         'DRIVER_EVENT_SEAWATER_FLUSH',
+                                         'DRIVER_EVENT_REAGENT_FLUSH'],
+        ProtocolState.SEAWATER_FLUSH_1375ML: ['PROTOCOL_EVENT_EXECUTE',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH_50ML:         ['PROTOCOL_EVENT_EXECUTE',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.SEAWATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE',
-                                              'PROTOCOL_EVENT_SUCCESS',
-                                              'PROTOCOL_EVENT_TIMEOUT',
-                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.DEIONIZED_WATER_FLUSH_100ML: ['PROTOCOL_EVENT_EXECUTE',
-                                              'PROTOCOL_EVENT_SUCCESS',
-                                              'PROTOCOL_EVENT_TIMEOUT',
-                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.REAGENT_FLUSH_100ML:         ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
@@ -433,13 +457,11 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_EXECUTE',
                                           'PROTOCOL_EVENT_SUCCESS',
                                           'PROTOCOL_EVENT_TIMEOUT',
-                                          'DRIVER_EVENT_ACQUIRE_STATUS',
-                                          'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+                                          'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_EXECUTE',
                                            'PROTOCOL_EVENT_SUCCESS',
                                            'PROTOCOL_EVENT_TIMEOUT',
-                                           'DRIVER_EVENT_ACQUIRE_STATUS',
-                                           'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+                                           'DRIVER_EVENT_ACQUIRE_STATUS'],
     }
 
     def test_base_driver_enums(self):
@@ -557,6 +579,28 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self.capabilities_test_dict)
 
+    def test_pump_commands(self):
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        driver._protocol._connection.send.side_effect = self.send_side_effect(driver._protocol)
+
+        driver._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
+
+        for param in driver._protocol._param_dict.get_keys():
+            log.debug('startup param = %s', param)
+            driver._protocol._param_dict.set_default(param)
+
+        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH
+
+        driver._protocol._handler_seawater_flush_execute()
+
+        log.debug('mock_calls = %s', driver._protocol._connection.send.mock_calls)
+
+        ## Mock().assert_has_calls()
+
+        ## driver._protocol._connection.send.assert
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -587,7 +631,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
            Parameter.SALINITY_DELAY: 0x00,
            Parameter.AUTO_SAMPLE_INTERVAL: 3600,
            Parameter.FLUSH_DURATION: 8,
-           Parameter.PUMP_100ML_CYCLES: 1
+           Parameter.FLUSH_CYCLES: 1
         }
 
         new_values = {
@@ -607,7 +651,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
            Parameter.SALINITY_DELAY: 0x01,
            Parameter.AUTO_SAMPLE_INTERVAL: 600,
            Parameter.FLUSH_DURATION: 1,
-           Parameter.PUMP_100ML_CYCLES: 14
+           Parameter.FLUSH_CYCLES: 14
         }
 
         self.assert_initialize_driver()
@@ -641,7 +685,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.NUMBER_MEASUREMENTS, 0xA0)
         self.assert_set(Parameter.SALINITY_DELAY, 0x05)
         self.assert_set(Parameter.FLUSH_DURATION, 1)
-        self.assert_set(Parameter.PUMP_100ML_CYCLES, 14)
+        self.assert_set(Parameter.FLUSH_CYCLES, 14)
 
         self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
         self.assert_set_readonly(Parameter.STOP_TIME_FROM_START, 84600)
@@ -668,7 +712,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
             Parameter.NUMBER_MEASUREMENTS: 0xA0,
             Parameter.SALINITY_DELAY: 0x05,
             Parameter.FLUSH_DURATION: 1,
-            Parameter.PUMP_100ML_CYCLES: 14
+            Parameter.FLUSH_CYCLES: 14
         }
         self.assert_set_bulk(new_values)
 
