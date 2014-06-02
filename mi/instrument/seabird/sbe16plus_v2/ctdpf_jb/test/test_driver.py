@@ -326,8 +326,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 "</StatusData>" + NEWLINE
 
     VALID_SEND_OPTODE_RESPONSE = "" + \
-'S>sendoptode=get analog output' + NEWLINE + \
-'Sending Optode: get analog output' + NEWLINE + NEWLINE + \
 'Optode RX = Analog Output	4831	134	CalPhase' + NEWLINE + \
 'Optode RX = CalPhase[Deg]	4831	134	30.050' + NEWLINE + \
 'S>sendoptode=get enable temperature' + NEWLINE + \
@@ -511,9 +509,7 @@ class SeaBird19plusMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        #Parameter.ECHO : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
-        #Parameter.OUTPUT_EXEC_TAG : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.DATE_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
         Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
@@ -533,6 +529,8 @@ class SeaBird19plusMixin(DriverTestMixin):
         Parameter.AUTO_RUN : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.IGNORE_SWITCH : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
+        Parameter.CLOCK_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'},
+        Parameter.STATUS_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:00:00'},
     }
 
     _driver_capabilities = {
@@ -768,6 +766,11 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 
         # First verify that parse ds sets all know parameters.
         driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
+
+        # Set param dict values not parsed in from the instrument response
+        driver._protocol._param_dict.set_value(Parameter.CLOCK_INTERVAL, "00:00:00")
+        driver._protocol._param_dict.set_value(Parameter.STATUS_INTERVAL, "00:00:00")
+
         pd = driver._protocol._param_dict.get_all(baseline)
         log.debug("Param Dict Values: %s" % pd)
         log.debug("Param Sample: %s" % source)

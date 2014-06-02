@@ -2093,6 +2093,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = "00:00:00",
+                             init_value= "00:00:00",
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.STATUS_INTERVAL,
@@ -2104,6 +2105,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param = True,
                              direct_access = False,
                              default_value = "00:00:00",
+                             init_value= "00:00:00",
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
