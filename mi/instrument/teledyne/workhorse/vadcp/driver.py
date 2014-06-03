@@ -54,7 +54,6 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.instrument.teledyne.driver import TeledyneParameter
-from mi.instrument.teledyne.driver import TeledyneParameter2
 
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.chunker import StringChunker
@@ -96,6 +95,58 @@ class Parameter2(WorkhorseParameter2):
     SLAVE_TIMEOUT = 'ST_5th'
     SYNCH_DELAY = 'SW_5th'
 
+class TeledyneParameter2(DriverParameter):
+    """
+    Device parameters for the possible secondary instrument
+    """
+    #
+    # set-able parameters
+    #
+    SERIAL_DATA_OUT = 'CD_5th'              # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    INSTRUMENT_ID = 'CI_5th'                # Int 0-255
+    XMIT_POWER = 'CQ_5th'                   # 0=Low, 255=High
+    SPEED_OF_SOUND = 'EC_5th'               # 1500  Speed Of Sound (m/s)
+    SALINITY = 'ES_5th'                     # 35 (0-40 pp thousand)
+    COORDINATE_TRANSFORMATION = 'EX_5th'    #
+    SENSOR_SOURCE = 'EZ_5th'                # Sensor Source (C;D;H;P;R;S;T)
+    TIME_PER_ENSEMBLE = 'TE_5th'            # 01:00:00.00 (hrs:min:sec.sec/100)
+    TIME_OF_FIRST_PING = 'TG_5th'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    TIME_PER_PING = 'TP_5th'                # 00:00.20  (min:sec.sec/100)
+    TIME = 'TT_5th'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    FALSE_TARGET_THRESHOLD = 'WA_5th'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+    BANDWIDTH_CONTROL = 'WB_5th'            # Bandwidth Control (0=Wid,1=Nar)
+    CORRELATION_THRESHOLD = 'WC_5th'        # 064  Correlation Threshold
+    SERIAL_OUT_FW_SWITCHES = 'WD_5th'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    ERROR_VELOCITY_THRESHOLD = 'WE_5th'     # 5000  Error Velocity Threshold (0-5000 mm/s)
+    BLANK_AFTER_TRANSMIT = 'WF_5th'         # 0088  Blank After Transmit (cm)
+    CLIP_DATA_PAST_BOTTOM = 'WI_5th'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
+    RECEIVER_GAIN_SELECT = 'WJ_5th'         # 1  Rcvr Gain Select (0=Low,1=High)
+    NUMBER_OF_DEPTH_CELLS = 'WN_5th'        # Number of depth cells (1-255)
+    PINGS_PER_ENSEMBLE = 'WP_5th'           # Pings per Ensemble (0-16384)
+    DEPTH_CELL_SIZE = 'WS_5th'              # 0800  Depth Cell Size (cm)
+    TRANSMIT_LENGTH = 'WT_5th'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
+    PING_WEIGHT = 'WU_5th'                  # 0 Ping Weighting (0=Box,1=Triangle)
+    AMBIGUITY_VELOCITY = 'WV_5th'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
+
+    #
+    # Workhorse parameters
+    #
+    SERIAL_FLOW_CONTROL = 'CF_5th'          # Flow Control
+    BANNER = 'CH_5th'                       # Banner
+    SLEEP_ENABLE = 'CL_5th'                 # SLEEP Enable
+    SAVE_NVRAM_TO_RECORDER = 'CN_5th'       # Save NVRAM to RECORD
+    POLLED_MODE = 'CP_5th'                  # Polled Mode
+    PITCH = 'EP_5th'                        # Pitch
+    ROLL = 'ER_5th'                         # Roll
+
+    LATENCY_TRIGGER = 'CX_5th'              #Latency Trigger
+    HEADING_ALIGNMENT = 'EA_5th'            # Heading Alignment
+    HEADING_BIAS = 'EB_5th'                 # Heading Bias
+    DATA_STREAM_SELECTION ='PD_5th'         # Data Stream selection
+    ENSEMBLE_PER_BURST ='TC_5th'            # Ensemble per Burst
+    BUFFERED_OUTPUT_PERIOD ='TX_5th'        # Buffered Output Period
+    SAMPLE_AMBIENT_SOUND ='WQ_5th'          # Sample Ambient sound
+    TRANSDUCER_DEPTH ='ED_5th'              # Transducer Depth
 
 class ProtocolEvent(TeledyneProtocolEvent):
     """
@@ -3350,6 +3401,7 @@ class Protocol(WorkhorseProtocol):
         next_state = None
         result = None
         startup = False
+        changed = False
 
         try:
             params = args[0]
@@ -3374,20 +3426,29 @@ class Protocol(WorkhorseProtocol):
                     log.error("Sung the param CLOCK_SYNCH_INTERVAL is changed")
                     self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
                     self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                    changed = True
 
             if(TeledyneParameter.GET_STATUS_INTERVAL in params):
                 if(params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(TeledyneParameter.GET_STATUS_INTERVAL)) :
                     log.error("Sung the param GET_STATUS_INTERVAL is changed")
                     self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL, params[TeledyneParameter.GET_STATUS_INTERVAL] )
                     self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
-                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                    changed = True
                 #params.remove()
                 #if(len(params)>1):
                 #    log.error("Sung test test00555 %s", repr(params))
                 #    result = self._set_params(params, startup)
+            if(changed):
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            log.error("Calling set params in _handler_command_set %s", repr(params))
+
+            #for param in param_list:
+            #if(param.find('_') == -1) :  # Not Found
+            #    if(param not in [DriverParameter.ALL]):
+
 
             result = self._set_params(params, startup)
+            result = self._set_params2(params, startup)
 
             #if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
             #    if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
