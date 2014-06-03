@@ -360,7 +360,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('unit_363_2013_245_6_6_recovered.mrg', RECOVERED_TEST_DIR)
         result2 = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED,60,120)
 
-
+    ## DONE
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -382,55 +382,52 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Verify values
             self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
-            #self.assert_all_queue_empty()
             self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-            #Stop sampling: Telemetered
+
+            # Stop sampling: Telemetered
             self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
             # Now read the first three records of the second file then stop
-            result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT)
-            #result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 1)
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 1)
             log.debug("## ## ## Got result 1 %s", result)
             self.assert_stop_sampling()
-            self.assert_all_queue_empty()
-            #self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-            # # Restart sampling and ensure we get the last 3 records of the file
-            # self.assert_start_sampling()
-            # result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 3)
-            # log.debug("got result 2 %s", result)
-            # self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
-            # #self.assert_all_queue_empty()
-            # self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
+            # Restart sampling and ensure we get the last 3 records of the file
+            self.assert_start_sampling()
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 3)
+            log.debug("got result 2 %s", result)
+            self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
 
-            # #Stop sampling: Recovered
-            # self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
-            # # Now read the first three records of the second file then stop
-            # result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 1)
-            # log.debug("got result 1 %s", result)
-            # self.assert_stop_sampling()
-            # self.assert_all_queue_empty()
-            # #self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-            #
-            # # Restart sampling and ensure we get the last 3 records of the file
-            # self.assert_start_sampling()
-            # result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 3)
-            # log.debug("got result 2 %s", result)
-            # self.assert_data_values(result, 'merged_multiple_dosta_record_recovered.mrg.result.yml')
-            # self.assert_all_queue_empty()
+            #Stop sampling: Recovered
+            self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+            # Now read the first three records of the second file then stop
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 1)
+            log.debug("got result 1 %s", result)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 0)
+
+            # Restart sampling and ensure we get the last 3 records of the file
+            self.assert_start_sampling()
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 3)
+            log.debug("got result 2 %s", result)
+            self.assert_data_values(result, 'merged_multiple_dosta_record_recovered.mrg.result.yml')
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 0)
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+    ## DONE
     def test_shutdown_restart(self):
         """
         Test the agents ability to completely stop, then restart
         at the correct spot.
         """
-        log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
+        log.info("## ## ## CONFIG: %s", self._agent_config())
+        self.create_sample_data_set_dir('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -438,52 +435,98 @@ class QualificationTest(DataSetQualificationTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            result = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT)
+            log.debug("## ## ## RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-            self.create_sample_data('multiple_dosta_record-shutdownrestart.mrg', "unit_363_2013_245_7_6.mrg")
-            # Now read the first records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 1)
-            log.debug("got result 1 %s", result)
+
+            # Restart sampling: Telemetered
+            self.create_sample_data_set_dir('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+            # Now read the first three records of the second file then stop
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 1)
+            log.debug("## ## ## Got result 1 %s", result)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
+
             # stop the agent
             self.stop_dataset_agent_client()
             # re-start the agent
             self.init_dataset_agent_client()
-            #re-initialize
+            # re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-            # Restart sampling and ensure we get the last 5 records of the file
+
+            # Slow down processing to 1 per second to give us time to stop
+            self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+
+            # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 3)
             log.debug("got result 2 %s", result)
             self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
+
+
+            # Restart sampling: Recovered
+            self.create_sample_data_set_dir('multiple_dosta_record_recovered.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+            # Now read the first three records of the second file then stop
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 1)
+            log.debug("got result 1 %s", result)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 0)
+
+            # stop the agent
+            self.stop_dataset_agent_client()
+            # re-start the agent
+            self.init_dataset_agent_client()
+            # re-initialize
+            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+            # Restart sampling and ensure we get the last 3 records of the file
+            self.assert_start_sampling()
+            result = self.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 3)
+            log.debug("got result 2 %s", result)
+            self.assert_data_values(result, 'merged_multiple_dosta_record_recovered.mrg.result.yml')
+            self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 0)
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+    ##DONE
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
+        # cause the error for telemetered
         self.clear_sample_data()
-        self.create_sample_data('unit_363_2013_245_7_7.mrg')
+        self.create_sample_data_set_dir('non-input_file.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_7.mrg")
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
+        self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+        # Verify an event was raised and we are in our retry state
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+
+
+
+        # # cause the same error for recovered
+        self.event_subscribers.clear_events()
+        self.clear_sample_data()
+        self.create_sample_data_set_dir('non-input_file.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_8.mrg")
+
+        self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 0)
+
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 40)
