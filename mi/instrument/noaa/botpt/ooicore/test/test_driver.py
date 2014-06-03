@@ -49,10 +49,10 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverConfigKey.PARAMETERS: {
-            # Parameter.AUTO_RELEVEL: True,
-            # Parameter.LEVELING_TIMEOUT: 600,
-            # Parameter.XTILT_TRIGGER: 300,
-            # Parameter.YTILT_TRIGGER: 300,
+            Parameter.AUTO_RELEVEL: True,
+            Parameter.LEVELING_TIMEOUT: 600,
+            Parameter.XTILT_TRIGGER: 300,
+            Parameter.YTILT_TRIGGER: 300,
         }
     }
 )

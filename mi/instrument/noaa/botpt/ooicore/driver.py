@@ -1,6 +1,6 @@
 """
 @package mi.instrument.noaa.ooicore.driver
-@file marine-integrations/mi/instrument/noaa/ooicoredriver.py
+@file marine-integrations/mi/instrument/noaa/ooicore/driver.py
 @author Pete Cable
 @brief BOTPT
 Release notes:
@@ -77,7 +77,6 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    INIT_PARAMS = DriverEvent.INIT_PARAMS
 
 
 class Capability(BaseEnum):
@@ -226,12 +225,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                 # (ProtocolEvent.START_LEVELING, self._handler_command_start_leveling),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
-            # ProtocolState.DIRECT_ACCESS: [
-            #     (ProtocolEvent.ENTER, self._handler_direct_access_enter),
-            #     (ProtocolEvent.EXIT, self._handler_direct_access_exit),
-            #     (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
-            #     (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
-            # ],
+            ProtocolState.DIRECT_ACCESS: [
+                (ProtocolEvent.ENTER, self._handler_direct_access_enter),
+                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
+                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
+            ],
             # ProtocolState.COMMAND_LEVELING: [
             #     (ProtocolEvent.ENTER, self._handler_leveling_enter),
             #     (ProtocolEvent.EXIT, self._handler_leveling_exit),
