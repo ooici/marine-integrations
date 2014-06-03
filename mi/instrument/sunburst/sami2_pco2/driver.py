@@ -43,38 +43,38 @@ from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
-from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
-from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.driver import SamiScheduledJob
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiCapability
-from mi.instrument.sunburst.driver import TIMEOUT
-from mi.instrument.sunburst.driver import NEW_LINE_REGEX_MATCHER
-from mi.instrument.sunburst.driver import PUMP_TIMEOUT_OFFSET
+from mi.instrument.sunburst.driver import SAMI_DEFAULT_TIMEOUT
+from mi.instrument.sunburst.driver import SAMI_NEW_LINE_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_PUMP_TIMEOUT_OFFSET
 
 ###
 #    Driver Constant Definitions
 ###
 
 # PCO2W sample timeout
-SAMPLE_TIMEOUT = 180
+PCO2W_SAMPLE_TIMEOUT = 180
 
 # Pump on, valve on
-PUMP_DEIONIZED_WATER = '03'
+PCO2W_PUMP_DEIONIZED_WATER_PARAM = '03'
 # Pump on, valve off
-PUMP_REAGENT = '01'
+PCO2W_PUMP_REAGENT_PARAM = '01'
 # 1/8 second
-PUMP_DURATION_UNITS = 0.125
+PCO2W_PUMP_DURATION_UNITS = 0.125
 # 1/8 second increments to pump 50ml
-PUMP_DURATION_50ML = 8
+PCO2W_PUMP_DURATION_50ML = 8
 # Sleep time between 50ml pumps
-PUMP_SLEEP_50ML = 2.0
+PCO2W_PUMP_SLEEP_50ML = 2.0
 # Number of times to execute pump for 100ML
-PUMP_COMMANDS_50ML = 2
+PCO2W_PUMP_COMMANDS_50ML = 2
 
 # Imported from base class
 
@@ -85,8 +85,8 @@ PUMP_COMMANDS_50ML = 2
 # Mostly defined in base class with these additional, instrument specific
 # additions
 
-# SAMI Sample Records (Types 0x04 or 0x05)
-SAMI_SAMPLE_REGEX = (
+# PCO2W Sample Records (Types 0x04 or 0x05)
+PCO2W_SAMPLE_REGEX = (
     r'[\*]' +  # record identifier
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
     '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
@@ -96,8 +96,8 @@ SAMI_SAMPLE_REGEX = (
     '([0-9A-Fa-f]{4})' +  # battery voltage (counts)
     '([0-9A-Fa-f]{4})' +  # thermistor (counts)
     '([0-9A-Fa-f]{2})' +  # checksum
-    NEWLINE)
-SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
+    SAMI_NEWLINE)
+PCO2W_SAMPLE_REGEX_MATCHER = re.compile(PCO2W_SAMPLE_REGEX)
 
 ###
 #    Begin Classes
@@ -143,7 +143,7 @@ class Pco2wSamiDataParticleType(SamiDataParticleType):
     """
     SAMI_SAMPLE = 'pco2w_sami_data_record'
 
-class Pco2wSamiParameter(SamiParameter):
+class Pco2wParameter(SamiParameter):
     """
     Device specific parameters.
     """
@@ -164,9 +164,9 @@ class Pco2wInstrumentCommand(SamiInstrumentCommand):
     """
     Extend base class with instrument specific functionality.
     """
-    ACQUIRE_BLANK_SAMPLE_SAMI = 'C'
-    PUMP_DEIONIZED_WATER_SAMI = 'P' + PUMP_DEIONIZED_WATER
-    PUMP_REAGENT_SAMI = 'P' + PUMP_REAGENT
+    PCO2W_ACQUIRE_BLANK_SAMPLE = 'C'
+    PCO2W_PUMP_DEIONIZED_WATER = 'P' + PCO2W_PUMP_DEIONIZED_WATER_PARAM
+    PCO2W_PUMP_REAGENT = 'P' + PCO2W_PUMP_REAGENT_PARAM
 
 ###############################################################################
 # Data Particles
@@ -212,7 +212,7 @@ class Pco2wSamiSampleDataParticle(DataParticle):
         # vendor supplied SAMI Record Format document.
         ###
 
-        matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        matched = PCO2W_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
@@ -423,18 +423,18 @@ class Pco2wProtocol(SamiProtocol):
             Pco2wProtocolState.DEIONIZED_WATER_FLUSH, Pco2wProtocolEvent.ACQUIRE_STATUS,
             self._handler_queue_acquire_status)
 
-        self._engineering_parameters.append(Pco2wSamiParameter.PUMP_100ML_CYCLES)
+        self._engineering_parameters.append(Pco2wParameter.PUMP_100ML_CYCLES)
 
-        self._add_build_handler(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._build_simple_command)
-        self._add_build_handler(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, self._build_pump_command)
-        self._add_build_handler(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, self._build_pump_command)
+        self._add_build_handler(Pco2wInstrumentCommand.PCO2W_ACQUIRE_BLANK_SAMPLE, self._build_simple_command)
+        self._add_build_handler(Pco2wInstrumentCommand.PCO2W_PUMP_DEIONIZED_WATER, self._build_pump_command)
+        self._add_build_handler(Pco2wInstrumentCommand.PCO2W_PUMP_REAGENT, self._build_pump_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI,
+        self._add_response_handler(Pco2wInstrumentCommand.PCO2W_ACQUIRE_BLANK_SAMPLE,
                                    self._parse_response_blank_sample_sami)
-        self._add_response_handler(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI,
+        self._add_response_handler(Pco2wInstrumentCommand.PCO2W_PUMP_DEIONIZED_WATER,
                                    self._parse_response_pump_deionized_water_sami)
-        self._add_response_handler(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, self._parse_response_pump_reagent_sami)
+        self._add_response_handler(Pco2wInstrumentCommand.PCO2W_PUMP_REAGENT, self._parse_response_pump_reagent_sami)
 
     ########################################################################
     # Build command handlers.
@@ -548,37 +548,24 @@ class Pco2wProtocol(SamiProtocol):
 
         try:
 
-            pump_100ml_cycles = self._param_dict.get(Pco2wSamiParameter.PUMP_100ML_CYCLES)
+            pump_100ml_cycles = self._param_dict.get(Pco2wParameter.PUMP_100ML_CYCLES)
             log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump 100ml cycles = %s' %
                       pump_100ml_cycles)
 
-            flush_duration = PUMP_DURATION_50ML
-            flush_duration_str = str(flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            flush_duration = PCO2W_PUMP_DURATION_50ML
+            flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
+            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
             log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI,
+            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PCO2W_PUMP_DEIONIZED_WATER,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
-                                        delay=PUMP_SLEEP_50ML,
-                                        command_count=PUMP_COMMANDS_50ML,
+                                        delay=PCO2W_PUMP_SLEEP_50ML,
+                                        command_count=PCO2W_PUMP_COMMANDS_50ML,
                                         cycles=pump_100ml_cycles)
-
-            # for pump_num in range(pump_100ml_cycles):
-            #     start_time = time.time()
-            #     self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-            #     pump_time = time.time() - start_time
-            #     log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
-            #     time.sleep(PUMP_SLEEP_50ML)
-            #
-            #     start_time = time.time()
-            #     self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-            #     pump_time = time.time() - start_time
-            #     log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
-            #     time.sleep(PUMP_SLEEP_50ML)
 
             log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): SUCCESS')
             self._async_raise_fsm_event(Pco2wProtocolEvent.SUCCESS)
@@ -599,39 +586,26 @@ class Pco2wProtocol(SamiProtocol):
 
         try:
 
-            pump_100ml_cycles = self._param_dict.get(Pco2wSamiParameter.PUMP_100ML_CYCLES)
+            pump_100ml_cycles = self._param_dict.get(Pco2wParameter.PUMP_100ML_CYCLES)
             log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): pump 100ml cycles = %s' %
                       pump_100ml_cycles)
 
-            flush_duration = PUMP_DURATION_50ML
-            flush_duration_str = str(flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            flush_duration = PCO2W_PUMP_DURATION_50ML
+            flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
+            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
             log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' %
                       (flush_duration,
                        flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PUMP_REAGENT_SAMI,
+            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PCO2W_PUMP_REAGENT,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
-                                        delay=PUMP_SLEEP_50ML,
-                                        command_count=PUMP_COMMANDS_50ML,
+                                        delay=PCO2W_PUMP_SLEEP_50ML,
+                                        command_count=PCO2W_PUMP_COMMANDS_50ML,
                                         cycles=pump_100ml_cycles)
-
-            # for pump_num in range(pump_100ml_cycles):
-            #     start_time = time.time()
-            #     self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-            #     pump_time = time.time() - start_time
-            #     log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
-            #     time.sleep(PUMP_SLEEP_50ML)
-            #
-            #     start_time = time.time()
-            #     self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, flush_duration_str, timeout=flush_timeout, response_regex=NEW_LINE_REGEX_MATCHER)
-            #     pump_time = time.time() - start_time
-            #     log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump num = %s, pump time = %s' % (pump_num, pump_time))
-            #     time.sleep(PUMP_SLEEP_50ML)
 
             log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): SUCCESS')
             self._async_raise_fsm_event(Pco2wProtocolEvent.SUCCESS)
@@ -652,19 +626,19 @@ class Pco2wProtocol(SamiProtocol):
 
         try:
 
-            param = Pco2wSamiParameter.FLUSH_DURATION
+            param = Pco2wParameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
 
             log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration,
                        flush_duration_seconds))
 
             # Add offset to timeout make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI,
+            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PCO2W_PUMP_DEIONIZED_WATER,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
                                         delay=0,
@@ -692,16 +666,16 @@ class Pco2wProtocol(SamiProtocol):
             param = SamiParameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
 
             log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration,
                        flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PUMP_REAGENT_SAMI,
+            self._execute_pump_sequence(command=Pco2wInstrumentCommand.PCO2W_PUMP_REAGENT,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
                                         delay=0,
@@ -749,7 +723,7 @@ class Pco2wProtocol(SamiProtocol):
         start_time = time.time()
 
         ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI,
+        self._do_cmd_resp(Pco2wInstrumentCommand.PCO2W_ACQUIRE_BLANK_SAMPLE,
                           timeout = self._get_blank_sample_timeout(),
                           response_regex=self._get_sample_regex())
 
@@ -788,7 +762,7 @@ class Pco2wProtocol(SamiProtocol):
         configuration_string_regex = self._get_configuration_string_regex()
 
         # PCO2 0x04, PHSEN 0x0A
-        self._param_dict.add(Pco2wSamiParameter.SAMI_DRIVER_VERSION, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.SAMI_DRIVER_VERSION, configuration_string_regex,
                              lambda match: int(match.group(6), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -798,7 +772,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='sami driver version')
 
-        self._param_dict.add(Pco2wSamiParameter.PUMP_PULSE, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.PUMP_PULSE, configuration_string_regex,
                              lambda match: int(match.group(21), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -808,7 +782,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='pump pulse duration')
 
-        self._param_dict.add(Pco2wSamiParameter.PUMP_DURATION, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.PUMP_DURATION, configuration_string_regex,
                              lambda match: int(match.group(22), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -818,7 +792,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='pump measurement duration')
 
-        self._param_dict.add(Pco2wSamiParameter.SAMPLES_PER_MEASUREMENT, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.SAMPLES_PER_MEASUREMENT, configuration_string_regex,
                              lambda match: int(match.group(23), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -828,7 +802,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='samples per measurement')
 
-        self._param_dict.add(Pco2wSamiParameter.CYCLES_BETWEEN_BLANKS, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.CYCLES_BETWEEN_BLANKS, configuration_string_regex,
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -838,7 +812,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='cycles between blanks')
 
-        self._param_dict.add(Pco2wSamiParameter.NUMBER_REAGENT_CYCLES, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.NUMBER_REAGENT_CYCLES, configuration_string_regex,
                              lambda match: int(match.group(25), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -848,7 +822,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of reagent cycles')
 
-        self._param_dict.add(Pco2wSamiParameter.NUMBER_BLANK_CYCLES, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.NUMBER_BLANK_CYCLES, configuration_string_regex,
                              lambda match: int(match.group(26), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -858,7 +832,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of blank cycles')
 
-        self._param_dict.add(Pco2wSamiParameter.FLUSH_PUMP_INTERVAL, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.FLUSH_PUMP_INTERVAL, configuration_string_regex,
                              lambda match: int(match.group(27), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -868,7 +842,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='flush pump interval')
 
-        self._param_dict.add(Pco2wSamiParameter.BIT_SWITCHES, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.BIT_SWITCHES, configuration_string_regex,
                              lambda match: int(match.group(28), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -878,7 +852,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='bit switches')
 
-        self._param_dict.add(Pco2wSamiParameter.NUMBER_EXTRA_PUMP_CYCLES, configuration_string_regex,
+        self._param_dict.add(Pco2wParameter.NUMBER_EXTRA_PUMP_CYCLES, configuration_string_regex,
                              lambda match: int(match.group(29), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -888,7 +862,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of extra pump cycles')
 
-        self._param_dict.add(Pco2wSamiParameter.PUMP_100ML_CYCLES, r'Pump 100ml cycles = ([0-9]+)',
+        self._param_dict.add(Pco2wParameter.PUMP_100ML_CYCLES, r'Pump 100ml cycles = ([0-9]+)',
                              lambda match: match.group(1),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -898,7 +872,7 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='pump 100ml cycles')
 
-        self._param_dict.add(Pco2wSamiParameter.FLUSH_DURATION, r'Flush duration = ([0-9]+)',
+        self._param_dict.add(Pco2wParameter.FLUSH_DURATION, r'Flush duration = ([0-9]+)',
                              lambda match: match.group(1),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
@@ -918,19 +892,18 @@ class Pco2wProtocol(SamiProtocol):
         Get blank sample timeout.
         @retval blank sample timeout in seconds.
         """
-        return SAMPLE_TIMEOUT
+        return PCO2W_SAMPLE_TIMEOUT
 
     def _get_sample_timeout(self):
         """
         Get sample timeout.
         @retval sample timeout in seconds.
         """
-        return SAMPLE_TIMEOUT
+        return PCO2W_SAMPLE_TIMEOUT
 
     def _get_sample_regex(self):
         """
         Get sample regex
         @retval sample regex
         """
-        log.debug('Protocol._get_sample_regex()')
-        return SAMI_SAMPLE_REGEX_MATCHER
+        return PCO2W_SAMPLE_REGEX_MATCHER

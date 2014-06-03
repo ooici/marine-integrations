@@ -20,6 +20,7 @@ import unittest
 import time
 import datetime
 import copy
+import ntplib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -53,11 +54,12 @@ from mi.core.instrument.logger_client import LoggerClient
 #from mi.core.instrument.instrument_driver import DriverConnectionState
 #from mi.core.instrument.instrument_driver import DriverProtocolState
 
+from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
@@ -130,13 +132,13 @@ class SamiMixin(DriverTestMixin):
     ###
 
     # Control records
-    VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + NEWLINE
+    VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + SAMI_NEWLINE
 
     # Regular Status Message (response to S0 command)
-    VALID_STATUS_MESSAGE = ':CDDD74E10041000003000000000236F8' + NEWLINE
+    VALID_STATUS_MESSAGE = ':CDDD74E10041000003000000000236F8' + SAMI_NEWLINE
 
     # Error records (valid error codes are between 0x00 and 0x11)
-    VALID_ERROR_CODE = '?0B' + NEWLINE
+    VALID_ERROR_CODE = '?0B' + SAMI_NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -230,18 +232,6 @@ class SamiMixin(DriverTestMixin):
                                              self._thermistor_voltage_parameters,
                                              verify_values)
 
-    def assert_driver_parameters(self, current_parameters, verify_values=False):
-        """
-        Verify that all driver parameters are correct and potentially verify
-        values.
-        @param current_parameters: driver parameters read from the driver
-        instance
-        @param verify_values: should we verify values against definition?
-        """
-
-        self.assert_parameters(current_parameters, self._driver_parameters,
-                               verify_values)
-
     def assert_particle_regular_status(self, data_particle, verify_values=False):
         '''
         Verify regular_status particle
@@ -271,6 +261,29 @@ class SamiMixin(DriverTestMixin):
         self.assert_data_particle_parameters(data_particle,
                                              self._control_record_parameters,
                                              verify_values)
+
+    @staticmethod
+    def send_port_agent_packet(protocol, data):
+        ts = ntplib.system_to_ntp_time(time.time())
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(data)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        protocol.got_data(port_agent_packet)
+        protocol.got_raw(port_agent_packet)
+        log.debug('Sent port agent packet containing: %r', data)
+
+    def send_newline_side_effect(self, protocol):
+        def inner(data):
+            my_response = '\r'
+            if my_response is not None:
+                log.debug("my_send: data: %r, my_response: %r", data, my_response)
+                time.sleep(.1)
+                self.send_port_agent_packet(protocol, my_response)
+                return len(my_response)
+        return inner
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -484,16 +497,16 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.tcp_client)
 
         # Erase memory
-        self.tcp_client.send_data("E5A%s" % NEWLINE)
+        self.tcp_client.send_data("E5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
         # Cause boot prompt by entering L5A command without a config string
-        self.tcp_client.send_data("L5A%s" % NEWLINE)
+        self.tcp_client.send_data("L5A%s" % SAMI_NEWLINE)
 
         time.sleep(10)
 
-        self.tcp_client.send_data(NEWLINE)
+        self.tcp_client.send_data(SAMI_NEWLINE)
 
         boot_prompt = self.tcp_client.expect(Prompt.BOOT_PROMPT)
         self.assertTrue(boot_prompt)

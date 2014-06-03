@@ -50,16 +50,16 @@ from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import InstrumentDriver
-from mi.instrument.sunburst.driver import SamiInstrumentCommand
+from mi.instrument.sunburst.sami2_pco2.pco2a.driver import InstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import ProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
-from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Pco2wConfigurationDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Pco2waConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import DataParticleType
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
@@ -172,14 +172,14 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + SAMI_NEWLINE
 
     # Data records -- SAMI and Device1 (external pump) (responses to R0 and R1
     # commands, respectively)
     VALID_R0_BLANK_SAMPLE = '*542705CEE91CC800400019096206800730074C2CE042' + \
-                            '74003B0018096106800732074E0D82066124' + NEWLINE
+                            '74003B0018096106800732074E0D82066124' + SAMI_NEWLINE
     VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
-                           'D0043001A09620154072F03EA0D92065F3B' + NEWLINE
+                           'D0043001A09620154072F03EA0D92065F3B' + SAMI_NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -284,46 +284,46 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
 
     _configuration_parameters = {
         # Configuration settings
-        Pco2wConfigurationDataParticleKey.LAUNCH_TIME:                  {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.START_TIME_OFFSET:            {TYPE: int, VALUE: 0x02C7EA00, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.RECORDING_TIME:               {TYPE: int, VALUE: 0x01E13380, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE:          {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE:         {TYPE: bool, VALUE: True,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_SAMI:          {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_SAMI:               {TYPE: int, VALUE: 0x04,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_SAMI:       {TYPE: int, VALUE: 0x02,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1:       {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE1:            {TYPE: int, VALUE: 0x01,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1:    {TYPE: int, VALUE: 0x0B, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE2:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE3:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_PRESTART:           {TYPE: int, VALUE: 0x00, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART:   {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600:          {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE:             {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SEND_LIVE_RECORDS:            {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PUMP_PULSE:                   {TYPE: int, VALUE: 0x10, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PUMP_DURATION:                {TYPE: int, VALUE: 0x20, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SAMPLES_PER_MEASUREMENT:      {TYPE: int, VALUE: 0xFF, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.NUMBER_REAGENT_CYCLES:        {TYPE: int, VALUE: 0x18, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.NUMBER_BLANK_CYCLES:          {TYPE: int, VALUE: 0x1C, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL:          {TYPE: int, VALUE: 0x01,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.LAUNCH_TIME:                  {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.START_TIME_OFFSET:            {TYPE: int, VALUE: 0x02C7EA00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.RECORDING_TIME:               {TYPE: int, VALUE: 0x01E13380, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE:          {TYPE: bool, VALUE: False,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE:         {TYPE: bool, VALUE: True,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_SAMI:          {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_SAMI:               {TYPE: int, VALUE: 0x04,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_SAMI:       {TYPE: int, VALUE: 0x02,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1:       {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE1:            {TYPE: int, VALUE: 0x01,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1:    {TYPE: int, VALUE: 0x0B, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE2:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE3:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_PRESTART:           {TYPE: int, VALUE: 0x00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART:   {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.USE_BAUD_RATE_57600:          {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SEND_RECORD_TYPE:             {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SEND_LIVE_RECORDS:            {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG:         {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PUMP_PULSE:                   {TYPE: int, VALUE: 0x10, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PUMP_DURATION:                {TYPE: int, VALUE: 0x20, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SAMPLES_PER_MEASUREMENT:      {TYPE: int, VALUE: 0xFF, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.NUMBER_REAGENT_CYCLES:        {TYPE: int, VALUE: 0x18, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.NUMBER_BLANK_CYCLES:          {TYPE: int, VALUE: 0x1C, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL:          {TYPE: int, VALUE: 0x01,  REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
     }
 
     ###
@@ -418,7 +418,7 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         @param data_particle: Pco2wConfigurationDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_keys(Pco2wConfigurationDataParticleKey,
+        self.assert_data_particle_keys(Pco2waConfigurationDataParticleKey,
                                        self._configuration_parameters)
         self.assert_data_particle_header(data_particle,
                                          DataParticleType.CONFIGURATION)
@@ -525,11 +525,11 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might
-        cause confusion. Also do a little extra validation for the Capabilites
+        cause confusion.
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(SamiInstrumentCommand())
+        self.assert_enum_has_no_duplicates(InstrumentCommand())
 
     def test_chunker(self):
         """
@@ -593,7 +593,7 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(Prompt, SAMI_NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -615,6 +615,12 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self.capabilities_test_dict)
 
+    def test_pump_commands(self):
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_pump_commands(driver)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -839,13 +845,6 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
         self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
 
-    def test_flush_pump(self):
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15.0)
-
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -911,21 +910,21 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assertTrue(self.tcp_client)
 
         # Erase memory
-        self.tcp_client.send_data("E5A%s" % NEWLINE)
+        self.tcp_client.send_data("E5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
         # Load a new configuration string changing X to X
-        self.tcp_client.send_data("L5A%s" % NEWLINE)
+        self.tcp_client.send_data("L5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
-        self.tcp_client.send_data("%s00%s" % (configuration_string, NEWLINE))
+        self.tcp_client.send_data("%s00%s" % (configuration_string, SAMI_NEWLINE))
 
         time.sleep(1)
 
         # Check that configuration was changed
-        self.tcp_client.send_data("L%s" % NEWLINE)
+        self.tcp_client.send_data("L%s" % SAMI_NEWLINE)
         return_value = self.tcp_client.expect(configuration_string)
         self.assertTrue(return_value)
 

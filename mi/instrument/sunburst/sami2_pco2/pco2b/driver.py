@@ -34,18 +34,18 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiDataParticleType
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wCapability
-from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiParameter
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wParameter
 from mi.instrument.sunburst.sami2_pco2.driver import Prompt
 from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentDriver
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocol
-from mi.instrument.sunburst.sami2_pco2.driver import REGULAR_STATUS_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import ERROR_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import SAMI_ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import SAMI_NEWLINE
+from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -67,18 +67,18 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 # additions
 
 # Device 1 Sample Records (Type 0x11)
-DEV1_SAMPLE_REGEX = (
+PCO2WB_DEV1_SAMPLE_REGEX = (
     r'[\*]' +  #
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
     '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
     '(11)' +  # type of data record (11 for external Device 1, aka the external pump)
     '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
     '([0-9A-Fa-f]{2})' +  # checksum
-    NEWLINE)
-DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
+    SAMI_NEWLINE)
+PCO2WB_DEV1_SAMPLE_REGEX_MATCHER = re.compile(PCO2WB_DEV1_SAMPLE_REGEX)
 
 # PCO2W Configuration Record
-CONFIGURATION_REGEX = (
+PCO2WB_CONFIGURATION_REGEX = (
     r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
     '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
     '([0-9A-Fa-f]{8})' +  # stop time (seconds from start time)
@@ -110,8 +110,8 @@ CONFIGURATION_REGEX = (
     '([0-9A-Fa-f]{2})' +  # pCO2-9: extra pumps + cycle interval
     '([0-9A-Fa-f]{2})' +  # Device 1 (external pump) setting
     '([0-9A-Fa-f]{414})' +  # padding of 0's and then F's
-    NEWLINE)
-CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
+    SAMI_NEWLINE)
+PCO2WB_CONFIGURATION_REGEX_MATCHER = re.compile(PCO2WB_CONFIGURATION_REGEX)
 
 
 ###
@@ -149,7 +149,7 @@ class DataParticleType(Pco2wSamiDataParticleType):
     CONFIGURATION = 'pco2w_configuration'
 
 
-class Parameter(Pco2wSamiParameter):
+class Parameter(Pco2wParameter):
     """
     Device specific parameters.
     """
@@ -165,13 +165,13 @@ class InstrumentCommand(Pco2wInstrumentCommand):
     SamiInstrumentCommand
     """
     # PCO2W driver extends the base class (SamiInstrumentCommand) with:
-    ACQUIRE_SAMPLE_DEV1 = 'R1'
+    PCO2WB_ACQUIRE_SAMPLE_DEV1 = 'R1'
 
 ###############################################################################
 # Data Particles
 ###############################################################################
 
-class Pco2wDev1SampleDataParticleKey(BaseEnum):
+class Pco2wbDev1SampleDataParticleKey(BaseEnum):
     """
     Data particle key for the device 1 (external pump) records. These particles
     capture when a sample was collected.
@@ -183,7 +183,7 @@ class Pco2wDev1SampleDataParticleKey(BaseEnum):
     CHECKSUM = 'checksum'
 
 
-class Pco2wDev1SampleDataParticle(DataParticle):
+class Pco2wbDev1SampleDataParticle(DataParticle):
     """
     Routines for parsing raw data into a device 1 sample data particle
     structure.
@@ -209,16 +209,16 @@ class Pco2wDev1SampleDataParticle(DataParticle):
         # in the vendor supplied SAMI Record Format document.
         ###
 
-        matched = DEV1_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        matched = PCO2WB_DEV1_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
 
-        particle_keys = [Pco2wDev1SampleDataParticleKey.UNIQUE_ID,
-                         Pco2wDev1SampleDataParticleKey.RECORD_LENGTH,
-                         Pco2wDev1SampleDataParticleKey.RECORD_TYPE,
-                         Pco2wDev1SampleDataParticleKey.RECORD_TIME,
-                         Pco2wDev1SampleDataParticleKey.CHECKSUM]
+        particle_keys = [Pco2wbDev1SampleDataParticleKey.UNIQUE_ID,
+                         Pco2wbDev1SampleDataParticleKey.RECORD_LENGTH,
+                         Pco2wbDev1SampleDataParticleKey.RECORD_TYPE,
+                         Pco2wbDev1SampleDataParticleKey.RECORD_TIME,
+                         Pco2wbDev1SampleDataParticleKey.CHECKSUM]
 
         result = []
         grp_index = 1
@@ -270,7 +270,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
         # vendor supplied Low Level Operation of the SAMI/AFT document.
         ###
 
-        matched = CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
+        matched = PCO2WB_CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
@@ -400,7 +400,7 @@ class InstrumentDriver(Pco2wInstrumentDriver):
         Construct the driver protocol state machine.
         """
 
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(Prompt, SAMI_NEWLINE, self._driver_event)
 
 ###########################################################################
 # Protocol
@@ -460,10 +460,10 @@ class Protocol(Pco2wProtocol):
 
         # Add build handlers for device commands.
         ### primarily defined in base class
-        self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.PCO2WB_ACQUIRE_SAMPLE_DEV1, self._build_simple_command)
         # Add response handlers for device commands.
         ### primarily defined in base class
-        self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._parse_response_sample_dev1)
+        self._add_response_handler(InstrumentCommand.PCO2WB_ACQUIRE_SAMPLE_DEV1, self._parse_response_sample_dev1)
 
         # Add sample handlers
 
@@ -548,9 +548,9 @@ class Protocol(Pco2wProtocol):
         log.debug('Protocol._take_dev1_sample(): Dev1 Timeout = ' + str(dev1_timeout))
 
         ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1,
+        self._do_cmd_resp(InstrumentCommand.PCO2WB_ACQUIRE_SAMPLE_DEV1,
                           timeout = dev1_timeout,
-                          response_regex=DEV1_SAMPLE_REGEX_MATCHER)
+                          response_regex=PCO2WB_DEV1_SAMPLE_REGEX_MATCHER)
 
         sample_time = time.time() - start_time
 
@@ -578,12 +578,12 @@ class Protocol(Pco2wProtocol):
 
         return_list = []
 
-        sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
-                          CONTROL_RECORD_REGEX_MATCHER,
-                          SAMI_SAMPLE_REGEX_MATCHER,
-                          DEV1_SAMPLE_REGEX_MATCHER,
-                          CONFIGURATION_REGEX_MATCHER,
-                          ERROR_REGEX_MATCHER]
+        sieve_matchers = [SAMI_REGULAR_STATUS_REGEX_MATCHER,
+                          SAMI_CONTROL_RECORD_REGEX_MATCHER,
+                          PCO2W_SAMPLE_REGEX_MATCHER,
+                          PCO2WB_DEV1_SAMPLE_REGEX_MATCHER,
+                          PCO2WB_CONFIGURATION_REGEX_MATCHER,
+                          SAMI_ERROR_REGEX_MATCHER]
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -597,18 +597,18 @@ class Protocol(Pco2wProtocol):
         extract_sample with the appropriate particle objects and REGEXes.
         """
 
-        self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
-        dev1_sample = self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
-        sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(Pco2wConfigurationDataParticle, PCO2WB_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        dev1_sample = self._extract_sample(Pco2wbDev1SampleDataParticle, PCO2WB_DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
         log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
         if sami_sample:
-            self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
+            self._verify_checksum(chunk, PCO2W_SAMPLE_REGEX_MATCHER)
         elif dev1_sample:
-            self._verify_checksum(chunk, DEV1_SAMPLE_REGEX_MATCHER)
+            self._verify_checksum(chunk, PCO2WB_DEV1_SAMPLE_REGEX_MATCHER)
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
@@ -763,11 +763,11 @@ class Protocol(Pco2wProtocol):
         Get configuration string regex.
         @retval configuration string regex.
         """
-        return CONFIGURATION_REGEX
+        return PCO2WB_CONFIGURATION_REGEX
 
     def _get_configuration_string_regex_matcher(self):
         """
         Get config string regex matcher.
         @retval configuration string regex matcher
         """
-        return CONFIGURATION_REGEX_MATCHER
+        return PCO2WB_CONFIGURATION_REGEX_MATCHER

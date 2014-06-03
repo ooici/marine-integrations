@@ -17,6 +17,7 @@ __author__ = 'Stuart Pearce & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
+import time
 
 from mi.core.log import get_logger
 
@@ -45,47 +46,49 @@ from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
-from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
-from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
 
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.driver import SamiScheduledJob
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiCapability
-from mi.instrument.sunburst.driver import PUMP_TIMEOUT_OFFSET
+from mi.instrument.sunburst.driver import SAMI_PUMP_TIMEOUT_OFFSET
+from mi.instrument.sunburst.driver import SAMI_NEW_LINE_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_DEFAULT_TIMEOUT
 
 ###
 #    Driver Constant Definitions
 ###
 
 # PHSEN sample timeout
-SAMPLE_TIMEOUT = 240
+PHSEN_SAMPLE_TIMEOUT = 240
 
 # Pump on, valve on
-PUMP_REAGENT = '03'
+PHSEN_PUMP_REAGENT_PARAM = '03'
 # Pump on, valve off
-PUMP_SEAWATER = '01'
+PHSEN_PUMP_SEAWATER_PARAM = '01'
 # 1/4 second
-PUMP_DURATION_UNITS = 0.250
+PHSEN_PUMP_DURATION_UNITS = 0.250
 # Sleep time between seawater pumps for 1375ML
-PUMP_SLEEP_SEAWATER_1375ML = 2.0
+PHSEN_PUMP_SLEEP_SEAWATER_1375ML = 2.0
 # Number of times to pump seawater for 1375ML
-PUMP_COMMANDS_SEAWATER_1375ML = 55
+PHSEN_PUMP_COMMANDS_SEAWATER_1375ML = 55
 # Duration parameter to pump seawater command for 1375ML
-PUMP_DURATION_SEAWATER_1375ML = 1
+PHSEN_PUMP_DURATION_SEAWATER_1375ML = 1
 # Sleep time after pumping 50ML of reagent
-PUMP_SLEEP_REAGENT_50ML = 1.0
+PHSEN_PUMP_SLEEP_REAGENT_50ML = 1.0
 # Duration parameter to pump 50ML of reagent
-PUMP_DURATION_REAGENT_50ML = 2
+PHSEN_PUMP_DURATION_REAGENT_50ML = 2
 
 ###
 #    Driver RegEx Definitions
 ###
 
-# SAMI pH Sample Records (Type 0x0A)
-SAMI_SAMPLE_REGEX = (
+# PHSEN Sample Records (Type 0x0A)
+PHSEN_SAMPLE_REGEX = (
     r'[\*]' +  # record identifier
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
     '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
@@ -98,11 +101,11 @@ SAMI_SAMPLE_REGEX = (
     '([0-9A-Fa-f]{4})' +  # battery voltage
     '([0-9A-Fa-f]{4})' +  # ending thermistor reading
     '([0-9A-Fa-f]{2})' +  # checksum
-    NEWLINE)
-SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
+    SAMI_NEWLINE)
+PHSEN_SAMPLE_REGEX_MATCHER = re.compile(PHSEN_SAMPLE_REGEX)
 
 # Configuration Records
-CONFIGURATION_REGEX = (
+PHSEN_CONFIGURATION_REGEX = (
     r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
     '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
     '([0-9A-Fa-f]{8})' +  # stop time (seconds from start time)
@@ -138,8 +141,8 @@ CONFIGURATION_REGEX = (
     '([0-9A-Fa-f]{2})' +  # pH13: Number of measurements
     '([0-9A-Fa-f]{2})' +  # pH14: Salinity delay
     '([0-9A-Fa-f]{406})' +  # padding of F or 0
-    NEWLINE)
-CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
+    SAMI_NEWLINE)
+PHSEN_CONFIGURATION_REGEX_MATCHER = re.compile(PHSEN_CONFIGURATION_REGEX)
 
 ###
 #    Begin Classes
@@ -210,8 +213,8 @@ class InstrumentCommand(SamiInstrumentCommand):
     Device specific Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
-    PUMP_SEAWATER_PHSEN = 'P' + PUMP_SEAWATER
-    PUMP_REAGENT_SAMI = 'P' + PUMP_REAGENT
+    PHSEN_PUMP_SEAWATER = 'P' + PHSEN_PUMP_SEAWATER_PARAM
+    PHSEN_PUMP_REAGENT = 'P' + PHSEN_PUMP_REAGENT_PARAM
 
 ###############################################################################
 # Data Particles
@@ -249,7 +252,7 @@ class PhsenSamiSampleDataParticle(DataParticle):
         Parse SAMI2-PH values from raw data into a dictionary
         """
 
-        matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        matched = PHSEN_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
@@ -341,7 +344,7 @@ class PhsenConfigDataParticle(DataParticle):
         Parse configuration record values from raw data into a dictionary
         """
 
-        matched = CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
+        matched = PHSEN_CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
@@ -459,7 +462,7 @@ class InstrumentDriver(SamiInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(Prompt, SAMI_NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -570,10 +573,10 @@ class Protocol(SamiProtocol):
 
         self._engineering_parameters.append(Parameter.FLUSH_CYCLES)
 
-        self._add_build_handler(InstrumentCommand.PUMP_REAGENT_SAMI, self._build_pump_command)
-        self._add_build_handler(InstrumentCommand.PUMP_SEAWATER_PHSEN, self._build_pump_command)
+        self._add_build_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._build_pump_command)
+        self._add_build_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._build_pump_command)
 
-        self._add_response_handler(InstrumentCommand.PUMP_REAGENT_SAMI, self._parse_response_pump_reagent_sami)
+        self._add_response_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._parse_response_pump_reagent_sami)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -638,20 +641,20 @@ class Protocol(SamiProtocol):
             flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
             log.debug('Pco2wProtocol._handler_seawater_flush_execute_1375ml(): flush cycles = %s' % flush_cycles)
 
-            flush_duration = PUMP_DURATION_SEAWATER_1375ML
-            flush_duration_str = str(flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
-            log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' %
+            flush_duration = PHSEN_PUMP_DURATION_SEAWATER_1375ML
+            flush_duration_str = self._param_dict.format(Parameter.FLUSH_DURATION, flush_duration)
+            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
+            log.debug('Pco2wProtocol._handler_seawater_flush_execute_1375mll(): flush duration param = %s, seconds = %s' %
                       (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=InstrumentCommand.PUMP_REAGENT_SAMI,
+            self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_SEAWATER,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
-                                        delay=PUMP_SLEEP_SEAWATER_1375ML,
-                                        command_count=PUMP_COMMANDS_SEAWATER_1375ML,
+                                        delay=PHSEN_PUMP_SLEEP_SEAWATER_1375ML,
+                                        command_count=PHSEN_PUMP_COMMANDS_SEAWATER_1375ML,
                                         cycles=flush_cycles)
 
             log.debug('Protocol._handler_seawater_flush_execute_1375ml(): SUCCESS')
@@ -672,6 +675,34 @@ class Protocol(SamiProtocol):
         """
 
         try:
+
+            flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush cycles = %s' % flush_cycles)
+
+            flush_duration = PHSEN_PUMP_DURATION_REAGENT_50ML
+            flush_duration_str = self._param_dict.format(Parameter.FLUSH_DURATION, flush_duration)
+            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush duration param = %s, seconds = %s' %
+                      (flush_duration, flush_duration_seconds))
+
+            # Add offset to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
+
+            self._wakeup()
+
+            for cycle_num in range(flush_cycles):
+                self._do_cmd_resp_no_wakeup(InstrumentCommand.PHSEN_PUMP_REAGENT,
+                                            flush_duration_str,
+                                            timeout=flush_timeout,
+                                            response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+                self._do_cmd_resp_no_wakeup(InstrumentCommand.PHSEN_PUMP_SEAWATER,
+                                            flush_duration_str,
+                                            timeout=flush_timeout,
+                                            response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+                time.sleep(PHSEN_PUMP_SLEEP_REAGENT_50ML)
+
+            # Make sure pump is off
+            self._do_cmd_resp_no_wakeup(SamiInstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
 
             log.debug('Protocol._handler_reagent_flush_enter_50ml(): SUCCESS')
             self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
@@ -695,15 +726,15 @@ class Protocol(SamiProtocol):
             param = Parameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
 
             log.debug('Protocol._handler_seawater_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=InstrumentCommand.PUMP_SEAWATER_PHSEN,
+            self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_SEAWATER,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
                                         delay=0,
@@ -732,15 +763,15 @@ class Protocol(SamiProtocol):
             param = Parameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
 
             log.debug('Protocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
-            flush_timeout = flush_duration_seconds + PUMP_TIMEOUT_OFFSET
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
 
-            self._execute_pump_sequence(command=InstrumentCommand.PUMP_REAGENT_SAMI,
+            self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_REAGENT,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
                                         delay=0,
@@ -770,11 +801,11 @@ class Protocol(SamiProtocol):
 
         return_list = []
 
-        sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
-                          CONTROL_RECORD_REGEX_MATCHER,
-                          SAMI_SAMPLE_REGEX_MATCHER,
-                          CONFIGURATION_REGEX_MATCHER,
-                          ERROR_REGEX_MATCHER]
+        sieve_matchers = [SAMI_REGULAR_STATUS_REGEX_MATCHER,
+                          SAMI_CONTROL_RECORD_REGEX_MATCHER,
+                          PHSEN_SAMPLE_REGEX_MATCHER,
+                          PHSEN_CONFIGURATION_REGEX_MATCHER,
+                          SAMI_ERROR_REGEX_MATCHER]
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -788,15 +819,15 @@ class Protocol(SamiProtocol):
         with the appropriate particle objects and REGEXes.
         """
 
-        self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
-        sample = self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(PhsenConfigDataParticle, PHSEN_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        sample = self._extract_sample(PhsenSamiSampleDataParticle, PHSEN_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
         log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
         if sample:
-            self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
+            self._verify_checksum(chunk, PHSEN_SAMPLE_REGEX_MATCHER)
 
     ########################################################################
     # Build Command
@@ -1087,27 +1118,27 @@ class Protocol(SamiProtocol):
         Get configuration string regex.
         @retval configuration string regex.
         """
-        return CONFIGURATION_REGEX
+        return PHSEN_CONFIGURATION_REGEX
 
     def _get_configuration_string_regex_matcher(self):
         """
         Get config string regex matcher.
         @retval configuration string regex matcher
         """
-        return CONFIGURATION_REGEX_MATCHER
+        return PHSEN_CONFIGURATION_REGEX_MATCHER
 
     def _get_sample_timeout(self):
         """
         Get sample timeout.
         @retval sample timeout in seconds.
         """
-        return SAMPLE_TIMEOUT
+        return PHSEN_SAMPLE_TIMEOUT
 
     def _get_sample_regex(self):
         """
         Get sample regex
         @retval sample regex
         """
-        return SAMI_SAMPLE_REGEX_MATCHER
+        return PHSEN_SAMPLE_REGEX_MATCHER
 
 # End of File driver.py

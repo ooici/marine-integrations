@@ -18,6 +18,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import time
+import mock
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -50,14 +51,16 @@ from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.driver import ScheduledJob
 # from mi.instrument.sunburst.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
 from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
-
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wParameter
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 
 #################################### RULES ####################################
 #                                                                             #
@@ -106,7 +109,55 @@ class Pco2DriverTestMixinSub(SamiMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
-    pass
+
+   def assert_pump_commands(self, driver):
+
+        driver._protocol._connection.send.side_effect = self.send_newline_side_effect(driver._protocol)
+
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.COMMAND
+        for param in driver._protocol._param_dict.get_keys():
+            log.debug('startup param = %s', param)
+            driver._protocol._param_dict.set_default(param)
+
+        driver._protocol._param_dict.set_value(Pco2wParameter.PUMP_100ML_CYCLES, 0x3)
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH_100ML
+        driver._protocol._handler_deionized_water_flush_execute_100ml()
+        call = mock.call('P03,08\r')
+        driver._protocol._connection.send.assert_has_calls(call)
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('DEIONIZED_WATER_FLUSH_100ML command count = %s', command_count)
+        self.assertEqual(6, command_count, 'DEIONIZED_WATER_FLUSH_100ML command count %s != 6' % command_count)
+        driver._protocol._connection.send.reset_mock()
+
+        driver._protocol._param_dict.set_value(Pco2wParameter.PUMP_100ML_CYCLES, 0x5)
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.REAGENT_FLUSH_100ML
+        driver._protocol._handler_reagent_flush_execute_100ml()
+        call = mock.call('P01,08\r')
+        driver._protocol._connection.send.assert_has_calls([call])
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('REAGENT_FLUSH_100ML command count = %s', command_count)
+        self.assertEqual(10, command_count, 'REAGENT_FLUSH_100ML command count %s != 10' % command_count)
+        driver._protocol._connection.send.reset_mock()
+
+        driver._protocol._param_dict.set_value(Pco2wParameter.FLUSH_DURATION, 0x27)
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH
+        driver._protocol._handler_deionized_water_flush_execute()
+        call = mock.call('P03,27\r')
+        driver._protocol._connection.send.assert_has_calls([call])
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('DEIONIZED_WATER_FLUSH command count = %s', command_count)
+        self.assertEqual(1, command_count, 'DEIONIZED_WATER_FLUSH command count %s != 1' % command_count)
+        driver._protocol._connection.send.reset_mock()
+
+        driver._protocol._param_dict.set_value(Pco2wParameter.FLUSH_DURATION, 0x77)
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.REAGENT_FLUSH
+        driver._protocol._handler_reagent_flush_execute()
+        call = mock.call('P01,77\r')
+        driver._protocol._connection.send.assert_has_calls(call)
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('REAGENT_FLUSH command count = %s', command_count)
+        self.assertEqual(1, command_count, 'REAGENT_FLUSH command count %s != 1' % command_count)
+        driver._protocol._connection.send.reset_mock()
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -117,7 +168,13 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
 ###############################################################################
 @attr('INT', group='mi')
 class Pco2DriverIntegrationTest(SamiIntegrationTest, Pco2DriverTestMixinSub):
-    pass
+
+    def test_flush_pump(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(Pco2wProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
+        self.assert_driver_command(Pco2wProtocolEvent.REAGENT_FLUSH, delay=15.0)
+        self.assert_driver_command(Pco2wProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15.0)
+        self.assert_driver_command(Pco2wProtocolEvent.REAGENT_FLUSH_100ML, delay=15.0)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

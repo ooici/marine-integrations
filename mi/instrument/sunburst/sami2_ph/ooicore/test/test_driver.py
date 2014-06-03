@@ -12,7 +12,6 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.instrument.port_agent_client import PortAgentPacket
 
 __author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
@@ -20,9 +19,9 @@ __license__ = 'Apache 2.0'
 import unittest
 import time
 import copy
-import ntplib
-from nose.plugins.attrib import attr
+import mock
 from mock import Mock
+from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -50,7 +49,7 @@ from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import Capability
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import DataParticleType
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentCommand
@@ -143,7 +142,7 @@ class DriverTestMixinSub(SamiMixin):
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-        'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
+        'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + SAMI_NEWLINE
 
     # Data records -- SAMI (response to the R or R0 command)
     VALID_DATA_SAMPLE = '*F8E70ACDDE9E4F06350BAA077C06A408040BAD077906A307' + \
@@ -153,7 +152,7 @@ class DriverTestMixinSub(SamiMixin):
         '0C206A207F20BB0011306A707F80BAC019106A208000BAE022D069F08010B' + \
         'AB02E006A008030BAD039706A308000BAB044706A208000BAA04E906A3080' + \
         '30BAB056D06A408030BAA05DC069F08010BAF063406A608070BAE067406A2' + \
-        '08000BAC06AB069E07FF0BAD06D506A2080200000D650636CE' + NEWLINE
+        '08000BAC06AB069E07FF0BAD06D506A2080200000D650636CE' + SAMI_NEWLINE
 
     ## Control records
     #VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + NEWLINE
@@ -380,30 +379,6 @@ class DriverTestMixinSub(SamiMixin):
                                              self._configuration_parameters,
                                              verify_values)
 
-    @staticmethod
-    def send_port_agent_packet(protocol, data):
-        ts = ntplib.system_to_ntp_time(time.time())
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(data)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        protocol.got_data(port_agent_packet)
-        protocol.got_raw(port_agent_packet)
-        log.debug('Sent port agent packet containing: %r', data)
-
-    def send_side_effect(self, protocol):
-        def inner(data):
-            my_response = '\r'
-            if my_response is not None:
-                log.debug("my_send: data: %r, my_response: %r", data, my_response)
-                time.sleep(.1)
-                self.send_port_agent_packet(protocol, my_response)
-                return len(my_response)
-
-        return inner
-
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -496,14 +471,8 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         that might cause confusion.
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
-        #self.assert_enum_has_no_duplicates(ProtocolState())
-        #self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
-
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
-        #self.assert_enum_has_no_duplicates(Capability())
-        #self.assert_enum_complete(Capability(), ProtocolEvent())
 
     def test_chunker(self):
         """
@@ -558,7 +527,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(Prompt, SAMI_NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -584,23 +553,87 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        driver._protocol._connection.send.side_effect = self.send_side_effect(driver._protocol)
-
+        driver._protocol._connection.send.side_effect = self.send_newline_side_effect(driver._protocol)
         driver._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
-
         for param in driver._protocol._param_dict.get_keys():
             log.debug('startup param = %s', param)
             driver._protocol._param_dict.set_default(param)
 
+        driver._protocol._param_dict.set_value(Parameter.FLUSH_CYCLES, 0x3)
+        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH_1375ML
+        driver._protocol._handler_seawater_flush_execute_1375ml()
+        call = mock.call('P01,01\r')
+        driver._protocol._connection.send.assert_has_calls(call)
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('SEAWATER_FLUSH_1375ML command count = %s', command_count)
+        self.assertEqual(165, command_count, 'SEAWATER_FLUSH_1375ML command count %s != 165' % command_count)
+        driver._protocol._connection.send.reset_mock()
+
+        driver._protocol._param_dict.set_value(Parameter.FLUSH_CYCLES, 0x5)
+        driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH_50ML
+        driver._protocol._handler_reagent_flush_execute_50ml()
+        call1 = mock.call('P03,02\r')
+        call2 = mock.call('P01,02\r')
+        driver._protocol._connection.send.assert_has_calls([call1, call2])
+        command_count = driver._protocol._connection.send.mock_calls.count(call1)
+        log.debug('REAGENT_FLUSH_50ML reagent flush command count = %s', command_count)
+        self.assertEqual(5, command_count, 'REAGENT_FLUSH_50ML reagent flush command count %s != 5' % command_count)
+        command_count = driver._protocol._connection.send.mock_calls.count(call2)
+        log.debug('REAGENT_FLUSH_50ML seawater flush command count = %s', command_count)
+        self.assertEqual(5, command_count, 'REAGENT_FLUSH_50ML seawater flush command count %s != 5' % command_count)
+        driver._protocol._connection.send.reset_mock()
+
+        driver._protocol._param_dict.set_value(Parameter.FLUSH_DURATION, 0x27)
         driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH
-
         driver._protocol._handler_seawater_flush_execute()
+        call = mock.call('P01,27\r')
+        driver._protocol._connection.send.assert_has_calls([call])
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('SEAWATER_FLUSH command count = %s', command_count)
+        self.assertEqual(1, command_count, 'SEAWATER_FLUSH command count %s != 1' % command_count)
+        driver._protocol._connection.send.reset_mock()
 
-        log.debug('mock_calls = %s', driver._protocol._connection.send.mock_calls)
+        driver._protocol._param_dict.set_value(Parameter.FLUSH_DURATION, 0x77)
+        driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH
+        driver._protocol._handler_reagent_flush_execute()
+        call = mock.call('P03,77\r')
+        driver._protocol._connection.send.assert_has_calls(call)
+        command_count = driver._protocol._connection.send.mock_calls.count(call)
+        log.debug('REAGENT_FLUSH command count = %s', command_count)
+        self.assertEqual(1, command_count, 'REAGENT_FLUSH command count %s != 1' % command_count)
+        driver._protocol._connection.send.reset_mock()
 
-        ## Mock().assert_has_calls()
+    def test_waiting_discover(self):
 
-        ## driver._protocol._connection.send.assert
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, initial_protocol_state=ProtocolState.WAITING)
+
+        class DiscoverWaitingStatisticsContainer:
+            def __init__(self, unit_test):
+                self.call_count = 0
+                self.call_time = []
+                self.unit_test = unit_test
+
+            def discover_waiting_side_effect(self):
+                self.call_count += 1
+                self.call_time.append(time.time())
+
+                return (ProtocolState.WAITING, ResourceAgentState.BUSY)
+
+            def assertCallCount(self, call_count):
+                self.unit_test.assertEqual(call_count, self.call_count, 'discover call count %s != %s' %
+                                                                        (call_count, self.call_count))
+
+            def assert_timing(self):
+                pass
+
+        stats = DiscoverWaitingStatisticsContainer(self)
+        driver._protocol._discover = Mock(side_effect=stats.discover_waiting_side_effect)
+        driver._protocol._handler_waiting_discover()
+        log.debug('discover call count = %s', stats.call_count)
+        log.debug('call times = %s', stats.call_time)
+
+        stats.assertCallCount(5)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -738,6 +771,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_current_state(ProtocolState.COMMAND)
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
@@ -821,10 +855,10 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
     def test_flush_pump(self):
         self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
+        self.assert_driver_command(ProtocolEvent.SEAWATER_FLUSH_1375ML, delay=220.0)
+        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH_50ML, delay=15.0)
+        self.assert_driver_command(ProtocolEvent.SEAWATER_FLUSH, delay=15.0)
         self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15.0)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -866,21 +900,21 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assertTrue(self.tcp_client)
 
         # Erase memory
-        self.tcp_client.send_data("E5A%s" % NEWLINE)
+        self.tcp_client.send_data("E5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
         # Load a new configuration string changing X to X
-        self.tcp_client.send_data("L5A%s" % NEWLINE)
+        self.tcp_client.send_data("L5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
-        self.tcp_client.send_data("%s00%s" % (configuration_string, NEWLINE))
+        self.tcp_client.send_data("%s00%s" % (configuration_string, SAMI_NEWLINE))
 
         time.sleep(1)
 
         # Check that configuration was changed
-        self.tcp_client.send_data("L%s" % NEWLINE)
+        self.tcp_client.send_data("L%s" % SAMI_NEWLINE)
         return_value = self.tcp_client.expect(configuration_string)
         self.assertTrue(return_value)
 
@@ -953,10 +987,10 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.DEIONIZED_WATER_FLUSH,
-                ProtocolEvent.REAGENT_FLUSH,
-                ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML,
-                ProtocolEvent.REAGENT_FLUSH_100ML
+                ProtocolEvent.SEAWATER_FLUSH_1375ML,
+                ProtocolEvent.REAGENT_FLUSH_50ML,
+                ProtocolEvent.SEAWATER_FLUSH,
+                ProtocolEvent.REAGENT_FLUSH
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()

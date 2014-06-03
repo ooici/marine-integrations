@@ -49,7 +49,7 @@ from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import InstrumentDriver
-from mi.instrument.sunburst.driver import SamiInstrumentCommand
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import InstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.driver import ScheduledJob
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolEvent
@@ -57,9 +57,9 @@ from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
-from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wDev1SampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wbDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import DataParticleType
 
@@ -176,15 +176,15 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + SAMI_NEWLINE
 
     # Data records -- SAMI and Device1 (external pump) (responses to R0 and R1
     # commands, respectively)
     VALID_R0_BLANK_SAMPLE = '*542705CEE91CC800400019096206800730074C2CE042' + \
-                            '74003B0018096106800732074E0D82066124' + NEWLINE
+                            '74003B0018096106800732074E0D82066124' + SAMI_NEWLINE
     VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
-                           'D0043001A09620154072F03EA0D92065F3B' + NEWLINE
-    VALID_R1_SAMPLE = '*540711CEE91DE2CE' + NEWLINE
+                           'D0043001A09620154072F03EA0D92065F3B' + SAMI_NEWLINE
+    VALID_R1_SAMPLE = '*540711CEE91DE2CE' + SAMI_NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -293,11 +293,11 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
 
     _dev1_sample_parameters = {
         # Device 1 (external pump) Type 17 sample
-        Pco2wDev1SampleDataParticleKey.UNIQUE_ID:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_LENGTH:    {TYPE: int, VALUE: 0x07, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_TYPE:      {TYPE: int, VALUE: 0x11,  REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_TIME:      {TYPE: int, VALUE: 0xCEE91DE2, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
+        Pco2wbDev1SampleDataParticleKey.UNIQUE_ID:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wbDev1SampleDataParticleKey.RECORD_LENGTH:    {TYPE: int, VALUE: 0x07, REQUIRED: True},
+        Pco2wbDev1SampleDataParticleKey.RECORD_TYPE:      {TYPE: int, VALUE: 0x11,  REQUIRED: True},
+        Pco2wbDev1SampleDataParticleKey.RECORD_TIME:      {TYPE: int, VALUE: 0xCEE91DE2, REQUIRED: True},
+        Pco2wbDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
     _configuration_parameters = {
@@ -408,7 +408,7 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         record_type = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TYPE)
         self.assertEqual(record_type, 17, msg="Not a device 1 sample, record_type = %d" % record_type)
 
-        self.assert_data_particle_keys(Pco2wDev1SampleDataParticleKey,
+        self.assert_data_particle_keys(Pco2wbDev1SampleDataParticleKey,
                                        self._dev1_sample_parameters)
         self.assert_data_particle_header(data_particle,
                                          DataParticleType.DEV1_SAMPLE)
@@ -534,11 +534,11 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might
-        cause confusion. Also do a little extra validation for the Capabilites
+        cause confusion.
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(SamiInstrumentCommand())
+        self.assert_enum_has_no_duplicates(InstrumentCommand())
 
     def test_chunker(self):
         """
@@ -609,7 +609,7 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(Prompt, SAMI_NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -631,6 +631,12 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self.capabilities_test_dict)
 
+    def test_pump_commands(self):
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_pump_commands(driver)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -807,7 +813,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
         dev1_dict = self.get_data_particle_values_as_dict(dev1_sample)
         sample_dict = self.get_data_particle_values_as_dict(data_sample)
-        dev1_time = dev1_dict.get(Pco2wDev1SampleDataParticleKey.RECORD_TIME)
+        dev1_time = dev1_dict.get(Pco2wbDev1SampleDataParticleKey.RECORD_TIME)
         sample_time = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TIME)
         time_diff = sample_time - dev1_time
         self.assertTrue((time_diff > 10) and (time_diff < (10 + max_sample_time)), "External pump delay %s is invalid" % time_diff)
@@ -819,7 +825,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
         dev1_dict = self.get_data_particle_values_as_dict(dev1_sample)
         sample_dict = self.get_data_particle_values_as_dict(data_sample)
-        dev1_time = dev1_dict.get(Pco2wDev1SampleDataParticleKey.RECORD_TIME)
+        dev1_time = dev1_dict.get(Pco2wbDev1SampleDataParticleKey.RECORD_TIME)
         sample_time = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TIME)
         time_diff = sample_time - dev1_time
         self.assertTrue((time_diff > 60) and (time_diff < (60 + max_sample_time)), "External pump delay %s is invalid" % time_diff)
@@ -939,13 +945,6 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    def test_flush_pump(self):
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15.0)
-        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15.0)
-
     def test_run_external_pump(self):
         """
         Test running external pump and queueing status
@@ -956,6 +955,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=20.0)
         self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=20.0)
+
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -1009,21 +1010,21 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assertTrue(self.tcp_client)
 
         # Erase memory
-        self.tcp_client.send_data("E5A%s" % NEWLINE)
+        self.tcp_client.send_data("E5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
         # Load a new configuration string changing X to X
-        self.tcp_client.send_data("L5A%s" % NEWLINE)
+        self.tcp_client.send_data("L5A%s" % SAMI_NEWLINE)
 
         time.sleep(1)
 
-        self.tcp_client.send_data("%s00%s" % (configuration_string, NEWLINE))
+        self.tcp_client.send_data("%s00%s" % (configuration_string, SAMI_NEWLINE))
 
         time.sleep(1)
 
         # Check that configuration was changed
-        self.tcp_client.send_data("L%s" % NEWLINE)
+        self.tcp_client.send_data("L%s" % SAMI_NEWLINE)
         return_value = self.tcp_client.expect(configuration_string)
         self.assertTrue(return_value)
 
