@@ -54,7 +54,7 @@ from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
 from mi.instrument.nortek.driver import NortekInstrumentDriver
-from mi.core.exceptions import NotImplementedException, InstrumentCommandException, InstrumentParameterException
+from mi.core.exceptions import InstrumentCommandException, InstrumentParameterException
 
 from interface.objects import AgentCommand
 
@@ -607,12 +607,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
-    def test_driver_enums(self):
-        raise NotImplementedException('Implement in child class!')
-
-    def test_chunker(self):
-        raise NotImplementedException('Implement in child class!')
-
     def test_base_driver_protocol_filter_capabilities(self):
         """
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
@@ -978,30 +972,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver()
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
 
-    def test_acquire_sample(self):
-        """
-        Verify the driver send the acquire sample command and receive the events.
-        1. initialize the instrument to COMMAND state
-        2. command the driver to ACQUIRE SAMPLE
-        3. verify the particle coming in
-
-        Implement in child class because the particles being generated are specific to the instrument
-        """
-        raise NotImplementedException('Implement in child class!')
-
-    def test_command_autosample(self):
-        """
-        Verify the driver can send the autosample command and receive the events.
-        1. initialize the instrument to COMMAND state
-        2. command the instrument to AUTOSAMPLE state
-        3. verify the particle coming in
-        4. command the instrument back to COMMAND state
-        5. verify the sampling is continuous by gathering several samples
-
-        Implement in child class because the particles being generated are specific to the instrument
-        """
-        raise NotImplementedException('Implement in child class!')
-
     def test_metadata_generation(self):
         """
         Verify the driver generates metadata information
@@ -1119,27 +1089,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
-
-    def test_direct_access_telnet_mode(self):
-        """
-        This test manually tests that the Instrument Driver properly supports direct access to the
-        physical instrument. (telnet mode)
-
-        Expected results from prompts are specific to the individual drivers
-        """
-        raise NotImplementedException('Implement in child class!')
-
-    def test_poll(self):
-        """
-        Verify data particles for a single sample that are specific to the instrument
-        """
-        raise NotImplementedException('Implement in child class!')
-
-    def test_autosample(self):
-        """
-        Verify data particles for auto-sampling that are specific to the instrument
-        """
-        raise NotImplementedException('Implement in child class!')
 
     def test_sync_clock(self):
         """
