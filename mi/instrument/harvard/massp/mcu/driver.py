@@ -10,6 +10,7 @@ MCU driver for the MASSP in-situ mass spectrometer
 
 import re
 import functools
+
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentTimeoutException
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.log import get_logger
@@ -23,7 +24,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.instrument.harvard.massp.common import MASSP_STATE_ERROR, MASSP_CLEAR_ERROR
@@ -94,7 +95,7 @@ class ProtocolEvent(BaseEnum):
     ERROR = 'PROTOCOL_EVENT_ERROR'
     STANDBY = 'PROTOCOL_EVENT_STANDBY'
     CLEAR = MASSP_CLEAR_ERROR
-    POWEROFF = 'PROTCOL_EVENT_POWEROFF'
+    POWEROFF = 'PROTOCOL_EVENT_POWEROFF'
 
 
 class Capability(BaseEnum):
@@ -287,149 +288,89 @@ class McuDataParticle(DataParticle):
         # all data items are integers, however, the external values
         # masquerade as floats, so we have to explicitly split on the '.'
         try:
-            segments = [[int(x.split('.')[0]) for x in row.split(':')[1:]] for row in self.raw_data.split(',')[1:-1]]
+            segments = [[x.split('.')[0] for x in row.split(':')[1:]] for row in self.raw_data.split(',')[1:-1]]
 
             powers, pressures, internals, externals, external_statuses, power_statuses, \
                 solenoid_statuses, calibration_statuses, heater_statuses = segments
 
             result = [
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.RGA_CURRENT,
-                 DataParticleKey.VALUE: powers[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TURBO_CURRENT,
-                 DataParticleKey.VALUE: powers[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.HEATER_CURRENT,
-                 DataParticleKey.VALUE: powers[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.ROUGHING_CURRENT,
-                 DataParticleKey.VALUE: powers[3]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.FAN_CURRENT,
-                 DataParticleKey.VALUE: powers[4]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.SBE_CURRENT,
-                 DataParticleKey.VALUE: powers[5]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CONVERTER_24V_MAIN,
-                 DataParticleKey.VALUE: powers[6]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CONVERTER_12V_MAIN,
-                 DataParticleKey.VALUE: powers[7]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CONVERTER_24V_SEC,
-                 DataParticleKey.VALUE: powers[8]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CONVERTER_12V_SEC,
-                 DataParticleKey.VALUE: powers[9]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.VALVE_CURRENT,
-                 DataParticleKey.VALUE: powers[10]},
+                self._encode_value(McuStatusParticleKey.RGA_CURRENT, powers[0], int),
+                self._encode_value(McuStatusParticleKey.TURBO_CURRENT, powers[1], int),
+                self._encode_value(McuStatusParticleKey.HEATER_CURRENT, powers[2], int),
+                self._encode_value(McuStatusParticleKey.ROUGHING_CURRENT, powers[3], int),
+                self._encode_value(McuStatusParticleKey.FAN_CURRENT, powers[4], int),
+                self._encode_value(McuStatusParticleKey.SBE_CURRENT, powers[5], int),
+                self._encode_value(McuStatusParticleKey.CONVERTER_24V_MAIN, powers[6], int),
+                self._encode_value(McuStatusParticleKey.CONVERTER_12V_MAIN, powers[7], int),
+                self._encode_value(McuStatusParticleKey.CONVERTER_24V_SEC, powers[8], int),
+                self._encode_value(McuStatusParticleKey.CONVERTER_12V_SEC, powers[9], int),
+                self._encode_value(McuStatusParticleKey.VALVE_CURRENT, powers[10], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.PRESSURE_P1,
-                 DataParticleKey.VALUE: pressures[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.PRESSURE_P2,
-                 DataParticleKey.VALUE: pressures[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.PRESSURE_P3,
-                 DataParticleKey.VALUE: pressures[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.PRESSURE_P4,
-                 DataParticleKey.VALUE: pressures[3]},
+                self._encode_value(McuStatusParticleKey.PRESSURE_P1, pressures[0], int),
+                self._encode_value(McuStatusParticleKey.PRESSURE_P2, pressures[1], int),
+                self._encode_value(McuStatusParticleKey.PRESSURE_P3, pressures[2], int),
+                self._encode_value(McuStatusParticleKey.PRESSURE_P4, pressures[3], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.HOUSING_PRESSURE,
-                 DataParticleKey.VALUE: internals[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.HOUSING_HUMIDITY,
-                 DataParticleKey.VALUE: internals[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_MAIN_CONTROL,
-                 DataParticleKey.VALUE: internals[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_MAIN_ROUGH,
-                 DataParticleKey.VALUE: internals[3]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_SEC_ROUGH,
-                 DataParticleKey.VALUE: internals[4]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_MAIN_24V,
-                 DataParticleKey.VALUE: internals[5]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_SEC_24V,
-                 DataParticleKey.VALUE: internals[6]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_ANALYZER,
-                 DataParticleKey.VALUE: internals[7]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_NAFION,
-                 DataParticleKey.VALUE: internals[8]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.TEMP_ION,
-                 DataParticleKey.VALUE: internals[9]},
+                self._encode_value(McuStatusParticleKey.HOUSING_PRESSURE, internals[0], int),
+                self._encode_value(McuStatusParticleKey.HOUSING_HUMIDITY, internals[1], int),
+                self._encode_value(McuStatusParticleKey.TEMP_MAIN_CONTROL, internals[2], int),
+                self._encode_value(McuStatusParticleKey.TEMP_MAIN_ROUGH, internals[3], int),
+                self._encode_value(McuStatusParticleKey.TEMP_SEC_ROUGH, internals[4], int),
+                self._encode_value(McuStatusParticleKey.TEMP_MAIN_24V, internals[5], int),
+                self._encode_value(McuStatusParticleKey.TEMP_SEC_24V, internals[6], int),
+                self._encode_value(McuStatusParticleKey.TEMP_ANALYZER, internals[7], int),
+                self._encode_value(McuStatusParticleKey.TEMP_NAFION, internals[8], int),
+                self._encode_value(McuStatusParticleKey.TEMP_ION, internals[9], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.PH_METER,
-                 DataParticleKey.VALUE: externals[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.INLET_TEMP,
-                 DataParticleKey.VALUE: externals[1]},
+                self._encode_value(McuStatusParticleKey.PH_METER, externals[0], int),
+                self._encode_value(McuStatusParticleKey.INLET_TEMP, externals[1], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.PH_STATUS,
-                 DataParticleKey.VALUE: external_statuses[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.INLET_TEMP_STATUS,
-                 DataParticleKey.VALUE: external_statuses[1]},
+                self._encode_value(McuStatusParticleKey.PH_STATUS, external_statuses[0], int),
+                self._encode_value(McuStatusParticleKey.INLET_TEMP_STATUS, external_statuses[1], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_TURBO,
-                 DataParticleKey.VALUE: power_statuses[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_RGA,
-                 DataParticleKey.VALUE: power_statuses[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_MAIN_ROUGH,
-                 DataParticleKey.VALUE: power_statuses[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_SEC_ROUGH,
-                 DataParticleKey.VALUE: power_statuses[3]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_FAN1,
-                 DataParticleKey.VALUE: power_statuses[4]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_FAN2,
-                 DataParticleKey.VALUE: power_statuses[5]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_FAN3,
-                 DataParticleKey.VALUE: power_statuses[6]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_FAN4,
-                 DataParticleKey.VALUE: power_statuses[7]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_AUX2,
-                 DataParticleKey.VALUE: power_statuses[8]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_PH,
-                 DataParticleKey.VALUE: power_statuses[9]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_PUMP,
-                 DataParticleKey.VALUE: power_statuses[10]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_HEATERS,
-                 DataParticleKey.VALUE: power_statuses[11]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.POWER_RELAY_AUX1,
-                 DataParticleKey.VALUE: power_statuses[12]},
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_TURBO, power_statuses[0], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_RGA, power_statuses[1], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_MAIN_ROUGH, power_statuses[2], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_SEC_ROUGH, power_statuses[3], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_FAN1, power_statuses[4], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_FAN2, power_statuses[5], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_FAN3, power_statuses[6], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_FAN4, power_statuses[7], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_AUX2, power_statuses[8], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_PH, power_statuses[9], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_PUMP, power_statuses[10], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_HEATERS, power_statuses[11], int),
+                self._encode_value(McuStatusParticleKey.POWER_RELAY_AUX1, power_statuses[12], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.SAMPLE_VALVE1,
-                 DataParticleKey.VALUE: solenoid_statuses[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.SAMPLE_VALVE2,
-                 DataParticleKey.VALUE: solenoid_statuses[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.SAMPLE_VALVE3,
-                 DataParticleKey.VALUE: solenoid_statuses[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.SAMPLE_VALVE4,
-                 DataParticleKey.VALUE: solenoid_statuses[3]},
+                self._encode_value(McuStatusParticleKey.SAMPLE_VALVE1, solenoid_statuses[0], int),
+                self._encode_value(McuStatusParticleKey.SAMPLE_VALVE2, solenoid_statuses[1], int),
+                self._encode_value(McuStatusParticleKey.SAMPLE_VALVE3, solenoid_statuses[2], int),
+                self._encode_value(McuStatusParticleKey.SAMPLE_VALVE4, solenoid_statuses[3], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.GROUND_RELAY_STATUS,
-                 DataParticleKey.VALUE: calibration_statuses[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.EXTERNAL_VALVE1_STATUS,
-                 DataParticleKey.VALUE: calibration_statuses[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.EXTERNAL_VALVE2_STATUS,
-                 DataParticleKey.VALUE: calibration_statuses[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.EXTERNAL_VALVE3_STATUS,
-                 DataParticleKey.VALUE: calibration_statuses[3]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.EXTERNAL_VALVE4_STATUS,
-                 DataParticleKey.VALUE: calibration_statuses[4]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CAL_BAG1_MINUTES,
-                 DataParticleKey.VALUE: calibration_statuses[5]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CAL_BAG2_MINUTES,
-                 DataParticleKey.VALUE: calibration_statuses[6]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.CAL_BAG3_MINUTES,
-                 DataParticleKey.VALUE: calibration_statuses[7]},
+                self._encode_value(McuStatusParticleKey.GROUND_RELAY_STATUS, calibration_statuses[0], int),
+                self._encode_value(McuStatusParticleKey.EXTERNAL_VALVE1_STATUS, calibration_statuses[1], int),
+                self._encode_value(McuStatusParticleKey.EXTERNAL_VALVE2_STATUS, calibration_statuses[2], int),
+                self._encode_value(McuStatusParticleKey.EXTERNAL_VALVE3_STATUS, calibration_statuses[3], int),
+                self._encode_value(McuStatusParticleKey.EXTERNAL_VALVE4_STATUS, calibration_statuses[4], int),
+                self._encode_value(McuStatusParticleKey.CAL_BAG1_MINUTES, calibration_statuses[5], int),
+                self._encode_value(McuStatusParticleKey.CAL_BAG2_MINUTES, calibration_statuses[6], int),
+                self._encode_value(McuStatusParticleKey.CAL_BAG3_MINUTES, calibration_statuses[7], int),
 
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.NAFION_HEATER_STATUS,
-                 DataParticleKey.VALUE: heater_statuses[0]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.NAFION_HEATER1_POWER,
-                 DataParticleKey.VALUE: heater_statuses[1]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.NAFION_HEATER2_POWER,
-                 DataParticleKey.VALUE: heater_statuses[2]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.NAFION_CORE_TEMP,
-                 DataParticleKey.VALUE: heater_statuses[3]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.NAFION_ELAPSED_TIME,
-                 DataParticleKey.VALUE: heater_statuses[4]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.ION_CHAMBER_STATUS,
-                 DataParticleKey.VALUE: heater_statuses[5]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.ION_CHAMBER_HEATER1_STATUS,
-                 DataParticleKey.VALUE: heater_statuses[7]},
-                {DataParticleKey.VALUE_ID: McuStatusParticleKey.ION_CHAMBER_HEATER2_STATUS,
-                 DataParticleKey.VALUE: heater_statuses[8]},
+                self._encode_value(McuStatusParticleKey.NAFION_HEATER_STATUS, heater_statuses[0], int),
+                self._encode_value(McuStatusParticleKey.NAFION_HEATER1_POWER, heater_statuses[1], int),
+                self._encode_value(McuStatusParticleKey.NAFION_HEATER2_POWER, heater_statuses[2], int),
+                self._encode_value(McuStatusParticleKey.NAFION_CORE_TEMP, heater_statuses[3], int),
+                self._encode_value(McuStatusParticleKey.NAFION_ELAPSED_TIME, heater_statuses[4], int),
+                self._encode_value(McuStatusParticleKey.ION_CHAMBER_STATUS, heater_statuses[5], int),
+                self._encode_value(McuStatusParticleKey.ION_CHAMBER_HEATER1_STATUS, heater_statuses[7], int),
+                self._encode_value(McuStatusParticleKey.ION_CHAMBER_HEATER2_STATUS, heater_statuses[8], int)
             ]
         except IndexError, e:
             raise SampleException('Incomplete or corrupt data telegram received (%s)', e)
         except ValueError, e:
             raise SampleException('Incomplete or corrupt data telegram received (%s)', e)
+        if self.get_encoding_errors():
+            raise SampleException('Incomplete or corrupt data telegram received (%s)', self.get_encoding_errors())
         return result
 
 
@@ -571,8 +512,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
-                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
-                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
+                (ProtocolEvent.STOP_DIRECT, self._handler_stop),
                 (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
             ],
             ProtocolState.ERROR: [
@@ -711,12 +652,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if params:
             raise InstrumentParameterException('Attempted to set unknown parameters: %r' % params)
 
-    def _abort_sequence(self):
-        """
-        Abort the current sequence.
-        """
-        self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -748,11 +683,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         try:
             result = self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE])
-            if Prompt.STANDBY in result:
-                log.debug('MCU in standby, proceeding to COMMAND')
-            elif result == Prompt.IN_SEQUENCE:
-                # wait it out or break out?
-                self._abort_sequence()
+            if result == Prompt.IN_SEQUENCE:
+                self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
                 self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY)
         except InstrumentTimeoutException:
             # something else is wrong, pass the buck to the operator
@@ -885,7 +817,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                                ProtocolState.STOPPING]
         if current_state not in non_sequence_states:
             # instrument is in a sequence, send abort first
-            self._abort_sequence()
+            self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
         self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
         self._do_cmd_resp(InstrumentCommand.POWEROFF, expected_prompt=Prompt.POWEROFF, timeout=30)
 
@@ -923,28 +855,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
 
     def _handler_direct_access_execute_direct(self, data):
         """
         Pass direct access commands through to the instrument
         """
-
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
-
         return None, (None, None)
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)

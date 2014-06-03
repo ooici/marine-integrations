@@ -12,9 +12,8 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-import json
-import pprint
 import time
+
 from nose.plugins.attrib import attr
 from mock import Mock
 import ntplib
@@ -39,6 +38,7 @@ from mi.instrument.harvard.massp.mcu.driver import Parameter
 from mi.instrument.harvard.massp.mcu.driver import Protocol
 from mi.instrument.harvard.massp.mcu.driver import Prompt
 from mi.instrument.harvard.massp.mcu.driver import NEWLINE
+
 
 __author__ = 'Peter Cable'
 __license__ = 'Apache 2.0'
@@ -218,6 +218,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Capability.CLEAR: {STATES: [ProtocolState.ERROR]},
         Capability.IONREG: {STATES: [ProtocolState.COMMAND]},
         Capability.NAFREG: {STATES: [ProtocolState.COMMAND]},
+        Capability.POWEROFF: {STATES: [ProtocolState.COMMAND]},
     }
 
     _capabilities = {
@@ -227,6 +228,7 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
                                 'PROTOCOL_EVENT_ERROR',
+                                'PROTOCOL_EVENT_POWEROFF',
                                 'DRIVER_EVENT_START_DIRECT',
                                 'PROTOCOL_EVENT_NAFREG',
                                 'PROTOCOL_EVENT_IONREG',
@@ -253,13 +255,7 @@ class DriverTestMixinSub(DriverTestMixin):
                                       'PROTOCOL_EVENT_STANDBY',
                                       'PROTOCOL_EVENT_ERROR'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR',
-                              'PROTOCOL_EVENT_START1_COMPLETE',
-                              'PROTOCOL_EVENT_START2_COMPLETE',
-                              'PROTOCOL_EVENT_SAMPLE_COMPLETE',
-                              'PROTOCOL_EVENT_CALIBRATE_COMPLETE',
-                              'PROTOCOL_EVENT_IONREG_COMPLETE',
-                              'PROTOCOL_EVENT_NAFREG_COMPLETE']
+        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR']
     }
 
     """
@@ -496,8 +492,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self._send_port_agent_packet(driver, Prompt.IN_SEQUENCE + NEWLINE)
         wait(InstrumentCommand.ABORT + NEWLINE)
         self._send_port_agent_packet(driver, Prompt.ABORTED + NEWLINE)
-        wait(InstrumentCommand.START1 + NEWLINE)
-        self._send_port_agent_packet(driver, Prompt.START1 + NEWLINE)
         wait(InstrumentCommand.STANDBY + NEWLINE)
         self._send_port_agent_packet(driver, Prompt.STANDBY + NEWLINE)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
@@ -614,6 +608,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
                 ProtocolEvent.START1,
                 ProtocolEvent.NAFREG,
                 ProtocolEvent.IONREG,
+                ProtocolEvent.POWEROFF,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
