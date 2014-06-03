@@ -24,7 +24,6 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock, call
 
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -121,8 +120,7 @@ class DriverTestMixinSub(DriverTestMixin):
         if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
         else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
+            self.fail("Unknown Particle Detected: %s" % data_particle)
 
     responses = {
         'IN0': 0,
@@ -388,8 +386,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         mock_callback = Mock()
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
+        driver_capabilities = Capability.list()
+        test_capabilities = Capability.list()
 
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")
@@ -717,7 +715,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         constraints = ParameterConstraints.dict()
         parameters = Parameter.reverse_dict()
         startup_params = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
-        for key, value in startup_params.items():
+        for key, value in startup_params.iteritems():
             if key in parameters and parameters[key] in constraints:
                 _, minimum, maximum = constraints[parameters[key]]
                 self.assert_set(key, maximum-1)

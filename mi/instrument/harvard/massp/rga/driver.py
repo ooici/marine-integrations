@@ -324,14 +324,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         handlers = {
             ProtocolState.UNKNOWN: [
-                (ProtocolEvent.ENTER, self._handler_unknown_enter),
-                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
-                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
@@ -339,7 +339,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
-                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
                 (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
             ],
@@ -352,8 +352,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ERROR, self._handler_scan_error),
             ],
             ProtocolState.ERROR: [
-                (ProtocolEvent.ENTER, self._handler_error_enter),
-                (ProtocolEvent.EXIT, self._handler_error_exit),
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.CLEAR, self._handler_error_clear),
             ]
         }
@@ -597,7 +597,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Wakeup not required for this instrument
         """
-        pass
 
     def _build_scheduler(self):
         """
@@ -610,6 +609,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         except KeyError as ke:
             log.debug('KeyError: %s', ke)
 
+        # this formula was derived from testing, should yield a slightly higher time than the actual
+        # time required to collect a single scan.
         delay = self._param_dict.get(Parameter.AP) / 9 / self._param_dict.get(Parameter.NF) + 5
 
         if delay > 0:
@@ -794,20 +795,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Unknown handlers.
     ########################################################################
 
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
-
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
@@ -841,26 +828,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Set parameter
         """
-        next_state = None
-        result = None
         self._set_params(*args, **kwargs)
-
-        return next_state, result
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
+        return None, None
 
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_scan(self):
         """
@@ -879,41 +854,23 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
         Forward direct access commands to the instrument.
         """
-        next_state = None
-        result = None
-        next_agent_state = None
-
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
-
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
         Stop direct access, return to COMMAND.
         """
-        next_state = None
-        result = None
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Scan handlers
@@ -1023,19 +980,23 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Error handlers
     ########################################################################
 
-    def _handler_error_enter(self):
-        """
-        Enter the error state.
-        """
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_error_exit(self):
-        """
-        Exit the error state.
-        """
-
     def _handler_error_clear(self):
         """
         Leave the error state, return to COMMAND.
         """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    ########################################################################
+    # Generic handlers
+    ########################################################################
+
+    def _handler_generic_enter(self):
+        """
+        Generic method to handle entering state.
+        """
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_generic_exit(self):
+        """
+        Generic method to handle exiting state.
+        """
