@@ -12,13 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-import time
 
-import ntplib
-from mi.core.exceptions import InstrumentCommandException, InstrumentProtocolException
-from mi.core.instrument.data_particle import RawDataParticle
-from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState
-from mi.core.instrument.port_agent_client import PortAgentPacket
 
 
 __author__ = 'Peter Cable'
@@ -26,9 +20,14 @@ __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
 from mock import Mock
-from mi.core.log import get_logger
+import time
+import ntplib
 
-# MI imports.
+from mi.core.exceptions import InstrumentCommandException, InstrumentProtocolException
+from mi.core.instrument.data_particle import RawDataParticle
+from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState
+from mi.core.instrument.port_agent_client import PortAgentPacket
+from mi.core.log import get_logger
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
@@ -126,8 +125,7 @@ class DriverTestMixinSub(DriverTestMixin):
         if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
         else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
+            self.fail("Unknown Particle Detected: %s" % data_particle)
 
     query_error_code = '0010030302=?101'
     query_excess_temp_edu = '0010030402=?102'
@@ -417,8 +415,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         mock_callback = Mock()
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
+        driver_capabilities = Capability.list()
+        test_capabilities = Capability.list()
 
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")

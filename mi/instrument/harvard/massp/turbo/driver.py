@@ -30,7 +30,6 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
 from mi.instrument.harvard.massp.common import MASSP_STATE_ERROR, MASSP_CLEAR_ERROR
 
@@ -250,19 +249,15 @@ class TurboStatusParticle(DataParticle):
         """
         Run our regex against the input, format the results and pack for publishing.
         """
+        tspk = TurboStatusParticleKey
         try:
             match = self.regex_compiled().match(self.raw_data)
             result = [
-                {DataParticleKey.VALUE_ID: TurboStatusParticleKey.DRIVE_CURRENT,
-                 DataParticleKey.VALUE: self._extract(match.group('DRIVE_CURRENT'))},
-                {DataParticleKey.VALUE_ID: TurboStatusParticleKey.DRIVE_VOLTAGE,
-                 DataParticleKey.VALUE: self._extract(match.group('DRIVE_VOLTAGE'))},
-                {DataParticleKey.VALUE_ID: TurboStatusParticleKey.TEMP_BEARING,
-                 DataParticleKey.VALUE: self._extract(match.group('TEMP_BEARING'))},
-                {DataParticleKey.VALUE_ID: TurboStatusParticleKey.TEMP_MOTOR,
-                 DataParticleKey.VALUE: self._extract(match.group('TEMP_MOTOR'))},
-                {DataParticleKey.VALUE_ID: TurboStatusParticleKey.ROTATION_SPEED,
-                 DataParticleKey.VALUE: self._extract(match.group('ROTATION_SPEED_ACTUAL'))},
+                self._encode_value(tspk.DRIVE_CURRENT, self._extract(match.group('DRIVE_CURRENT')), int),
+                self._encode_value(tspk.DRIVE_VOLTAGE, self._extract(match.group('DRIVE_VOLTAGE')), int),
+                self._encode_value(tspk.TEMP_BEARING, self._extract(match.group('TEMP_BEARING')), int),
+                self._encode_value(tspk.TEMP_MOTOR, self._extract(match.group('TEMP_MOTOR')), int),
+                self._encode_value(tspk.ROTATION_SPEED, self._extract(match.group('ROTATION_SPEED_ACTUAL')), int),
             ]
         except ValueError, e:
             raise exceptions.SampleException('Corrupt turbo status received (%s)', e)
@@ -328,14 +323,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         handlers = {
             ProtocolState.UNKNOWN: [
-                (ProtocolEvent.ENTER, self._handler_unknown_enter),
-                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
-                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
@@ -370,7 +365,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
-                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
                 (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
             ],
@@ -406,16 +401,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that splits samples
         """
-        matchers = []
-        return_list = []
-
-        matchers.append(TurboStatusParticle.regex_compiled())
-
-        for matcher in matchers:
-            for match in matcher.finditer(raw_data):
-                return_list.append((match.start(), match.end()))
-
-        return return_list
+        return [(m.start(), m.end()) for m in TurboStatusParticle.regex_compiled().finditer(raw_data)]
 
     def _build_param_dict(self):
         """
@@ -611,7 +597,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Attempt to send a command up to max_retries times.  Protocol state will move to ERROR if we fail to
         receive a response after max_retries attempts.
         """
-        for attempt in range(1, max_retries + 1):
+        for attempt in xrange(1, max_retries + 1):
             try:
                 if value is None:
                     result = self._do_cmd_resp(command, response_regex=TURBO_RESPONSE, timeout=TIMEOUT)
@@ -682,6 +668,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 self._max_current_count += 1
                 if self._max_current_count > 3:
                     self._async_raise_fsm_event(ProtocolEvent.ERROR)
+                    raise exceptions.InstrumentStateException('Turbo current draw to high: %d' %
+                                                              responses[InstrumentCommand.DRIVE_CURRENT])
             else:
                 self._max_current_count = 0
 
@@ -701,31 +689,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Stop the turbo
         """
-        next_state = ProtocolState.SPINNING_DOWN
-        next_agent_state = ResourceAgentState.COMMAND
-        result = None
-
         for command in [InstrumentCommand.PUMP_STATION, InstrumentCommand.MOTOR_PUMP]:
             self._send_command_with_retry(command, value=FALSE)
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.SPINNING_DOWN, (ResourceAgentState.BUSY, None)
 
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -771,35 +742,21 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_turbo(self):
         """
-        Start the turbo
+        Start the turbo, periodic status scheduler
         """
-        next_state = ProtocolState.SPINNING_UP
-        next_agent_state = ResourceAgentState.COMMAND
-        result = None
-
-        # start the turbo
         for command in [InstrumentCommand.PUMP_STATION, InstrumentCommand.MOTOR_PUMP]:
             self._send_command_with_retry(command, value=TRUE)
         # start the acquire_status scheduler
         self._build_scheduler()
-        return next_state, (next_agent_state, result)
+        return ProtocolState.SPINNING_UP, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Direct access handlers.
@@ -812,41 +769,28 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
         Forward a direct access command to the instrument
         """
-        next_state = None
-        result = None
-        next_agent_state = None
-
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
-        @throw InstrumentProtocolException on invalid command
+        Stop direct access, return to COMMAND
         """
-        next_state = None
-        result = None
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
+    ########################################################################
+    # Spinning up/down handlers.
+    ########################################################################
 
     def _handler_spinning_up_at_speed(self):
         """
