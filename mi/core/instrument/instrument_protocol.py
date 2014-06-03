@@ -311,12 +311,16 @@ class InstrumentProtocol(object):
 
         args.insert(0, event)
 
-        new_thread = Thread(
-            target=self._protocol_fsm.on_event,
-            args=args)
-        new_thread.start()
+        def run():
+            try:
+                self._protocol_fsm.on_event(*args)
+            except Exception as e:
+                log.error('Exception in asynchronous thread: %r', e)
+                self._driver_event(DriverAsyncEvent.ERROR, e)
+            log.info('_async_raise_fsm_event: event complete. bub bye thread. (%r)', args)
 
-        log.info("_async_raise_fsm_event: event complete. bub bye thread.")
+        new_thread = Thread(target=run)
+        new_thread.start()
 
     ########################################################################
     # Scheduler interface.
