@@ -24,9 +24,7 @@ from mock import Mock
 from mi.core.log import get_logger
 log = get_logger()
 
-import struct
 import json
-import time
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -40,7 +38,8 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
-from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver
+from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, \
+    SUNATestDataParticle, TIMEOUT
 from mi.instrument.satlantic.suna_deep.ooicore.driver import DataParticleType
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentCommand
 from mi.instrument.satlantic.suna_deep.ooicore.driver import ProtocolState
@@ -52,7 +51,7 @@ from mi.instrument.satlantic.suna_deep.ooicore.driver import Prompt
 from mi.instrument.satlantic.suna_deep.ooicore.driver import NEWLINE
 from mi.instrument.satlantic.suna_deep.ooicore.driver import SUNASampleDataParticle
 
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.exceptions import InstrumentTimeoutException
@@ -86,58 +85,8 @@ InstrumentDriverTestCase.initialize(
 #                                                                             #
 ###############################################################################
 
-###
-#   Driver constant definitions
-###
-spectrum_channels_bin = ""
-i = 0
-while i < 256:
-    # i = 10 is evil because it is ASCII newline and and "." does not match \n in a regex (so just mod by 10)
-    spectrum_channels_bin += struct.pack('2B', (i % 10), 0x00)
-    i += 1
-
-SUNA_BINARY_SAMPLE = struct.pack('47B',
-0x53, 0x41, 0x54, #'SAT'
-0x53, 0x44, 0x42, #'SDB'
-0x31, 0x32, 0x33, 0x34, #1234
-0x41, 0x42, 0x43, 0x44, #'ABCD'
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb0, 0x40, #4096.0
-0x00, 0x00, 0x00, 0x40, #2.0
-0x00, 0x00, 0x80, 0x40, #4.0
-0x00, 0x00, 0x00, 0x41, #8.0
-0x00, 0x00, 0x80, 0x41, #16.0
-0x00, 0x00, 0x00, 0x42, #32.0
-0x03, 0x00, #3
-0x05, 0x00, #5
-0x07) #7
-
-SUNA_BINARY_SAMPLE += spectrum_channels_bin
-
-SUNA_BINARY_SAMPLE += struct.pack('73B', 0x00, 0x00, 0x80, 0x42, #64.0
-0x00, 0x00, 0x00, 0x43, #128.0
-0x00, 0x00, 0x80, 0x43, #256.0
-0x0B, 0x00, 0x00, 0x00, #11
-0x00, 0x00, 0x00, 0x44, #512.0
-0x00, 0x00, 0x80, 0x44, #1024.0
-0x00, 0x00, 0x00, 0x45, #2048.0
-0x00, 0x00, 0x80, 0x45, #4096.0
-0x00, 0x00, 0x00, 0x46, #8192.0
-0x00, 0x00, 0x80, 0x46, #16384.0
-0x00, 0x00, 0x00, 0x47, #32768.0
-0x00, 0x00, 0x80, 0x47, #65536.0
-0x00, 0x00, 0x00, 0x48, #131072.0
-0x00, 0x00, 0x80, 0x48, #262144.0
-0x0D, 0x00, 0x00, 0x00, #13
-0x00, 0x00, 0x00, 0x49, #524288.0
-0x00, 0x00, 0x80, 0x49, #1048576.0
-0x00, 0x00, 0x00, 0x4a, #2097152.0
-0x11 #17
-)
-
-print len(SUNA_BINARY_SAMPLE)
-
 spectrum_channels_str = ""
-for i in range (256):
+for i in range(256):
     spectrum_channels_str += (str(i % 10) + ",")
 
 SUNA_ASCII_SAMPLE = "SATSDF0344,2014125,21.278082,0.00,0.0000,0.0000,0.0000,0.00,476,0,1,475,483,494,465,487,490,488," \
@@ -240,10 +189,6 @@ class DriverTestMixinSub(DriverTestMixin):
         "nutnr_fit_base_1": {'type': float, 'value': 0.0000},
         "nutnr_fit_base_2": {'type': float, 'value': 0.000000},
         "nutnr_fit_rmse": {'type': float, 'value': 0.0000000},
-        #"ctd_time" : {'type': int, 'value': 13},
-        #"ctd_salinity" : {'type': float, 'value': 524288.0},
-        #"ctd_temperature" : {'type': float, 'value': 1048576.0},
-        #"ctd_pressure" : {'type': float, 'value': 2097152.0},
         "checksum": {'type': int, 'value': 203}
     }
 
@@ -453,7 +398,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         test with data partially replaced by garbage value
         """
         particle = SUNASampleDataParticle(SUNA_ASCII_SAMPLE.replace("SAT", "FOO"))
+        with self.assertRaises(SampleException):
+            particle.generate()
 
+        particle = SUNAStatusDataParticle(SUNA_ASCII_STATUS.replace('SENSTYPE', 'BLAH!'))
+        with self.assertRaises(SampleException):
+            particle.generate()
+
+        particle = SUNATestDataParticle(SUNA_ASCII_TEST.replace('5505 mW', '5505f.1 mW'))
         with self.assertRaises(SampleException):
             particle.generate()
 
@@ -533,57 +485,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_connect(self):
-        """
-        Test configuring and connecting to the device through the port
-        agent. Discover device state.
-        """
-        log.info("test_connect test started")
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
     def test_get_set(self):
         """
-        Test device parameter access.
+        Verify device parameter access.
         """
-
         self.assert_initialize_driver()
 
         # assert that getting param values works
@@ -612,9 +517,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     def test_single_sample(self):
         """
-        Test acquiring a sample in polled mode
+        Verify instrument can acquire a sample in polled mode
         """
-
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.SUNA_SAMPLE,
@@ -622,7 +526,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     def test_status(self):
         """
-        Test acquiring status (in command mode)
+        Verify instrument can acquire status (in command mode)
         """
 
         self.assert_initialize_driver()
@@ -632,9 +536,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     def test_test(self):
         """
-        Test doing a self test
+        Verify instrument can perform a self test
         """
-
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.TEST, DataParticleType.SUNA_TEST,
@@ -644,36 +547,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         """
         Test Polled acquisition of samples in auto-sample mode
         """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        self.assert_initialize_driver()
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_POLL)
-
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.POLL)
+        self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.COMMAND, delay=1)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
                                          self.assert_data_particle_sample, delay=20)
@@ -684,68 +560,21 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_particle_generation(ProtocolEvent.TIMED_N, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=20)
 
-        # Return to command mode. Catch timeouts and retry if necessary.
-        try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_POLL)
-        except InstrumentTimeoutException:
-            self.fail('Could not wakeup device to leave autosample mode.')
+        # Return to command mode.
+        self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=1)
 
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Verify command mode by issuing a SET
+        # Verify command mode by issuing a GET
         self.assert_get(Parameter.OPERATION_MODE)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     def test_auto_sample(self):
         """
         Test Continuous acquisition of samples in auto-sample mode
         """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
+        self.assert_initialize_driver()
 
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=5)
-
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
 
         # Return to command mode. Catch timeouts and retry if necessary.
         try:
@@ -761,100 +590,47 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=22)
 
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
-
-        # Return to command mode. Catch timeouts and retry if necessary.
-        try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-        except InstrumentTimeoutException:
-            self.fail('Could not wakeup device to leave autosample mode.')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
+        # Return to command mode.
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         # Verify command mode by issuing a GET/SET
         self.assert_get(Parameter.OPERATION_MODE)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
+    def test_errors(self):
+        """
+        Verify response to erroneous commands and setting bad parameters.
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        #Assert an invalid command
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
 
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        # Assert set fails with a bad parameter (not ALL or a list).
+        self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
 
-    def test_reset(self):
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        #Assert set fails with bad parameter and bad value
+        self.assert_set_exception('I am a bogus param.', value='bogus value', exception_class=InstrumentParameterException)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        # put driver in disconnected state.
+        self.driver_client.cmd_dvr('disconnect')
 
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
+        # Test that the driver is in state disconnected.
+        self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
 
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('initialize')
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
+        # Test that the driver is in state unconfigured.
+        self.assert_state_change(DriverConnectionState.UNCONFIGURED, timeout=TIMEOUT)
 
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=5)
-
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
-
-        # reset the device
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.RESET)
-        time.sleep(20)  #give some time to reboot
-
-        # Test the driver is in polled mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.POLL)
-
-        #reset the device
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.RESET)
-        time.sleep(20)  #give some time to reboot
-
-        # Test the driver is in polled mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.POLL)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
+        # Assert we forgot the comms parameter.
+        self.assert_driver_command_exception('configure', exception_class=InstrumentParameterException)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -932,14 +708,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
             elif(x['value_id'] == 'checksum'): self.assertTrue(isinstance(x['value'], int))
             else: self.assertFalse(True) # Shouldn't get here.  If we have then we aren't checking a parameter
 
-    @unittest.skip("SKIP")
-    def test_direct_access_exit_from_autosample(self):
-        """
-        Override - no D/A from auto-sample state
-        """
-        pass
-
-    #@unittest.skip("SKIP")
     def test_discover(self):
         """
         Override - instrument will always start up in Command mode.  Instrument will instruct instrument into
@@ -985,6 +753,18 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
 
         #todo - will want to test most if not all params
+
+    def test_acquire_status(self):
+        """
+        Verify the driver can command an acquire status from the instrument
+        """
+        #todo
+
+    def test_execute_test(self):
+        """
+        Verify instrument can perform a self test
+        """
+        #todo
 
     def test_poll(self):
         """

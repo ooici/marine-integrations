@@ -822,9 +822,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Set attributes
-        self.write_delay = 0.2
         self.num_samples = 1  # number of light samples
         self.time_samples = 5  # seconds of light samples
+        self._newline = NEWLINE
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
@@ -850,7 +850,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        #self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
 
         # POLL State
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_poll_enter)
@@ -951,7 +950,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="Polled",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="opermode")
+                             display_name="Operation mode",
+                             description='Operation mode: Continuous or Polled')
 
         # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.OPERATION_CONTROL,
@@ -963,7 +963,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="Samples",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="operctrl")
+                             display_name="Operation control",
+                             description='Operation control: Samples or Duration')
 
         # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.LIGHT_SAMPLES,
@@ -975,7 +976,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=5,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="lgtsmpls")
+                             display_name="Light samples",
+                             description='Number of light samples')
 
         # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.DARK_SAMPLES,
@@ -987,7 +989,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="drksmpls")
+                             display_name="Dark samples",
+                             description='Number of dark samples')
 
         # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.LIGHT_DURATION,
@@ -999,7 +1002,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=10,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="lgtdurat",
+                             display_name="Light duration",
+                             description='Light duration in seconds',
                              units=Units.SECOND)
 
         # TODO default value (current default is what was on device, no default in IOS)????
@@ -1012,7 +1016,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=5,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="drkdurat",
+                             display_name="Dark duration",
+                             description='Dark duration in seconds',
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.POLLED_TIMEOUT,
@@ -1024,7 +1029,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=65535,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="polltout",
+                             display_name="Polled timeout",
+                             description='Instrument will go to sleep if not polled within time interval',
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.SKIP_SLEEP_AT_START,
@@ -1036,7 +1042,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="ON",
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="skpsleep")
+                             display_name="Skip sleep at start",
+                             description='Skip putting instrument to sleep at start: On or Off')
 
         self._param_dict.add(Parameter.COUNTDOWN,
                              r'',
@@ -1048,7 +1055,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=15,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="countdwn",
+                             display_name="Countdown",
+                             description='Countdown in seconds',
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.REF_MIN_AT_LAMP_ON,
@@ -1059,7 +1067,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="reflimit")
+                             display_name="Ref min at Lamp-On",
+                             description='Reference minute at lamp on')
 
         self._param_dict.add(Parameter.LAMP_STABIL_TIME,
                              r'',
@@ -1070,7 +1079,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=5,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="stbltime",
+                             display_name="Lamp stability time",
+                             description='Lamp stability time in ds',
                              units=ParameterUnit.DECISIEMENS)
 
         self._param_dict.add(Parameter.LAMP_SWITCH_OFF_TEMPERATURE,
@@ -1082,7 +1092,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=35,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="lamptoff")
+                             display_name="Lamp switch-off temperature",
+                             description='Temperature at which lamp will turn off',
+                             units=Units.DEGREE_CELSIUS)
 
         self._param_dict.add(Parameter.SPECTROMETER_INTEG_PERIOD,
                              r'',
@@ -1092,7 +1104,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="spintper",
+                             display_name="Spectrometer integration period",
                              units=Units.MILLISECOND)
 
         # INPUT / OUTPUT
@@ -1105,7 +1117,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="Info",
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="msglevel")
+                             display_name="Message level")
 
         self._param_dict.add(Parameter.MESSAGE_FILE_SIZE,
                              r'',
@@ -1116,7 +1128,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=0,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="msgfsize",
+                             display_name="Message file size",
                              units=ParameterUnit.MEGABYTE)
 
         self._param_dict.add(Parameter.DATA_FILE_SIZE,
@@ -1128,7 +1140,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=5,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="datfsize",
+                             display_name="Data file size",
                              units=ParameterUnit.MEGABYTE)
 
         self._param_dict.add(Parameter.OUTPUT_FRAME_TYPE,
@@ -1151,7 +1163,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="Output",
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="outdrkfr")
+                             display_name="Output dark frame")
 
         # DATA PROCESSING
         self._param_dict.add(Parameter.TEMP_COMPENSATION,
@@ -1163,7 +1175,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="Off",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="tempcomp")
+                             display_name="Temperature compensation")
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW,
                              r'',
@@ -1173,7 +1185,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="wfit_low",
+                             display_name="Fit wavelength low",
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_HIGH,
@@ -1184,7 +1196,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="wfit_hgh",
+                             display_name="Fit wavelength high",
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH,
@@ -1196,7 +1208,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="217,240",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="wfitboth",
+                             display_name="Fit wavelength both",
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.CONCENTRATIONS_IN_FIT,
@@ -1208,7 +1220,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="fitconcs")
+                             display_name="Concentrations to fit")
 
         self._param_dict.add(Parameter.BASELINE_ORDER,
                              r'',
@@ -1219,7 +1231,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="bl_order")
+                             display_name="Baseline order")
 
         self._param_dict.add(Parameter.DARK_CORRECTION_METHOD,
                              r'',
@@ -1230,7 +1242,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="SpecAverage",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="drkcormt")
+                             display_name="Dark correction method")
 
         self._param_dict.add(Parameter.SALINITY_FITTING,
                              r'',
@@ -1241,7 +1253,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="On",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="salinfit")
+                             display_name="Salinity fitting")
 
         self._param_dict.add(Parameter.BROMIDE_TRACING,
                              r'',
@@ -1252,7 +1264,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="Off",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="brmtrace")
+                             display_name="Bromide tracing")
 
         self._param_dict.add(Parameter.ABSORBANCE_CUTOFF,
                              r'',
@@ -1263,7 +1275,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=1.3,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="a_cutoff")
+                             display_name="Absorbance cutoff")
 
         self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT,
                              r'',
@@ -1274,7 +1286,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value="On",
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="intpradj")
+                             display_name="Integration time adjustment")
 
         self._param_dict.add(Parameter.INTEG_TIME_FACTOR,
                              r'',
@@ -1285,7 +1297,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="intprfac")
+                             display_name="Integration time factor")
 
         self._param_dict.add(Parameter.INTEG_TIME_STEP,
                              r'',
@@ -1296,7 +1308,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=20,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="intadstp")
+                             display_name="Integration time step")
 
         self._param_dict.add(Parameter.INTEG_TIME_MAX,
                              r'',
@@ -1307,9 +1319,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=20,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="intadmax")
-
-        log.debug("PARAM DICT %s", self._param_dict.get_all())
+                             display_name="Integration time max")
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -1319,20 +1329,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         try:
             if self._extract_sample(SUNASampleDataParticle, SUNA_SAMPLE_REGEX, chunk, timestamp):
                 return
-        except SampleException:
-            raise SampleException('Error extracting SUNASampleDataParticle')
-
-        try:
             if self._extract_sample(SUNAStatusDataParticle, SUNA_STATUS_REGEX, chunk, timestamp):
                 return
-        except SampleException:
-            raise SampleException('Error extracting SUNAStatusDataParticle')
-
-        try:
             if self._extract_sample(SUNATestDataParticle, SUNA_TEST_REGEX, chunk, timestamp):
                 return
         except SampleException:
-            raise SampleException('Error extracting SUNATestDataParticle')
+            raise SampleException('Error extracting DataParticle')
 
     def _filter_capabilities(self, events):
         """
@@ -1400,8 +1402,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if ret_prompt == Prompt.POLLED:
             ret_prompt = self._send_dollar()
             log.debug('SENT DOLLAR prompt = %r', ret_prompt)
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
@@ -1568,6 +1568,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("Set finished, next: %s, result: %s", next_state, result)
         return next_state, None
 
+     def _set_params(self, *args, **kwargs):
+        """
+        Used to set the parameters when startup config is set by _init_params call
+        """
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        self._verify_not_readonly(*args, **kwargs)
+
+        old_config = self._param_dict.get_config()
+        log.debug("OLD CONFIG: %s", self._param_dict.get_config())
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            self._do_cmd_resp(InstrumentCommand.SET, key, val,
+                              timeout=100,
+                              response_regex=re.compile(Prompt.SET_OK),
+                              write_delay=0)
+            self._param_dict.set_value(key, params[key])
+
+        new_config = self._param_dict.get_config()
+        log.debug("NEW CONFIG: %s", self._param_dict.get_config())
+
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     def _handler_command_test(self):
         """
         Test the instrument state
@@ -1587,8 +1615,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
         self._do_cmd_no_resp(InstrumentCommand.SLEEP)
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         return ProtocolState.UNKNOWN, (None, None)
 
@@ -1639,7 +1665,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("da_param_restore = %s,", self.da_param_restore)
         self._set_params(self.da_param_restore, startup=True)
 
-
         return next_state, (next_agent_state, result)
 
     ########################################################################
@@ -1682,7 +1707,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_poll_measure_0(self):
         """
-        Measure 1 Dark Sample
+        Measure 0 Dark Sample
         """
         next_state = None
         next_agent_state = None
@@ -1783,16 +1808,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Build handlers
     ########################################################################
-    def _build_simple_command(self, cmd, *args):
-        """
-        Builder for simple commands
-
-        @param cmd The command to build
-        @param args Unused arguments
-        @retval Returns string ready for sending to instrument
-        """
-        return "%s%s" % (cmd, NEWLINE)
-
     def _build_get_command(self, cmd, param):
         """
         Build a command to get the desired argument.
@@ -1829,7 +1844,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         assert samples >= 0  # negative samples is not valid
         assert cmd == InstrumentCommand.MEASURE
-        return "%s %s%s" % (InstrumentCommand.MEASURE, str(samples), NEWLINE)
+        return "%s %s%s" % (InstrumentCommand.MEASURE, samples, NEWLINE)
 
     def _build_timed_command(self, cmd, time_amount):
         """
@@ -1841,7 +1856,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         assert time_amount > 0  # sampling for no/negative time is not valid
         assert cmd == InstrumentCommand.TIMED
-        return "%s %s%s" % (InstrumentCommand.TIMED, str(time_amount), NEWLINE)
+        return "%s %s%s" % (InstrumentCommand.TIMED, time_amount, NEWLINE)
 
     ########################################################################
     # Response handlers
@@ -1933,31 +1948,3 @@ class Protocol(CommandResponseInstrumentProtocol):
                              expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
 
         return ret_prompt
-
-    def _set_params(self, *args, **kwargs):
-        """
-        Used to set the parameters when startup config is set by _init_params call
-        """
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        self._verify_not_readonly(*args, **kwargs)
-
-        old_config = self._param_dict.get_config()
-        log.debug("OLD CONFIG: %s", self._param_dict.get_config())
-
-        for (key, val) in params.iteritems():
-            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-            self._do_cmd_resp(InstrumentCommand.SET, key, val,
-                              timeout=100,
-                              response_regex=re.compile(Prompt.SET_OK),
-                              write_delay=0)
-            self._param_dict.set_value(key, params[key])
-
-        new_config = self._param_dict.get_config()
-        log.debug("NEW CONFIG: %s", self._param_dict.get_config())
-
-        if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
