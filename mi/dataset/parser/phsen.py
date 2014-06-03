@@ -26,14 +26,14 @@ from mi.core.exceptions import SampleException, DatasetParserException, Recovera
 from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 
 # match the ascii hex ph records
-# the timestamp may have non hex ascii characters, if this happens the value will be set to none
-# (which is why there is the 8 bytes binary search in the middle)
-DATA_REGEX = b'(\^0A\r\*)([0-9A-Fa-f]{4}0A)([\x00-\xFF]{8})([0-9A-Fa-f]{450})\r'
+# the data should be ascii hex, but may have non hex ascii characters, if this happens the
+# value will be set to none
+DATA_REGEX = b'(\^0A\r\*)([0-9A-Fa-f]{4}0A)([\x00-\xFF]{8})([\x00-\xFF]{446}[0-9A-Fa-f]{4})\r'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 # match the ascii hex control record, there is an optional 2 byte field at the end
 # this also allows for non hex ascii characters in the timestamp, flags and number of records
-CONTROL_REGEX = b'(\*)([0-9A-Fa-f]{4}[8-9A-Fa-f][0-9A-Fa-f])([\x00-\xFF]{30}[0-9A-Fa-f]{2,6})\r'
+CONTROL_REGEX = b'(\*)([0-9A-Fa-f]{4}[8-9A-Fa-f][0-9A-Fa-f])([\x00-\xFF]{32}[0-9A-Fa-f]{0,4})\r'
 CONTROL_MATCHER = re.compile(CONTROL_REGEX)
 
 # control messages are hex 80 or greater, so the first ascii char must be greater than 8 hex
@@ -42,6 +42,9 @@ CONTROL_ID_MATCHER = re.compile(CONTROL_ID_REGEX)
 
 TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
 TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
+
+HEX_INT_REGEX = b'[0-9A-Fa-f]{4}'
+HEX_INT_MATCHER = re.compile(HEX_INT_REGEX)
 
 PH_ID = '0A'
 # the control message has an optional data or battery field for some control IDs
@@ -57,10 +60,10 @@ class DataParticleType(BaseEnum):
     CONTROL = 'phsen_abcdef_sio_mule_metadata'
     
 class PhsenCommonDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = 'controller_timestamp'
+    CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
     UNIQUE_ID = 'unique_id'
     RECORD_TYPE = 'record_type'
-    RECORD_TIME = 'record_time_1904_uint32'
+    RECORD_TIME = 'record_time'
     PASSED_CHECKSUM = 'passed_checksum'
 
 class PhsenParserDataParticleKey(PhsenCommonDataParticleKey):
@@ -115,26 +118,36 @@ class PhsenParserDataParticle(DataParticle):
             for i in range(0, 16):
                 start_idx = 4 + i*4
                 end_idx = 4 + (i+1)*4
-                try:
-                    this_ref = int(self._data_match.group(4)[start_idx:end_idx], 16)
-                    ref_meas.append(this_ref)
-                except Exception as e:
+                # confirm this contains only ascii hex chars
+                if HEX_INT_MATCHER.match(self._data_match.group(4)[start_idx:end_idx]):
+                    try:
+                        this_ref = int(self._data_match.group(4)[start_idx:end_idx], 16)
+                        ref_meas.append(this_ref)
+                    except Exception as e:
+                        ref_meas.append(None)
+                        self._encoding_errors.append({PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS: \
+                                                      "Error encoding %d: %s" % (i, e)})
+                else:
+                    # don't send an exception if a non ascii hex char is in this value
                     ref_meas.append(None)
-                    self._encoding_errors.append({PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS: \
-                                                  "Error encoding %d: %s" % (i, e)})
     
             light_meas = []
             for i in range(0, 23):
                 for s in range(0,4):
                     start_idx = 68 + i*16 + s*4
                     end_idx = 68 + i*16 + (s+1)*4
-                    try:
-                        this_meas = int(self._data_match.group(4)[start_idx:end_idx], 16)
-                        light_meas.append(this_meas)
-                    except Exception as e:
+                    # confirm this contains only ascii hex chars
+                    if HEX_INT_MATCHER.match(self._data_match.group(4)[start_idx:end_idx]):
+                        try:
+                            this_meas = int(self._data_match.group(4)[start_idx:end_idx], 16)
+                            light_meas.append(this_meas)
+                        except Exception as e:
+                            light_meas.append(None)
+                            self._encoding_errors.append({PhsenParserDataParticleKey.LIGHT_MEASUREMENTS: \
+                                                          "Error encoding (%d,%d): %s" % (i, s, e)})
+                    else:
+                        # don't send an exception if a non ascii hex char is in this value
                         light_meas.append(None)
-                        self._encoding_errors.append({PhsenParserDataParticleKey.LIGHT_MEASUREMENTS: \
-                                                      "Error encoding (%d,%d): %s" % (i, s, e)})
     
             # calculate the checksum and compare with the received checksum
             passed_checksum = True
@@ -208,7 +221,6 @@ class PhsenControlDataParticleKey(PhsenCommonDataParticleKey):
     NUM_DATA_RECORDS = 'num_data_records'
     NUM_ERROR_RECORDS = 'num_error_records'
     NUM_BYTES_STORED = 'num_bytes_stored'
-    DATA = 'data'
     VOLTAGE_BATTERY = 'voltage_battery'
     
 class PhsenControlDataParticle(DataParticle):
@@ -375,15 +387,7 @@ class PhsenControlDataParticle(DataParticle):
                                    self._data_match.group(3)[24:30],
                                    PhsenControlDataParticle.encode_int_16_or_none)])
 
-            # check if this is a control id that has one of the optional fields
-            if control_id in DATA_CONTROL_IDS:
-                result.append(self._encode_value(PhsenControlDataParticleKey.DATA,
-                                                 self._data_match.group(3)[30:34],
-                                                 PhsenParserDataParticle.encode_int_16))
-            else:
-                result.append({DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.DATA,
-                               DataParticleKey.VALUE: None})
-            if control_id in BATT_CONTROL_IDS:
+            if control_id in BATT_CONTROL_IDS and HEX_INT_MATCHER.match(self._data_match.group(3)[30:34]):
                 result.append(self._encode_value(PhsenControlDataParticleKey.VOLTAGE_BATTERY,
                                                  self._data_match.group(3)[30:34],
                                                  PhsenParserDataParticle.encode_int_16))
@@ -438,7 +442,8 @@ class PhsenParser(SioMuleParser):
         """
         result_particles = []
 
-        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+        # non-data does not need to be handled here because for the single file
+        # the data may be corrected and re-written later, it is just ignored until it matches
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
         while (chunk != None):
@@ -476,12 +481,13 @@ class PhsenParser(SioMuleParser):
                             sample_count += 1
                         index += len(control_match.group(0))
                     else:
-                        log.warning("extra data found between records in chunk %s", chunk[1:32])
+                        log.warning("extra data found between records in chunk %s at index %d", chunk[1:32], index)
                         index += 1
 
             self._chunk_sample_count.append(sample_count)
 
-            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            # non-data does not need to be handled here because for the single file
+            # the data may be corrected and re-written later, it is just ignored until it matches
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
         return result_particles

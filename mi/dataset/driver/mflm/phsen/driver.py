@@ -15,13 +15,14 @@ import string
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.driver.sio_mule.sio_mule_single_driver import SioMuleSingleDataSetDriver
-from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle
+from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle, PhsenControlDataParticle
 
 class MflmPHSENDataSetDriver(SioMuleSingleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [PhsenParserDataParticle.type()]
+        return [PhsenParserDataParticle.type(),
+                PhsenControlDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         """
@@ -30,7 +31,8 @@ class MflmPHSENDataSetDriver(SioMuleSingleDataSetDriver):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.phsen',
-            'particle_class': 'PhsenParserDataParticle'
+            'particle_class': ['PhsenParserDataParticle',
+                               'PhsenControlDataParticle']
         })
         log.debug("My Config: %s", config)
         self._parser = PhsenParser(
