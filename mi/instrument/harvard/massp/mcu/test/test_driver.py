@@ -159,8 +159,7 @@ class DriverTestMixinSub(DriverTestMixin):
         if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
         else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
+            self.fail("Unknown Particle Detected: %s" % data_particle)
 
     def assert_particle_exception(self, driver, sample_data):
         """
@@ -172,20 +171,11 @@ class DriverTestMixinSub(DriverTestMixin):
         @param driver: instrument driver with mock port agent client
         @param sample_data: the byte string we want to send to the driver
         """
-        ts = ntplib.system_to_ntp_time(time.time())
-
-        log.debug("Sample to publish: %s", sample_data)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(sample_data)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
         try:
             # Push the data into the driver
-            driver._protocol.got_data(port_agent_packet)
+            self._send_port_agent_packet(driver, sample_data)
             # uh oh, we shouldn't have reached this point
-            self.assertTrue(False, msg='Failed to generate an exception when given bad data!')
+            self.fail('Failed to generate an exception when given bad data!')
         except SampleException, e:
             log.debug('Caught sample exception: %r', e)
 
@@ -404,7 +394,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
         also be defined in the protocol FSM.
         """
-
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self._capabilities)
 
@@ -468,8 +457,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         protocol = Protocol(Prompt, NEWLINE, Mock())
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
+        driver_capabilities = Capability.list()
+        test_capabilities = Capability.list()
 
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")

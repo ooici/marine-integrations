@@ -34,7 +34,7 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-METALOGGER_LOG_LEVEL = 'trace'
+METALOGGER = get_logging_metaclass('trace')
 
 # newline.
 NEWLINE = '\r'
@@ -94,6 +94,7 @@ class ProtocolEvent(BaseEnum):
     ERROR = 'PROTOCOL_EVENT_ERROR'
     STANDBY = 'PROTOCOL_EVENT_STANDBY'
     CLEAR = MASSP_CLEAR_ERROR
+    POWEROFF = 'PROTCOL_EVENT_POWEROFF'
 
 
 class Capability(BaseEnum):
@@ -108,6 +109,7 @@ class Capability(BaseEnum):
     IONREG = ProtocolEvent.IONREG
     STANDBY = ProtocolEvent.STANDBY
     CLEAR = ProtocolEvent.CLEAR
+    POWEROFF = ProtocolEvent.POWEROFF
 
 
 class Parameter(DriverParameter):
@@ -253,8 +255,9 @@ class McuDataParticle(DataParticle):
     INT:50:35:17:20:20:21:20:20:20:20:20,EXT:2.00:0.00:-1.00,EXTST:1:0:0,POWST:0:0:0:0:1:0:0:0:0:0:0:0:0,
     SOLST:0:0:0:1:0:0,CAL:0:0:0:0:0:10:10:1:0,HEAT:0:0:0:20:0:-1:-1:-1:-1:-1,ENDDATA
     """
-    __metaclass__ = get_logging_metaclass(log_level=METALOGGER_LOG_LEVEL)
+    __metaclass__ = METALOGGER
     _data_particle_type = DataParticleType.MCU_STATUS
+    _compiled = None
 
     @staticmethod
     def regex():
@@ -270,7 +273,9 @@ class McuDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(McuDataParticle.regex())
+        if McuDataParticle._compiled is None:
+            McuDataParticle._compiled = re.compile(McuDataParticle.regex())
+        return McuDataParticle._compiled
 
     def _build_parsed_values(self):
         """
@@ -438,7 +443,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
-    __metaclass__ = get_logging_metaclass(log_level=METALOGGER_LOG_LEVEL)
+    __metaclass__ = METALOGGER
 
     def __init__(self, evt_callback):
         """
@@ -469,7 +474,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    __metaclass__ = get_logging_metaclass(log_level=METALOGGER_LOG_LEVEL)
+    __metaclass__ = METALOGGER
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -490,20 +495,21 @@ class Protocol(CommandResponseInstrumentProtocol):
         handlers = {
             ProtocolState.UNKNOWN: [
                 (ProtocolEvent.ENTER, self._handler_unknown_enter),
-                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
-                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.START1, self._handler_command_start1),
                 (ProtocolEvent.NAFREG, self._handler_command_nafreg),
                 (ProtocolEvent.IONREG, self._handler_command_ionreg),
+                (ProtocolEvent.POWEROFF, self._handler_command_poweroff),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.START1: [
@@ -515,7 +521,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ProtocolState.WAITING_TURBO: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.STANDBY, self._handler_standby),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.START2, self._handler_waiting_turbo_start2),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
@@ -528,7 +534,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ProtocolState.WAITING_RGA: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.STANDBY, self._handler_standby),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.SAMPLE, self._handler_waiting_rga_sample),
                 (ProtocolEvent.CALIBRATE, self._handler_waiting_rga_cal),
                 (ProtocolEvent.ERROR, self._handler_error),
@@ -548,19 +554,19 @@ class Protocol(CommandResponseInstrumentProtocol):
             ProtocolState.STOPPING: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.STANDBY, self._handler_standby),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.NAFREG: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.NAFREG_COMPLETE, self._handler_nafreg_complete),
+                (ProtocolEvent.NAFREG_COMPLETE, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.IONREG: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.IONREG_COMPLETE, self._handler_ionreg_complete),
+                (ProtocolEvent.IONREG_COMPLETE, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.DIRECT_ACCESS: [
@@ -572,13 +578,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ProtocolState.ERROR: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.CLEAR, self._handler_clear),
-                (ProtocolEvent.START1_COMPLETE, self._handler_standby),
-                (ProtocolEvent.START2_COMPLETE, self._handler_standby),
-                (ProtocolEvent.SAMPLE_COMPLETE, self._handler_standby),
-                (ProtocolEvent.CALIBRATE_COMPLETE, self._handler_standby),
-                (ProtocolEvent.NAFREG_COMPLETE, self._handler_standby),
-                (ProtocolEvent.IONREG_COMPLETE, self._handler_standby),
+                (ProtocolEvent.CLEAR, self._handler_stop),
             ],
         }
 
@@ -631,7 +631,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-        # Add parameter handlers to parameter dict.
 
     def _build_command_dict(self):
         """
@@ -644,6 +643,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.IONREG, display_name="start ion chamber regeneration")
         self._cmd_dict.add(Capability.STANDBY, display_name="transition to standby")
         self._cmd_dict.add(Capability.CLEAR, display_name="clear error state")
+        self._cmd_dict.add(Capability.POWEROFF, display_name="power off instrument")
 
     def _build_driver_dict(self):
         """
@@ -714,12 +714,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _abort_sequence(self):
         """
         Abort the current sequence.
-        Run the ASTART1 sequence to return to a known state.
-        Return to STANDBY
         """
-        self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED)
-        self._do_cmd_resp(InstrumentCommand.START1, expected_prompt=Prompt.START1, timeout=120)
-        self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
+        self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
 
     ########################################################################
     # Unknown handlers.
@@ -732,12 +728,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -759,10 +749,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         try:
             result = self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE])
             if Prompt.STANDBY in result:
-                log.info('MCU in standby, proceeding to COMMAND')
+                log.debug('MCU in standby, proceeding to COMMAND')
             elif result == Prompt.IN_SEQUENCE:
                 # wait it out or break out?
                 self._abort_sequence()
+                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY)
         except InstrumentTimeoutException:
             # something else is wrong, pass the buck to the operator
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
@@ -784,47 +775,35 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._set_params(*args, **kwargs)
         return None, None
 
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start1(self):
         """
         Send the start1 command and move to the start1 state
         """
-        next_state = ProtocolState.START1
-        next_agent_state = ResourceAgentState.BUSY
-        result = self._do_cmd_resp(InstrumentCommand.START1)
-        return next_state, (next_agent_state, result)
+        return ProtocolState.START1, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.START1))
 
     def _handler_command_nafreg(self):
         """
         Send the nafreg command and move to the nafreg state
         """
-        next_state = ProtocolState.NAFREG
-        next_agent_state = ResourceAgentState.BUSY
-        result = self._do_cmd_resp(InstrumentCommand.NAFREG)
-        return next_state, (next_agent_state, result)
+        return ProtocolState.NAFREG, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.NAFREG))
 
     def _handler_command_ionreg(self):
         """
         Send the ionreg command and move to the ionreg state
         """
-        next_state = ProtocolState.IONREG
-        next_agent_state = ResourceAgentState.BUSY
-        result = self._do_cmd_resp(InstrumentCommand.IONREG)
-        return next_state, (next_agent_state, result)
+        return ProtocolState.IONREG, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.IONREG))
+
+    def _handler_command_poweroff(self):
+        """
+        Send the ionreg command and move to the ionreg state
+        """
+        return None, (None, self._do_cmd_resp(InstrumentCommand.POWEROFF))
 
     ########################################################################
     # START1 handlers.
@@ -834,10 +813,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Start1 sequence complete, move to waiting_turbo
         """
-        next_state = ProtocolState.WAITING_TURBO
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.WAITING_TURBO, (ResourceAgentState.IDLE, None)
 
     ########################################################################
     # WAITING_TURBO handlers.
@@ -847,11 +823,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Turbo is at speed, send start2 and move to start2 state
         """
-        result = self._do_cmd_resp(InstrumentCommand.START2)
-        next_state = ProtocolState.START2
-        next_agent_state = ResourceAgentState.BUSY
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.START2, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.START2))
 
     ########################################################################
     # START2 handlers.
@@ -861,10 +833,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Start2 complete, move to waiting_rga state
         """
-        next_state = ProtocolState.WAITING_RGA
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.WAITING_RGA, (ResourceAgentState.BUSY, None)
 
     ########################################################################
     # WAITING_RGA handlers.
@@ -874,19 +843,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         RGA configuration/startup complete, send start sample and move to sample state
         """
-        result = self._do_cmd_resp(InstrumentCommand.SAMPLE)
-        next_state = ProtocolState.SAMPLE
-        next_agent_state = ResourceAgentState.BUSY
-        return next_state, (next_agent_state, result)
+        return ProtocolState.SAMPLE, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.SAMPLE))
 
     def _handler_waiting_rga_cal(self):
         """
         RGA configuration/startup complete, send start cal and move to cal state
         """
-        result = self._do_cmd_resp(InstrumentCommand.CAL)
-        next_state = ProtocolState.CALIBRATE
-        next_agent_state = ResourceAgentState.BUSY
-        return next_state, (next_agent_state, result)
+        return ProtocolState.CALIBRATE, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.CAL))
 
     ########################################################################
     # SAMPLE handlers.
@@ -896,10 +859,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Sample complete, move to the stopping state.
         """
-        next_state = ProtocolState.STOPPING
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.STOPPING, (ResourceAgentState.BUSY, None)
 
     ########################################################################
     # CALIBRATE handlers.
@@ -909,50 +869,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Cal complete, move to the stopping state.
         """
-        next_state = ProtocolState.STOPPING
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
-
-    ########################################################################
-    # GENERIC handlers.
-    ########################################################################
-
-    def _handler_standby(self):
-        """
-        Put MCU in standby, return to COMMAND
-        """
-        result = self._do_cmd_resp(InstrumentCommand.STANDBY)
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
-
-    ########################################################################
-    # NAFREG handlers.
-    ########################################################################
-
-    def _handler_nafreg_complete(self):
-        """
-        Nafion regen complete, going to command
-        """
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
-
-    ########################################################################
-    # IONREG handlers.
-    ########################################################################
-
-    def _handler_ionreg_complete(self):
-        """
-        Ion regen complete, going to command
-        """
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.STOPPING, (ResourceAgentState.BUSY, None)
 
     ########################################################################
     # ERROR handler. Handle in all states.
@@ -962,29 +879,23 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Error detected, move to error state.
         """
-        next_state = ProtocolState.ERROR
-        next_agent_state = ResourceAgentState.IDLE
-        result = None
         current_state = self.get_current_state()
         non_sequence_states = [ProtocolState.WAITING_TURBO,
                                ProtocolState.WAITING_RGA,
                                ProtocolState.STOPPING]
-        if current_state in non_sequence_states:
-            # instrument is not in a sequence, go straight to standby
-            self._do_cmd_resp(InstrumentCommand.STANDBY)
-        else:
+        if current_state not in non_sequence_states:
+            # instrument is in a sequence, send abort first
             self._abort_sequence()
+        self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
+        self._do_cmd_resp(InstrumentCommand.POWEROFF, expected_prompt=Prompt.POWEROFF, timeout=30)
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.ERROR, (ResourceAgentState.BUSY, None)
 
-    def _handler_clear(self):
+    def _handler_stop(self):
         """
-        Operator has requested to clear the error state, return to command.
+        Return to COMMAND
         """
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-        result = None
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # GENERIC handlers.
@@ -1024,25 +935,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Pass direct access commands through to the instrument
         """
-        next_state = None
-        result = None
-        next_agent_state = None
 
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
-        next_state = None
-        result = None
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
