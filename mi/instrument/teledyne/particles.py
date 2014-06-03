@@ -6,6 +6,9 @@
 Release notes:
 """
 
+__author__ = 'Sung Ahn'
+__license__ = 'Apache 2.0'
+
 import re
 from struct import *
 import time as time
@@ -36,21 +39,36 @@ ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_R
 ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>'
 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
 
+ADCP_ANCILLARY_SYSTEM_DATA_REGEX = r'(Ambient  Temperature.*?)\>'
+ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER = re.compile(ADCP_ANCILLARY_SYSTEM_DATA_REGEX, re.DOTALL)
+
+ADCP_TRANSMIT_PATH_REGEX = r'(IXMT    =.*?)\>'
+ADCP_TRANSMIT_PATH_REGEX_MATCHER = re.compile(ADCP_TRANSMIT_PATH_REGEX, re.DOTALL)
 
 
 ###############################################################################
 # Data Particles
 ###############################################################################
 class DataParticleType(BaseEnum):
+    """
+    Stream types of data particles
+    """
     RAW = CommonDataParticleType.RAW
     ADCP_PD0_PARSED_BEAM = 'adcp_pd0_beam_parsed'
     ADCP_PD0_PARSED_EARTH = 'adcp_pd0_earth_parsed'
     ADCP_SYSTEM_CONFIGURATION = 'adcp_system_configuration'
     ADCP_COMPASS_CALIBRATION = 'adcp_compass_calibration'
 
+    ADCP_ANCILLARY_SYSTEM_DATA = "adcp_ancillary_system_data"
+    ADCP_TRANSMIT_PATH = "adcp_transmit_path"
+
+    VADCP_ANCILLARY_SYSTEM_DATA = "vadcp_ancillary_system_data"
+    VADCP_TRANSMIT_PATH = "vadcp_transmit_path"
+
     VADCP_PD0_PARSED_BEAM = 'vadcp_5thbeam_pd0_beam_parsed'
     VADCP_PD0_PARSED_EARTH = 'vadcp_5thbeam_pd0_earth_parsed'
-    # ENGINEERING_PARAMETERS - NONE found.
+    VADCP_COMPASS_CALIBRATION = 'vadcp_5thbeam_compass_calibration'
+
 
 
 class ADCP_PD0_PARSED_KEY(BaseEnum):
@@ -196,6 +214,8 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
 
 
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
+
+    #The data particle type will be overwritten based on coordinate (Earth/Beam)
     _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse_monitor_75_khz.particles ADCP_PD0_PARSED_DataParticle' # DataParticleType.ADCP_PD0_PARSED_BEAM #
     _slave = False
 
@@ -783,7 +803,6 @@ class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     POWER_TIMING_TYPE = "power_timing_type"
     BOARD_SERIAL_NUMBERS = "board_serial_numbers"
 
-
 class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_SYSTEM_CONFIGURATION
 
@@ -974,3 +993,71 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
                            DataParticleKey.VALUE: value})
 
         return result
+
+class ADCP_ANCILLARY_SYSTEM_DATA_KEY (BaseEnum):
+    ADCP_AMBIENT_CURRENT = "adcp_ambient_temp"
+    ADCP_ATTITUDE_TEMP = "adcp_attitude_temp"
+    ADCP_INTERNAL_MOISTURE = "adcp_internal_moisture"
+
+class ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(DataParticle):
+    _data_particle_type = DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA
+
+    RE01 = re.compile(r'Ambient  Temperature = +([\+\-0-9.]+) Degrees C')
+    RE02 = re.compile(r'Attitude Temperature = +([\+\-0-9.]+) Degrees C')
+    RE03 = re.compile(r'Internal Moisture    = +([a-zA-Z0-9]+)')
+
+    def _build_parsed_values(self):
+        # Initialize
+        matches = {}
+
+        for key, regex, formatter in [
+            (ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_AMBIENT_CURRENT, self.RE01, float),
+            (ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_ATTITUDE_TEMP, self.RE02, float),
+            (ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_INTERNAL_MOISTURE, self.RE03, str),
+        ]:
+            match = regex.search(self.raw_data)
+            matches[key] = formatter(match.group(1))
+
+        result = []
+        for (key, value) in matches.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
+
+class ADCP_TRANSMIT_PATH_KEY (BaseEnum):
+    ADCP_TRANSIT_CURRENT = "adcp_transmit_current"
+    ADCP_TRANSIT_VOLTAGE = "adcp_transmit_voltage"
+    ADCP_TRANSIT_IMPEDANCE = "adcp_transmit_impedance"
+    ADCP_TRANSIT_TEST_RESULT = "adcp_transmit_test_results"
+
+class ADCP_TRANSMIT_PATH_PARTICLE(DataParticle):
+    _data_particle_type = DataParticleType.ADCP_TRANSMIT_PATH
+
+    RE01 = re.compile(r'IXMT += +([\+\-0-9.]+) Amps')
+    RE02 = re.compile(r'VXMT += +([\+\-0-9.]+) Volts')
+    RE03 = re.compile(r' +Z += +([\+\-0-9.]+) Ohms')
+    RE04 = re.compile(r'Transmit Test Results = +(.*)\r')
+
+    def _build_parsed_values(self):
+        # Initialize
+        matches = {}
+        for key, regex, formatter in [
+            (ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_CURRENT, self.RE01, float),
+            (ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_VOLTAGE, self.RE02, float),
+            (ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_IMPEDANCE, self.RE03, float),
+            (ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_TEST_RESULT, self.RE04, str),
+        ]:
+            match = regex.search(self.raw_data)
+            matches[key] = formatter(match.group(1))
+
+        result = []
+        for (key, value) in matches.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
+
+
+
+
