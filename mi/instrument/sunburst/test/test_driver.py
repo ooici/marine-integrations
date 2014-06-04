@@ -16,22 +16,20 @@ USAGE:
 __author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
-import unittest
 import time
 import datetime
-import copy
-import ntplib
 
+import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
-
 from mi.core.log import get_logger
+
+
 log = get_logger()
 
 from mi.core.exceptions import InstrumentCommandException
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
@@ -41,11 +39,7 @@ from mi.idk.unit_test import GO_ACTIVE_TIMEOUT
 from mi.idk.unit_test import DriverProtocolState
 from mi.idk.unit_test import DriverEvent
 from mi.idk.unit_test import ResourceAgentState
-from mi.idk.unit_test import AgentCapabilityType
-from pyon.agent.agent import ResourceAgentEvent
 from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
 
 # Might need these for later Integration tests and Qualification tests
 #from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -61,7 +55,6 @@ from mi.core.instrument.data_particle import DataParticleValue
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
-from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.driver import SamiBatteryVoltageDataParticleKey
 from mi.instrument.sunburst.driver import SamiThermistorVoltageDataParticleKey
@@ -71,6 +64,7 @@ from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiProtocol
 from mi.instrument.sunburst.driver import SAMI_UNIX_OFFSET
 from mi.instrument.sunburst.driver import SamiParameter
+
 
 class CallStatisticsContainer:
     def __init__(self, unit_test):
@@ -86,6 +80,7 @@ class CallStatisticsContainer:
     def assert_call_count(self, call_count):
         self.unit_test.assertEqual(call_count, self.call_count, 'call count %s != %s' %
                                                                 (call_count, self.call_count))
+
     def assert_timing(self, delay):
         for call_counter in range(self.call_count):
             if call_counter > 0:
@@ -96,16 +91,17 @@ class CallStatisticsContainer:
                                           'call delay %s: call delay %s != delay %s' %
                                           (call_counter, call_delay, delay))
 
-class PumpStatisticsContainer(CallStatisticsContainer):
 
+class PumpStatisticsContainer(CallStatisticsContainer):
     def __init__(self, unit_test, pump_command):
         self.pump_command = pump_command
-        CallStatisticsContainer.__init__(self,unit_test)
+        CallStatisticsContainer.__init__(self, unit_test)
 
     def side_effect(self, *args, **kwargs):
         log.debug('args = %s, kwargs = %s', args, kwargs)
-        if(args == self.pump_command):
+        if args == self.pump_command:
             CallStatisticsContainer.side_effect(self)
+
 
 TIME_THRESHOLD = 2
 
@@ -156,12 +152,12 @@ STATES = ParameterTestConfigKey.STATES
 
 
 class SamiMixin(DriverTestMixin):
-    '''
+    """
     Mixin class used for storing SAMI instrument data particle constants and common data
     assertion methods.
 
     Should be subclassed in the specific test driver
-    '''
+    """
 
     ###
     #  Instrument output (driver input) Definitions
@@ -182,70 +178,70 @@ class SamiMixin(DriverTestMixin):
 
     _regular_status_parameters = {
         # SAMI Regular Status Messages (S0)
-        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:     {TYPE: int, VALUE: 0xCDDD74E1, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.CLOCK_ACTIVE:            {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORDING_ACTIVE:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN:       {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART:    {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG: {TYPE: int, VALUE: 0xCDDD74E1, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.CLOCK_ACTIVE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORDING_ACTIVE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART: {TYPE: bool, VALUE: False, REQUIRED: True},
         SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.FLASH_ERASED:            {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.POWER_ON_INVALID:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS:        {TYPE: int, VALUE: 0x000003, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:        {TYPE: int, VALUE: 0x000236, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.UNIQUE_ID:                {TYPE: int, VALUE: 0xF8, REQUIRED: True}
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.FLASH_ERASED: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.POWER_ON_INVALID: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS: {TYPE: int, VALUE: 0x000003, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.NUM_BYTES_STORED: {TYPE: int, VALUE: 0x000236, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.UNIQUE_ID: {TYPE: int, VALUE: 0xF8, REQUIRED: True}
     }
 
     _control_record_parameters = {
-        SamiControlRecordDataParticleKey.UNIQUE_ID:               {TYPE: int, VALUE: 0xF8, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_LENGTH:           {TYPE: int, VALUE: 0x12, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_TYPE:             {TYPE: int, VALUE: 0x85,  REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_TIME:             {TYPE: int, VALUE: 0xCDDD74DD, REQUIRED: True},
-        SamiControlRecordDataParticleKey.CLOCK_ACTIVE:            {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORDING_ACTIVE:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_END_ON_TIME:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN:       {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART:    {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.UNIQUE_ID: {TYPE: int, VALUE: 0xF8, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_LENGTH: {TYPE: int, VALUE: 0x12, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_TYPE: {TYPE: int, VALUE: 0x85, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_TIME: {TYPE: int, VALUE: 0xCDDD74DD, REQUIRED: True},
+        SamiControlRecordDataParticleKey.CLOCK_ACTIVE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORDING_ACTIVE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_END_ON_TIME: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART: {TYPE: bool, VALUE: False, REQUIRED: True},
         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_BANK:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.FLASH_ERASED:            {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.POWER_ON_INVALID:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_DATA_RECORDS:        {TYPE: int, VALUE: 0x000003, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_BYTES_STORED:        {TYPE: int, VALUE: 0x000224, REQUIRED: True},
-        SamiControlRecordDataParticleKey.CHECKSUM:                {TYPE: int, VALUE: 0xFC, REQUIRED: True}
+        SamiControlRecordDataParticleKey.BATTERY_LOW_BANK: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.FLASH_ERASED: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.POWER_ON_INVALID: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.NUM_DATA_RECORDS: {TYPE: int, VALUE: 0x000003, REQUIRED: True},
+        SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        SamiControlRecordDataParticleKey.NUM_BYTES_STORED: {TYPE: int, VALUE: 0x000224, REQUIRED: True},
+        SamiControlRecordDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0xFC, REQUIRED: True}
     }
 
     _battery_voltage_parameters = {
-        SamiBatteryVoltageDataParticleKey.BATTERY_VOLTAGE:        {TYPE: int, VALUE: 0x0CD8, REQUIRED: True}
+        SamiBatteryVoltageDataParticleKey.BATTERY_VOLTAGE: {TYPE: int, VALUE: 0x0CD8, REQUIRED: True}
     }
 
     _thermistor_voltage_parameters = {
-        SamiThermistorVoltageDataParticleKey.THERMISTOR_VOLTAGE:  {TYPE: int, VALUE: 0x067B, REQUIRED: True}
+        SamiThermistorVoltageDataParticleKey.THERMISTOR_VOLTAGE: {TYPE: int, VALUE: 0x067B, REQUIRED: True}
     }
 
     def assert_particle_battery_voltage(self, data_particle, verify_values=False):
-        '''
+        """
         Verify battery voltage particle
         @param data_particle: SamiBatteryVoltageDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(SamiBatteryVoltageDataParticleKey,
                                        self._battery_voltage_parameters)
         self.assert_data_particle_header(data_particle,
@@ -255,11 +251,11 @@ class SamiMixin(DriverTestMixin):
                                              verify_values)
 
     def assert_particle_thermistor_voltage(self, data_particle, verify_values=False):
-        '''
+        """
         Verify thermistor voltage particle
         @param data_particle: SamiThermistorVoltageDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(SamiThermistorVoltageDataParticleKey,
                                        self._thermistor_voltage_parameters)
         self.assert_data_particle_header(data_particle,
@@ -269,11 +265,11 @@ class SamiMixin(DriverTestMixin):
                                              verify_values)
 
     def assert_particle_regular_status(self, data_particle, verify_values=False):
-        '''
+        """
         Verify regular_status particle
         @param data_particle: SamiRegularStatusDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
 
         self.assert_data_particle_keys(SamiRegularStatusDataParticleKey,
                                        self._regular_status_parameters)
@@ -284,11 +280,11 @@ class SamiMixin(DriverTestMixin):
                                              verify_values)
 
     def assert_particle_control_record(self, data_particle, verify_values=False):
-        '''
+        """
         Verify control_record particle
         @param data_particle: SamiControlRecordDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
 
         self.assert_data_particle_keys(SamiControlRecordDataParticleKey,
                                        self._control_record_parameters)
@@ -319,7 +315,9 @@ class SamiMixin(DriverTestMixin):
                 time.sleep(.1)
                 self.send_port_agent_packet(protocol, my_response)
                 return len(my_response)
+
         return inner
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -336,13 +334,10 @@ class SamiMixin(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
-
     def assert_waiting_discover(self, driver):
-
         self.assert_initialize_driver(driver, initial_protocol_state=SamiProtocolState.WAITING)
 
         class DiscoverWaitingStatisticsContainer(CallStatisticsContainer):
-
             def discover_waiting_side_effect(self):
                 DiscoverWaitingStatisticsContainer.side_effect(self)
                 return (SamiProtocolState.WAITING, ResourceAgentState.BUSY)
@@ -368,7 +363,6 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         stats.assert_timing(20)
 
     def assert_autosample_timing(self, driver):
-
         self.assert_initialize_driver(driver, initial_protocol_state=SamiProtocolState.COMMAND)
 
         driver._protocol._protocol_fsm.current_state = SamiProtocolState.COMMAND
@@ -406,6 +400,7 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         time.sleep(62)
 
         stats.assert_call_count(0)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -461,7 +456,7 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         ## self.assertIsNotNone(sample_dict.get(DataParticleKey.PORT_TIMESTAMP))
         ## self.assertIsInstance(sample_dict.get(DataParticleKey.PORT_TIMESTAMP), float)
 
-        if(require_instrument_timestamp):
+        if require_instrument_timestamp:
             self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
@@ -479,7 +474,8 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug('sami_now = %s' % sami_now)
 
         self.assertTrue(time_difference <= TIME_THRESHOLD,
-                        "Time threshold exceeded, time_difference = %s, time_threshold = %s" % (time_difference, TIME_THRESHOLD))
+                        "Time threshold exceeded, time_difference = %s, time_threshold = %s" % (
+                            time_difference, TIME_THRESHOLD))
 
     def test_bad_command(self):
         self.assert_initialize_driver()
@@ -497,6 +493,7 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         status_time = receive_status_time - request_status_time
         log.debug("status_time = " + str(status_time))
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -505,7 +502,6 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class SamiQualificationTest(InstrumentDriverQualificationTestCase):
-
     ## Have to override because battery and thermistor do not have port time stamps
     def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
         """
@@ -532,15 +528,15 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         ## self.assertIsNotNone(sample_dict.get(DataParticleKey.PORT_TIMESTAMP))
         ## self.assertIsInstance(sample_dict.get(DataParticleKey.PORT_TIMESTAMP), float)
 
-        if(require_instrument_timestamp):
+        if require_instrument_timestamp:
             self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
     ## Have to override because the driver enters a sample state as soon as autosample mode is entered by design.
     def assert_start_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
-        '''
+        """
         Enter autosample mode from command
-        '''
+        """
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
@@ -597,7 +593,6 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         pass
 
     def test_boot_prompt_escape(self):
-
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
@@ -619,4 +614,3 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_direct_access_stop_telnet()
 
         self.assert_state_change(ResourceAgentState.COMMAND, SamiProtocolState.COMMAND, 60)
-

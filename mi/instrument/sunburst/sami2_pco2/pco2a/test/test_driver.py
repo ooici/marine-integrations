@@ -22,30 +22,19 @@ import copy
 
 from nose.plugins.attrib import attr
 from mock import Mock
-
 from mi.core.log import get_logger
+
+
 log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
@@ -82,10 +71,10 @@ InstrumentDriverTestCase.initialize(
 
     ##driver_startup_config={}
     driver_startup_config={
-            DriverStartupConfigKey.PARAMETERS: {
+        DriverStartupConfigKey.PARAMETERS: {
             Parameter.BIT_SWITCHES: 0x01,
-         },
-     }
+        },
+    }
 )
 
 
@@ -119,10 +108,10 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.                                      #
 ###############################################################################
 class DriverTestMixinSub(Pco2DriverTestMixinSub):
-    '''
+    """
     Mixin class used for storing data particle constants and common data
     assertion methods.
-    '''
+    """
 
     # Create some short names for the parameter test config
     TYPE = ParameterTestConfigKey.TYPE
@@ -136,18 +125,18 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.AUTOSAMPLE]},
-        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
-        Capability.ACQUIRE_BLANK_SAMPLE:{STATES: [ProtocolState.COMMAND]},
-        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.AUTOSAMPLE]},
-        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
-                                                  ProtocolState.COMMAND]},
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND,
+                                             ProtocolState.AUTOSAMPLE]},
+        Capability.ACQUIRE_SAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_BLANK_SAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND,
+                                               ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.AUTOSAMPLE,
+                                              ProtocolState.COMMAND]},
         Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
-        Capability.REAGENT_FLUSH:       {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH: {STATES: [ProtocolState.COMMAND]},
         Capability.DEIONIZED_WATER_FLUSH_100ML: {STATES: [ProtocolState.COMMAND]},
-        Capability.REAGENT_FLUSH_100ML:       {STATES: [ProtocolState.COMMAND]}
+        Capability.REAGENT_FLUSH_100ML: {STATES: [ProtocolState.COMMAND]}
     }
 
     ###
@@ -186,144 +175,144 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x00000000, VALUE: 0xCEE90B00, REQUIRED: True},
-        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x02C7EA00, VALUE: 0x02C7EA00, REQUIRED: True},
-        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x01E13380, VALUE: 0x01E13380, REQUIRED: True},
-        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x0A, VALUE: 0x0A, REQUIRED: True},
-        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x000E10, VALUE: 0x000E10, REQUIRED: True},
-        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x04, VALUE: 0x04, REQUIRED: True},
-        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x02, VALUE: 0x02, REQUIRED: True},
-        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x000E10, VALUE: 0x000E10, REQUIRED: True},
-        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
-        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x0B, VALUE: 0x0B, REQUIRED: True},
-        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x000000, VALUE: 0x000000, REQUIRED: True},
-        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
-        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x0D, VALUE: 0x0D, REQUIRED: True},
-        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x000000, VALUE: 0x000000, REQUIRED: True},
-        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
-        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x0D, VALUE: 0x0D, REQUIRED: True},
+        Parameter.LAUNCH_TIME: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                DEFAULT: 0x00000000, VALUE: 0xCEE90B00, REQUIRED: True},
+        Parameter.START_TIME_FROM_LAUNCH: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x02C7EA00, VALUE: 0x02C7EA00, REQUIRED: True},
+        Parameter.STOP_TIME_FROM_START: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                         DEFAULT: 0x01E13380, VALUE: 0x01E13380, REQUIRED: True},
+        Parameter.MODE_BITS: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                              DEFAULT: 0x0A, VALUE: 0x0A, REQUIRED: True},
+        Parameter.SAMI_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                         DEFAULT: 0x000E10, VALUE: 0x000E10, REQUIRED: True},
+        Parameter.SAMI_DRIVER_VERSION: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                        DEFAULT: 0x04, VALUE: 0x04, REQUIRED: True},
+        Parameter.SAMI_PARAMS_POINTER: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                        DEFAULT: 0x02, VALUE: 0x02, REQUIRED: True},
+        Parameter.DEVICE1_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                            DEFAULT: 0x000E10, VALUE: 0x000E10, REQUIRED: True},
+        Parameter.DEVICE1_DRIVER_VERSION: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
+        Parameter.DEVICE1_PARAMS_POINTER: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x0B, VALUE: 0x0B, REQUIRED: True},
+        Parameter.DEVICE2_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                            DEFAULT: 0x000000, VALUE: 0x000000, REQUIRED: True},
+        Parameter.DEVICE2_DRIVER_VERSION: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
+        Parameter.DEVICE2_PARAMS_POINTER: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x0D, VALUE: 0x0D, REQUIRED: True},
+        Parameter.DEVICE3_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                            DEFAULT: 0x000000, VALUE: 0x000000, REQUIRED: True},
+        Parameter.DEVICE3_DRIVER_VERSION: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
+        Parameter.DEVICE3_PARAMS_POINTER: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                           DEFAULT: 0x0D, VALUE: 0x0D, REQUIRED: True},
         Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000, REQUIRED: True},
-        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
-        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x0D, VALUE: 0x00, REQUIRED: True},
-        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x07, VALUE: 0x07, REQUIRED: True},
-        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x10, VALUE: 0x10, REQUIRED: True},
-        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x20, VALUE: 0x20, REQUIRED: True},
-        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0xFF, VALUE: 0xFF, REQUIRED: True},
-        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x54, VALUE: 0x54, REQUIRED: True},
-        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x18, VALUE: 0x18, REQUIRED: True},
-        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x1C, VALUE: 0x1C, REQUIRED: True},
-        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
-        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: False, DA: True, STARTUP: False,
-                                             DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
+        Parameter.PRESTART_DRIVER_VERSION: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                            DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
+        Parameter.PRESTART_PARAMS_POINTER: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                            DEFAULT: 0x0D, VALUE: 0x00, REQUIRED: True},
+        Parameter.GLOBAL_CONFIGURATION: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+                                         DEFAULT: 0x07, VALUE: 0x07, REQUIRED: True},
+        Parameter.PUMP_PULSE: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                               DEFAULT: 0x10, VALUE: 0x10, REQUIRED: True},
+        Parameter.PUMP_DURATION: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                  DEFAULT: 0x20, VALUE: 0x20, REQUIRED: True},
+        Parameter.SAMPLES_PER_MEASUREMENT: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                            DEFAULT: 0xFF, VALUE: 0xFF, REQUIRED: True},
+        Parameter.CYCLES_BETWEEN_BLANKS: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                          DEFAULT: 0x54, VALUE: 0x54, REQUIRED: True},
+        Parameter.NUMBER_REAGENT_CYCLES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                          DEFAULT: 0x18, VALUE: 0x18, REQUIRED: True},
+        Parameter.NUMBER_BLANK_CYCLES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                        DEFAULT: 0x1C, VALUE: 0x1C, REQUIRED: True},
+        Parameter.FLUSH_PUMP_INTERVAL: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                        DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
+        Parameter.BIT_SWITCHES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                 DEFAULT: 0x00, VALUE: 0x00, REQUIRED: True},
         Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38, REQUIRED: True},
-        Parameter.AUTO_SAMPLE_INTERVAL:     {TYPE: int, READONLY: False, DA: False, STARTUP: False,
-                                             DEFAULT: 0x38, VALUE: 3600, REQUIRED: True},
-        Parameter.FLUSH_DURATION:           {TYPE: int, READONLY: False, DA: False, STARTUP: False,
-                                             DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
-        Parameter.PUMP_100ML_CYCLES:        {TYPE: int, READONLY: False, DA: False, STARTUP: False,
-                                             DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
+        Parameter.AUTO_SAMPLE_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                         DEFAULT: 0x38, VALUE: 3600, REQUIRED: True},
+        Parameter.FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                   DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
+        Parameter.PUMP_100ML_CYCLES: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                      DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
 
     _sami_data_sample_parameters = {
         # SAMI Type 4/5 sample (in this case it is a Type 4)
-        Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH:       {TYPE: int, VALUE: 0x27, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TYPE:         {TYPE: int, VALUE: 0x04, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91CC8, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS:  {TYPE: list, VALUE: [0x003B, 0x0019, 0x0962, 0x0155,
-                                                                                 0x0730, 0x03E9, 0x08A1, 0x232D,
-                                                                                 0x0043, 0x001A, 0x0962, 0x0154,
-                                                                                 0x072F, 0x03EA], REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D92, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x065F, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x3B, REQUIRED: True}
+        Pco2wSamiSampleDataParticleKey.UNIQUE_ID: {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH: {TYPE: int, VALUE: 0x27, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TYPE: {TYPE: int, VALUE: 0x04, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TIME: {TYPE: int, VALUE: 0xCEE91CC8, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS: {TYPE: list, VALUE: [0x003B, 0x0019, 0x0962, 0x0155,
+                                                                                0x0730, 0x03E9, 0x08A1, 0x232D,
+                                                                                0x0043, 0x001A, 0x0962, 0x0154,
+                                                                                0x072F, 0x03EA], REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY: {TYPE: int, VALUE: 0x0D92, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW: {TYPE: int, VALUE: 0x065F, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0x3B, REQUIRED: True}
     }
 
     _sami_blank_sample_parameters = {
         # SAMI Type 4/5 sample (in this case it is a Type 5)
-        Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH:       {TYPE: int, VALUE: 0x27, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TYPE:         {TYPE: int, VALUE: 0x05, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91CC8, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS:  {TYPE: list, VALUE: [0x0040, 0x0019, 0x0962, 0x0680, 0x0730,
-                                                                                 0x074C, 0x2CE0, 0x4274, 0x003B, 0x0018,
-                                                                                 0x0961, 0x0680, 0x0732, 0x074E],
-                                                             REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D82, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x0661, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x24, REQUIRED: True}
+        Pco2wSamiSampleDataParticleKey.UNIQUE_ID: {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH: {TYPE: int, VALUE: 0x27, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TYPE: {TYPE: int, VALUE: 0x05, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TIME: {TYPE: int, VALUE: 0xCEE91CC8, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS: {TYPE: list, VALUE: [0x0040, 0x0019, 0x0962, 0x0680, 0x0730,
+                                                                                0x074C, 0x2CE0, 0x4274, 0x003B, 0x0018,
+                                                                                0x0961, 0x0680, 0x0732, 0x074E],
+                                                            REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY: {TYPE: int, VALUE: 0x0D82, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW: {TYPE: int, VALUE: 0x0661, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0x24, REQUIRED: True}
     }
 
     _configuration_parameters = {
         # Configuration settings
-        Pco2waConfigurationDataParticleKey.LAUNCH_TIME:                  {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.START_TIME_OFFSET:            {TYPE: int, VALUE: 0x02C7EA00, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.RECORDING_TIME:               {TYPE: int, VALUE: 0x01E13380, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE:          {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE:         {TYPE: bool, VALUE: True,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE:  {TYPE: bool, VALUE: False,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_SAMI:          {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.DRIVER_ID_SAMI:               {TYPE: int, VALUE: 0x04,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_SAMI:       {TYPE: int, VALUE: 0x02,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1:       {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE1:            {TYPE: int, VALUE: 0x01,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1:    {TYPE: int, VALUE: 0x0B, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE2:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE3:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.DRIVER_ID_PRESTART:           {TYPE: int, VALUE: 0x00, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART:   {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.USE_BAUD_RATE_57600:          {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SEND_RECORD_TYPE:             {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SEND_LIVE_RECORDS:            {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PUMP_PULSE:                   {TYPE: int, VALUE: 0x10, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.PUMP_DURATION:                {TYPE: int, VALUE: 0x20, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.SAMPLES_PER_MEASUREMENT:      {TYPE: int, VALUE: 0xFF, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.NUMBER_REAGENT_CYCLES:        {TYPE: int, VALUE: 0x18, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.NUMBER_BLANK_CYCLES:          {TYPE: int, VALUE: 0x1C, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL:          {TYPE: int, VALUE: 0x01,  REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2waConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.LAUNCH_TIME: {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.START_TIME_OFFSET: {TYPE: int, VALUE: 0x02C7EA00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.RECORDING_TIME: {TYPE: int, VALUE: 0x01E13380, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_SAMI: {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_SAMI: {TYPE: int, VALUE: 0x04, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_SAMI: {TYPE: int, VALUE: 0x02, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1: {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE1: {TYPE: int, VALUE: 0x01, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1: {TYPE: int, VALUE: 0x0B, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE2: {TYPE: int, VALUE: 0x00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2: {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_DEVICE3: {TYPE: int, VALUE: 0x00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3: {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DRIVER_ID_PRESTART: {TYPE: int, VALUE: 0x00, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART: {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.USE_BAUD_RATE_57600: {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SEND_RECORD_TYPE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SEND_LIVE_RECORDS: {TYPE: bool, VALUE: True, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PUMP_PULSE: {TYPE: int, VALUE: 0x10, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.PUMP_DURATION: {TYPE: int, VALUE: 0x20, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.SAMPLES_PER_MEASUREMENT: {TYPE: int, VALUE: 0xFF, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS: {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.NUMBER_REAGENT_CYCLES: {TYPE: int, VALUE: 0x18, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.NUMBER_BLANK_CYCLES: {TYPE: int, VALUE: 0x1C, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL: {TYPE: int, VALUE: 0x01, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        Pco2waConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, VALUE: 0x38, REQUIRED: True},
     }
 
     ###
@@ -344,11 +333,11 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         #                       False)
 
     def assert_particle_sami_sample(self, data_particle, verify_values=False):
-        '''
+        """
         Verify sami_data_sample particles (Type 4 and 5).  Used in INT test where type doesn't matter.
         @param data_particle: Pco2wSamiSampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(Pco2wSamiSampleDataParticleKey,
                                        self._sami_data_sample_parameters)
         self.assert_data_particle_header(data_particle,
@@ -358,11 +347,11 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
                                              verify_values)
 
     def assert_particle_sami_data_sample(self, data_particle, verify_values=False):
-        '''
+        """
         Verify sami_data_sample particle (Type 4)
         @param data_particle: Pco2wSamiSampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
 
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         record_type = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TYPE)
@@ -384,13 +373,12 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
                   str(required_record_type))
         self.assertEquals(record_type, required_record_type)
 
-
     def assert_particle_sami_blank_sample(self, data_particle, verify_values=False):
-        '''
+        """
         Verify sami_blank_sample particle (Type 5)
         @param data_particle: Pco2wSamiSampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
 
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         record_type = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TYPE)
@@ -413,11 +401,11 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         self.assertEquals(record_type, required_record_type)
 
     def assert_particle_configuration(self, data_particle, verify_values=False):
-        '''
+        """
         Verify configuration particle
         @param data_particle: Pco2wConfigurationDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(Pco2waConfigurationDataParticleKey,
                                        self._configuration_parameters)
         self.assert_data_particle_header(data_particle,
@@ -425,6 +413,7 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         self.assert_data_particle_parameters(data_particle,
                                              self._configuration_parameters,
                                              verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -441,55 +430,54 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
 ###############################################################################
 @attr('UNIT', group='mi')
 class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
-
     capabilities_test_dict = {
-        ProtocolState.UNKNOWN:          ['DRIVER_EVENT_DISCOVER'],
-        ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
-        ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
-                                         'DRIVER_EVENT_SET',
-                                         'DRIVER_EVENT_START_DIRECT',
-                                         'DRIVER_EVENT_ACQUIRE_STATUS',
-                                         'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
-                                         'DRIVER_EVENT_START_AUTOSAMPLE',
-                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
-                                         'DRIVER_EVENT_REAGENT_FLUSH',
-                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML',
-                                         'DRIVER_EVENT_REAGENT_FLUSH_100ML'],
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.WAITING: ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
+                                'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_START_DIRECT',
+                                'DRIVER_EVENT_ACQUIRE_STATUS',
+                                'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
+                                'DRIVER_EVENT_START_AUTOSAMPLE',
+                                'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
+                                'DRIVER_EVENT_REAGENT_FLUSH',
+                                'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML',
+                                'DRIVER_EVENT_REAGENT_FLUSH_100ML'],
         ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE',
-                                              'PROTOCOL_EVENT_SUCCESS',
-                                              'PROTOCOL_EVENT_TIMEOUT',
-                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH: ['PROTOCOL_EVENT_EXECUTE',
+                                      'PROTOCOL_EVENT_SUCCESS',
+                                      'PROTOCOL_EVENT_TIMEOUT',
+                                      'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.DEIONIZED_WATER_FLUSH_100ML: ['PROTOCOL_EVENT_EXECUTE',
-                                              'PROTOCOL_EVENT_SUCCESS',
-                                              'PROTOCOL_EVENT_TIMEOUT',
-                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.REAGENT_FLUSH_100ML:         ['PROTOCOL_EVENT_EXECUTE',
-                                              'PROTOCOL_EVENT_SUCCESS',
-                                              'PROTOCOL_EVENT_TIMEOUT',
-                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
-                                         'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                         'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
-                                         'DRIVER_EVENT_STOP_DIRECT'],
-        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_EXECUTE',
-                                          'PROTOCOL_EVENT_SUCCESS',
-                                          'PROTOCOL_EVENT_TIMEOUT',
-                                          'DRIVER_EVENT_ACQUIRE_STATUS'],
+                                                    'PROTOCOL_EVENT_SUCCESS',
+                                                    'PROTOCOL_EVENT_TIMEOUT',
+                                                    'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH_100ML: ['PROTOCOL_EVENT_EXECUTE',
+                                            'PROTOCOL_EVENT_SUCCESS',
+                                            'PROTOCOL_EVENT_TIMEOUT',
+                                            'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                   'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
+                                   'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                   'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.DIRECT_ACCESS: ['EXECUTE_DIRECT',
+                                      'DRIVER_EVENT_STOP_DIRECT'],
+        ProtocolState.POLLED_SAMPLE: ['PROTOCOL_EVENT_EXECUTE',
+                                      'PROTOCOL_EVENT_SUCCESS',
+                                      'PROTOCOL_EVENT_TIMEOUT',
+                                      'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.POLLED_BLANK_SAMPLE: ['PROTOCOL_EVENT_EXECUTE',
                                             'PROTOCOL_EVENT_SUCCESS',
                                             'PROTOCOL_EVENT_TIMEOUT',
                                             'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_EXECUTE',
-                                           'PROTOCOL_EVENT_SUCCESS',
-                                           'PROTOCOL_EVENT_TIMEOUT',
-                                           'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.SCHEDULED_SAMPLE: ['PROTOCOL_EVENT_EXECUTE',
+                                         'PROTOCOL_EVENT_SUCCESS',
+                                         'PROTOCOL_EVENT_TIMEOUT',
+                                         'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.SCHEDULED_BLANK_SAMPLE: ['PROTOCOL_EVENT_EXECUTE',
                                                'PROTOCOL_EVENT_SUCCESS',
                                                'PROTOCOL_EVENT_TIMEOUT',
@@ -631,6 +619,7 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_autosample_timing(driver)
 
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -638,7 +627,6 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
 #     - Common Integration tests test the driver through the instrument agent #
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
-
 
 
 @attr('INT', group='mi')
@@ -684,33 +672,33 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     def test_startup_params(self):
 
         startup_values = {
-           Parameter.PUMP_PULSE: 0x10,
-           Parameter.PUMP_DURATION: 0x20,
-           Parameter.SAMPLES_PER_MEASUREMENT: 0xFF,
-           Parameter.CYCLES_BETWEEN_BLANKS: 0x54,
-           Parameter.NUMBER_REAGENT_CYCLES: 0x18,
-           Parameter.NUMBER_BLANK_CYCLES: 0x1C,
-           Parameter.FLUSH_PUMP_INTERVAL: 0x01,
-           Parameter.BIT_SWITCHES: 0x01,
-           Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
-           Parameter.AUTO_SAMPLE_INTERVAL: 3600,
-           Parameter.FLUSH_DURATION: 8,
-           Parameter.PUMP_100ML_CYCLES: 1
+            Parameter.PUMP_PULSE: 0x10,
+            Parameter.PUMP_DURATION: 0x20,
+            Parameter.SAMPLES_PER_MEASUREMENT: 0xFF,
+            Parameter.CYCLES_BETWEEN_BLANKS: 0x54,
+            Parameter.NUMBER_REAGENT_CYCLES: 0x18,
+            Parameter.NUMBER_BLANK_CYCLES: 0x1C,
+            Parameter.FLUSH_PUMP_INTERVAL: 0x01,
+            Parameter.BIT_SWITCHES: 0x01,
+            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
+            Parameter.AUTO_SAMPLE_INTERVAL: 3600,
+            Parameter.FLUSH_DURATION: 8,
+            Parameter.PUMP_100ML_CYCLES: 1
         }
 
         new_values = {
-           Parameter.PUMP_PULSE: 0x11,
-           Parameter.PUMP_DURATION: 0x21,
-           Parameter.SAMPLES_PER_MEASUREMENT: 0xFA,
-           Parameter.CYCLES_BETWEEN_BLANKS: 0xA9,
-           Parameter.NUMBER_REAGENT_CYCLES: 0x19,
-           Parameter.NUMBER_BLANK_CYCLES: 0x1D,
-           Parameter.FLUSH_PUMP_INTERVAL: 0x02,
-           Parameter.BIT_SWITCHES: 0x02,
-           Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
-           Parameter.AUTO_SAMPLE_INTERVAL: 600,
-           Parameter.FLUSH_DURATION: 1,
-           Parameter.PUMP_100ML_CYCLES: 14
+            Parameter.PUMP_PULSE: 0x11,
+            Parameter.PUMP_DURATION: 0x21,
+            Parameter.SAMPLES_PER_MEASUREMENT: 0xFA,
+            Parameter.CYCLES_BETWEEN_BLANKS: 0xA9,
+            Parameter.NUMBER_REAGENT_CYCLES: 0x19,
+            Parameter.NUMBER_BLANK_CYCLES: 0x1D,
+            Parameter.FLUSH_PUMP_INTERVAL: 0x02,
+            Parameter.BIT_SWITCHES: 0x02,
+            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
+            Parameter.AUTO_SAMPLE_INTERVAL: 600,
+            Parameter.FLUSH_DURATION: 1,
+            Parameter.PUMP_100ML_CYCLES: 14
         }
 
         self.assert_initialize_driver()
@@ -777,43 +765,52 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     def test_acquire_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=160)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              timeout=160)
 
     def test_acquire_blank_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample,
+                                              timeout=160)
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 60)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=4, timeout=320)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              particle_count=4, timeout=320)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_polled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=160)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              timeout=160)
 
     def test_polled_blank_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.POLLED_BLANK_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample,
+                                              timeout=160)
 
     def test_scheduled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=160)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              timeout=160)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_scheduled_blank_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=160)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              timeout=160)
         self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.SCHEDULED_BLANK_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.SCHEDULED_BLANK_SAMPLE,
+                                   delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample,
+                                              timeout=160)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_queued_command(self):
@@ -826,8 +823,10 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=1, timeout=180)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              particle_count=1, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status,
+                                              timeout=180)
 
         self.assert_current_state(ProtocolState.COMMAND)
 
@@ -841,18 +840,23 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
         ## Queue sample and status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=1, timeout=180)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              particle_count=1, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status,
+                                              timeout=180)
 
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_acquire_status(self):
         self.assert_initialize_driver()
         self.clear_events()
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.REGULAR_STATUS,
+                                        self.assert_particle_regular_status)
         self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration)
         self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
-        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE,
+                                              self.assert_particle_thermistor_voltage)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -862,9 +866,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 ###############################################################################
 @attr('QUAL', group='mi')
 class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
-
     def test_queued_command(self):
-
         self.assert_enter_command_mode()
 
         self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=4, resource_state=ProtocolState.POLLED_SAMPLE)
@@ -876,7 +878,8 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_enter_command_mode()
 
         self.assert_start_autosample(timeout=200)
-        self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=4, resource_state=ProtocolState.SCHEDULED_SAMPLE)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=4,
+                                     resource_state=ProtocolState.SCHEDULED_SAMPLE)
         self.assert_resource_command(ProtocolEvent.ACQUIRE_STATUS)
 
         self.assert_particle_async(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=60)
@@ -893,9 +896,11 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
         self.assert_set_parameter(Parameter.BIT_SWITCHES, 0x00)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample,
+                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
 
-        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, timeout=14400)
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE,
+                                      timeout=14400)
 
     def test_direct_access_telnet_mode(self):
         """
@@ -907,13 +912,13 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
         self.assert_set_parameter(Parameter.CYCLES_BETWEEN_BLANKS, 7)
 
-        configuration_string =  'CF889C9C02C7EA0001E1338002000E10040200000000000000000000000000000000000000000' + \
-                                '71020FFA8181C0100380000000000000000000000000000000000000000000000000000000000' + \
-                                '00000000000000000000000000000000000000000000000000000000000000000000000000000' + \
-                                '0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                                'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                                'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                                'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'
+        configuration_string = 'CF889C9C02C7EA0001E1338002000E10040200000000000000000000000000000000000000000' + \
+                               '71020FFA8181C0100380000000000000000000000000000000000000000000000000000000000' + \
+                               '00000000000000000000000000000000000000000000000000000000000000000000000000000' + \
+                               '0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                               'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                               'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                               'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'
 
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
@@ -947,40 +952,53 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_get_parameter(Parameter.CYCLES_BETWEEN_BLANKS, 7)
 
     def test_command_poll(self):
-
         self.assert_enter_command_mode()
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample,
+                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_blank_sample,
+                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status,
+                                    DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration,
+                                    DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage,
+                                    DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage,
+                                    DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
-        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-
+        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15,
+                                     agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND,
+                                     resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15,
+                                     agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15,
+                                     agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
     def test_autosample_poll(self):
-
         self.assert_enter_command_mode()
 
         self.assert_start_autosample(timeout=200)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample,
+                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_blank_sample,
+                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status,
+                                    DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration,
+                                    DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage,
+                                    DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage,
+                                    DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
         self.assert_stop_autosample()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
@@ -1044,7 +1062,6 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_capabilities(da_capabilities)
         self.assert_direct_access_stop_telnet()
 
-
         ##################
         #  Command Mode
         ##################
@@ -1059,7 +1076,7 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
         st_capabilities = copy.deepcopy(capabilities)
         st_capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        st_capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+        st_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.ACQUIRE_SAMPLE,

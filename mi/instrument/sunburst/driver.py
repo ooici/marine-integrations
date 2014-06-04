@@ -23,11 +23,10 @@ import time
 import datetime
 
 from mi.core.log import get_logger
+
+
 log = get_logger()
 
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentProtocolException
-from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.driver_scheduler import \
@@ -36,11 +35,9 @@ from mi.core.driver_scheduler import \
 
 from mi.core.util import dict_equal
 from mi.core.common import BaseEnum
-from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -53,7 +50,6 @@ from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.protocol_param_dict import FunctionParameter
 from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.instrument_protocol import DEFAULT_WRITE_DELAY
 from mi.core.instrument.instrument_protocol import RE_PATTERN
@@ -62,9 +58,6 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import SampleException
-
-from mi.core.time import get_timestamp
-from mi.core.time import get_timestamp_delayed
 
 ###
 #    Driver Constant Definitions
@@ -161,9 +154,14 @@ SAMI_NEW_LINE_REGEX_MATCHER = re.compile(SAMI_NEW_LINE_REGEX)
 #    Begin Classes
 ###
 
+
 class SamiScheduledJob(BaseEnum):
+    """
+    Schedulable jobs
+    """
     AUTO_SAMPLE = 'auto_sample'
     ACQUIRE_STATUS = 'acquire_status'
+
 
 class SamiDataParticleType(BaseEnum):
     """
@@ -176,6 +174,7 @@ class SamiDataParticleType(BaseEnum):
     CONTROL_RECORD = 'pco2w_control_record'
     BATTERY_VOLTAGE = 'pco2w_battery_voltage'
     THERMISTOR_VOLTAGE = 'pco2w_thermistor_voltage'
+
 
 class SamiProtocolState(BaseEnum):
     """
@@ -190,6 +189,7 @@ class SamiProtocolState(BaseEnum):
     POLLED_SAMPLE = 'PROTOCOL_STATE_POLLED_SAMPLE'
     SCHEDULED_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_SAMPLE'
     REAGENT_FLUSH = 'PROTOCOL_STATE_REAGENT_FLUSH'
+
 
 class SamiProtocolEvent(BaseEnum):
     """
@@ -215,6 +215,7 @@ class SamiProtocolEvent(BaseEnum):
 
     REAGENT_FLUSH = 'DRIVER_EVENT_REAGENT_FLUSH'
 
+
 class SamiCapability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -226,6 +227,7 @@ class SamiCapability(BaseEnum):
     STOP_AUTOSAMPLE = SamiProtocolEvent.STOP_AUTOSAMPLE
 
     REAGENT_FLUSH = SamiProtocolEvent.REAGENT_FLUSH
+
 
 class SamiParameter(DriverParameter):
     """
@@ -259,6 +261,7 @@ class SamiParameter(DriverParameter):
     # make sure to extend these in the individual drivers with the
     # the portions of the configuration that is unique to each.
 
+
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
@@ -273,6 +276,7 @@ class Prompt(BaseEnum):
 
     # No true prompts
     # COMMAND = 'None'
+
 
 class SamiInstrumentCommand(BaseEnum):
     """
@@ -300,13 +304,14 @@ class SamiInstrumentCommand(BaseEnum):
 
     SAMI_PUMP_OFF = 'P'
 
+
 ###############################################################################
 # Data Particles
 ###############################################################################
 
 class SamiBatteryVoltageDataParticleKey(BaseEnum):
-
     BATTERY_VOLTAGE = 'pco2w_battery_voltage'
+
 
 class SamiBatteryVoltageDataParticle(DataParticle):
     """
@@ -318,7 +323,6 @@ class SamiBatteryVoltageDataParticle(DataParticle):
     _data_particle_type = SamiDataParticleType.BATTERY_VOLTAGE
 
     def _build_parsed_values(self):
-
         matched = BATTERY_VOLTAGE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
@@ -329,9 +333,10 @@ class SamiBatteryVoltageDataParticle(DataParticle):
 
         return result
 
-class SamiThermistorVoltageDataParticleKey(BaseEnum):
 
+class SamiThermistorVoltageDataParticleKey(BaseEnum):
     THERMISTOR_VOLTAGE = 'pco2w_thermistor_voltage'
+
 
 class SamiThermistorVoltageDataParticle(DataParticle):
     """
@@ -342,7 +347,6 @@ class SamiThermistorVoltageDataParticle(DataParticle):
     _data_particle_type = SamiDataParticleType.THERMISTOR_VOLTAGE
 
     def _build_parsed_values(self):
-
         matched = SAMI_THERMISTOR_VOLTAGE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
@@ -354,6 +358,7 @@ class SamiThermistorVoltageDataParticle(DataParticle):
         log.debug('SamiProtocol.SamiThermistorVoltageDataParticle(): result = ' + str(result))
 
         return result
+
 
 class SamiRegularStatusDataParticleKey(BaseEnum):
     """
@@ -440,7 +445,7 @@ class SamiRegularStatusDataParticle(DataParticle):
         result = []
         grp_index = 1  # used to index through match groups, starting at 1
         bit_index = 0  # used to index through the bit fields represented by
-                       # the two bytes after CLOCK_ACTIVE.
+        # the two bytes after CLOCK_ACTIVE.
 
         for key in particle_keys:
             if key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
@@ -474,6 +479,7 @@ class SamiRegularStatusDataParticle(DataParticle):
 
         return result
 
+
 class SamiControlRecordDataParticleKey(BaseEnum):
     """
     Data particle key for peridoically produced control records.
@@ -503,6 +509,7 @@ class SamiControlRecordDataParticleKey(BaseEnum):
     NUM_ERROR_RECORDS = 'num_error_records'
     NUM_BYTES_STORED = 'num_bytes_stored'
     CHECKSUM = 'checksum'
+
 
 class SamiControlRecordDataParticle(DataParticle):
     """
@@ -562,7 +569,7 @@ class SamiControlRecordDataParticle(DataParticle):
         result = []
         grp_index = 1  # used to index through match groups, starting at 1/
         bit_index = 0  # used to index through the bit fields represented by
-                       # the two bytes after CLOCK_ACTIVE.
+        # the two bytes after CLOCK_ACTIVE.
 
         for key in particle_keys:
             if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
@@ -638,6 +645,7 @@ class SamiConfigDataParticleKey(BaseEnum):
     # make sure to extend these in the individual drivers with the
     # the portions of the configuration that is unique to each.
 
+
 class QueuedCommands():
     """
     Structure to buffer commands which are received when a sample is being taken
@@ -647,8 +655,8 @@ class QueuedCommands():
         """
         Initialize
         """
-        self.sample = None  ## Can be None or ProtocolEvent.ACQUIRE_SAMPLE
-        self.status = None  ## Can be None or ProtocolEvent.ACQUIRE_STATUS
+        self.sample = None  # Can be None or ProtocolEvent.ACQUIRE_SAMPLE
+        self.status = None  # Can be None or ProtocolEvent.ACQUIRE_STATUS
 
     def reset(self):
         """
@@ -656,6 +664,7 @@ class QueuedCommands():
         """
         self.sample = None
         self.status = None
+
 
 ###############################################################################
 # Driver
@@ -883,7 +892,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(SamiInstrumentCommand.SAMI_STOP_STATUS, self._parse_response_stop_status)
         self._add_response_handler(SamiInstrumentCommand.SAMI_GET_CONFIG, self._parse_response_get_config)
         self._add_response_handler(SamiInstrumentCommand.SAMI_SET_CONFIG, self._parse_response_newline)
-        self._add_response_handler(SamiInstrumentCommand.SAMI_GET_BATTERY_VOLTAGE, self._parse_response_get_battery_voltage)
+        self._add_response_handler(SamiInstrumentCommand.SAMI_GET_BATTERY_VOLTAGE,
+                                   self._parse_response_get_battery_voltage)
         self._add_response_handler(SamiInstrumentCommand.SAMI_GET_THERMISTOR_VOLTAGE,
                                    self._parse_response_get_thermistor_voltage)
         self._add_response_handler(SamiInstrumentCommand.SAMI_ERASE_ALL, self._parse_response_erase_all)
@@ -915,7 +925,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('SamiProtocol._setup_scheduler_config(): auto_sample_interval = ' + str(auto_sample_interval))
 
-        if self._startup_config.has_key(DriverConfigKey.SCHEDULER):
+        if DriverConfigKey.SCHEDULER in self._startup_config:
 
             self._startup_config[DriverConfigKey.SCHEDULER][SamiScheduledJob.AUTO_SAMPLE] = {
                 DriverSchedulerConfigKey.TRIGGER: {
@@ -995,7 +1005,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Send command.
         log.debug('_do_cmd_resp_no_wakeup: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
-                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
+                  repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
 
         if (write_delay == 0):
             self._connection.send(cmd_line)
@@ -1016,7 +1026,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                                                   expected_prompt=expected_prompt)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
+                       self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
             resp_result = resp_handler(result, prompt)
@@ -1040,18 +1050,21 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         current_state = self.get_current_state()
 
-        log.debug('SamiProtocol._execute_pump_sequence(): %s: command=%s, duration=%s, timeout=%s, delay=%s, command_count=%s, cycles=%s' %
-                  (current_state, command, duration, timeout, delay, command_count, cycles))
+        log.debug(
+            'SamiProtocol._execute_pump_sequence(): %s: command=%s, duration=%s, timeout=%s, delay=%s, command_count=%s, cycles=%s' %
+            (current_state, command, duration, timeout, delay, command_count, cycles))
 
         self._wakeup()
 
         for cycle_num in range(cycles):
             for command_num in range(command_count):
-                self._do_cmd_resp_no_wakeup(command, duration, timeout=timeout, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+                self._do_cmd_resp_no_wakeup(command, duration, timeout=timeout,
+                                            response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
                 time.sleep(delay)
 
         # Make sure pump is off
-        self._do_cmd_resp_no_wakeup(SamiInstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+        self._do_cmd_resp_no_wakeup(SamiInstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT,
+                                    response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
 
     ########################################################################
     # Events to queue handlers.
@@ -1849,7 +1862,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             next_state = SamiProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, next_agent_state)
+        return next_state, next_agent_state
 
     def _set_params(self, *args, **kwargs):
         """
@@ -1873,7 +1886,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         else:
             log.debug('SamiProtocol._set_params(): No parameters to reconfigure instrument.')
 
-    def _set_configuration(self, override_params_dict = {}):
+    def _set_configuration(self, override_params_dict={}):
         """
         Set configuration on the instrument.
         @param override_params_dict parameters to override in config string
@@ -1909,7 +1922,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._do_cmd_direct(SamiInstrumentCommand.SAMI_ERASE_ALL + SAMI_NEWLINE)
 
         log.debug('SamiProtocol._set_configuration: SET_CONFIG')
-        self._do_cmd_resp(SamiInstrumentCommand.SAMI_SET_CONFIG, timeout=SAMI_DEFAULT_TIMEOUT, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+        self._do_cmd_resp(SamiInstrumentCommand.SAMI_SET_CONFIG, timeout=SAMI_DEFAULT_TIMEOUT,
+                          response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
         # Important: Need to do right after to prevent bricking
         self._do_cmd_direct(configuration_string + SAMI_CONFIG_TERMINATOR + SAMI_NEWLINE)
 
@@ -2062,7 +2076,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return configuration_string
 
-
     ## Verify configuration and update parameter dictionary if the configuration string is set correctly
     def _verify_and_update_configuration(self, configuration_string):
         """
@@ -2101,7 +2114,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Compare values here to send config change event
         if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
             log.debug("Configuration has changed.")
-            if (self.get_current_state() == SamiProtocolState.COMMAND):
+            if self.get_current_state() == SamiProtocolState.COMMAND:
                 log.debug("Configuration has changed and in command state.  Send driver event.")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         else:
@@ -2119,7 +2132,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(SamiInstrumentCommand.SAMI_ACQUIRE_SAMPLE,
-                          timeout = self._get_sample_timeout(),
+                          timeout=self._get_sample_timeout(),
                           response_regex=self._get_sample_regex())
 
         sample_time = time.time() - start_time
@@ -2130,14 +2143,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Remove engineering parameters from param dict and check if they have changed.  If there is a change,
         raise a CONFIG_CHANGE event.
-        @param dict of parameters to check for engineering
+        @param params of parameters to check for engineering
         """
         for engineering_parameter in self._engineering_parameters:
             if engineering_parameter in params:
                 old_value = self._param_dict.get(engineering_parameter)
                 new_value = params.pop(engineering_parameter)
                 log.debug('SamiProtocol.check_for_engineering_parameters(): %s old/new = %s/%s' %
-                          (engineering_parameter , old_value, new_value))
+                          (engineering_parameter, old_value, new_value))
                 if new_value != old_value:
                     self._param_dict.set_value(engineering_parameter,
                                                new_value)
@@ -2172,11 +2185,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         calculated_checksum_string = sample_string[3:-2]
         log.debug('Checksum String = %s' % calculated_checksum_string)
         calculated_checksum = self.calc_crc(calculated_checksum_string)
-        log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int,calculated_checksum))
+        log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int, calculated_checksum))
 
         if checksum_int != calculated_checksum:
-            log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int,calculated_checksum))
-            raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int,calculated_checksum))
+            log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int, calculated_checksum))
+            raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int, calculated_checksum))
 
     @staticmethod
     def calc_crc(s):
@@ -2200,16 +2213,16 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('SamiProtocol.calc_crc')
 
         # num_points: number of bytes (each byte is 2-chars).
-        num_points = len(s)/2
+        num_points = len(s) / 2
 
         cs = 0
         k = 0
         for i in range(num_points):
-            value = int(s[k:k+2], 16)  # 2-chars per data point
-            cs = cs + value
-            k = k + 2
-        cs = cs & 0xFF
-        return(cs)
+            value = int(s[k:k + 2], 16)  # 2-chars per data point
+            cs += value
+            k += 2
+        cs &= 0xFF
+        return cs
 
     def _build_param_dict(self):
         """

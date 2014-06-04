@@ -17,43 +17,30 @@ import re
 import time
 
 from mi.core.log import get_logger
+
+
 log = get_logger()
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
-from mi.core.exceptions import NotImplementedException
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
-from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
-from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
-from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.instrument.sunburst.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.driver import SamiScheduledJob
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiCapability
-from mi.instrument.sunburst.driver import SAMI_DEFAULT_TIMEOUT
-from mi.instrument.sunburst.driver import SAMI_NEW_LINE_REGEX_MATCHER
 from mi.instrument.sunburst.driver import SAMI_PUMP_TIMEOUT_OFFSET
 
 ###
@@ -103,11 +90,13 @@ PCO2W_SAMPLE_REGEX_MATCHER = re.compile(PCO2W_SAMPLE_REGEX)
 #    Begin Classes
 ###
 
+
 class ScheduledJob(SamiScheduledJob):
     """
     Extend base class with instrument specific functionality.
     """
     pass
+
 
 class Pco2wProtocolState(SamiProtocolState):
     """
@@ -119,6 +108,7 @@ class Pco2wProtocolState(SamiProtocolState):
     REAGENT_FLUSH_100ML = 'PROTOCOL_STATE_REAGENT_FLUSH_100ML'
     DEIONIZED_WATER_FLUSH = 'PROTOCOL_STATE_DEIONIZED_WATER_FLUSH'
 
+
 class Pco2wProtocolEvent(SamiProtocolEvent):
     """
     Extend base class with instrument specific functionality.
@@ -127,6 +117,7 @@ class Pco2wProtocolEvent(SamiProtocolEvent):
     DEIONIZED_WATER_FLUSH_100ML = 'DRIVER_EVENT_DEIONIZED_WATER_FLUSH_100ML'
     REAGENT_FLUSH_100ML = 'DRIVER_EVENT_REAGENT_FLUSH_100ML'
     DEIONIZED_WATER_FLUSH = 'DRIVER_EVENT_DEIONIZED_WATER_FLUSH'
+
 
 class Pco2wCapability(SamiCapability):
     """
@@ -137,11 +128,13 @@ class Pco2wCapability(SamiCapability):
     REAGENT_FLUSH_100ML = Pco2wProtocolEvent.REAGENT_FLUSH_100ML
     DEIONIZED_WATER_FLUSH = Pco2wProtocolEvent.DEIONIZED_WATER_FLUSH
 
+
 class Pco2wSamiDataParticleType(SamiDataParticleType):
     """
     Extend base class with instrument specific functionality.
     """
     SAMI_SAMPLE = 'pco2w_sami_data_record'
+
 
 class Pco2wParameter(SamiParameter):
     """
@@ -160,6 +153,7 @@ class Pco2wParameter(SamiParameter):
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
     PUMP_100ML_CYCLES = 'pump_100ml_cycles'
 
+
 class Pco2wInstrumentCommand(SamiInstrumentCommand):
     """
     Extend base class with instrument specific functionality.
@@ -167,6 +161,7 @@ class Pco2wInstrumentCommand(SamiInstrumentCommand):
     PCO2W_ACQUIRE_BLANK_SAMPLE = 'C'
     PCO2W_PUMP_DEIONIZED_WATER = 'P' + PCO2W_PUMP_DEIONIZED_WATER_PARAM
     PCO2W_PUMP_REAGENT = 'P' + PCO2W_PUMP_REAGENT_PARAM
+
 
 ###############################################################################
 # Data Particles
@@ -185,6 +180,7 @@ class Pco2wSamiSampleDataParticleKey(BaseEnum):
     VOLTAGE_BATTERY = 'voltage_battery'
     THERMISTER_RAW = 'thermistor_raw'
     CHECKSUM = 'checksum'
+
 
 class Pco2wSamiSampleDataParticle(DataParticle):
     """
@@ -234,7 +230,7 @@ class Pco2wSamiSampleDataParticle(DataParticle):
                 # parse group 5 into 14, 2 byte (4 character) values stored in
                 # an array.
                 light = matched.group(grp_index)
-                light = [int(light[i:i+4], 16) for i in range(0, len(light), 4)]
+                light = [int(light[i:i + 4], 16) for i in range(0, len(light), 4)]
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: light})
             else:
@@ -243,6 +239,7 @@ class Pco2wSamiSampleDataParticle(DataParticle):
             grp_index += 1
 
         return result
+
 
 class Pco2wSamiConfigurationDataParticleKey(SamiConfigDataParticleKey):
     """
@@ -260,6 +257,7 @@ class Pco2wSamiConfigurationDataParticleKey(SamiConfigDataParticleKey):
     MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
     NUMBER_EXTRA_PUMP_CYCLES = 'cycle_rate'
 
+
 ###############################################################################
 # Driver
 ###############################################################################
@@ -269,6 +267,7 @@ class Pco2wInstrumentDriver(SamiInstrumentDriver):
     Subclasses SamiInstrumentDriver and SingleConnectionInstrumentDriver with
     connection state machine.
     """
+
 
 ###########################################################################
 # Protocol
@@ -555,7 +554,9 @@ class Pco2wProtocol(SamiProtocol):
             flush_duration = PCO2W_PUMP_DURATION_50ML
             flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
-            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+            log.debug(
+                'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (
+                    flush_duration, flush_duration_seconds))
 
             # Add offset to timeout make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -631,9 +632,10 @@ class Pco2wProtocol(SamiProtocol):
             flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
 
-            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' %
-                      (flush_duration,
-                       flush_duration_seconds))
+            log.debug(
+                'Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' %
+                (flush_duration,
+                 flush_duration_seconds))
 
             # Add offset to timeout make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -717,7 +719,7 @@ class Pco2wProtocol(SamiProtocol):
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(Pco2wInstrumentCommand.PCO2W_ACQUIRE_BLANK_SAMPLE,
-                          timeout = self._get_blank_sample_timeout(),
+                          timeout=self._get_blank_sample_timeout(),
                           response_regex=self._get_sample_regex())
 
         sample_time = time.time() - start_time

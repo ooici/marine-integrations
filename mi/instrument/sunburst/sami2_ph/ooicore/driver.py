@@ -21,6 +21,7 @@ import time
 
 from mi.core.log import get_logger
 
+
 log = get_logger()
 
 from mi.core.exceptions import SampleException
@@ -32,7 +33,6 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.instrument.sunburst.driver import Prompt
@@ -148,6 +148,7 @@ PHSEN_CONFIGURATION_REGEX_MATCHER = re.compile(PHSEN_CONFIGURATION_REGEX)
 #    Begin Classes
 ###
 
+
 class ScheduledJob(SamiScheduledJob):
     """
     Extend base class with instrument specific functionality.
@@ -163,6 +164,7 @@ class ProtocolState(SamiProtocolState):
     REAGENT_FLUSH_50ML = 'PROTOCOL_STATE_REAGENT_FLUSH_50ML'
     SEAWATER_FLUSH = 'PROTOCOL_STATE_SEAWATER_FLUSH'
 
+
 class ProtocolEvent(SamiProtocolEvent):
     """
     Extend base class with instrument specific functionality.
@@ -171,6 +173,7 @@ class ProtocolEvent(SamiProtocolEvent):
     REAGENT_FLUSH_50ML = 'DRIVER_EVENT_REAGENT_FLUSH_50ML'
     SEAWATER_FLUSH = 'DRIVER_EVENT_SEAWATER_FLUSH'
 
+
 class Capability(SamiCapability):
     """
     Extend base class with instrument specific functionality.
@@ -178,6 +181,7 @@ class Capability(SamiCapability):
     SEAWATER_FLUSH_1375ML = ProtocolEvent.SEAWATER_FLUSH_1375ML
     REAGENT_FLUSH_50ML = ProtocolEvent.REAGENT_FLUSH_50ML
     SEAWATER_FLUSH = ProtocolEvent.SEAWATER_FLUSH
+
 
 class DataParticleType(SamiDataParticleType):
     """
@@ -208,6 +212,7 @@ class Parameter(SamiParameter):
     SALINITY_DELAY = 'salinity_delay'
     FLUSH_CYCLES = 'flush_cycles'
 
+
 class InstrumentCommand(SamiInstrumentCommand):
     """
     Device specific Instrument command strings. Extends superclass
@@ -215,6 +220,7 @@ class InstrumentCommand(SamiInstrumentCommand):
     """
     PHSEN_PUMP_SEAWATER = 'P' + PHSEN_PUMP_SEAWATER_PARAM
     PHSEN_PUMP_REAGENT = 'P' + PHSEN_PUMP_REAGENT_PARAM
+
 
 ###############################################################################
 # Data Particles
@@ -330,6 +336,7 @@ class PhsenConfigDataParticleKey(SamiConfigDataParticleKey):
     MEASURE_TO_PUMP_ON = 'measure_to_pump_on'
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
+
 
 class PhsenConfigDataParticle(DataParticle):
     """
@@ -645,8 +652,9 @@ class Protocol(SamiProtocol):
             flush_duration = PHSEN_PUMP_DURATION_SEAWATER_1375ML
             flush_duration_str = self._param_dict.format(Parameter.FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
-            log.debug('Pco2wProtocol._handler_seawater_flush_execute_1375mll(): flush duration param = %s, seconds = %s' %
-                      (flush_duration, flush_duration_seconds))
+            log.debug(
+                'Pco2wProtocol._handler_seawater_flush_execute_1375mll(): flush duration param = %s, seconds = %s' %
+                (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -703,7 +711,8 @@ class Protocol(SamiProtocol):
                 time.sleep(PHSEN_PUMP_SLEEP_REAGENT_50ML)
 
             # Make sure pump is off
-            self._do_cmd_resp_no_wakeup(InstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+            self._do_cmd_resp_no_wakeup(InstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT,
+                                        response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
 
             log.debug('Protocol._handler_reagent_flush_enter_50ml(): SUCCESS')
             self._async_raise_fsm_event(ProtocolEvent.SUCCESS)

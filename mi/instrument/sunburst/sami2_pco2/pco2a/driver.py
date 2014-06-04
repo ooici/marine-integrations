@@ -16,6 +16,7 @@ __license__ = 'Apache 2.0'
 import re
 
 from mi.core.log import get_logger
+
 log = get_logger()
 
 from mi.core.exceptions import SampleException
@@ -31,15 +32,15 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wCapability
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wParameter
-from mi.instrument.sunburst.sami2_pco2.driver import Prompt
-from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticle
+from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
+from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentDriver
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocol
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
@@ -134,12 +135,14 @@ class Parameter(Pco2wParameter):
     """
     pass
 
+
 class InstrumentCommand(Pco2wInstrumentCommand):
     """
     Device specfic Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
     pass
+
 
 ###############################################################################
 # Data Particles
@@ -149,6 +152,7 @@ class Pco2waConfigurationDataParticleKey(Pco2wSamiConfigurationDataParticleKey):
     """
     Data particle key for the configuration record.
     """
+
 
 class Pco2waConfigurationDataParticle(DataParticle):
     """
@@ -230,9 +234,9 @@ class Pco2waConfigurationDataParticle(DataParticle):
                          Pco2waConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES]
 
         result = []
-        grp_index = 1   # used to index through match groups, starting at 1
+        grp_index = 1  # used to index through match groups, starting at 1
         mode_index = 0  # index through the bit fields for MODE_BITS,
-                        # GLOBAL_CONFIGURATION and SAMI_BIT_SWITCHES.
+        # GLOBAL_CONFIGURATION and SAMI_BIT_SWITCHES.
         glbl_index = 0
         sami_index = 0
 
@@ -251,7 +255,7 @@ class Pco2waConfigurationDataParticle(DataParticle):
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
                 mode_index += 1  # bump the bit index
-                grp_index = 5    # set the right group index for when we leave this part of the loop.
+                grp_index = 5  # set the right group index for when we leave this part of the loop.
 
             elif key in [Pco2waConfigurationDataParticleKey.USE_BAUD_RATE_57600,
                          Pco2waConfigurationDataParticleKey.SEND_RECORD_TYPE,
@@ -271,7 +275,7 @@ class Pco2waConfigurationDataParticle(DataParticle):
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
                 sami_index += 1  # bump the bit index
-                grp_index = 29   # set the right group index for when we leave this part of the loop.
+                grp_index = 29  # set the right group index for when we leave this part of the loop.
 
             else:
                 # otherwise all values in the string are parsed to integers

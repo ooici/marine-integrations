@@ -16,42 +16,18 @@ USAGE:
 __author__ = 'Christopher Wingard & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
-import unittest
-import time
 import mock
 
 from nose.plugins.attrib import attr
 from mock import Mock
 
 from mi.core.log import get_logger
+
 log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import ParameterTestConfigKey
-from mi.idk.unit_test import DriverStartupConfigKey
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
-from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
-from mi.instrument.sunburst.driver import SamiDataParticleType
-from mi.instrument.sunburst.driver import SamiInstrumentCommand
-from mi.instrument.sunburst.sami2_pco2.driver import ScheduledJob
 # from mi.instrument.sunburst.driver import ProtocolEvent
-from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import SAMI_NEWLINE
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin
@@ -80,6 +56,7 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 # Driver constant definitions
 ###
 
+
 ###############################################################################
 #                           DRIVER TEST MIXIN                                 #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -94,6 +71,7 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 ###############################################################################
 class Pco2DriverTestMixinSub(SamiMixin):
     pass
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -110,8 +88,7 @@ class Pco2DriverTestMixinSub(SamiMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
-
-   def assert_pump_commands(self, driver):
+    def assert_pump_commands(self, driver):
 
         self.assert_initialize_driver(driver)
 
@@ -162,7 +139,7 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
         self.assertEqual(1, command_count, 'REAGENT_FLUSH command count %s != 1' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-   def assert_pump_timing(self, driver):
+    def assert_pump_timing(self, driver):
         self.assert_initialize_driver(driver)
 
         driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.COMMAND
@@ -171,18 +148,19 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
             driver._protocol._param_dict.set_default(param)
 
         driver._protocol._param_dict.set_value(Pco2wParameter.PUMP_100ML_CYCLES, 0x3)
-        stats = PumpStatisticsContainer(self, ('P03','08'))
+        stats = PumpStatisticsContainer(self, ('P03', '08'))
         driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
         driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH_100ML
         driver._protocol._handler_deionized_water_flush_execute_100ml()
         stats.assert_timing(2)
 
         driver._protocol._param_dict.set_value(Pco2wParameter.PUMP_100ML_CYCLES, 0x5)
-        stats = PumpStatisticsContainer(self, ('P01','08'))
+        stats = PumpStatisticsContainer(self, ('P01', '08'))
         driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
         driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.REAGENT_FLUSH_100ML
         driver._protocol._handler_reagent_flush_execute_100ml()
         stats.assert_timing(2)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -193,13 +171,13 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
 ###############################################################################
 @attr('INT', group='mi')
 class Pco2DriverIntegrationTest(SamiIntegrationTest, Pco2DriverTestMixinSub):
-
     def test_flush_pump(self):
         self.assert_initialize_driver()
         self.assert_driver_command(Pco2wProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15.0)
         self.assert_driver_command(Pco2wProtocolEvent.REAGENT_FLUSH, delay=15.0)
         self.assert_driver_command(Pco2wProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15.0)
         self.assert_driver_command(Pco2wProtocolEvent.REAGENT_FLUSH_100ML, delay=15.0)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

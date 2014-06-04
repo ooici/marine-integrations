@@ -17,10 +17,11 @@ import re
 import time
 
 from mi.core.log import get_logger
+
+
 log = get_logger()
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.common import BaseEnum
@@ -35,15 +36,15 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wCapability
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wParameter
-from mi.instrument.sunburst.sami2_pco2.driver import Prompt
-from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticle
+from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
+from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentDriver
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocol
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import SAMI_ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
@@ -51,7 +52,6 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 ###
 #    Driver Constant Definitions
@@ -167,6 +167,7 @@ class InstrumentCommand(Pco2wInstrumentCommand):
     # PCO2W driver extends the base class (SamiInstrumentCommand) with:
     PCO2WB_ACQUIRE_SAMPLE_DEV1 = 'R1'
 
+
 ###############################################################################
 # Data Particles
 ###############################################################################
@@ -236,6 +237,7 @@ class Pco2wConfigurationDataParticleKey(Pco2wSamiConfigurationDataParticleKey):
     """
 
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
+
 
 class Pco2wConfigurationDataParticle(DataParticle):
     """
@@ -318,9 +320,9 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS]
 
         result = []
-        grp_index = 1   # used to index through match groups, starting at 1
+        grp_index = 1  # used to index through match groups, starting at 1
         mode_index = 0  # index through the bit fields for MODE_BITS,
-                        # GLOBAL_CONFIGURATION and SAMI_BIT_SWITCHES.
+        # GLOBAL_CONFIGURATION and SAMI_BIT_SWITCHES.
         glbl_index = 0
         sami_index = 0
 
@@ -339,7 +341,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
                 mode_index += 1  # bump the bit index
-                grp_index = 5    # set the right group index for when we leave this part of the loop.
+                grp_index = 5  # set the right group index for when we leave this part of the loop.
 
             elif key in [Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600,
                          Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE,
@@ -359,7 +361,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
                 sami_index += 1  # bump the bit index
-                grp_index = 29   # set the right group index for when we leave this part of the loop.
+                grp_index = 29  # set the right group index for when we leave this part of the loop.
 
             else:
                 # otherwise all values in the string are parsed to integers
@@ -401,6 +403,7 @@ class InstrumentDriver(Pco2wInstrumentDriver):
         """
 
         self._protocol = Protocol(Prompt, SAMI_NEWLINE, self._driver_event)
+
 
 ###########################################################################
 # Protocol
@@ -549,7 +552,7 @@ class Protocol(Pco2wProtocol):
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(InstrumentCommand.PCO2WB_ACQUIRE_SAMPLE_DEV1,
-                          timeout = dev1_timeout,
+                          timeout=dev1_timeout,
                           response_regex=PCO2WB_DEV1_SAMPLE_REGEX_MATCHER)
 
         sample_time = time.time() - start_time
@@ -600,7 +603,8 @@ class Protocol(Pco2wProtocol):
         self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, PCO2WB_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
-        dev1_sample = self._extract_sample(Pco2wbDev1SampleDataParticle, PCO2WB_DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        dev1_sample = self._extract_sample(Pco2wbDev1SampleDataParticle, PCO2WB_DEV1_SAMPLE_REGEX_MATCHER, chunk,
+                                           timestamp)
         sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
         log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
