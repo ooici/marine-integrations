@@ -568,6 +568,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_particle_async(DataParticleType.TURBO_STATUS,
                                    self.assert_status_particle,
                                    particle_count=2, timeout=20)
+        self.assert_execute_resource(Capability.STOP)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
     def test_get_set_parameters(self):
         """
@@ -627,13 +629,13 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_capabilities(capabilities)
 
         self.assert_execute_resource(Capability.START)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.SPINNING_UP, 20)
+        self.assert_state_change(ResourceAgentState.BUSY, ProtocolState.SPINNING_UP, 20)
 
         ##################
         # SPINNING_UP Mode
         ##################
         capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_COMMAND: [],
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP, ProtocolEvent.ACQUIRE_STATUS],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
@@ -642,13 +644,13 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
         self.assert_capabilities(capabilities)
 
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.AT_SPEED, 300)
+        self.assert_state_change(ResourceAgentState.BUSY, ProtocolState.AT_SPEED, 300)
 
         ##################
         # AT_SPEED Mode
         ##################
         capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_COMMAND: [],
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP, ProtocolEvent.ACQUIRE_STATUS],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
@@ -658,13 +660,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_capabilities(capabilities)
 
         self.assert_execute_resource(Capability.STOP)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.SPINNING_DOWN, 20)
+        self.assert_state_change(ResourceAgentState.BUSY, ProtocolState.SPINNING_DOWN, 20)
 
         ##################
         # SPINNING_DOWN Mode
         ##################
         capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_COMMAND: []
+            ,
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_STATUS],
             AgentCapabilityType.RESOURCE_INTERFACE: None,

@@ -169,13 +169,9 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         None) if successful.
         @raises InstrumentConnectionException if the attempt to connect failed.
         """
-        log.debug('_handler_disconnected_connect enter')
-        next_state = DriverConnectionState.CONNECTED
-        result = None
         self._build_protocol()
         try:
             for name, connection in self._connection.items():
-                log.debug('name: %r connection: %r', name, connection)
                 connection.init_comms(self._slave_protocols[name].got_data,
                                       self._slave_protocols[name].got_raw,
                                       self._got_exception,
@@ -187,7 +183,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
             # Re-raise the exception
             raise
         log.debug('_handler_disconnected_connect exit')
-        return next_state, result
+        return DriverConnectionState.CONNECTED, None
 
     ########################################################################
     # Connected handlers.
@@ -200,16 +196,11 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
         None) if successful.
         """
-        result = None
-
-        log.info("_handler_connected_disconnect: invoking stop_comms().")
         for connection in self._connection.values():
             connection.stop_comms()
         self._protocol = None
         self._slave_protocols = {}
-        next_state = DriverConnectionState.DISCONNECTED
-
-        return next_state, result
+        return DriverConnectionState.DISCONNECTED, None
 
     def _handler_connected_connection_lost(self, *args, **kwargs):
         """
@@ -218,9 +209,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
         None).
         """
-        result = None
-
-        log.info("_handler_connected_connection_lost: invoking stop_comms().")
         for connection in self._connection.values():
             connection.stop_comms()
         self._protocol = None
@@ -232,9 +220,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         self._driver_event(DriverAsyncEvent.AGENT_EVENT,
                            ResourceAgentEvent.LOST_CONNECTION)
 
-        next_state = DriverConnectionState.DISCONNECTED
-
-        return next_state, result
+        return DriverConnectionState.DISCONNECTED, None
 
     ########################################################################
     # Helpers.
@@ -250,17 +236,13 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         DriverConnectionState.CONNECTED state.
 
         @param all_configs configuration dict
-
         @retval a dictionary of Connection instances, which will be assigned to self._connection
-
         @throws InstrumentParameterException Invalid configuration.
         """
-        log.debug('all_configs: %r', all_configs)
         connections = {}
         for name, config in all_configs.items():
             if not isinstance(config, dict):
                 continue
-            log.debug('_build_connections: config received: %r', config)
             if 'mock_port_agent' in config:
                 mock_port_agent = config['mock_port_agent']
                 # check for validity here...
@@ -336,7 +318,7 @@ class Protocol(InstrumentProtocol):
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
-                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
@@ -415,7 +397,6 @@ class Protocol(InstrumentProtocol):
         """
         Register a slave protocol
         """
-        log.debug('register_slave_protocol -- name: %s', name)
         self._slave_protocols[name] = protocol
 
     def _slave_protocol_event(self, event, *args, **kwargs):
@@ -524,6 +505,7 @@ class Protocol(InstrumentProtocol):
         return action
 
     def _error(self, state, slave_states):
+        # if we are not currently in the error state, make the transition
         if state != ProtocolState.ERROR:
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
         mcu_state, turbo_state, rga_state = slave_states
@@ -575,7 +557,7 @@ class Protocol(InstrumentProtocol):
             raise InstrumentProtocolException('Attempted to send event to non-existent protocol: %s' % name)
         slave_protocol._async_raise_fsm_event(event)
 
-    def _do_cmd_direct(self, command):
+    def _send_massp_direct_access(self, command):
         """
         Handle a direct access command.  Driver expects direct access commands to specify the target
         using the following format:
@@ -618,6 +600,7 @@ class Protocol(InstrumentProtocol):
                 raise InstrumentParameterException('Missing target in MASSP parameter: %s' % key)
             target = split_key[0]
             if not target in self._slave_protocols:
+                # this is a master driver parameter, set it here
                 if key in self._param_dict.get_keys():
                     log.debug("Setting value for %s to %s", key, params[key])
                     self._param_dict.set_value(key, params[key])
@@ -625,9 +608,13 @@ class Protocol(InstrumentProtocol):
                     raise InstrumentParameterException('Invalid key in SET action: %s' % key)
             temp_dict.setdefault(target, {})[key] = params[key]
 
-        for name in self._slave_protocols:
-            if name in temp_dict:
+        # set parameters for slave protocols
+        for name in temp_dict:
+            if name in self._slave_protocols:
                 self._slave_protocols[name]._set_params(temp_dict[name])
+            else:
+                # how did we get here?  This should never happen, but raise an exception if it does.
+                raise InstrumentParameterException('Invalid key(s) in SET action: %r' % temp_dict[name])
 
         _, new_config = self._handler_command_get([Parameter.ALL])
 
@@ -644,13 +631,17 @@ class Protocol(InstrumentProtocol):
         for key in config:
             target, _ = key.split('_', 1)
             if not target in self._slave_protocols:
+                # master driver parameter
                 log.debug("Setting init value for %s to %s", key, config[key])
                 self._param_dict.set_init_value(key, config[key])
             temp_dict.setdefault(target, {})[key] = config[key]
 
-        for name in self._slave_protocols:
-            if name in temp_dict:
+        for name in temp_dict:
+            if name in self._slave_protocols:
                 self._slave_protocols[name].set_init_params({DriverConfigKey.PARAMETERS: temp_dict[name]})
+            else:
+                # how did we get here?  This should never happen, but raise an exception if it does.
+                raise InstrumentParameterException('Invalid key(s) in INIT PARAMS action: %r' % temp_dict[name])
 
     def get_config_metadata_dict(self):
         """
@@ -738,6 +729,7 @@ class Protocol(InstrumentProtocol):
                 next_state = ProtocolState.POLL
                 next_agent_state = ResourceAgentState.BUSY
 
+        # notify the agent we have changed states
         self._async_agent_state_change(next_agent_state)
         return next_state, (next_agent_state, None)
 
@@ -750,15 +742,19 @@ class Protocol(InstrumentProtocol):
         Discover current state
         @retval (next_state, result)
         """
-        log.debug('_handler_unknown_discover')
         result = self._send_event_to_all(ProtocolEvent.DISCOVER)
         log.debug('_handler_unknown_discover -- send DISCOVER to all: %r', result)
         target_state = (ProtocolState.COMMAND, ProtocolState.COMMAND, ProtocolState.COMMAND)
-        while True:
+        success = False
+        # wait for the slave protocols to discover
+        for attempt in xrange(5):
             slave_states = self._get_slave_states()
             if slave_states == target_state:
+                success = True
                 break
             time.sleep(1)
+        if not success:
+            return ProtocolState.ERROR, ResourceAgentState.IDLE
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
@@ -772,8 +768,6 @@ class Protocol(InstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         self._init_params()
-        log.debug('_slave_states: %r', self._get_slave_states())
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -810,7 +804,10 @@ class Protocol(InstrumentProtocol):
                 if key == MASTER:
                     _, result = self._handler_get(params, **kwargs)
                 else:
-                    _, result = self._slave_protocols[key]._handler_get(params, **kwargs)
+                    if key in self._slave_protocols:
+                        _, result = self._slave_protocols[key]._handler_get(params, **kwargs)
+                    else:
+                        raise InstrumentParameterException('Invalid key(s) in GET action: %r' % temp_dict[key])
                 result_dict.update(result)
 
         return None, result_dict
@@ -820,64 +817,51 @@ class Protocol(InstrumentProtocol):
         Set parameter, just pass through to _set_params, which knows how to set the params
         in the slave protocols.
         """
-        next_state = None
-        result = None
         self._set_params(*args, **kwargs)
-
-        return next_state, result
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
+        return None, None
 
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return next_state, (next_agent_state, result)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_autosample(self):
         """
         Move my FSM to autosample and start the sample sequence by sending START1 to the MCU.
         Create the scheduler to automatically start the next sample sequence
         """
-        result = self._send_event_to_slave(MCU, mcu.Capability.START1)
+        self._send_event_to_slave(MCU, mcu.Capability.START1)
         self._build_scheduler()
-        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
+        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     def _handler_command_start_poll(self):
         """
         Move my FSM to poll and start the sample sequence by sending START1 to the MCU
         """
-        result = self._send_event_to_slave(MCU, mcu.Capability.START1)
-        return ProtocolState.POLL, (ResourceAgentState.BUSY, result)
+        self._send_event_to_slave(MCU, mcu.Capability.START1)
+        return ProtocolState.POLL, (ResourceAgentState.BUSY, None)
 
     def _handler_command_start_calibrate(self):
         """
         Move my FSM to calibrate and start the calibrate sequence by sending START1 to the MCU
         """
-        result = self._send_event_to_slave(MCU, mcu.Capability.START1)
-        return ProtocolState.CALIBRATE, (ResourceAgentState.BUSY, result)
+        self._send_event_to_slave(MCU, mcu.Capability.START1)
+        return ProtocolState.CALIBRATE, (ResourceAgentState.BUSY, None)
 
     def _handler_command_start_nafion_regen(self):
         """
         Move my FSM to NAFION_REGEN and send NAFION_REGEN to the MCU
         """
-        result = self._send_event_to_slave(MCU, mcu.Capability.NAFREG)
-        return ProtocolState.NAFION_REGEN, (ResourceAgentState.BUSY, result)
+        self._send_event_to_slave(MCU, mcu.Capability.NAFREG)
+        return ProtocolState.NAFION_REGEN, (ResourceAgentState.BUSY, None)
 
     def _handler_command_start_ion_regen(self):
         """
         Move my FSM to ION_REGEN and send ION_REGEN to the MCU
         """
-        result = self._send_event_to_slave(MCU, mcu.Capability.IONREG)
-        return ProtocolState.ION_REGEN, (ResourceAgentState.BUSY, result)
+        self._send_event_to_slave(MCU, mcu.Capability.IONREG)
+        return ProtocolState.ION_REGEN, (ResourceAgentState.BUSY, None)
 
     ########################################################################
     # Error handlers.
@@ -893,6 +877,8 @@ class Protocol(InstrumentProtocol):
         for protocol in self._slave_protocols:
             state = protocol.get_current_state()
             if state == MASSP_STATE_ERROR:
+                # do this synchronously, to allow each slave protocol to complete the CLEAR action
+                # before transitioning states.
                 protocol._protocol_fsm.on_event(ProtocolEvent.CLEAR)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
@@ -925,7 +911,6 @@ class Protocol(InstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
 
     def _handler_direct_access_exit(self, *args, **kwargs):
@@ -948,27 +933,16 @@ class Protocol(InstrumentProtocol):
         Execute a direct access command.  For MASSP, this means passing the actual command to the
         correct slave protocol.  This is handled by _do_cmd_direct.
         """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        self._do_cmd_direct(data)
+        self._send_massp_direct_access(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
-        next_state = None
-        result = None
-
         self._send_event_to_all(ProtocolEvent.STOP_DIRECT)
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)

@@ -650,14 +650,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_driver_command(Capability.STOP_AUTOSAMPLE)
         self.assert_state_change(ProtocolState.COMMAND, timeout=interval)
 
-    @unittest.skip('instrument MUST be in water to run this command!')
     def test_nafreg(self):
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_NAFION)
         self.assert_state_change(ProtocolState.NAFION_REGEN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
-    @unittest.skip('instrument MUST be in water to run this command!')
     def test_ionreg(self):
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_ION)
@@ -906,7 +904,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_execute_resource(Capability.STOP_AUTOSAMPLE)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=900)
 
-    @unittest.skip('nafion regen can only be run if the instrument is in water!')
     def test_nafion(self):
         """
         Test the nafion regeneration command.  Nafion regen takes approx. 2 hours,
@@ -916,7 +913,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_execute_resource(Capability.START_NAFION)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=200)
 
-    @unittest.skip('ion chamber regen can only be run if the instrument is in water!')
     def test_ion(self):
         """
         Test the ion chamber regeneration command.  Ion chamber regen takes approx. 2 hours,

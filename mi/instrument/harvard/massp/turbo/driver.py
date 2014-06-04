@@ -756,7 +756,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._send_command_with_retry(command, value=TRUE)
         # start the acquire_status scheduler
         self._build_scheduler()
-        return ProtocolState.SPINNING_UP, (ResourceAgentState.COMMAND, None)
+        return ProtocolState.SPINNING_UP, (ResourceAgentState.BUSY, None)
 
     ########################################################################
     # Direct access handlers.
@@ -796,12 +796,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Instrument has reached operating speed, transition states.
         """
-        return ProtocolState.AT_SPEED, ResourceAgentState.COMMAND
+        return ProtocolState.AT_SPEED, ResourceAgentState.BUSY
 
     def _handler_spinning_down_stopped(self):
         """
         Instrument has spun down, transition states.
         """
+        self._async_agent_state_change(ResourceAgentState.COMMAND)
         return ProtocolState.COMMAND, ResourceAgentState.COMMAND
 
     ########################################################################
