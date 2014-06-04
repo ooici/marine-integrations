@@ -67,21 +67,35 @@ from mi.instrument.sunburst.driver import SamiParameter
 
 
 class CallStatisticsContainer:
+    """
+    Class to collect call statistics
+    """
     def __init__(self, unit_test):
         self.call_count = 0
         self.call_times = []
         self.unit_test = unit_test
 
     def side_effect(self):
+        """
+        Call side effect
+        """
         self.call_count += 1
         self.call_times.append(time.time())
         log.debug('side effect count = %s', self.call_count)
 
     def assert_call_count(self, call_count):
+        """
+        Verify call count matches expectations
+        :param call_count: Expected call count
+        """
         self.unit_test.assertEqual(call_count, self.call_count, 'call count %s != %s' %
                                                                 (call_count, self.call_count))
 
     def assert_timing(self, delay):
+        """
+        Verify delays between calls
+        :param delay: expected delay between calls
+        """
         for call_counter in range(self.call_count):
             if call_counter > 0:
                 call_delay = self.call_times[call_counter] - self.call_times[call_counter - 1]
@@ -93,11 +107,19 @@ class CallStatisticsContainer:
 
 
 class PumpStatisticsContainer(CallStatisticsContainer):
+    """
+    Class to collect pump call statistics
+    """
     def __init__(self, unit_test, pump_command):
         self.pump_command = pump_command
         CallStatisticsContainer.__init__(self, unit_test)
 
     def side_effect(self, *args, **kwargs):
+        """
+        Call side effect
+        :param args: pump command passed on call
+        :param kwargs: not used
+        """
         log.debug('args = %s, kwargs = %s', args, kwargs)
         if args == self.pump_command:
             CallStatisticsContainer.side_effect(self)
@@ -309,6 +331,11 @@ class SamiMixin(DriverTestMixin):
 
     def send_newline_side_effect(self, protocol):
         def inner(data):
+            """
+            Return response to command
+            :param data: command
+            :return: length of response
+            """
             my_response = '\r'
             if my_response is not None:
                 log.debug("my_send: data: %r, my_response: %r", data, my_response)
@@ -338,7 +365,14 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         self.assert_initialize_driver(driver, initial_protocol_state=SamiProtocolState.WAITING)
 
         class DiscoverWaitingStatisticsContainer(CallStatisticsContainer):
+            """
+            Class to collect discover waiting statistics
+            """
             def discover_waiting_side_effect(self):
+                """
+                Side effect of discover waiting method call
+                :return: protocol and agent states
+                """
                 DiscoverWaitingStatisticsContainer.side_effect(self)
                 return (SamiProtocolState.WAITING, ResourceAgentState.BUSY)
 

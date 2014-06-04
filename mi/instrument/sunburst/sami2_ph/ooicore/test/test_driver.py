@@ -1036,7 +1036,6 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_capabilities(da_capabilities)
         self.assert_direct_access_stop_telnet()
 
-
         ##################
         #  Command Mode
         ##################

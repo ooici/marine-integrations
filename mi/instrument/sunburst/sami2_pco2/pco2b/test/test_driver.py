@@ -795,10 +795,18 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         global data_sample
 
         def get_dev1_sample(particle):
+            """
+            Get dev1 sample
+            :param particle: dev1 sample particle
+            """
             global dev1_sample
             dev1_sample = particle
 
         def get_data_sample(particle):
+            """
+            Get data sample
+            :param particle: data sample particle
+            """
             global data_sample
             data_sample = particle
 
@@ -1187,12 +1195,10 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_capabilities(da_capabilities)
         self.assert_direct_access_stop_telnet()
 
-
         ##################
         #  Command Mode
         ##################
 
-        # We should be back in command mode from DA.
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
         self.assert_capabilities(capabilities)
 

@@ -555,8 +555,8 @@ class Pco2wProtocol(SamiProtocol):
             flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
             log.debug(
-                'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): flush duration param = %s, seconds = %s' % (
-                    flush_duration, flush_duration_seconds))
+                'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): duration param = %s, seconds = %s' %
+                (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -880,7 +880,6 @@ class Pco2wProtocol(SamiProtocol):
     ########################################################################
     # Overridden base class methods
     ########################################################################
-
 
     def _get_blank_sample_timeout(self):
         """

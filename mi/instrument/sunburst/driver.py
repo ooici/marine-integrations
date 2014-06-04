@@ -310,6 +310,9 @@ class SamiInstrumentCommand(BaseEnum):
 ###############################################################################
 
 class SamiBatteryVoltageDataParticleKey(BaseEnum):
+    """
+    Battery voltage data particle key
+    """
     BATTERY_VOLTAGE = 'pco2w_battery_voltage'
 
 
@@ -335,6 +338,9 @@ class SamiBatteryVoltageDataParticle(DataParticle):
 
 
 class SamiThermistorVoltageDataParticleKey(BaseEnum):
+    """
+    Thermistor voltage data particle key
+    """
     THERMISTOR_VOLTAGE = 'pco2w_thermistor_voltage'
 
 
@@ -1026,7 +1032,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                                                   expected_prompt=expected_prompt)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-                       self._response_handlers.get(cmd, None)
+            self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
             resp_result = resp_handler(result, prompt)
@@ -1051,8 +1057,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         current_state = self.get_current_state()
 
         log.debug(
-            'SamiProtocol._execute_pump_sequence(): %s: command=%s, duration=%s, timeout=%s, delay=%s, command_count=%s, cycles=%s' %
-            (current_state, command, duration, timeout, delay, command_count, cycles))
+            'SamiProtocol._execute_pump_sequence(): %s: command=%s, duration=%s, timeout=%s' %
+            (current_state, command, duration, timeout))
+        log.debug(
+            'SamiProtocol._execute_pump_sequence(): delay=%s, command_count=%s, cycles=%s' %
+            (delay, command_count, cycles))
 
         self._wakeup()
 
@@ -1886,11 +1895,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         else:
             log.debug('SamiProtocol._set_params(): No parameters to reconfigure instrument.')
 
-    def _set_configuration(self, override_params_dict={}):
+    def _set_configuration(self, override_params_dict=None):
         """
         Set configuration on the instrument.
         @param override_params_dict parameters to override in config string
         """
+        if not override_params_dict:
+            override_params_dict = {}
 
         ## Build configuration string sequence.
         ## configuration_string = self._build_configuration_string_specific()

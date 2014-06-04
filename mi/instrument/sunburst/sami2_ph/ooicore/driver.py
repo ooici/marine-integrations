@@ -807,6 +807,7 @@ class Protocol(SamiProtocol):
     def sieve_function(raw_data):
         """
         The method that splits samples
+        :param raw_data: data to filter
         """
 
         return_list = []
