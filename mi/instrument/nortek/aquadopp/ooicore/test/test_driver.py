@@ -17,14 +17,11 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a INT
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a QUAL
 """
-from mi.instrument.ooici.mi.test_driver.test.test_driver import DriverTestMixinSub
 
 __author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey
-monkey.patch_all()
-import gevent
+import time
 
 from nose.plugins.attrib import attr
 
@@ -32,6 +29,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
+from mi.instrument.ooici.mi.test_driver.test.test_driver import DriverTestMixinSub
 
 from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState
 
@@ -160,8 +158,8 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     def assert_particle_velocity(self, data_particle, verify_values=False):
         """
         Verify velpt_velocity_data
-        @param data_particle:  AquadoppDwVelocityDataParticleKey data particle
-        @param verify_values:
+        @param data_particle AquadoppDwVelocityDataParticleKey data particle
+        @param verify_values bool, should we verify parameter values
         """
         self.assert_data_particle_keys(AquadoppDwVelocityDataParticleKey, self._sample_velocity_diagnostic)
         self.assert_data_particle_header(data_particle, NortekDataParticleType.VELOCITY)
@@ -263,7 +261,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
     def test_command_autosample(self):
@@ -330,9 +328,19 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         for i in range(1, 2, 3):
             self.tcp_client.send_data(NEWLINE)
             log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
-            gevent.sleep(15)
+            time.sleep(15)
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
+
+    def test_get_set_parameters(self):
+        """
+        Verify that parameters can be get set properly
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 16)
+        self.assert_set_parameter(Parameter.USER_NUMBER_BEAMS, 3)
+        #TODO
 
     def test_poll(self):
         """
