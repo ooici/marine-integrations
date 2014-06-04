@@ -1,7 +1,7 @@
 """
 @package mi.instrument.noaa.lily.ooicore.test.test_driver
-@file marine-integrations/mi/instrument/noaa/lily/ooicore/driver.py
-@author David Everett
+@file marine-integrations/mi/instrument/noaa/ooicore/test/test_driver.py
+@author Pete Cable
 @brief Test cases for ooicore driver
 
 USAGE:
@@ -53,6 +53,9 @@ InstrumentDriverTestCase.initialize(
             Parameter.LEVELING_TIMEOUT: 600,
             Parameter.XTILT_TRIGGER: 300,
             Parameter.YTILT_TRIGGER: 300,
+            Parameter.HEAT_DURATION: 1,
+            Parameter.OUTPUT_RATE: 40,
+            Parameter.SYNC_INTERVAL: 86400,
         }
     }
 )

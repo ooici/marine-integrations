@@ -8,8 +8,9 @@ Release notes:
 
 import re
 import time
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 import ntplib
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units, Prefixes
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -77,6 +78,8 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    START_LEVELING = 'PROTOCOL_EVENT_START_LEVELING'
+    STOP_LEVELING = 'PROTOCOL_EVENT_STOP_LEVELING'
 
 
 class Capability(BaseEnum):
@@ -101,6 +104,7 @@ class Parameter(DriverParameter):
     LEVELING_FAILED = "leveling_failed"
     OUTPUT_RATE = 'output_rate_hz'
     SYNC_INTERVAL = 'time_sync_interval'
+    HEAT_DURATION = "heat_duration"
 
 
 class InstrumentCommand(BaseEnum):
@@ -213,7 +217,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
-                # (ProtocolEvent.START_LEVELING, self._handler_autosample_start_leveling),
+                # (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -222,7 +226,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
-                # (ProtocolEvent.START_LEVELING, self._handler_command_start_leveling),
+                # (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.DIRECT_ACCESS: [
@@ -255,7 +259,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
-        # self._build_param_dict()
+        self._build_param_dict()
         # self._build_command_dict()
 
         # Add build handlers for device commands.
@@ -314,6 +318,68 @@ class Protocol(CommandResponseInstrumentProtocol):
                 return sample
 
         raise InstrumentProtocolException('unhandled chunk received by _got_chunk: [%r]', chunk)
+
+    def _build_param_dict(self):
+        """
+        Populate the parameter dictionary with parameters.
+        For each parameter key, add match string, match lambda function,
+        and value formatting function for set commands.
+        """
+        my_regex = 'Not used'
+        ro, rw = ParameterDictVisibility.READ_ONLY, ParameterDictVisibility.READ_WRITE
+        _bool, _float, _int = ParameterDictType.BOOL, ParameterDictType.FLOAT, ParameterDictType.INT
+
+        parameters = {
+            Parameter.AUTO_RELEVEL: {
+                'type': _bool,
+                'display_name': 'Automatic Releveling Enabled',
+                'visibility': rw,
+            },
+            Parameter.XTILT_TRIGGER: {
+                'type': _float,
+                'display_name': 'X-tilt Releveling Trigger',
+                'units': Prefixes.MICRO + Units.RADIAN,
+                'visibility': rw,
+            },
+            Parameter.YTILT_TRIGGER: {
+                'type': _float,
+                'display_name': 'Y-tilt Releveling Trigger',
+                'visibility': rw,
+            },
+            Parameter.LEVELING_TIMEOUT: {
+                'type': _int,
+                'display_name': 'LILY Leveling Timeout',
+                'units': Prefixes.MICRO + Units.RADIAN,
+                'visibility': rw,
+            },
+            Parameter.LEVELING_FAILED: {
+                'type': _bool,
+                'display_name': 'LILY Leveling Failed',
+                'visibility': ro,
+            },
+            Parameter.HEAT_DURATION: {
+                'type': _int,
+                'display_name': 'Heater Run Time Duration',
+                'units': Units.SECOND,
+                'visibility': rw,
+            },
+            Parameter.OUTPUT_RATE: {
+                'type': _int,
+                'display_name': 'NANO Output Rate',
+                'units': Units.HERTZ,
+                'visibility': rw,
+            },
+            Parameter.SYNC_INTERVAL: {
+                'type': _int,
+                'display_name': 'NANO Time Sync Interval',
+                'units': Units.SECOND,
+                'visibility': rw,
+            },
+        }
+        for param in parameters:
+            self._param_dict.add(param, my_regex, None, None, **parameters[param])
+
+        self._param_dict.set_value(Parameter.LEVELING_FAILED, False)
 
     def _build_driver_dict(self):
         """
