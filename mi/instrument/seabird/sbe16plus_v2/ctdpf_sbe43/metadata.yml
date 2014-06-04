@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Tapana Gupta
+  driver_make: seabird
+  driver_model: sbe16plus_v2
+  driver_name: ctdpf_sbe43
+  email: tapana_gupta@raytheon.com
+  release_notes: SBE Driver
+  version: 0.0.1
