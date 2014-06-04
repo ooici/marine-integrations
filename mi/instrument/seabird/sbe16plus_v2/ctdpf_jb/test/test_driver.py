@@ -825,11 +825,9 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 @attr('INT', group='mi')
 class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
-    @unittest.skip("pass")
     def test_connection(self):
         self.assert_initialize_driver()
 
-    @unittest.skip("pass")
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
@@ -886,7 +884,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_set_readonly(Parameter.AUTO_RUN, True)
         self.assert_set_readonly(Parameter.IGNORE_SWITCH, False)
 
-    @unittest.skip("pass")
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -925,7 +922,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    @unittest.skip("pass")
     def test_parameters(self):
         """
         Test driver parameters and verify their type. Also verify the parameter values for startup
@@ -936,7 +932,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parameters(reply, True)
 
-    @unittest.skip("pass")
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -974,7 +969,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         #stop autosampling
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    @unittest.skip("pass")
     def test_status(self):
         self.assert_initialize_driver()
 
@@ -986,14 +980,12 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.OPTODE_SETTINGS, self.assert_particle_send_optode)
 
-    @unittest.skip("pass")
     def test_configuration(self):
         self.assert_initialize_driver()
 
         # test get_configuration particle
         self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
 
-    @unittest.skip("pass")
     def test_polled(self):
         """
         Test that we can generate particles with commands while in command mode
@@ -1003,7 +995,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         # test acquire_sample data particle
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.CTD_PARSED, self.assert_particle_sample)
 
-    @unittest.skip("pass")
     def test_autosample(self):
         """
         Verify that we can enter streaming and that all particles are produced
@@ -1026,7 +1017,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    @unittest.skip("pass")
     def test_scheduled_status_command(self):
         """
         Verify the device status command can be triggered and run in command
@@ -1055,7 +1045,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         self.assert_current_state(ProtocolState.COMMAND)
 
-    @unittest.skip("pass")
     def test_scheduled_status_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
@@ -1071,7 +1060,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
-    @unittest.skip("pass")
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -1092,7 +1080,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         self.assert_current_state(ProtocolState.COMMAND)
 
-    @unittest.skip("pass")
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -1126,7 +1113,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
 
-    @unittest.skip("pass")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
@@ -1157,7 +1143,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.OUTPUT_FORMAT, 0)
 
-    @unittest.skip("pass")
     def test_direct_access_telnet_mode_autosample(self):
         """
         @brief Same as the previous DA test except in this test
@@ -1186,7 +1171,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         #now stop autosampling
         self.assert_stop_autosample()
 
-    @unittest.skip("pass")
     def test_direct_access_telnet_timeout(self):
         """
         Verify that direct access times out as expected and the agent transitions back to command mode.
@@ -1199,7 +1183,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
 
         self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
 
-    @unittest.skip("pass")
     def test_direct_access_telnet_closed(self):
         """
         Verify that a disconnection from the DA server transitions the agent back to
@@ -1214,7 +1197,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
 
         self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 120)
 
-    @unittest.skip("pass")
     def test_poll(self):
         '''
         Verify that we can poll for a sample.  Take sample for this instrument
@@ -1232,7 +1214,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
 
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
 
-    @unittest.skip("pass")
     def test_autosample(self):
         """
         Verify autosample works and data particles are created
@@ -1263,7 +1244,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # Restart autosample and gather a couple samples
         self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
 
-    @unittest.skip("pass")
     def test_execute_clock_sync(self):
         """
         Verify we can synchronize the instrument internal clock
@@ -1286,7 +1266,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # Now verify that the time matches to within 15 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 15)
 
-    @unittest.skip("pass")
     def test_get_set_parameters(self):
         '''
         verify that all parameters can be get set properly
@@ -1309,7 +1288,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 4)
         self.assert_get_parameter(Parameter.PUMP_DELAY, 60)
 
-    @unittest.skip("pass")
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
