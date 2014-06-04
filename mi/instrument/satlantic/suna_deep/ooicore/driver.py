@@ -450,6 +450,7 @@ class SUNASampleDataParticle(DataParticle):
         if not matched:
             raise SampleException("No regex match for sample [%s]" %
                                   self.raw_data)
+
         try:
             parsed_data_list = [
                 {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(1))},
@@ -485,6 +486,9 @@ class SUNASampleDataParticle(DataParticle):
             raise SampleException("ValueError while parsing data [%s]" %
                                   self.raw_data)
 
+        log.debug('SUNASampleDataParticle raw data: %r', self.raw_data)
+        log.debug('SUNASampleDataParticle parsed data: %r', parsed_data_list)
+
         return parsed_data_list
 
 
@@ -496,7 +500,7 @@ class SUNAStatusDataParticleKey(BaseEnum):
     EXT_POWER_PORT = "nutnr_ext_power_port"
     LAMP_SHUTTER = "nutnr_lamp_shutter"
     REF_DETECTOR = "nutnr_reference_detector"
-    PROTECTR = "protectr",
+    PROTECTR = "protectr"
     SUPER_CAPACITORS = "nutnr_super_capacitors"
     PSB_SUPERVISOR = "nutnr_psb_supervisor"
     USB_COMM = "nutnr_usb_communication"
@@ -512,7 +516,7 @@ class SUNAStatusDataParticleKey(BaseEnum):
     SENSOR_ADDR_HOUS_TEMP = "nutnr_sensor_address_hous_temp"
     SERIAL_NUM_SPECT = "nutnr_serial_number_spec"
     SERIAL_NUM_LAMP = "nutnr_serial_number_lamp"
-    STUPSTUS = "stupstus",
+    STUPSTUS = "stupstus"
     BRNHOURS = "brnhours"
     BRNNUMBER = "brnnumbr"
     DARK_HOURS = "drkhours"
@@ -529,8 +533,8 @@ class SUNAStatusDataParticleKey(BaseEnum):
     LOGGING_DARK_FRAME = "nutnr_logging_dark_frame"
     TIMERESL = "timeresl"
     LOG_FILE_TYPE = "nutnr_log_file_type"
-    ACQCOUNT = "acqcount",
-    CNTCOUNT = "cntcount",
+    ACQCOUNT = "acqcount"
+    CNTCOUNT = "cntcount"
     NITRATE_MIN = "nutnr_dac_nitrate_min"
     NITRATE_MAX = "nutnr_dac_nitrate_max"
     WAVELENGTH_LOW = "nutnr_data_wavelength_low"
@@ -559,11 +563,11 @@ class SUNAStatusDataParticleKey(BaseEnum):
     DRKAVERS = "drkavers"
     LGTAVERS = "lgtavers"
     REFSAMPLES = "refsmpls"
-    DARK_SAMPLES = "nutnr_dark_samples",
+    DARK_SAMPLES = "nutnr_dark_samples"
     LIGHT_SAMPLES = "nutnr_light_samples"
     DARK_DURATION = "nutnr_dark_duration"
     LIGHT_DURATION = "nutnr_light_duration"
-    TEMP_COMP = "nutnr_temp_comp",
+    TEMP_COMP = "nutnr_temp_comp"
     SALINITY_FIT = "nutnr_salinity_fit"
     BROMIDE_TRACING = "nutnr_bromide_tracing"
     BASELINE_ORDER = "nutnr_baseline_order"
@@ -601,7 +605,9 @@ class SUNAStatusDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXT_POWER_PORT, DataParticleKey.VALUE: str(matched.group(5))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_SHUTTER, DataParticleKey.VALUE: str(matched.group(6))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.REF_DETECTOR, DataParticleKey.VALUE: str(matched.group(7))},
+
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PROTECTR, DataParticleKey.VALUE: str(matched.group(8))},
+
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SUPER_CAPACITORS, DataParticleKey.VALUE: str(matched.group(9))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PSB_SUPERVISOR, DataParticleKey.VALUE: str(matched.group(10))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.USB_COMM, DataParticleKey.VALUE: str(matched.group(11))},
@@ -691,6 +697,9 @@ class SUNAStatusDataParticle(DataParticle):
         except ValueError:
             raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
+        log.debug('SUNAStatusDataParticle raw data: %r', self.raw_data)
+        log.debug('SUNAStatusDataParticle parsed data: %r', parsed_data_list)
+
         return parsed_data_list
 
 
@@ -758,6 +767,9 @@ class SUNATestDataParticle(DataParticle):
         except ValueError:
             raise SampleException("ValueError while parsing data [%s]" %
                                   self.raw_data)
+
+        log.debug('SUNATestDataParticle raw data: %r', self.raw_data)
+        log.debug('SUNATestDataParticle parsed data: %r', parsed_data_list)
 
         return parsed_data_list
 
@@ -1720,7 +1732,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_poll_reset(self):
         """
-        reset the device
+        Reset the device
         """
         next_state = None
         next_agent_state = None

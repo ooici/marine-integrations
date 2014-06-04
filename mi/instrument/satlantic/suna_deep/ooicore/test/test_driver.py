@@ -255,7 +255,7 @@ class DriverTestMixinSub(DriverTestMixin):
         "nutnr_periodic_samples" : {'type': int, 'value': 5},
         "nutnr_polled_timeout" : {'type': int, 'value': 15},
         "nutnr_apf_timeout" : {'type': float, 'value': 10.0000},
-        "nutnr_satbility_time" : {'type': int, 'value': 5},
+        "nutnr_stability_time" : {'type': int, 'value': 5},
         "nutnr_ref_min_lamp_on" : {'type': int, 'value': 0},
         "nutnr_skip_sleep" : {'type': unicode, 'value': "Off"},
         "nutnr_lamp_switchoff_temp" : {'type': int, 'value': 35},
@@ -393,7 +393,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, SUNA_ASCII_TEST)
         self.assert_chunker_combined_sample(chunker, SUNA_ASCII_TEST)
 
-    def test_corrupt_data_sample(self):
+    def test_corrupt_data_particles(self):
         """
         test with data partially replaced by garbage value
         """
@@ -545,7 +545,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     def test_polled_sample(self):
         """
-        Test Polled acquisition of samples in auto-sample mode
+        Verify polled acquisition of samples in auto-sample mode
         """
         self.assert_initialize_driver()
 
@@ -569,7 +569,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     def test_auto_sample(self):
         """
-        Test Continuous acquisition of samples in auto-sample mode
+        Verify continuous acquisition of samples in auto-sample mode
         """
         self.assert_initialize_driver()
 
@@ -632,6 +632,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         # Assert we forgot the comms parameter.
         self.assert_driver_command_exception('configure', exception_class=InstrumentParameterException)
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -643,75 +644,13 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def assertSampleDataParticle(self, val):
-        """
-        Verify the value for a SUNA sample data particle
-        """
-
-        if isinstance(val, SUNASampleDataParticle):
-            sample_dict = json.loads(val.generate())
-        else:
-            sample_dict = val
-
-        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleType.SUNA_SAMPLE)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-            list))
-        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in [
-                "frame_type", "serial_number", "date_of_sample",
-                "time_of_sample", "nitrate_concentration", "nutnr_nitrogen_in_nitrate",
-                "nutnr_absorbance_at_254_nm", "nutnr_absorbance_at_350_nm", "nutnr_bromide_trace",
-                "nutnr_spectrum_average", "nutnr_dark_value_used_for_fit", "nutnr_integration_time_factor",
-                "spectral_channels", "temp_interior", "temp_spectrometer",
-                "temp_lamp", "lamp_time", "humidity",
-                "voltage_main", "voltage_lamp", "nutnr_voltage_int", "nutnr_current_main",
-                "aux_fitting_1", "aux_fitting_2", "nutnr_fit_base_1", "nutnr_fit_base_2", "nutnr_fit_rmse",
-                "checksum"
-            ])
-
-            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
-
-            if(x['value_id'] == 'frame_type'): self.assertTrue(isinstance(x['value'], str))
-            elif(x['value_id'] == 'serial_number'): self.assertTrue(isinstance(x['value'], str))
-            elif(x['value_id'] == 'date_of_sample'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'time_of_sample'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nitrate_concentration'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_nitrogen_in_nitrate'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_absorbance_at_254_nm'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_absorbance_at_350_nm'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_bromide_trace'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_spectrum_average'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'nutnr_dark_value_used_for_fit'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'nutnr_integration_time_factor'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'spectral_channels'): self.assertTrue(isinstance(x['value'], list))
-            elif(x['value_id'] == 'temp_interior'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'temp_spectrometer'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'temp_lamp'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'lamp_time'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'humidity'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'voltage_main'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'voltage_lamp'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_voltage_int'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_current_main'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'aux_fitting_1'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'aux_fitting_2'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_fit_base_1'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_fit_base_2'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_fit_rmse'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'checksum'): self.assertTrue(isinstance(x['value'], int))
-            else: self.assertFalse(True) # Shouldn't get here.  If we have then we aren't checking a parameter
-
     def test_discover(self):
         """
         Override - instrument will always start up in Command mode.  Instrument will instruct instrument into
         Command mode as well.
+
+        Verify when the instrument is either in autosample or command state, the instrument will always discover
+        to COMMAND state
         """
         # Verify the agent is in command mode
         self.assert_enter_command_mode()
@@ -730,8 +669,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the
-               physical instrument. (telnet mode)
+        Verify while in Direct Access, we can manually set DA parameters.
+        After stopping DA, the instrument will enter Command State and any
+        parameters set during DA are reset to previous values.
+        Also verifying timeouts with inactivity, with activity, and without activity.
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
@@ -762,25 +703,25 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_execute_test(self):
         """
-        Verify instrument can perform a self test
+        Verify the instrument can perform a self test
         """
         #todo
 
     def test_poll(self):
         """
-        Poll for a single sample
+        Verify the driver can collect a sample from the COMMAND state
         """
-        self.assert_sample_polled(self.assertSampleDataParticle, DataParticleType.SUNA_SAMPLE)
+        self.assert_sample_polled(self.assert_data_particle_sample, DataParticleType.SUNA_SAMPLE)
 
     def test_autosample(self):
         """
-        start and stop autosample and verify data particle
+        Verify the driver can start and stop autosample and verify data particle
         """
-        self.assert_sample_autosample(self.assertSampleDataParticle, DataParticleType.SUNA_SAMPLE)
+        self.assert_sample_autosample(self.assert_data_particle_sample, DataParticleType.SUNA_SAMPLE)
 
     def test_get_set_parameters(self):
         """
-        verify that all parameters can be get set properly, this includes
+        Verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
@@ -805,8 +746,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_get_capabilities(self):
         """
-        @brief Walk through all driver protocol states and verify capabilities
-        returned by get_current_capabilities
+        Verify that the correct capabilities are returned from get_capabilities at various driver/agent states.
         """
         self.assert_enter_command_mode()
 
@@ -814,33 +754,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         #  Command Mode
         ##################
         capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: [
-                ResourceAgentEvent.CLEAR,
-                ResourceAgentEvent.RESET,
-                ResourceAgentEvent.GO_DIRECT_ACCESS,
-                ResourceAgentEvent.GO_INACTIVE,
-                ResourceAgentEvent.PAUSE
-            ],
-            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.SET, ProtocolEvent.ACQUIRE_SAMPLE, ProtocolEvent.GET, ProtocolEvent.ACQUIRE_STATUS,
-                ProtocolEvent.START_POLL, ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.SET,
+                ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.GET,
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.START_POLL,
+                ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.TEST
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: [
-                Parameter.ABSORBANCE_CUTOFF, Parameter.BASELINE_ORDER, Parameter.BROMIDE_TRACING, Parameter.COUNTDOWN,
-                Parameter.DATA_FILE_SIZE, Parameter.DARK_CORRECTION_METHOD, Parameter.DARK_DURATION,
-                Parameter.DARK_SAMPLES, Parameter.CONCENTRATIONS_IN_FIT, Parameter.INTEG_TIME_MAX,
-                Parameter.INTEG_TIME_STEP, Parameter.INTEG_TIME_ADJUSTMENT, Parameter.INTEG_TIME_FACTOR,
-                Parameter.LAMP_SWITCH_OFF_TEMPERATURE, Parameter.LIGHT_DURATION, Parameter.LIGHT_SAMPLES,
-                Parameter.MESSAGE_FILE_SIZE, Parameter.MESSAGE_LEVEL, Parameter.OPERATION_CONTROL,
-                Parameter.OPERATION_MODE, Parameter.OUTPUT_DARK_FRAME, Parameter.OUTPUT_FRAME_TYPE,
-                Parameter.POLLED_TIMEOUT, Parameter.REF_MIN_AT_LAMP_ON, Parameter.SALINITY_FITTING,
-                Parameter.SKIP_SLEEP_AT_START, Parameter.SPECTROMETER_INTEG_PERIOD, Parameter.LAMP_STABIL_TIME,
-                Parameter.TEMP_COMPENSATION, Parameter.FIT_WAVELENGTH_HIGH, Parameter.FIT_WAVELENGTH_LOW,
-                Parameter.FIT_WAVELENGTH_BOTH
-            ]
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
         self.assert_capabilities(capabilities)
@@ -870,9 +796,30 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ##################
         #  Streaming Mode
         ##################
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE]
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_AUTOSAMPLE]
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
+
+        # ##################
+        # #  DA Mode
+        # ##################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_DIRECT]
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
