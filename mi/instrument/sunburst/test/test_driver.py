@@ -70,6 +70,42 @@ from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiProtocol
 from mi.instrument.sunburst.driver import SAMI_UNIX_OFFSET
+from mi.instrument.sunburst.driver import SamiParameter
+
+class CallStatisticsContainer:
+    def __init__(self, unit_test):
+        self.call_count = 0
+        self.call_times = []
+        self.unit_test = unit_test
+
+    def side_effect(self):
+        self.call_count += 1
+        self.call_times.append(time.time())
+        log.debug('side effect count = %s', self.call_count)
+
+    def assert_call_count(self, call_count):
+        self.unit_test.assertEqual(call_count, self.call_count, 'call count %s != %s' %
+                                                                (call_count, self.call_count))
+    def assert_timing(self, delay):
+        for call_counter in range(self.call_count):
+            if call_counter > 0:
+                call_delay = self.call_times[call_counter] - self.call_times[call_counter - 1]
+                log.debug('call %s delay = %s', call_counter, call_delay)
+                time_diff = call_delay - delay
+                self.unit_test.assertTrue(-.5 < time_diff < .5,
+                                          'call delay %s: call delay %s != delay %s' %
+                                          (call_counter, call_delay, delay))
+
+class PumpStatisticsContainer(CallStatisticsContainer):
+
+    def __init__(self, unit_test, pump_command):
+        self.pump_command = pump_command
+        CallStatisticsContainer.__init__(self,unit_test)
+
+    def side_effect(self, *args, **kwargs):
+        log.debug('args = %s, kwargs = %s', args, kwargs)
+        if(args == self.pump_command):
+            CallStatisticsContainer.side_effect(self)
 
 TIME_THRESHOLD = 2
 
@@ -300,7 +336,76 @@ class SamiMixin(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
-    pass
+
+    def assert_waiting_discover(self, driver):
+
+        self.assert_initialize_driver(driver, initial_protocol_state=SamiProtocolState.WAITING)
+
+        class DiscoverWaitingStatisticsContainer(CallStatisticsContainer):
+
+            def discover_waiting_side_effect(self):
+                DiscoverWaitingStatisticsContainer.side_effect(self)
+                return (SamiProtocolState.WAITING, ResourceAgentState.BUSY)
+
+        stats = DiscoverWaitingStatisticsContainer(self)
+        driver._protocol._discover = Mock(side_effect=stats.discover_waiting_side_effect)
+        (protocol_state, (agent_state, result)) = driver._protocol._handler_waiting_discover()
+
+        self.assertEqual(protocol_state,
+                         SamiProtocolState.UNKNOWN,
+                         'protocol state %s != %s'
+                         % (protocol_state, SamiProtocolState.UNKNOWN))
+
+        self.assertEqual(agent_state,
+                         ResourceAgentState.ACTIVE_UNKNOWN,
+                         'agent state %s != %s'
+                         % (agent_state, ResourceAgentState.ACTIVE_UNKNOWN))
+
+        log.debug('discover call count = %s', stats.call_count)
+        log.debug('call times = %s', stats.call_times)
+
+        stats.assert_call_count(6)
+        stats.assert_timing(20)
+
+    def assert_autosample_timing(self, driver):
+
+        self.assert_initialize_driver(driver, initial_protocol_state=SamiProtocolState.COMMAND)
+
+        driver._protocol._protocol_fsm.current_state = SamiProtocolState.COMMAND
+
+        stats = CallStatisticsContainer(self)
+
+        driver._protocol._take_regular_sample = \
+            Mock(side_effect=stats.side_effect)
+
+        for param in driver._protocol._param_dict.get_keys():
+            log.debug('startup param = %s', param)
+            driver._protocol._param_dict.set_default(param)
+
+        driver._protocol._param_dict.set_value(SamiParameter.AUTO_SAMPLE_INTERVAL, 10)
+
+        driver._protocol._setup_scheduler_config()
+
+        (driver._protocol._protocol_fsm.current_state, (agent_state, result)) = \
+            driver._protocol._handler_command_start_autosample()
+
+        ## Don't take sample upon entering autosample state
+        driver._protocol._queued_commands.reset()
+
+        time.sleep(62)
+
+        (driver._protocol._protocol_fsm.current_state, (agent_state, result)) = \
+            driver._protocol._handler_autosample_stop()
+
+        stats.assert_call_count(6)
+        stats.assert_timing(10)
+
+        stats.call_count = 0
+        stats.call_times = []
+
+        time.sleep(62)
+
+        stats.assert_call_count(0)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

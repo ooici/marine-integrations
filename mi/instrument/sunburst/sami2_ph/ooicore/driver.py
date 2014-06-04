@@ -576,7 +576,8 @@ class Protocol(SamiProtocol):
         self._add_build_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._build_pump_command)
         self._add_build_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._build_pump_command)
 
-        self._add_response_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._parse_response_pump_reagent_sami)
+        self._add_response_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._parse_response_newline)
+        self._add_response_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._parse_response_newline)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -702,7 +703,7 @@ class Protocol(SamiProtocol):
                 time.sleep(PHSEN_PUMP_SLEEP_REAGENT_50ML)
 
             # Make sure pump is off
-            self._do_cmd_resp_no_wakeup(SamiInstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+            self._do_cmd_resp_no_wakeup(InstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT, response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
 
             log.debug('Protocol._handler_reagent_flush_enter_50ml(): SUCCESS')
             self._async_raise_fsm_event(ProtocolEvent.SUCCESS)

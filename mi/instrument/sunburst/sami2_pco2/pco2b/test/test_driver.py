@@ -632,11 +632,20 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         self.assert_capabilities(driver, self.capabilities_test_dict)
 
     def test_pump_commands(self):
-
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-
         self.assert_pump_commands(driver)
+
+    def test_pump_timing(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_pump_timing(driver)
+
+    def test_waiting_discover(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_waiting_discover(driver)
+
+    def test_autosample_timing(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_autosample_timing(driver)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

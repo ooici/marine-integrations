@@ -433,8 +433,8 @@ class Pco2wProtocol(SamiProtocol):
         self._add_response_handler(Pco2wInstrumentCommand.PCO2W_ACQUIRE_BLANK_SAMPLE,
                                    self._parse_response_blank_sample_sami)
         self._add_response_handler(Pco2wInstrumentCommand.PCO2W_PUMP_DEIONIZED_WATER,
-                                   self._parse_response_pump_deionized_water_sami)
-        self._add_response_handler(Pco2wInstrumentCommand.PCO2W_PUMP_REAGENT, self._parse_response_pump_reagent_sami)
+                                   self._parse_response_newline)
+        self._add_response_handler(Pco2wInstrumentCommand.PCO2W_PUMP_REAGENT, self._parse_response_newline)
 
     ########################################################################
     # Build command handlers.
@@ -699,13 +699,6 @@ class Pco2wProtocol(SamiProtocol):
         Parse response to take blank sample instrument command
         """
         log.debug('Pco2wProtocol._parse_response_blank_sample_sami')
-
-
-    def _parse_response_pump_deionized_water_sami(self, response, prompt):
-        """
-        Parse response to pump deionized water command
-        """
-        log.debug('Pco2wProtocol._parse_response_pump_deionized_water_sami')
 
     ########################################################################
     # Private Methods

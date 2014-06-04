@@ -58,6 +58,7 @@ from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
 from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
+from mi.instrument.sunburst.test.test_driver import PumpStatisticsContainer
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wParameter
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
@@ -112,6 +113,8 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
 
    def assert_pump_commands(self, driver):
 
+        self.assert_initialize_driver(driver)
+
         driver._protocol._connection.send.side_effect = self.send_newline_side_effect(driver._protocol)
 
         driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.COMMAND
@@ -158,6 +161,28 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
         log.debug('REAGENT_FLUSH command count = %s', command_count)
         self.assertEqual(1, command_count, 'REAGENT_FLUSH command count %s != 1' % command_count)
         driver._protocol._connection.send.reset_mock()
+
+   def assert_pump_timing(self, driver):
+        self.assert_initialize_driver(driver)
+
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.COMMAND
+        for param in driver._protocol._param_dict.get_keys():
+            log.debug('startup param = %s', param)
+            driver._protocol._param_dict.set_default(param)
+
+        driver._protocol._param_dict.set_value(Pco2wParameter.PUMP_100ML_CYCLES, 0x3)
+        stats = PumpStatisticsContainer(self, ('P03','08'))
+        driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH_100ML
+        driver._protocol._handler_deionized_water_flush_execute_100ml()
+        stats.assert_timing(2)
+
+        driver._protocol._param_dict.set_value(Pco2wParameter.PUMP_100ML_CYCLES, 0x5)
+        stats = PumpStatisticsContainer(self, ('P01','08'))
+        driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
+        driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.REAGENT_FLUSH_100ML
+        driver._protocol._handler_reagent_flush_execute_100ml()
+        stats.assert_timing(2)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

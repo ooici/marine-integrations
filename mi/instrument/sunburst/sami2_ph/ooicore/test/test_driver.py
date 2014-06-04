@@ -64,6 +64,7 @@ from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
 from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
+from mi.instrument.sunburst.test.test_driver import PumpStatisticsContainer
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import ScheduledJob
 
 ###
@@ -603,37 +604,36 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assertEqual(1, command_count, 'REAGENT_FLUSH command count %s != 1' % command_count)
         driver._protocol._connection.send.reset_mock()
 
+    def test_pump_timing(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        driver._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
+        for param in driver._protocol._param_dict.get_keys():
+            log.debug('startup param = %s', param)
+            driver._protocol._param_dict.set_default(param)
+
+        stats = PumpStatisticsContainer(self, ('P01','01'))
+        driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
+        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH_1375ML
+        driver._protocol._handler_seawater_flush_execute_1375ml()
+        stats.assert_timing(2)
+
+        stats = PumpStatisticsContainer(self, ('P03','02'))
+        driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
+        driver._protocol._param_dict.set_value(Parameter.FLUSH_CYCLES, 0x5)
+        driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH_50ML
+        driver._protocol._handler_reagent_flush_execute_50ml()
+        stats.assert_timing(1)
+
     def test_waiting_discover(self):
 
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, initial_protocol_state=ProtocolState.WAITING)
+        self.assert_waiting_discover(driver)
 
-        class DiscoverWaitingStatisticsContainer:
-            def __init__(self, unit_test):
-                self.call_count = 0
-                self.call_time = []
-                self.unit_test = unit_test
-
-            def discover_waiting_side_effect(self):
-                self.call_count += 1
-                self.call_time.append(time.time())
-
-                return (ProtocolState.WAITING, ResourceAgentState.BUSY)
-
-            def assertCallCount(self, call_count):
-                self.unit_test.assertEqual(call_count, self.call_count, 'discover call count %s != %s' %
-                                                                        (call_count, self.call_count))
-
-            def assert_timing(self):
-                pass
-
-        stats = DiscoverWaitingStatisticsContainer(self)
-        driver._protocol._discover = Mock(side_effect=stats.discover_waiting_side_effect)
-        driver._protocol._handler_waiting_discover()
-        log.debug('discover call count = %s', stats.call_count)
-        log.debug('call times = %s', stats.call_time)
-
-        stats.assertCallCount(5)
+    def test_autosample_timing(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_autosample_timing(driver)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -938,10 +938,10 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
-        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.SEAWATER_FLUSH_1375ML, delay=220, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH_50ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.SEAWATER_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
         self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH_100ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
-        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH_100ML, delay=15, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 

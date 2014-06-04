@@ -18,12 +18,6 @@ Release notes:
 __author__ = 'Chris Wingard, Stuart Pearce & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
-## TODO: Add timing tests where applicable
-## TODO: Test that no samples are received when autosample stopped
-## TODO: What to do if error occurs when waiting for a newline?
-## TODO: Test time outs
-## TODO: Test discover timeout
-
 import re
 import time
 import datetime
@@ -160,7 +154,7 @@ SAMI_ERROR_REGEX = r'[\?]([0-9A-Fa-f]{2})' + SAMI_NEWLINE
 SAMI_ERROR_REGEX_MATCHER = re.compile(SAMI_ERROR_REGEX)
 
 # Newline returned from SAMI
-SAMI_NEW_LINE_REGEX = SAMI_NEWLINE
+SAMI_NEW_LINE_REGEX = (r'(.*)' + SAMI_NEWLINE)
 SAMI_NEW_LINE_REGEX_MATCHER = re.compile(SAMI_NEW_LINE_REGEX)
 
 ###
@@ -888,13 +882,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(SamiInstrumentCommand.SAMI_GET_STATUS, self._parse_response_get_status)
         self._add_response_handler(SamiInstrumentCommand.SAMI_STOP_STATUS, self._parse_response_stop_status)
         self._add_response_handler(SamiInstrumentCommand.SAMI_GET_CONFIG, self._parse_response_get_config)
-        self._add_response_handler(SamiInstrumentCommand.SAMI_SET_CONFIG, self._parse_response_set_config)
+        self._add_response_handler(SamiInstrumentCommand.SAMI_SET_CONFIG, self._parse_response_newline)
         self._add_response_handler(SamiInstrumentCommand.SAMI_GET_BATTERY_VOLTAGE, self._parse_response_get_battery_voltage)
         self._add_response_handler(SamiInstrumentCommand.SAMI_GET_THERMISTOR_VOLTAGE,
                                    self._parse_response_get_thermistor_voltage)
         self._add_response_handler(SamiInstrumentCommand.SAMI_ERASE_ALL, self._parse_response_erase_all)
         self._add_response_handler(SamiInstrumentCommand.SAMI_ACQUIRE_SAMPLE, self._parse_response_sample_sami)
-        self._add_response_handler(SamiInstrumentCommand.SAMI_PUMP_OFF, self._parse_response_pump_off_sami)
+        self._add_response_handler(SamiInstrumentCommand.SAMI_PUMP_OFF, self._parse_response_newline)
 
         # Add sample handlers.
 
@@ -1718,12 +1712,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('SamiProtocol._parse_response_get_config')
         return response
 
-    def _parse_response_set_config(self, response, prompt):
-        """
-        Parse set config instrument command response
-        """
-        log.debug('SamiProtocol._parse_response_set_config')
-
     def _parse_response_erase_all(self, response, prompt):
         """
         Parse erase all instrument command response
@@ -1736,17 +1724,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('SamiProtocol._parse_response_sample_sami')
 
-    def _parse_response_pump_reagent_sami(self, response, prompt):
+    def _parse_response_newline(self, response, prompt):
         """
-        Parse response to pump reagent command
+        Parse response to command expecting a newline
+        @raises InstrumentTimeoutException if any data occurs before newline
         """
-        log.debug('SamiProtocol._parse_response_pump_reagent_sami')
-
-    def _parse_response_pump_off_sami(self, response, prompt):
-        """
-        Parse response to pump off command
-        """
-        log.debug('SamiProtocol._parse_response_pump_off_sami')
+        if response:
+            log.error('SamiProtocol._parse_response_newline: Data when only newline expected, response = %r', response)
+            raise InstrumentTimeoutException('Invalid response %s' % response)
 
     def _wakeup(self, timeout=0, delay=0):
         """
