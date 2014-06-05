@@ -459,14 +459,16 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_set(Parameter.RECEIVE_LENGTH, 8)
         self.assert_set(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 44)
         self.assert_set(Parameter.TIMING_CONTROL_REGISTER, 131)
+        self.assert_set(Parameter.COORDINATE_SYSTEM, 0)
         self.assert_set(Parameter.BIN_LENGTH, 8)
+        self.assert_set(Parameter.USER_2_SPARE, 0)
         self.assert_set(Parameter.ADJUSTMENT_SOUND_SPEED, 16658)
         self.assert_set(Parameter.VELOCITY_ADJ_TABLE, 'B50ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
                                           'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
                                           'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
                                           'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
 
-        #test read only parameters (includes immutable, when not startup)- should not be set, value should not change
+        #test read only parameters (includes immutable, when not startup)
         self.assert_set_exception(EngineeringParameter.CLOCK_SYNC_INTERVAL, '12:00:00')
         self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '12:00:00')
         self.assert_set_exception(Parameter.BLANKING_DISTANCE, 5)
@@ -479,7 +481,6 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_set_exception(Parameter.B0_1_SPARE, 1)
         self.assert_set_exception(Parameter.B1_1_SPARE, 2)
         self.assert_set_exception(Parameter.COMPASS_UPDATE_RATE, 2)
-        self.assert_set_exception(Parameter.COORDINATE_SYSTEM, 1)
         self.assert_set_exception(Parameter.NUMBER_BINS, 2)
         self.assert_set_exception(Parameter.MEASUREMENT_INTERVAL, 601)
         self.assert_set_exception(Parameter.DEPLOYMENT_NAME, 'test')
@@ -504,7 +505,6 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_set_exception(Parameter.A1_2_SPARE, 6)
         self.assert_set_exception(Parameter.B0_2_SPARE, 4)
         self.assert_set_exception(Parameter.NUMBER_SAMPLES_PER_BURST, 4)
-        self.assert_set_exception(Parameter.USER_2_SPARE, 1)
         self.assert_set_exception(Parameter.ANALOG_OUTPUT_SCALE, 234)
         self.assert_set_exception(Parameter.CORRELATION_THRESHOLD, 1234)
         self.assert_set_exception(Parameter.USER_3_SPARE, 1)
