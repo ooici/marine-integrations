@@ -14,6 +14,7 @@ USAGE:
 """
 
 import time
+
 import mi.instrument.noaa.botpt.ooicore.particles as particles
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger
@@ -25,12 +26,11 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverParameter, DriverConfigKey
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentDataException
-from mi.instrument.noaa.botpt.ooicore.driver import DataParticleType, NEWLINE, Parameter, Capability, InstrumentCommand, \
-    ProtocolState, ProtocolEvent, InstrumentDriver, Protocol
+from mi.instrument.noaa.botpt.ooicore.driver import NEWLINE, Parameter, Capability, InstrumentCommand, \
+    ProtocolState, ProtocolEvent, InstrumentDriver, Protocol, ParameterConstraint
 
 
 __author__ = 'Pete Cable'
@@ -38,15 +38,15 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-###
-#   Driver parameters for the tests
-###
+# ##
+# Driver parameters for the tests
+# ##
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.botpt.ooicore.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id='1D644T',
     instrument_agent_name='noaa_botpt_ooicore',
-    instrument_agent_packet_config=DataParticleType(),
+    instrument_agent_packet_config=particles.DataParticleType(),
     driver_startup_config={
         DriverConfigKey.PARAMETERS: {
             Parameter.AUTO_RELEVEL: True,
@@ -96,82 +96,74 @@ NANO_VALID_SAMPLE_02 = "NANO,P,2013/08/22 23:13:36.000,13.884067,26.172926006" +
 # START_LEVELING_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_LEVEL_ON + NEWLINE
 # STOP_LEVELING_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_LEVEL_OFF + NEWLINE
 
-BOTPT_FIREHOSE_01 = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
-BOTPT_FIREHOSE_01 += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
-BOTPT_FIREHOSE_01 += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01 += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
-BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_01 = NEWLINE.join(["NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840",
+                                  "HEAT,2013/04/19 22:54:11,-001,0001,0025",
+                                  "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642",
+                                  "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840",
+                                  "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655",
+                                  "HEAT,2013/04/19 22:54:11,-001,0001,0025"])
 
-BOTPT_FIREHOSE_02 = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_02 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
-BOTPT_FIREHOSE_02 += "LILY,2013/06/24 22:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
-BOTPT_FIREHOSE_02 += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
-BOTPT_FIREHOSE_02 += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_02 += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
-BOTPT_FIREHOSE_02 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_02 = NEWLINE.join(["NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840",
+                                  "HEAT,2013/04/19 22:54:11,-001,0001,0025",
+                                  "LILY,2013/06/24 22:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655",
+                                  "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642",
+                                  "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840",
+                                  "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655",
+                                  "HEAT,2013/04/19 22:54:11,-001,0001,0025"])
 
-DUMP_01_STATUS = \
-    "LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: Vmax:   2.50   2.50   2.50   2.50" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: N_SAMP= 360 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-" + NEWLINE
+DUMP_01_STATUS = NEWLINE.join([
+    "LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01",
+    "LILY,2013/06/24 23:35:41,*01: Vbias= 0.0000 0.0000 0.0000 0.0000",
+    "LILY,2013/06/24 23:35:41,*01: Vgain= 0.0000 0.0000 0.0000 0.0000",
+    "LILY,2013/06/24 23:35:41,*01: Vmin:  -2.50  -2.50   2.50   2.50",
+    "LILY,2013/06/24 23:35:41,*01: Vmax:   2.50   2.50   2.50   2.50",
+    "LILY,2013/06/24 23:35:41,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+    "LILY,2013/06/24 23:35:41,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+    "LILY,2013/06/24 23:35:41,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+    "LILY,2013/06/24 23:35:41,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+    "LILY,2013/06/24 23:35:41,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0",
+    "LILY,2013/06/24 23:35:41,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0",
+    "LILY,2013/06/24 23:35:41,*01: N_SAMP= 360 Xzero=  0.00 Yzero=  0.00",
+    "LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-"])
 
-DUMP_02_STATUS = \
-    "LILY,2013/06/24 23:36:05,*01: TBias: 5.00" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: ADCDelay:  310" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: PCA Model: 84833-14" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Firmware Version: 2.1 Rev D" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Calibrated in uRadian, Current Output Mode: uRadian" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Using RS232" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Real Time Clock: Installed" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Use RTC for Timing: Yes" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: External Flash: 2162688 Bytes Installed" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Flash Status (in Samples) (Used/Total): (-1/55424)" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Low Power Logger Data Rate: -1 Seconds per Sample" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Calibration method: Dynamic " + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Positive Limit=330.00   Negative Limit=-330.00 " + NEWLINE + \
-    "IRIS,2013/06/24 23:36:05, -0.0680, -0.3284,28.07,N3616" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Calibration Points:023  X: Enabled  Y: Enabled" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Uniaxial (x2) Sensor Type (1)" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: ADC: 16-bit(external)" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Compass: Installed   Magnetic Declination: 0.000000" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Compass: Xoffset:   12, Yoffset:  210, Xrange: 1371, Yrange: 1307" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Motor I_limit: 90.0mA" + NEWLINE + \
-    "LILY,2013/06/24 23:36:05,*01: Current Time: 01/11/00 02:12:32" + NEWLINE + \
-    "LILY,2013/06/24 23:36:06,*01: Supply Voltage: 11.96 Volts" + NEWLINE + \
-    "LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off" + NEWLINE + \
-    "LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes" + NEWLINE + \
-    "LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off" + NEWLINE + \
-    "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No" + NEWLINE
+DUMP_02_STATUS = NEWLINE.join([
+    "LILY,2013/06/24 23:36:05,*01: TBias: 5.00",
+    "LILY,2013/06/24 23:36:05,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0",
+    "LILY,2013/06/24 23:36:05,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0",
+    "LILY,2013/06/24 23:36:05,*01: ADCDelay:  310",
+    "LILY,2013/06/24 23:36:05,*01: PCA Model: 84833-14",
+    "LILY,2013/06/24 23:36:05,*01: Firmware Version: 2.1 Rev D",
+    "LILY,2013/06/24 23:36:05,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000",
+    "LILY,2013/06/24 23:36:05,*01: Calibrated in uRadian, Current Output Mode: uRadian",
+    "LILY,2013/06/24 23:36:05,*01: Using RS232",
+    "LILY,2013/06/24 23:36:05,*01: Real Time Clock: Installed",
+    "LILY,2013/06/24 23:36:05,*01: Use RTC for Timing: Yes",
+    "LILY,2013/06/24 23:36:05,*01: External Flash: 2162688 Bytes Installed",
+    "LILY,2013/06/24 23:36:05,*01: Flash Status (in Samples) (Used/Total): (-1/55424)",
+    "LILY,2013/06/24 23:36:05,*01: Low Power Logger Data Rate: -1 Seconds per Sample",
+    "LILY,2013/06/24 23:36:05,*01: Calibration method: Dynamic ",
+    "LILY,2013/06/24 23:36:05,*01: Positive Limit=330.00   Negative Limit=-330.00 ",
+    "IRIS,2013/06/24 23:36:05, -0.0680, -0.3284,28.07,N3616",
+    "LILY,2013/06/24 23:36:05,*01: Calibration Points:023  X: Enabled  Y: Enabled",
+    "LILY,2013/06/24 23:36:05,*01: Uniaxial (x2) Sensor Type (1)",
+    "LILY,2013/06/24 23:36:05,*01: ADC: 16-bit(external)",
+    "LILY,2013/06/24 23:36:05,*01: Compass: Installed   Magnetic Declination: 0.000000",
+    "LILY,2013/06/24 23:36:05,*01: Compass: Xoffset:   12, Yoffset:  210, Xrange: 1371, Yrange: 1307",
+    "LILY,2013/06/24 23:36:05,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0",
+    "LILY,2013/06/24 23:36:05,*01: Motor I_limit: 90.0mA",
+    "LILY,2013/06/24 23:36:05,*01: Current Time: 01/11/00 02:12:32",
+    "LILY,2013/06/24 23:36:06,*01: Supply Voltage: 11.96 Volts",
+    "LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off",
+    "LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes",
+    "LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off",
+    "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No"])
 
-LEVELING_STATUS = \
-    "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
-
-LEVELED_STATUS = \
-    "LILY,2013/06/28 17:29:21,*  -2.277,  -2.165,190.81, 25.69,,Leveled!11.87,N9651" + NEWLINE
-
-SWITCHING_STATUS = \
-    "LILY,2013/06/28 18:04:41,*  -7.390, -14.063,190.91, 25.83,,Switching to Y!11.87,N9651"
-
-X_OUT_OF_RANGE = \
-    "LILY,2013/03/22 19:07:28,*-330.000,-330.000,185.45, -6.45,,X Axis out of range, switching to Y!11.37,N9651"
-
-Y_OUT_OF_RANGE = \
-    "LILY,2013/03/22 19:07:29,*-330.000,-330.000,184.63, -6.43,,Y Axis out of range!11.34,N9651"
+LEVELING_STATUS = "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651"
+LEVELED_STATUS = "LILY,2013/06/28 17:29:21,*  -2.277,  -2.165,190.81, 25.69,,Leveled!11.87,N9651"
+SWITCHING_STATUS = "LILY,2013/06/28 18:04:41,*  -7.390, -14.063,190.91, 25.83,,Switching to Y!11.87,N9651"
+X_OUT_OF_RANGE = "LILY,2013/03/22 19:07:28,*-330.000,-330.000,185.45," + \
+                 "-6.45,,X Axis out of range, switching to Y!11.37,N9651"
+Y_OUT_OF_RANGE = "LILY,2013/03/22 19:07:29,*-330.000,-330.000,184.63, -6.43,,Y Axis out of range!11.34,N9651"
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                 #
@@ -207,6 +199,10 @@ class BotptTestMixinSub(DriverTestMixin):
         Parameter.OUTPUT_RATE: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
         Parameter.SYNC_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
     }
+
+    _samples = [LILY_VALID_SAMPLE_01, LILY_VALID_SAMPLE_02, HEAT_VALID_SAMPLE_01, HEAT_VALID_SAMPLE_02,
+                IRIS_VALID_SAMPLE_01, IRIS_VALID_SAMPLE_02, NANO_VALID_SAMPLE_01, NANO_VALID_SAMPLE_02,
+                LEVELING_STATUS, SWITCHING_STATUS, LEVELED_STATUS, X_OUT_OF_RANGE, Y_OUT_OF_RANGE]
 
     # _driver_capabilities = {
     #     # capabilities defined in the IOS
@@ -349,6 +345,43 @@ class BotptTestMixinSub(DriverTestMixin):
         particles.HEATDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True}
     }
 
+    lily_status_parameters_01 = {
+        particles.BotptStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        particles.BotptStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:35:41', REQUIRED: True},
+        particles.BotptStatusParticleKey.STATUS: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+    }
+
+    lily_status_parameters_02 = {
+        particles.BotptStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        particles.BotptStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'LILY,2013/06/24 23:36:05', REQUIRED: True},
+        particles.BotptStatusParticleKey.STATUS: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+    }
+
+    iris_status_parameters_01 = {
+        particles.BotptStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'IRIS', REQUIRED: True},
+        particles.BotptStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:35:41', REQUIRED: True},
+        particles.BotptStatusParticleKey.STATUS: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+    }
+
+    iris_status_parameters_02 = {
+        particles.BotptStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'IRIS', REQUIRED: True},
+        particles.BotptStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'LILY,2013/06/24 23:36:05', REQUIRED: True},
+        particles.BotptStatusParticleKey.STATUS: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+    }
+
+    nano_status_parameters_01 = {
+        particles.BotptStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'NANO', REQUIRED: True},
+        particles.BotptStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:35:41', REQUIRED: True},
+        particles.BotptStatusParticleKey.STATUS: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+    }
+
+    syst_status_parameters_01 = {
+        particles.BotptStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'SYST', REQUIRED: True},
+        particles.BotptStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'LILY,2013/06/24 23:36:05', REQUIRED: True},
+        particles.BotptStatusParticleKey.STATUS: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+    }
+
+
     def assert_particle(self, data_particle, particle_type, particle_keys, sample_data, verify_values=False):
         """
         Verify sample particle
@@ -363,36 +396,60 @@ class BotptTestMixinSub(DriverTestMixin):
         self.assert_data_particle_parameters(data_particle, sample_data, verify_values)
 
     def assert_particle_lily_sample_01(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.LILY_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.LILY_SAMPLE,
                              particles.LILYDataParticleKey, self.lily_sample_parameters_01, verify_values)
 
     def assert_particle_lily_sample_02(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.LILY_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.LILY_SAMPLE,
                              particles.LILYDataParticleKey, self.lily_sample_parameters_02, verify_values)
 
     def assert_particle_nano_sample_01(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.NANO_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.NANO_SAMPLE,
                              particles.NANODataParticleKey, self.nano_sample_parameters_01, verify_values)
 
     def assert_particle_nano_sample_02(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.NANO_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.NANO_SAMPLE,
                              particles.NANODataParticleKey, self.nano_sample_parameters_02, verify_values)
 
     def assert_particle_iris_sample_01(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.IRIS_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.IRIS_SAMPLE,
                              particles.IRISDataParticleKey, self.iris_sample_parameters_01, verify_values)
 
     def assert_particle_iris_sample_02(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.IRIS_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.IRIS_SAMPLE,
                              particles.IRISDataParticleKey, self.iris_sample_parameters_02, verify_values)
 
     def assert_particle_heat_sample_01(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.IRIS_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.IRIS_SAMPLE,
                              particles.HEATDataParticleKey, self.heat_sample_parameters_01, verify_values)
 
     def assert_particle_heat_sample_02(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.IRIS_SAMPLE,
+        self.assert_particle(data_particle, particles.DataParticleType.IRIS_SAMPLE,
                              particles.HEATDataParticleKey, self.heat_sample_parameters_02, verify_values)
+
+    def assert_particle_lily_status_01(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, particles.DataParticleType.LILY_STATUS1,
+                             particles.BotptStatusParticleKey, self.lily_status_parameters_01, verify_values)
+
+    def assert_particle_lily_status_02(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, particles.DataParticleType.LILY_STATUS2,
+                             particles.BotptStatusParticleKey, self.lily_status_parameters_02, verify_values)
+
+    def assert_particle_iris_status_01(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, particles.DataParticleType.IRIS_STATUS1,
+                             particles.BotptStatusParticleKey, self.iris_status_parameters_01, verify_values)
+
+    def assert_particle_iris_status_02(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, particles.DataParticleType.IRIS_STATUS2,
+                             particles.BotptStatusParticleKey, self.iris_status_parameters_02, verify_values)
+
+    def assert_particle_syst_status(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, particles.DataParticleType.SYST_STATUS,
+                             particles.BotptStatusParticleKey, self.syst_status_parameters_01, verify_values)
+
+    def assert_particle_nano_status(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, particles.DataParticleType.NANO_STATUS,
+                             particles.BotptStatusParticleKey, self.nano_status_parameters_01, verify_values)
 
 
 ###############################################################################
@@ -438,7 +495,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BotptTestMixinSub):
 
     def test_combined_samples(self):
         """
-        Firehose should produce 7 chunks
+        Verify combined samples produce the correct number of chunks
         """
         chunker = StringChunker(Protocol.sieve_function)
         ts = self.get_ntp_timestamp()
@@ -459,82 +516,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BotptTestMixinSub):
 
             self.assertEqual(len(results), num_samples)
 
-    def test_leveling_status(self):
+    def test_chunker(self):
         chunker = StringChunker(Protocol.sieve_function)
-
-        sample = LEVELING_STATUS
-
         ts = self.get_ntp_timestamp()
-        chunker.add_chunk(sample, ts)
 
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample)
-        self.assertEqual(timestamp, ts)
-
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, None)
-
-    def test_data_on_response(self):
-        """
-        Verify that the driver correctly parses the DATA_ON response
-        """
-        driver = self.test_connect()
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
-
-    def test_data_on_response_with_data(self):
-        """
-        Verify that the driver correctly parses the DATA_ON response
-        when a data packet is right in front of it
-        """
-        driver = self.test_connect()
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, VALID_SAMPLE_01)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
-
-    def test_status_01(self):
-        """
-        Verify that the driver correctly parses the DUMP-SETTINGS response
-        """
-        driver = self.test_connect()
-        self._send_port_agent_packet(driver, DUMP_01_STATUS + NEWLINE + DUMP_02_COMMAND_RESPONSE)
-
-    def test_status_02(self):
-        """
-        Verify that the driver correctly parses the DUMP2 response
-        """
-        driver = self.test_connect()
-        self._send_port_agent_packet(driver, DUMP_02_STATUS + NEWLINE + DUMP_02_COMMAND_RESPONSE)
-
-    def test_data_off_response(self):
-        """
-        Verify that the driver correctly parses the DATA_OFF response
-        """
-        driver = self.test_connect()
-        log.debug("DATA OFF command response: %s", DATA_OFF_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_OFF_COMMAND_RESPONSE)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_OFF))
-
-    def test_dump_settings_response(self):
-        """
-        Verify that the driver correctly parses the DUMP_SETTINGS response
-        """
-        driver = self.test_connect()
-        log.debug("DUMP_SETTINGS_01 command response: %s", DUMP_01_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_01_COMMAND_RESPONSE)
-        response = driver._protocol._get_response(expected_prompt=LILY_DUMP_01)
-        self.assertTrue(response[1].endswith(LILY_DUMP_01))
-
-        log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_02_COMMAND_RESPONSE)
-        response = driver._protocol._get_response(expected_prompt=LILY_DUMP_02)
-        self.assertTrue(response[1].endswith(LILY_DUMP_02))
+        for sample in self._samples:
+            chunker.add_chunk(sample, ts)
+            (timestamp, result) = chunker.get_next_data()
+            self.assertEqual(result, sample)
+            self.assertEqual(timestamp, ts)
+            (timestamp, result) = chunker.get_next_data()
+            self.assertEqual(result, None)
 
     def test_start_stop_autosample(self):
         driver = self.test_connect()
@@ -617,76 +609,41 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
 
     def test_get(self):
         self.assert_initialize_driver()
-        self.assert_get(Parameter.AUTO_RELEVEL, True)
-        self.assert_get(Parameter.XTILT_TRIGGER,
-                        self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.XTILT_TRIGGER])
-        self.assert_get(Parameter.YTILT_TRIGGER,
-                        self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.YTILT_TRIGGER])
+        for param, value in self.test_config.driver_startup_config['parameters'].items():
+            self.assert_get(param, value)
 
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
         """
         self.assert_initialize_driver()
+        constraints = ParameterConstraint.dict()
+        parameters = Parameter.dict()
+        startup_config = self.test_config.driver_startup_config['parameters']
 
-        self.assert_set(Parameter.AUTO_RELEVEL, False)
-        self.assert_set(Parameter.XTILT_TRIGGER, 200)
-        self.assert_set(Parameter.YTILT_TRIGGER, 200)
-        self.assert_set(Parameter.LEVELING_TIMEOUT, 600)
-
-    def test_autosample_leveling(self):
-        """
-        @brief Test for autosample state leveling
-        """
-        # This test should be run PRIOR to test_auto_relevel, as it will
-        # increase the likelihood that the sensor will be out of level
-        # enough to trigger an auto-relevel.
-        self.assert_initialize_driver()
-
-        # Begin autosampling
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-        log.debug('START_AUTOSAMPLE returned: %r', response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 5)
-
-        #Issue start leveling command
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
-        log.debug("START_LEVELING returned: %r", response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 5)
-
-        # Issue stop leveling command
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
-        log.debug("STOP_LEVELING returned: %r", response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 5)
-
-    def test_command_leveling(self):
-        """
-        @brief Test for command state leveling
-        """
-        # This test should be run PRIOR to test_auto_relevel, as it will
-        # increase the likelihood that the sensor will be out of level
-        # enough to trigger an auto-relevel.
-        self.assert_initialize_driver()
-
-        #Issue start leveling command
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
-        log.debug("START_LEVELING returned: %r", response)
-        self.assert_state_change(ProtocolState.COMMAND_LEVELING, 30)
-
-        # Issue stop leveling command
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
-        log.debug("STOP_LEVELING returned: %r", response)
-        self.assert_state_change(ProtocolState.COMMAND, 30)
+        for key in constraints:
+            _type, minimum, maximum = constraints[key]
+            key = parameters[key]
+            if _type in [int, float]:
+                # assert we can set in range
+                self.assert_set(key, maximum - 1)
+                # assert exception when out of range
+                self.assert_set_exception(key, maximum + 1)
+            elif _type == bool:
+                # assert we can toggle a boolean parameter
+                if startup_config[key]:
+                    self.assert_set(key, False)
+                else:
+                    self.assert_set(key, True)
+            # assert bad types throw an exception
+            self.assert_set_exception(key, 'BOGUS')
 
     def test_auto_relevel(self):
         """
         @brief Test for verifying auto relevel
         """
         self.assert_initialize_driver()
-
-        # Begin autosampling
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-        log.debug('START_AUTOSAMPLE returned: %r', response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+        self.assert_driver_command(Capability.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=5)
 
         # set the leveling timeout low, so we're not here for long
         self.assert_set(Parameter.LEVELING_TIMEOUT, 5, no_get=True)
@@ -697,14 +654,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         # leveling before the triggers have been reset to 300
         self.assert_set(Parameter.XTILT_TRIGGER, 0, no_get=True)
 
-        # verify we have started leveling
-        self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
+        self.assert_async_particle_generation(particles.LilyLevelingParticle,
+                                              self.assert_particle_lily_leveling)
 
         # Now set the XTILT back to normal so that the driver will not
         # automatically start the re-leveling operation
         self.assert_set(Parameter.XTILT_TRIGGER, 300, no_get=True)
 
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+        # wait for a sample particle to indicate leveling is complete
+        self.assert_async_particle_generation(particles.LilySampleParticle,
+                                              self.assert_particle_lily_sample_01)
 
     def test_autosample(self):
         """
@@ -712,13 +671,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_AUTOSAMPLE)
-        for particle_type, assert_func in [(DataParticleType.LILY_SAMPLE, self.assert_particle_lily_sample_01),
-                                           (DataParticleType.HEAT_SAMPLE, self.assert_particle_heat_sample_01),
-                                           (DataParticleType.IRIS_SAMPLE, self.assert_particle_iris_sample_01),
-                                           (DataParticleType.NANO_SAMPLE, self.assert_particle_nano_sample_01)]:
+
+        for particle_type, assert_func in [
+            (particles.DataParticleType.LILY_SAMPLE, self.assert_particle_lily_sample_01),
+            (particles.DataParticleType.HEAT_SAMPLE, self.assert_particle_heat_sample_01),
+            (particles.DataParticleType.IRIS_SAMPLE, self.assert_particle_iris_sample_01),
+            (particles.DataParticleType.NANO_SAMPLE, self.assert_particle_nano_sample_01)
+        ]:
             self.assert_async_particle_generation(particle_type, assert_func, particle_count=5, timeout=15)
-        self.assert_driver_command(Capability.STOP_AUTOSAMPLE)
-        self.assert_state_change(ProtocolState.COMMAND, 1)
+
+        self.assert_driver_command(Capability.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
     def test_acquire_status(self):
         """
@@ -728,9 +690,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
 
         # Issue acquire status command
 
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.LILY_STATUS_01, self.assert_particle_status_01)
-        self.assert_async_particle_generation(DataParticleType.LILY_STATUS_02, self.assert_particle_status_02)
+        self.assert_driver_command(Capability.ACQUIRE_STATUS)
+        for particle_type, assert_func in [
+            (particles.DataParticleType.LILY_STATUS1, self.assert_particle_lily_status_01),
+            (particles.DataParticleType.LILY_STATUS2, self.assert_particle_lily_status_02),
+            (particles.DataParticleType.IRIS_STATUS1, self.assert_particle_iris_status_01),
+            (particles.DataParticleType.IRIS_STATUS2, self.assert_particle_iris_status_02),
+            (particles.DataParticleType.NANO_STATUS, self.assert_particle_nano_status),
+            (particles.DataParticleType.SYST_STATUS, self.assert_particle_syst_status),
+        ]:
+            self.assert_async_particle_generation(particle_type, assert_func)
 
     def test_leveling_complete(self):
         """
@@ -738,14 +707,19 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         """
         self.assert_initialize_driver()
 
-        #Issue start leveling command
+        # go to autosample
+        self.assert_driver_command(Capability.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=5)
 
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
-        log.debug("START_LEVELING returned: %r", response)
+        #Issue start leveling command
+        self.assert_driver_command(Capability.START_LEVELING)
 
         # Leveling should complete or abort after DEFAULT_LEVELING_TIMEOUT seconds
         timeout = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.LEVELING_TIMEOUT]
         self.assert_state_change(ProtocolState.COMMAND, timeout)
+
+        # wait for a sample particle to indicate leveling is complete
+        self.assert_async_particle_generation(particles.LilySampleParticle,
+                                              self.assert_particle_lily_sample_01)
 
 
 ###############################################################################

@@ -8,10 +8,12 @@ Release notes:
 
 import re
 import time
+
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException
 from mi.core.log import get_logging_metaclass
+
 
 __author__ = 'Pete Cable'
 __license__ = 'Apache 2.0'
@@ -46,6 +48,7 @@ class DataParticleType(BaseEnum):
     LILY_STATUS1 = 'botpt_lily_status1'
     LILY_STATUS2 = 'botpt_lily_status2'
     NANO_STATUS = 'botpt_nano_status'
+    SYST_STATUS = 'botpt_syst_status'
 
 
 class IRISDataParticleKey(BaseEnum):
@@ -106,28 +109,26 @@ class BotptStatusParticleKey(BaseEnum):
 class BotptDataParticle(DataParticle):
     _compiled_regex = None
     __metaclass__ = METALOGGER
+    _compile_flags = None
 
     def __init__(self, *args, **kwargs):
-        self.match = None
         super(BotptDataParticle, self).__init__(*args, **kwargs)
+        self.match = self.regex_compiled().match(self.raw_data)
+        if not self.match:
+            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
 
     @staticmethod
     def regex():
         raise NotImplemented()
 
-    def _encode_all(self):
-        raise NotImplemented()
-
     @classmethod
     def regex_compiled(cls):
         if cls._compiled_regex is None:
-            cls._compiled_regex = re.compile(cls.regex())
+            if cls._compile_flags is None:
+                cls._compiled_regex = re.compile(cls.regex())
+            else:
+                cls._compiled_regex = re.compile(cls.regex(), cls._compile_flags)
         return cls._compiled_regex
-
-    def get_match(self):
-        self.match = self.regex_compiled().match(self.raw_data)
-        if not self.match:
-            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
 
     def set_botpt_timestamp(self):
         ts = self.match.group('date_time')
@@ -143,8 +144,6 @@ class BotptDataParticle(DataParticle):
         """
         @throws SampleException If there is a problem with sample creation
         """
-        self.get_match()
-
         try:
             self.set_botpt_timestamp()
             result = self._encode_all()
@@ -152,8 +151,25 @@ class BotptDataParticle(DataParticle):
             raise SampleException("Exception [%s] while converting data: [%s]" % (e, self.raw_data))
         return result
 
+    def _encode_all(self):
+        """
+        Default encode all implementation.  Covers all status particles, should be overridden for samples.
+        """
+        name = self.match.group('name')
+        status = self.match.group('status')
+        status = NEWLINE.join(line for line in status.split(NEWLINE) if line.startswith(name))
+        try:
+            ts = self.match.group('date_time')
+        except IndexError:
+            ts = None
+        return [
+            self._encode_value(BotptStatusParticleKey.SENSOR_ID, name, str),
+            self._encode_value(BotptStatusParticleKey.TIME, ts, str),
+            self._encode_value(BotptStatusParticleKey.STATUS, status, str)
+        ]
 
-class IRISDataParticle(BotptDataParticle):
+
+class IrisSampleParticle(BotptDataParticle):
     _data_particle_type = DataParticleType.IRIS_SAMPLE
 
     @staticmethod
@@ -185,7 +201,7 @@ class IRISDataParticle(BotptDataParticle):
         ]
 
 
-class HEATDataParticle(BotptDataParticle):
+class HeatSampleParticle(BotptDataParticle):
     _data_particle_type = DataParticleType.HEAT_SAMPLE
 
     @staticmethod
@@ -215,12 +231,12 @@ class HEATDataParticle(BotptDataParticle):
         ]
 
 
-class LILYDataParticle(BotptDataParticle):
+class LilySampleParticle(BotptDataParticle):
     _data_particle_type = DataParticleType.LILY_SAMPLE
 
     def __init__(self, *args, **kwargs):
         self.out_of_range = kwargs.get('out_of_range')
-        super(LILYDataParticle, self).__init__(*args, **kwargs)
+        super(LilySampleParticle, self).__init__(*args, **kwargs)
 
     @staticmethod
     def regex():
@@ -256,12 +272,43 @@ class LILYDataParticle(BotptDataParticle):
         ]
 
 
+class NanoSampleParticle(BotptDataParticle):
+    _data_particle_type = DataParticleType.NANO_SAMPLE
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328
+        @return: regex string
+        """
+        pattern = '''
+        (?x)
+        NANO,
+        (?P<pps_sync>    V|P             ),
+        (?P<date_time>  %(date_time)s   ),
+        (?P<pressure>   %(float)s       ), # PSI
+        (?P<temp>       %(float)s       )  # deg C
+        %(newline)s
+        ''' % common_regex_items
+        return pattern
+
+    def _encode_all(self):
+        return [
+            self._encode_value(NANODataParticleKey.SENSOR_ID, 'NANO', str),
+            self._encode_value(NANODataParticleKey.TIME, self.match.group('date_time'), str),
+            self._encode_value(NANODataParticleKey.PRESSURE, self.match.group('pressure'), float),
+            self._encode_value(NANODataParticleKey.TEMP, self.match.group('temp'), float),
+            self._encode_value(NANODataParticleKey.PPS_SYNC, self.match.group('pps_sync'), str),
+        ]
+
+
 # ##############################################################################
 # Leveling Particles
 ###############################################################################
 
 
-class LILYLevelingParticle(BotptDataParticle):
+class LilyLevelingParticle(BotptDataParticle):
     _data_particle_type = DataParticleType.LILY_LEVELING
 
     @staticmethod
@@ -293,6 +340,7 @@ class LILYLevelingParticle(BotptDataParticle):
         return pattern
 
     def _encode_all(self):
+        # handle the mangled leveling status...
         status = None
         supply_volts = self.match.group('volts')
         if supply_volts.startswith(','):
@@ -310,32 +358,305 @@ class LILYLevelingParticle(BotptDataParticle):
         ]
 
 
-class NANODataParticle(BotptDataParticle):
-    _data_particle_type = DataParticleType.NANO_SAMPLE
+# ##############################################################################
+# Status Particles
+###############################################################################
+
+
+class IrisStatusParticle1(BotptDataParticle):
+    _data_particle_type = DataParticleType.IRIS_STATUS1
+    _compile_flags = re.DOTALL
 
     @staticmethod
     def regex():
         """
         Regular expression to match a sample pattern
-        NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328
         @return: regex string
-        """
-        pattern = '''
-        (?x)
-        NANO,
-        (?P<pps_sync>    V|P             ),
-        (?P<date_time>  %(date_time)s   ),
-        (?P<pressure>   %(float)s       ), # PSI
-        (?P<temp>       %(float)s       )  # deg C
-        %(newline)s
-        ''' % common_regex_items
-        return pattern
 
-    def _encode_all(self):
-        return [
-            self._encode_value(NANODataParticleKey.SENSOR_ID, 'NANO', str),
-            self._encode_value(NANODataParticleKey.TIME, self.match.group('date_time'), str),
-            self._encode_value(NANODataParticleKey.PRESSURE, self.match.group('pressure'), float),
-            self._encode_value(NANODataParticleKey.TEMP, self.match.group('temp'), float),
-            self._encode_value(NANODataParticleKey.PPS_SYNC, self.match.group('pps_sync'), str),
-        ]
+        Sample Data:
+        IRIS,2013/06/19 21:13:00,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01
+        IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
+        IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
+        IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50
+        IRIS,2013/06/12 18:03:44,*01: Vmax:   2.50   2.50   2.50   2.50
+        IRIS,2013/06/12 18:03:44,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
+        IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
+        IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
+        IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-
+        """
+        return r'''
+            (?x)                                # verbose
+            (?P<name>       IRIS)(,)
+            (?P<date_time>  %(date_time)s)(,)
+            (?P<status>     \*APPLIED.*?FV-)
+            ''' % common_regex_items
+
+
+class IrisStatusParticle2(BotptDataParticle):
+    _data_particle_type = DataParticleType.IRIS_STATUS2
+    _compile_flags = re.DOTALL
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+
+        Sample Data:
+        IRIS,2013/06/12 23:55:09,*01: TBias: 8.85
+        IRIS,2013/06/12 23:55:09,*Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
+        IRIS,2013/06/12 23:55:09,*Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
+        IRIS,2013/06/12 18:04:01,*01: ADCDelay:  310
+        IRIS,2013/06/12 18:04:01,*01: PCA Model: 90009-01
+        IRIS,2013/06/12 18:04:01,*01: Firmware Version: 5.2 Rev N
+        LILY,2013/06/12 18:04:01,-330.000,-247.647,290.73, 24.50,11.88,N9656
+        IRIS,2013/06/12 18:04:01,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
+        IRIS,2013/06/12 18:04:01,*01: Output Mode: Degrees
+        IRIS,2013/06/12 18:04:01,*01: Calibration performed in Degrees
+        IRIS,2013/06/12 18:04:01,*01: Control: Off
+        IRIS,2013/06/12 18:04:01,*01: Using RS232
+        IRIS,2013/06/12 18:04:01,*01: Real Time Clock: Not Installed
+        IRIS,2013/06/12 18:04:01,*01: Use RTC for Timing: No
+        IRIS,2013/06/12 18:04:01,*01: External Flash Capacity: 0 Bytes(Not Installed)
+        IRIS,2013/06/12 18:04:01,*01: Relay Thresholds:
+        IRIS,2013/06/12 18:04:01,*01:   Xpositive= 1.0000   Xnegative=-1.0000
+        IRIS,2013/06/12 18:04:01,*01:   Ypositive= 1.0000   Ynegative=-1.0000
+        IRIS,2013/06/12 18:04:01,*01: Relay Hysteresis:
+        IRIS,2013/06/12 18:04:01,*01:   Hysteresis= 0.0000
+        IRIS,2013/06/12 18:04:01,*01: Calibration method: Dynamic
+        IRIS,2013/06/12 18:04:01,*01: Positive Limit=26.25   Negative Limit=-26.25
+        IRIS,2013/06/12 18:04:02,*01: Calibration Points:025  X: Disabled  Y: Disabled
+        IRIS,2013/06/12 18:04:02,*01: Biaxial Sensor Type (0)
+        IRIS,2013/06/12 18:04:02,*01: ADC: 12-bit (internal)
+        IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree
+        HEAT,2013/06/12 18:04:02,-001,0001,0024
+        IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372
+        IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)
+        """
+        return r'''
+            (?x)                                # verbose
+            (?P<name>       IRIS)(,)
+            (?P<date_time>  %(date_time)s)(,)
+            (?P<status>     \*01:\ TBias.*?\(arcseconds/bit\))
+            ''' % common_regex_items
+
+
+class LilyStatusParticle1(BotptDataParticle):
+    _data_particle_type = DataParticleType.LILY_STATUS1
+    _compile_flags = re.DOTALL
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+
+        Sample Data:
+        LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01
+        LILY,2013/06/24 23:35:41,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
+        LILY,2013/06/24 23:35:41,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
+        LILY,2013/06/24 23:35:41,*01: Vmin:  -2.50  -2.50   2.50   2.50
+        LILY,2013/06/24 23:35:41,*01: Vmax:   2.50   2.50   2.50   2.50
+        LILY,2013/06/24 23:35:41,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2013/06/24 23:35:41,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2013/06/24 23:35:41,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2013/06/24 23:35:41,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2013/06/24 23:35:41,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
+        LILY,2013/06/24 23:35:41,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
+        LILY,2013/06/24 23:35:41,*01: N_SAMP= 360 Xzero=  0.00 Yzero=  0.00
+        LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-
+        """
+        return r'''
+            (?x)                                # verbose
+            (?P<name>       LILY)(,)
+            (?P<date_time>  %(date_time)s)(,)
+            (?P<status>     \*APPLIED.*?FV-)
+            ''' % common_regex_items
+
+
+class LilyStatusParticle2(BotptDataParticle):
+    _data_particle_type = DataParticleType.LILY_STATUS2
+    _compile_flags = re.DOTALL
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+
+        Sample Data:
+        LILY,2013/06/24 23:36:05,*01: TBias: 5.00
+        LILY,2013/06/24 23:36:05,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
+        LILY,2013/06/24 23:36:05,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
+        LILY,2013/06/24 23:36:05,*01: ADCDelay:  310
+        LILY,2013/06/24 23:36:05,*01: PCA Model: 84833-14
+        LILY,2013/06/24 23:36:05,*01: Firmware Version: 2.1 Rev D
+        LILY,2013/06/24 23:36:05,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
+        LILY,2013/06/24 23:36:05,*01: Calibrated in uRadian, Current Output Mode: uRadian
+        LILY,2013/06/24 23:36:05,*01: Using RS232
+        LILY,2013/06/24 23:36:05,*01: Real Time Clock: Installed
+        LILY,2013/06/24 23:36:05,*01: Use RTC for Timing: Yes
+        LILY,2013/06/24 23:36:05,*01: External Flash: 2162688 Bytes Installed
+        LILY,2013/06/24 23:36:05,*01: Flash Status (in Samples) (Used/Total): (-1/55424)
+        LILY,2013/06/24 23:36:05,*01: Low Power Logger Data Rate: -1 Seconds per Sample
+        LILY,2013/06/24 23:36:05,*01: Calibration method: Dynamic 
+        LILY,2013/06/24 23:36:05,*01: Positive Limit=330.00   Negative Limit=-330.00 
+        IRIS,2013/06/24 23:36:05, -0.0680, -0.3284,28.07,N3616
+        LILY,2013/06/24 23:36:05,*01: Calibration Points:023  X: Enabled  Y: Enabled
+        LILY,2013/06/24 23:36:05,*01: Uniaxial (x2) Sensor Type (1)
+        LILY,2013/06/24 23:36:05,*01: ADC: 16-bit(external)
+        LILY,2013/06/24 23:36:05,*01: Compass: Installed   Magnetic Declination: 0.000000
+        LILY,2013/06/24 23:36:05,*01: Compass: Xoffset:   12, Yoffset:  210, Xrange: 1371, Yrange: 1307
+        LILY,2013/06/24 23:36:05,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0
+        LILY,2013/06/24 23:36:05,*01: Motor I_limit: 90.0mA
+        LILY,2013/06/24 23:36:05,*01: Current Time: 01/11/00 02:12:32
+        LILY,2013/06/24 23:36:06,*01: Supply Voltage: 11.96 Volts
+        LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off
+        LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes
+        LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off
+        LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No
+        """
+        return r'''
+            (?x)                                # verbose
+            (?P<name>       LILY)(,)
+            (?P<date_time>  %(date_time)s)(,)
+            (?P<status>     \*01:\ TBias.*?XY-MEMD:\ \S+)
+            ''' % common_regex_items
+
+
+class NanoStatusParticle(BotptDataParticle):
+    _data_particle_type = DataParticleType.NANO_STATUS
+    _compile_flags = re.DOTALL
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+
+        Sample Data:
+        NANO,*______________________________________________________________
+        NANO,*PAROSCIENTIFIC SMT SYSTEM INFORMATION
+        NANO,*Model Number: 42.4K-265
+        NANO,*Serial Number: 120785
+        NANO,*Firmware Revision: R5.20
+        NANO,*Firmware Release Date: 03-25-13
+        NANO,*PPS status: V : PPS signal NOT detected.
+        NANO,*--------------------------------------------------------------
+        NANO,*AA:7.161800     AC:7.290000     AH:160.0000     AM:0
+        NANO,*AP:0            AR:160.0000     BL:0            BR1:115200
+        NANO,*BR2:115200      BV:10.9         BX:112          C1:-9747.897
+        NANO,*C2:288.5739     C3:27200.78     CF:BA0F         CM:4
+        NANO,*CS:7412         D1:.0572567     D2:.0000000     DH:2000.000
+        NANO,*DL:0            DM:0            DO:0            DP:6
+        NANO,*DZ:.0000000     EM:0            ET:0            FD:.153479
+        NANO,*FM:0            GD:0            GE:2            GF:0
+        NANO,*GP::            GT:1            IA1:8           IA2:12
+        NANO,*IB:0            ID:1            IE:0            IK:46
+        NANO,*IM:0            IS:5            IY:0            KH:0
+        NANO,*LH:2250.000     LL:.0000000     M1:13.880032    M3:14.090198
+        NANO,*MA:             MD:0            MU:             MX:0
+        NANO,*NO:0            OI:0            OP:2100.000     OR:1.00
+        NANO,*OY:1.000000     OZ:0            PA:.0000000     PC:.0000000
+        NANO,*PF:2000.000     PI:25           PL:2400.000     PM:1.000000
+        NANO,*PO:0            PR:238          PS:0            PT:N
+        NANO,*PX:3            RE:0            RS:5            RU:0
+        NANO,*SD:12           SE:0            SI:OFF          SK:0
+        NANO,*SL:0            SM:OFF          SP:0            ST:10
+        NANO,*SU:0            T1:30.00412     T2:1.251426     T3:50.64434
+        NANO,*T4:134.5816     T5:.0000000     TC:.6781681     TF:.00
+        NANO,*TH:1,P4;>OK     TI:25           TJ:2            TP:0
+        NANO,*TQ:1            TR:952          TS:1            TU:0
+        NANO,*U0:5.839037     UE:0            UF:1.000000
+        NANO,*UL:                             UM:user         UN:1
+        NANO,*US:0            VP:4            WI:Def=15:00-061311
+        NANO,*XC:8            XD:A            XM:1            XN:0
+        NANO,*XS:0011         XX:1            Y1:-3818.141    Y2:-10271.53
+        NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0
+        NANO,*ZM:0            ZS:0            ZV:.0000000
+        """
+        return r'''
+            (?x)                                # verbose
+            (?P<name>       NANO)(,)
+            (?P<status>     \*_____.*?ZV:\S+)
+            ''' % common_regex_items
+
+    def set_botpt_timestamp(self):
+        """
+        Overridden, no timestamp in this status
+        """
+        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = self.contents[DataParticleKey.PORT_TIMESTAMP]
+
+
+class SystStatusParticle(BotptDataParticle):
+    _data_particle_type = DataParticleType.SYST_STATUS
+    _compile_flags = re.DOTALL
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+
+        Sample Data:
+        SYST,2014/04/07 20:46:35,*BOTPT BPR and tilt instrument controller
+        SYST,2014/04/07 20:46:35,*ts7550n3
+        SYST,2014/04/07 20:46:35,*System uptime
+        SYST,2014/04/07 20:46:35,* 20:17:02 up 13 days, 19:11,  0 users,  load average: 0.00, 0.00, 0.00
+        SYST,2014/04/07 20:46:35,*Memory stats
+        SYST,2014/04/07 20:46:35,*             total       used       free     shared    buffers     cached
+        SYST,2014/04/07 20:46:35,*Mem:         62888      18520      44368          0       2260       5120
+        SYST,2014/04/07 20:46:35,*-/+ buffers/cache:      11140      51748
+        SYST,2014/04/07 20:46:35,*Swap:            0          0          0
+        SYST,2014/04/07 20:46:35,*MemTotal:        62888 kB
+        SYST,2014/04/07 20:46:35,*MemFree:         44392 kB
+        SYST,2014/04/07 20:46:35,*Buffers:          2260 kB
+        SYST,2014/04/07 20:46:35,*Cached:           5120 kB
+        SYST,2014/04/07 20:46:35,*SwapCached:          0 kB
+        SYST,2014/04/07 20:46:35,*Active:          10032 kB
+        SYST,2014/04/07 20:46:35,*Inactive:         3328 kB
+        SYST,2014/04/07 20:46:35,*SwapTotal:           0 kB
+        SYST,2014/04/07 20:46:35,*SwapFree:            0 kB
+        SYST,2014/04/07 20:46:35,*Dirty:               0 kB
+        SYST,2014/04/07 20:46:35,*Writeback:           0 kB
+        SYST,2014/04/07 20:46:35,*AnonPages:        6000 kB
+        SYST,2014/04/07 20:46:35,*Mapped:           3976 kB
+        SYST,2014/04/07 20:46:35,*Slab:             3128 kB
+        SYST,2014/04/07 20:46:35,*SReclaimable:      800 kB
+        SYST,2014/04/07 20:46:35,*SUnreclaim:       2328 kB
+        SYST,2014/04/07 20:46:35,*PageTables:        512 kB
+        SYST,2014/04/07 20:46:35,*NFS_Unstable:        0 kB
+        SYST,2014/04/07 20:46:35,*Bounce:              0 kB
+        SYST,2014/04/07 20:46:35,*CommitLimit:     31444 kB
+        SYST,2014/04/07 20:46:35,*Committed_AS:   167276 kB
+        SYST,2014/04/07 20:46:35,*VmallocTotal:   188416 kB
+        SYST,2014/04/07 20:46:35,*VmallocUsed:         0 kB
+        SYST,2014/04/07 20:46:35,*VmallocChunk:   188416 kB
+        SYST,2014/04/07 20:46:35,*Listening network services
+        SYST,2014/04/07 20:46:35,*tcp        0      0 *:9337-commands         *:*                     LISTEN
+        SYST,2014/04/07 20:46:35,*tcp        0      0 *:9338-data             *:*                     LISTEN
+        SYST,2014/04/07 20:46:35,*udp        0      0 *:323                   *:*
+        SYST,2014/04/07 20:46:35,*udp        0      0 *:54361                 *:*
+        SYST,2014/04/07 20:46:35,*udp        0      0 *:mdns                  *:*
+        SYST,2014/04/07 20:46:35,*udp        0      0 *:ntp                   *:*
+        SYST,2014/04/07 20:46:35,*Data processes
+        SYST,2014/04/07 20:46:35,*root       643  0.0  2.2  20100  1436 ?        Sl   Mar25   0:01 /root/bin/COMMANDER
+        SYST,2014/04/07 20:46:35,*root       647  0.0  2.5  21124  1604 ?        Sl   Mar25   0:16 /root/bin/SEND_DATA
+        SYST,2014/04/07 20:46:35,*root       650  0.0  2.2  19960  1388 ?        Sl   Mar25   0:00 /root/bin/DIO_Rel1
+        SYST,2014/04/07 20:46:35,*root       654  0.0  2.1  19960  1360 ?        Sl   Mar25   0:02 /root/bin/HEAT
+        SYST,2014/04/07 20:46:35,*root       667  0.0  2.2  19960  1396 ?        Sl   Mar25   0:00 /root/bin/IRIS
+        SYST,2014/04/07 20:46:35,*root       672  0.0  2.2  19960  1396 ?        Sl   Mar25   0:01 /root/bin/LILY
+        SYST,2014/04/07 20:46:35,*root       678  0.0  2.2  19964  1400 ?        Sl   Mar25   0:12 /root/bin/NANO
+        SYST,2014/04/07 20:46:35,*root       685  0.0  2.2  19960  1396 ?        Sl   Mar25   0:00 /root/bin/RESO
+        SYST,2014/04/07 20:46:35,*root      7860  0.0  0.9   1704   604 ?        S    20:17   0:00 grep root/bin
+        """
+        return r'''
+            (?x)                                # verbose
+            (?P<name>       SYST)(,)
+            (?P<date_time>  %(date_time)s)(,)
+            (?P<status>     \*BOTPT.*?root/bin)
+            ''' % common_regex_items

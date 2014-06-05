@@ -6,8 +6,8 @@
 Release notes:
 """
 
-import re
 import time
+
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 import ntplib
 from mi.core.common import BaseEnum, Units, Prefixes
@@ -19,13 +19,11 @@ from mi.core.instrument.instrument_driver import DriverEvent, SingleConnectionIn
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import NotImplementedException, InstrumentParameterException, InstrumentProtocolException
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentParameterException, InstrumentProtocolException
 from mi.core.instrument.driver_dict import DriverDictKey
 import mi.instrument.noaa.botpt.ooicore.particles as particles
 import mi.core.log
+
 
 __author__ = 'Pete Cable'
 __license__ = 'Apache 2.0'
@@ -91,6 +89,8 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    START_LEVELING = ProtocolEvent.START_LEVELING
+    STOP_LEVELING = ProtocolEvent.STOP_LEVELING
 
 
 class Parameter(DriverParameter):
@@ -106,12 +106,29 @@ class Parameter(DriverParameter):
     SYNC_INTERVAL = 'time_sync_interval'
     HEAT_DURATION = "heat_duration"
 
+    @classmethod
+    def reverse_dict(cls):
+        return dict((v, k) for k, v in cls.dict().iteritems())
+
+
+class ParameterConstraint(BaseEnum):
+    """
+    Constraints for parameters
+    (type, min, max)
+    """
+    XTILT_TRIGGER = (float, 0, 330)
+    YTILT_TRIGGER = (float, 0, 330)
+    LEVELING_TIMEOUT = (int, 60, 6000)
+    OUTPUT_RATE = (int, 1, 40)
+    SYNC_INTERVAL = (int, 600, 86400)
+    HEAT_DURATION = (int, 1, 8)
+
 
 class InstrumentCommand(BaseEnum):
     LILY_ON = LILY_STRING + LILY_COMMAND + 'C2'  # turns on continuous data
     LILY_OFF = LILY_STRING + LILY_COMMAND + 'C-OFF'  # turns off continuous data
-    LILY_DUMP1 = LILY_STRING + LILY_COMMAND + 'DUMP_SETTINGS'  # outputs current settings
-    LILY_DUMP2 = LILY_STRING + LILY_COMMAND + 'DUMP2'  # outputs current extended settings
+    LILY_DUMP1 = LILY_STRING + LILY_COMMAND + '-DUMP-SETTINGS'  # outputs current settings
+    LILY_DUMP2 = LILY_STRING + LILY_COMMAND + '-DUMP2'  # outputs current extended settings
     LILY_START_LEVELING = LILY_STRING + LILY_COMMAND + '-LEVEL,1'  # starts leveling
     LILY_STOP_LEVELING = LILY_STRING + LILY_COMMAND + '-LEVEL,0'  # stops leveling
     NANO_ON = NANO_STRING + NANO_COMMAND + 'E4'  # turns on continuous data
@@ -121,7 +138,7 @@ class InstrumentCommand(BaseEnum):
     NANO_SET_RATE = NANO_STRING + '*0100EW*0100TH='  # sets the sample rate in Hz
     IRIS_ON = IRIS_STRING + IRIS_COMMAND + 'C2'  # turns on continuous data
     IRIS_OFF = IRIS_STRING + IRIS_COMMAND + 'C-OFF'  # turns off continuous data
-    IRIS_DUMP1 = IRIS_STRING + IRIS_COMMAND + '-DUMP_SETTINGS'  # outputs current settings
+    IRIS_DUMP1 = IRIS_STRING + IRIS_COMMAND + '-DUMP-SETTINGS'  # outputs current settings
     IRIS_DUMP2 = IRIS_STRING + IRIS_COMMAND + '-DUMP2'  # outputs current extended settings
     HEAT = HEAT_STRING  # turns the heater on; HEAT,<number of hours>
     SYST_DUMP1 = SYST_STRING + '1'
@@ -132,14 +149,6 @@ class Response(BaseEnum):
     LILY_OFF = LILY_COMMAND + 'C-OFF'
     IRIS_ON = IRIS_COMMAND + 'C2'
     IRIS_OFF = IRIS_COMMAND + 'C-OFF'
-
-
-class DataParticleType(BaseEnum):
-    NANO_SAMPLE = 'botpt_nano_sample'
-    IRIS_SAMPLE = 'botpt_iris_sample'
-    LILY_SAMPLE = 'botpt_lily_sample'
-    HEAT_SAMPLE = 'botpt_heat_sample'
-    BOTPT_STATUS = 'botpt_status'
 
 
 ###############################################################################
@@ -283,16 +292,16 @@ class Protocol(CommandResponseInstrumentProtocol):
     @staticmethod
     def sieve_function(raw_data):
         """
-        The method that filters LILY chunks
+        Sort data in the chunker...
         """
         matchers = []
         return_list = []
 
-        matchers.append(particles.HEATDataParticle.regex_compiled())
-        matchers.append(particles.IRISDataParticle.regex_compiled())
-        matchers.append(particles.NANODataParticle.regex_compiled())
-        matchers.append(particles.LILYDataParticle.regex_compiled())
-        matchers.append(particles.LILYLevelingParticle.regex_compiled())
+        matchers.append(particles.HeatSampleParticle.regex_compiled())
+        matchers.append(particles.IrisSampleParticle.regex_compiled())
+        matchers.append(particles.NanoSampleParticle.regex_compiled())
+        matchers.append(particles.LilySampleParticle.regex_compiled())
+        matchers.append(particles.LilyLevelingParticle.regex_compiled())
 
 
         for matcher in matchers:
@@ -303,11 +312,11 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _got_chunk(self, chunk, ts):
         possible_particles = [
-            (particles.LILYDataParticle, None), #self._check_for_autolevel),
-            (particles.LILYLevelingParticle, None), # self._check_completed_leveling),
-            (particles.HEATDataParticle, None),
-            (particles.IRISDataParticle, None),
-            (particles.NANODataParticle, None),
+            (particles.LilySampleParticle, None),  # self._check_for_autolevel),
+            (particles.LilyLevelingParticle, None),  # self._check_completed_leveling),
+            (particles.HeatSampleParticle, None),
+            (particles.IrisSampleParticle, None),
+            (particles.NanoSampleParticle, None),
         ]
 
         for particle_type, func in possible_particles:
@@ -416,9 +425,34 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._verify_set_values(params)
         self._verify_not_readonly(*args, **kwargs)
-
         old_config = self._param_dict.get_config()
-        for key, value in params.items():
+
+        # check if in range
+        constraints = ParameterConstraint.dict()
+        parameters = Parameter.reverse_dict()
+
+        # step through the list of parameters
+        for key, val in params.iteritems():
+            # if constraint exists, verify we have not violated it
+            constraint_key = parameters.get(key)
+            if constraint_key in constraints:
+                var_type, minimum, maximum = constraints[constraint_key]
+                log.debug('SET CONSTRAINT: %s %r', key, constraints[constraint_key])
+                try:
+                    value = var_type(val)
+                except ValueError:
+                    raise InstrumentParameterException(
+                        'Unable to verify type - parameter: %s value: %s expected: %s' % (key, val, var_type))
+                if minimum is not None and maximum is not None:
+                    if val < minimum or val > maximum:
+                        raise InstrumentParameterException(
+                            'Value out of range - parameter: %s value: %s min: %s max: %s' %
+                            (key, val, minimum, maximum))
+
+        # all constraints met or no constraints exist, set the values
+        for key, value in params.iteritems():
+            if key in constraints:
+                log.error('CONSTRAINT FOUND: %s', constraints)
             self._param_dict.set_value(key, value)
         new_config = self._param_dict.get_config()
 
@@ -438,11 +472,24 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(InstrumentCommand.LILY_OFF, expected_prompt=Response.LILY_OFF)
         self._do_cmd_resp(InstrumentCommand.IRIS_OFF, expected_prompt=Response.IRIS_OFF)
 
-    def _generic_response_handler(self, *args, **kwargs):
-        pass
+    def _generic_response_handler(self, resp, prompt):
+        return resp, prompt
 
     def _handler_acquire_status(self, *args, **kwargs):
-        pass
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        for command, particle_class in [
+            (InstrumentCommand.SYST_DUMP1, particles.SystStatusParticle),
+            (InstrumentCommand.LILY_DUMP1, particles.LilyStatusParticle1),
+            (InstrumentCommand.LILY_DUMP2, particles.LilyStatusParticle2),
+            (InstrumentCommand.IRIS_DUMP1, particles.IrisStatusParticle1),
+            (InstrumentCommand.IRIS_DUMP2, particles.IrisStatusParticle2),
+            (InstrumentCommand.NANO_DUMP1, particles.NanoStatusParticle),
+        ]:
+            result, _ = self._do_cmd_resp(command, response_regex=particle_class.regex_compiled())
+            self._extract_sample(particle_class, particle_class.regex_compiled(), result, ts)
+
+        return None, (None, None)
 
     ########################################################################
     # Unknown handlers.
