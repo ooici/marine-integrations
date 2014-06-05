@@ -934,11 +934,11 @@ class Protocol(MenuInstrumentProtocol):
         for count in range(0, 3):
             self._promptbuf = ""
             try:
-                self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
+                self._connection.send(COMMAND_CHAR[Command.BREAK])
                 (prompt, result) = self._get_raw_response(timeout, expected_prompt=[Prompt.BREAK_ACK,
                                                                               Prompt.CMD_PROMPT])
                 if (prompt == Prompt.BREAK_ACK):
-                    self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
+                    self._connection.send(COMMAND_CHAR[Command.BREAK])
                     (prompt, result) = self._get_response(timeout, expected_prompt=Prompt.CMD_PROMPT)
                     return True
                 elif(prompt == Prompt.CMD_PROMPT):
