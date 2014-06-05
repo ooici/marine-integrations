@@ -7,7 +7,6 @@ Release notes:
 This supports the UW BARS instrument from the Marv Tilley lab
 
 """
-from mi.core.instrument.driver_dict import DriverDictKey
 
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
@@ -22,8 +21,8 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
+from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility, ParameterDictType
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -34,6 +33,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility, ParameterDictType
 
 from mi.core.log import get_logger
 from mi.core.log import get_logging_metaclass
@@ -75,11 +75,12 @@ class Command(BaseEnum):
     CHANGE_HYDROGEN_POWER = "CHANGE_HYDROGEN_POWER"
     CHANGE_REFERENCE_TEMP_POWER = "CHANGE_REFERENCE_TEMP_POWER"
 
+
 # Strings should line up with Command class
 COMMAND_CHAR = {
     'BACK_MENU' : '9',
     'BLANK' : '\r',
-    'BREAK' : 0x13, # Ctrl-S
+    'BREAK' : chr(0x13), # Ctrl-S
     'START_AUTOSAMPLE' : '1',
     'CHANGE_PARAM' : '2',
     'SHOW_PARAM' : '6',
@@ -109,6 +110,7 @@ class SubMenu(BaseEnum):
     EH_ISOLATION_AMP_POWER = "SUBMENU_EH_ISOLATION_AMP_POWER"
     HYDROGEN_POWER = "SUBMENU_HYDROGEN_POWER"
     REFERENCE_TEMP_POWER = "SUBMENU_REFERENCE_TEMP_POWER"
+
         
 class ProtocolState(BaseEnum):
     """
@@ -119,6 +121,7 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+
 
 class ProtocolEvent(BaseEnum):
     """
@@ -136,6 +139,7 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     EXECUTE_ACQUIRE_STATUS = "BARS_GET_STATUS"
 
+
 class Capability(BaseEnum):
     """
     Capabilities exposed to user
@@ -147,7 +151,8 @@ class Capability(BaseEnum):
     EXECUTE_DIRECT = ProtocolEvent.EXECUTE_DIRECT
     START_DIRECT = ProtocolEvent.START_DIRECT
     STOP_DIRECT = ProtocolEvent.STOP_DIRECT
-    
+
+
 # Device specific parameters.
 class Parameter(DriverParameter):
     """
@@ -185,7 +190,8 @@ class Prompt(BaseEnum):
     CYCLE_TIME_MIN_VALUE_PROMPT = "Enter a new value between 1 and 60 here -->"
     VERBOSE_PROMPT = "Enter 2 for Verbose, 1 for just Data. -->"
     METADATA_PROMPT = "Enter 2 for Yes, 1 for No. -->"
-    
+
+
 MENU_PROMPTS = [Prompt.MAIN_MENU, Prompt.CHANGE_PARAM_MENU,
                 Prompt.SENSOR_POWER_MENU, Prompt.CYCLE_TIME_PROMPT,
                 Prompt.DEAD_END_PROMPT, Prompt.CONTINUE_PROMPT]
@@ -267,10 +273,11 @@ class BarsDataParticle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.raw_data)
             
-        log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
-                  match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
-                  match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
-                  match.group(11),match.group(12))
+        # log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
+        #           match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
+        #           match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
+        #           match.group(11),match.group(12))
+        log.trace("Matching sample %r", match.groups())
         res_5 = float(match.group(1))
         res_x1 = float(match.group(2))
         res_x5 = float(match.group(3))
@@ -443,14 +450,15 @@ class Protocol(MenuInstrumentProtocol):
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-        # commands sent sent to device to be filtered in responses for telnet DA
+        # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
         self._chunker = StringChunker(self.sieve_function)
 
     @staticmethod
     def sieve_function(raw_data):
-        """ The method that splits samples
+        """
+        The method that splits samples
         """
         return_list = []
         
@@ -460,7 +468,8 @@ class Protocol(MenuInstrumentProtocol):
         return return_list
 
     def _go_to_root_menu(self):
-        """ Get back to the root menu, assuming we are in COMMAND mode.
+        """
+        Get back to the root menu, assuming we are in COMMAND mode.
         Getting to command mode should be done before this method is called.
         A discover will get there.
         """
@@ -485,8 +494,8 @@ class Protocol(MenuInstrumentProtocol):
 
             
     def _filter_capabilities(self, events):
-        """ Define a small filter of the capabilities
-        
+        """
+        Define a small filter of the capabilities
         @param A list of events to consider as capabilities
         @retval A list of events that are actually capabilities
         """ 
@@ -533,13 +542,10 @@ class Protocol(MenuInstrumentProtocol):
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
-        @throw InstrumentTimeoutException if the device cannot be woken.
-        @throw InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        log.debug("_handler_command_enter")
         self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
@@ -684,7 +690,7 @@ class Protocol(MenuInstrumentProtocol):
 
         # set parameters are only allowed in COMMAND state
         if (self.get_current_state() != ProtocolState.COMMAND):
-            raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
+            raise InstrumentProtocolException("Not in command state. Unable to set params")
 
         self._verify_not_readonly(*args, **kwargs)
 
@@ -701,7 +707,7 @@ class Protocol(MenuInstrumentProtocol):
 
         @param params Dict of the parameters and values to pass to the state
         @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter
+        @throw InstrumentParameterException For invalid parameter
         """
         next_state = None
         result = None
@@ -732,9 +738,10 @@ class Protocol(MenuInstrumentProtocol):
 
 
     def _handler_command_autosample(self, *args, **kwargs):
-        """ Start autosample mode """
+        """
+        Start autosample mode
+        """
 
-        #log.debug("_handler_command_autosample")
         next_state = None
         next_agent_state = None
         result = None
@@ -750,8 +757,7 @@ class Protocol(MenuInstrumentProtocol):
     def _handler_command_start_direct(self):
         """
         """
-        next_state = None
-        next_agent_state = None
+
         result = None
 
         next_state = ProtocolState.DIRECT_ACCESS
@@ -783,14 +789,14 @@ class Protocol(MenuInstrumentProtocol):
         """
         """
         next_state = None
-        result = None
+        next_agent_state = None
 
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return (next_state, result)
+        return next_state, next_agent_state
 
     def _handler_direct_access_stop_direct(self):
         """
@@ -877,27 +883,24 @@ class Protocol(MenuInstrumentProtocol):
         pass
     
     def _got_chunk(self, chunk, timestamp):
-        '''
+        """
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
-        '''
-        #log.debug("_got_chunk")
-        if not (self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp)):
+        """
+        if not self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp):
              raise InstrumentProtocolException("Unhandled chunk")
         
     def _update_params(self):
-        """Fetch the parameters from the device, and update the param dict.
-        
-        @param args Unused
-        @param kwargs Takes timeout value
-        @throw InstrumentProtocolException
-        @throw InstrumentTimeoutException
         """
+        Fetch the parameters from the device, and update the param dict.
+
+        """
+
         #log.debug("Updating parameter dict")
         old_config = self._param_dict.get_config()
         self._get_config()
         new_config = self._param_dict.get_config()            
-        if (new_config != old_config):
+        if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)  
     
     def _get_config(self, *args, **kwargs):
