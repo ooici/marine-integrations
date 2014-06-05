@@ -51,7 +51,7 @@ class DataParticleType(BaseEnum):
     SYST_STATUS = 'botpt_syst_status'
 
 
-class IRISDataParticleKey(BaseEnum):
+class IrisSampleParticleKey(BaseEnum):
     SENSOR_ID = "sensor_id"
     TIME = "date_time_string"
     X_TILT = "iris_x_tilt"
@@ -60,7 +60,7 @@ class IRISDataParticleKey(BaseEnum):
     SN = "serial_number"
 
 
-class HEATDataParticleKey(BaseEnum):
+class HeatSampleParticleKey(BaseEnum):
     SENSOR_ID = 'sensor_id'
     TIME = "date_time_string"
     X_TILT = "heat_x_tilt"
@@ -68,7 +68,7 @@ class HEATDataParticleKey(BaseEnum):
     TEMP = "heat_temp"
 
 
-class LILYDataParticleKey(BaseEnum):
+class LilySampleParticleKey(BaseEnum):
     SENSOR_ID = 'sensor_id'
     TIME = "date_time_string"
     X_TILT = "lily_x_tilt"
@@ -80,7 +80,7 @@ class LILYDataParticleKey(BaseEnum):
     OUT_OF_RANGE = 'lily_out_of_range'
 
 
-class LILYLevelingParticleKey(BaseEnum):
+class LilyLevelingParticleKey(BaseEnum):
     SENSOR_ID = "sensor_id"
     TIME = "date_time_string"
     X_TILT = "lily_x_tilt"
@@ -92,7 +92,7 @@ class LILYLevelingParticleKey(BaseEnum):
     STATUS = "lily_leveling_status"
 
 
-class NANODataParticleKey(BaseEnum):
+class NanoSampleParticleKey(BaseEnum):
     SENSOR_ID = 'sensor_id'
     TIME = "date_time_string"
     PPS_SYNC = "time_sync_flag"
@@ -192,12 +192,12 @@ class IrisSampleParticle(BotptDataParticle):
 
     def _encode_all(self):
         return [
-            self._encode_value(IRISDataParticleKey.SENSOR_ID, 'IRIS', str),
-            self._encode_value(IRISDataParticleKey.TIME, self.match.group('date_time'), str),
-            self._encode_value(IRISDataParticleKey.X_TILT, self.match.group('x_tilt'), float),
-            self._encode_value(IRISDataParticleKey.Y_TILT, self.match.group('y_tilt'), float),
-            self._encode_value(IRISDataParticleKey.TEMP, self.match.group('temp'), float),
-            self._encode_value(IRISDataParticleKey.SN, self.match.group('serial').strip(), str)
+            self._encode_value(IrisSampleParticleKey.SENSOR_ID, 'IRIS', str),
+            self._encode_value(IrisSampleParticleKey.TIME, self.match.group('date_time'), str),
+            self._encode_value(IrisSampleParticleKey.X_TILT, self.match.group('x_tilt'), float),
+            self._encode_value(IrisSampleParticleKey.Y_TILT, self.match.group('y_tilt'), float),
+            self._encode_value(IrisSampleParticleKey.TEMP, self.match.group('temp'), float),
+            self._encode_value(IrisSampleParticleKey.SN, self.match.group('serial').strip(), str)
         ]
 
 
@@ -223,11 +223,11 @@ class HeatSampleParticle(BotptDataParticle):
 
     def _encode_all(self):
         return [
-            self._encode_value(HEATDataParticleKey.SENSOR_ID, 'HEAT', str),
-            self._encode_value(HEATDataParticleKey.TIME, self.match.group('date_time'), str),
-            self._encode_value(HEATDataParticleKey.X_TILT, self.match.group('x_tilt'), int),
-            self._encode_value(HEATDataParticleKey.Y_TILT, self.match.group('y_tilt'), int),
-            self._encode_value(HEATDataParticleKey.TEMP, self.match.group('temp'), int)
+            self._encode_value(HeatSampleParticleKey.SENSOR_ID, 'HEAT', str),
+            self._encode_value(HeatSampleParticleKey.TIME, self.match.group('date_time'), str),
+            self._encode_value(HeatSampleParticleKey.X_TILT, self.match.group('x_tilt'), int),
+            self._encode_value(HeatSampleParticleKey.Y_TILT, self.match.group('y_tilt'), int),
+            self._encode_value(HeatSampleParticleKey.TEMP, self.match.group('temp'), int)
         ]
 
 
@@ -260,15 +260,15 @@ class LilySampleParticle(BotptDataParticle):
 
     def _encode_all(self):
         return [
-            self._encode_value(LILYDataParticleKey.SENSOR_ID, 'LILY', str),
-            self._encode_value(LILYDataParticleKey.TIME, self.match.group('date_time'), str),
-            self._encode_value(LILYDataParticleKey.X_TILT, self.match.group('x_tilt'), float),
-            self._encode_value(LILYDataParticleKey.Y_TILT, self.match.group('y_tilt'), float),
-            self._encode_value(LILYDataParticleKey.MAG_COMPASS, self.match.group('compass'), float),
-            self._encode_value(LILYDataParticleKey.TEMP, self.match.group('temp'), float),
-            self._encode_value(LILYDataParticleKey.SUPPLY_VOLTS, self.match.group('volts'), float),
-            self._encode_value(LILYDataParticleKey.SN, self.match.group('serial').strip(), str),
-            self._encode_value(LILYDataParticleKey.OUT_OF_RANGE, self.out_of_range, bool)
+            self._encode_value(LilySampleParticleKey.SENSOR_ID, 'LILY', str),
+            self._encode_value(LilySampleParticleKey.TIME, self.match.group('date_time'), str),
+            self._encode_value(LilySampleParticleKey.X_TILT, self.match.group('x_tilt'), float),
+            self._encode_value(LilySampleParticleKey.Y_TILT, self.match.group('y_tilt'), float),
+            self._encode_value(LilySampleParticleKey.MAG_COMPASS, self.match.group('compass'), float),
+            self._encode_value(LilySampleParticleKey.TEMP, self.match.group('temp'), float),
+            self._encode_value(LilySampleParticleKey.SUPPLY_VOLTS, self.match.group('volts'), float),
+            self._encode_value(LilySampleParticleKey.SN, self.match.group('serial').strip(), str),
+            self._encode_value(LilySampleParticleKey.OUT_OF_RANGE, self.out_of_range, bool)
         ]
 
 
@@ -295,11 +295,11 @@ class NanoSampleParticle(BotptDataParticle):
 
     def _encode_all(self):
         return [
-            self._encode_value(NANODataParticleKey.SENSOR_ID, 'NANO', str),
-            self._encode_value(NANODataParticleKey.TIME, self.match.group('date_time'), str),
-            self._encode_value(NANODataParticleKey.PRESSURE, self.match.group('pressure'), float),
-            self._encode_value(NANODataParticleKey.TEMP, self.match.group('temp'), float),
-            self._encode_value(NANODataParticleKey.PPS_SYNC, self.match.group('pps_sync'), str),
+            self._encode_value(NanoSampleParticleKey.SENSOR_ID, 'NANO', str),
+            self._encode_value(NanoSampleParticleKey.TIME, self.match.group('date_time'), str),
+            self._encode_value(NanoSampleParticleKey.PRESSURE, self.match.group('pressure'), float),
+            self._encode_value(NanoSampleParticleKey.TEMP, self.match.group('temp'), float),
+            self._encode_value(NanoSampleParticleKey.PPS_SYNC, self.match.group('pps_sync'), str),
         ]
 
 
@@ -347,14 +347,14 @@ class LilyLevelingParticle(BotptDataParticle):
             status, supply_volts = supply_volts.split('!')
 
         return [
-            self._encode_value(LILYLevelingParticleKey.TIME, self.match.group('date_time'), str),
-            self._encode_value(LILYLevelingParticleKey.X_TILT, self.match.group('x_tilt'), float),
-            self._encode_value(LILYLevelingParticleKey.Y_TILT, self.match.group('y_tilt'), float),
-            self._encode_value(LILYLevelingParticleKey.MAG_COMPASS, self.match.group('compass'), float),
-            self._encode_value(LILYLevelingParticleKey.TEMP, self.match.group('temp'), float),
-            self._encode_value(LILYLevelingParticleKey.SUPPLY_VOLTS, supply_volts, float),
-            self._encode_value(LILYLevelingParticleKey.STATUS, status, str),
-            self._encode_value(LILYLevelingParticleKey.SN, self.match.group('serial').strip(), str)
+            self._encode_value(LilyLevelingParticleKey.TIME, self.match.group('date_time'), str),
+            self._encode_value(LilyLevelingParticleKey.X_TILT, self.match.group('x_tilt'), float),
+            self._encode_value(LilyLevelingParticleKey.Y_TILT, self.match.group('y_tilt'), float),
+            self._encode_value(LilyLevelingParticleKey.MAG_COMPASS, self.match.group('compass'), float),
+            self._encode_value(LilyLevelingParticleKey.TEMP, self.match.group('temp'), float),
+            self._encode_value(LilyLevelingParticleKey.SUPPLY_VOLTS, supply_volts, float),
+            self._encode_value(LilyLevelingParticleKey.STATUS, status, str),
+            self._encode_value(LilyLevelingParticleKey.SN, self.match.group('serial').strip(), str)
         ]
 
 

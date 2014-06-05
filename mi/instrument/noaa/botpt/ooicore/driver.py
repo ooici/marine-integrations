@@ -7,6 +7,7 @@ Release notes:
 """
 
 import time
+from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 import ntplib
@@ -19,7 +20,7 @@ from mi.core.instrument.instrument_driver import DriverEvent, SingleConnectionIn
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.exceptions import InstrumentParameterException, InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException, InstrumentProtocolException, InstrumentDataException
 from mi.core.instrument.driver_dict import DriverDictKey
 import mi.instrument.noaa.botpt.ooicore.particles as particles
 import mi.core.log
@@ -144,11 +145,13 @@ class InstrumentCommand(BaseEnum):
     SYST_DUMP1 = SYST_STRING + '1'
 
 
-class Response(BaseEnum):
+class Prompt(BaseEnum):
     LILY_ON = LILY_COMMAND + 'C2'
     LILY_OFF = LILY_COMMAND + 'C-OFF'
     IRIS_ON = IRIS_COMMAND + 'C2'
     IRIS_OFF = IRIS_COMMAND + 'C-OFF'
+    LILY_START_LEVELING = LILY_COMMAND + '-LEVEL,1'
+    LILY_STOP_LEVELING = LILY_COMMAND + '-LEVEL,0'
 
 
 ###############################################################################
@@ -215,18 +218,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         handlers = {
             ProtocolState.UNKNOWN: [
-                (ProtocolEvent.ENTER, self._handler_unknown_enter),
-                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
             ],
             ProtocolState.AUTOSAMPLE: [
                 (ProtocolEvent.ENTER, self._handler_autosample_enter),
-                (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
-                # (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
+                (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
+                (ProtocolEvent.STOP_LEVELING, self._handler_stop_leveling),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -235,31 +239,16 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
-                # (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
+                (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
+                (ProtocolEvent.STOP_LEVELING, self._handler_stop_leveling),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
-                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
                 (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
             ],
-            # ProtocolState.COMMAND_LEVELING: [
-            #     (ProtocolEvent.ENTER, self._handler_leveling_enter),
-            #     (ProtocolEvent.EXIT, self._handler_leveling_exit),
-            #     (ProtocolEvent.GET, self._handler_command_get),
-            #     (ProtocolEvent.SET, self._handler_command_set),
-            #     (ProtocolEvent.STOP_LEVELING, self._handler_stop_leveling),
-            #     (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout),
-            # ],
-            # ProtocolState.AUTOSAMPLE_LEVELING: [
-            #     (ProtocolEvent.ENTER, self._handler_leveling_enter),
-            #     (ProtocolEvent.EXIT, self._handler_leveling_exit),
-            #     (ProtocolEvent.GET, self._handler_command_get),
-            #     (ProtocolEvent.SET, self._handler_command_set),
-            #     (ProtocolEvent.STOP_LEVELING, self._handler_stop_leveling),
-            #     (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout),
-            # ]
         }
 
         for state in handlers:
@@ -288,6 +277,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._chunker = StringChunker(Protocol.sieve_function)
 
         self.initialize_scheduler()
+        self.leveling = False
 
     @staticmethod
     def sieve_function(raw_data):
@@ -312,8 +302,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _got_chunk(self, chunk, ts):
         possible_particles = [
-            (particles.LilySampleParticle, None),  # self._check_for_autolevel),
-            (particles.LilyLevelingParticle, None),  # self._check_completed_leveling),
+            (particles.LilySampleParticle, self._check_for_autolevel),
+            (particles.LilyLevelingParticle, self._check_completed_leveling),
             (particles.HeatSampleParticle, None),
             (particles.IrisSampleParticle, None),
             (particles.NanoSampleParticle, None),
@@ -469,8 +459,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _stop_autosample(self):
         self._do_cmd_no_resp(InstrumentCommand.NANO_OFF)
-        self._do_cmd_resp(InstrumentCommand.LILY_OFF, expected_prompt=Response.LILY_OFF)
-        self._do_cmd_resp(InstrumentCommand.IRIS_OFF, expected_prompt=Response.IRIS_OFF)
+        self._do_cmd_resp(InstrumentCommand.LILY_OFF, expected_prompt=Prompt.LILY_OFF)
+        self._do_cmd_resp(InstrumentCommand.IRIS_OFF, expected_prompt=Prompt.IRIS_OFF)
 
     def _generic_response_handler(self, resp, prompt):
         return resp, prompt
@@ -491,23 +481,65 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return None, (None, None)
 
+    def _check_for_autolevel(self, sample):
+        if self._param_dict.get(Parameter.AUTO_RELEVEL) and self.get_current_state() == ProtocolState.AUTOSAMPLE:
+            # Find the current X and Y tilt values
+            # If they exceed the trigger parameters, begin autolevel
+            relevel = False
+            values = sample.get(DataParticleKey.VALUES, [])
+            for each in values:
+                value_id = each.get(DataParticleKey.VALUE_ID)
+                value = each.get(DataParticleKey.VALUE)
+                if value_id == particles.LilySampleParticleKey.X_TILT:
+                    if abs(value) > self._param_dict.get(Parameter.XTILT_TRIGGER):
+                        relevel = True
+                        break
+                elif value_id == particles.LilySampleParticleKey.Y_TILT:
+                    if abs(value) > self._param_dict.get(Parameter.YTILT_TRIGGER):
+                        relevel = True
+                        break
+            if relevel:
+                self._async_raise_fsm_event(ProtocolEvent.START_LEVELING)
+
+    def _failed_leveling(self, axis):
+        log.error('Detected leveling error in %s axis!', axis)
+        # Read only parameter, must be set outside of handler
+        self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
+        # Use the handler to disable auto relevel to raise a config change event if needed.
+        self._handler_command_set({Parameter.AUTO_RELEVEL: False})
+        raise InstrumentDataException('LILY Leveling (%s) Failed.  Disabling auto relevel' % axis)
+
+    def _check_completed_leveling(self, sample):
+        values = sample.get(DataParticleKey.VALUES, [])
+        for each in values:
+            value_id = each.get(DataParticleKey.VALUE_ID)
+            value = each.get(DataParticleKey.VALUE)
+            if value_id == particles.LilyLevelingParticleKey.STATUS:
+                if value is not None:
+                    # Leveling status update received
+                    # If leveling complete, send STOP_LEVELING, set the _leveling_failed flag to False
+                    if 'Leveled' in value:
+                        if self._param_dict.get(Parameter.LEVELING_FAILED):
+                            self._handler_command_set({Parameter.LEVELING_FAILED: False})
+                            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                        self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
+                    # Leveling X failed!  Set the flag and raise an exception to notify the operator
+                    # and disable auto leveling. Let the instrument attempt to level
+                    # in the Y axis.
+                    elif 'X Axis out of range' in value:
+                        self._failed_leveling('X')
+                    # Leveling X failed!  Set the flag and raise an exception to notify the operator
+                    # and disable auto leveling. Send STOP_LEVELING
+                    elif 'Y Axis out of range' in value:
+                        self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
+                        self._failed_leveling('Y')
+
     ########################################################################
     # Unknown handlers.
     ########################################################################
 
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
     def _handler_unknown_discover(self, *args, **kwargs):
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
 
     ########################################################################
     # Autosample handlers.
@@ -519,11 +551,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         self._stop_autosample()
@@ -584,9 +611,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_autosample(self):
-        self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Response.LILY_ON)
+        self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
         self._do_cmd_no_resp(InstrumentCommand.NANO_ON)
-        self._do_cmd_resp(InstrumentCommand.IRIS_ON, expected_prompt=Response.IRIS_ON)
+        self._do_cmd_resp(InstrumentCommand.IRIS_ON, expected_prompt=Prompt.IRIS_ON)
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     ########################################################################
@@ -602,11 +629,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-
     def _handler_direct_access_execute_direct(self, data):
         """
         """
@@ -617,10 +639,33 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_stop_direct(self):
         """
         """
-        result = None
-
         next_state, next_agent_state = self._handler_unknown_discover()
         if next_state == DriverProtocolState.COMMAND:
             next_agent_state = ResourceAgentState.COMMAND
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, None)
+
+    ########################################################################
+    # Generic handlers.
+    ########################################################################
+
+    def _handler_generic_enter(self, *args, **kwargs):
+        """
+        Generic enter state handler
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_generic_exit(self, *args, **kwargs):
+        """
+        Generic exit state handler
+        """
+
+    def _handler_start_leveling(self):
+        r = self._do_cmd_resp(InstrumentCommand.LILY_START_LEVELING, Prompt.LILY_START_LEVELING)
+        return None, (None, r)
+
+    def _handler_stop_leveling(self):
+        r = self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, Prompt.LILY_STOP_LEVELING)
+        return None, (None, r)
