@@ -184,7 +184,7 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" % root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
 
         firmware_version = self._extract_xml_element_value(root, FIRMWARE_VERSION)
@@ -430,7 +430,7 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" % root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
         result = [{DataParticleKey.VALUE_ID: SBE16NOCalibrationParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
@@ -474,8 +474,7 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PT4))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PSLOPE))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.POFFSET))
-                result.append(
-                    self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_RANGE, self._float_to_int))
+                result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_RANGE))
             elif id_attr == VOLT0:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT0_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT0_SLOPE))

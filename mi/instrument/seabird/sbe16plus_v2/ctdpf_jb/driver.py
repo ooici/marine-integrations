@@ -324,7 +324,7 @@ class SBE19ConfigurationParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" % root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
         result = [{DataParticleKey.VALUE_ID: SBE19ConfigurationParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number}]
@@ -446,7 +446,7 @@ class SBE19StatusParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" % root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
         date_time = self._extract_xml_element_value(root, DATE_TIME)
         logging_status = self._extract_xml_element_value(root, LOGGING_STATE)
@@ -568,7 +568,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" % root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
 
         firmware_version = self._extract_xml_element_value(root, FIRMWARE_VERSION)
@@ -817,7 +817,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" % root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
         result = [{DataParticleKey.VALUE_ID: SBE19CalibrationParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
@@ -862,8 +862,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTEMPA1))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTEMPA2))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.POFFSET))
-                result.append(
-                    self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_RANGE, self._float_to_int))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_RANGE))
             elif id_attr == VOLT0:
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT0_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT0_SLOPE))

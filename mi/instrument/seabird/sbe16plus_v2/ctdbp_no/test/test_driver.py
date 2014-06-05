@@ -465,7 +465,7 @@ class SBE16NOMixin(DriverTestMixin):
         SBE16NOCalibrationParticleKey.PT4: {TYPE: float, VALUE: 1.687490e-09, REQUIRED: True },
         SBE16NOCalibrationParticleKey.PSLOPE: {TYPE: float, VALUE: 1.000000e+00, REQUIRED: True },
         SBE16NOCalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: True },
-        SBE16NOCalibrationParticleKey.PRES_RANGE: {TYPE: int, VALUE: 2.000000e+02, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PRES_RANGE: {TYPE: float, VALUE: 2.000000e+02, REQUIRED: True },
         SBE16NOCalibrationParticleKey.EXT_VOLT0_OFFSET: {TYPE: float, VALUE: -4.719895e-02, REQUIRED: True},
         SBE16NOCalibrationParticleKey.EXT_VOLT0_SLOPE: {TYPE: float, VALUE: 1.248055e+00, REQUIRED: True},
         SBE16NOCalibrationParticleKey.EXT_VOLT1_OFFSET: {TYPE: float, VALUE: -4.677263e-02, REQUIRED: True},

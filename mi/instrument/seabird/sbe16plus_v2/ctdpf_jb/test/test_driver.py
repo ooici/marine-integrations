@@ -470,7 +470,7 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19CalibrationParticleKey.PTEMPA1: {TYPE: float, VALUE: 5.424624e+01, REQUIRED: True },
         SBE19CalibrationParticleKey.PTEMPA2: {TYPE: float, VALUE: -2.278113e-01, REQUIRED: True },
         SBE19CalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: True },
-        SBE19CalibrationParticleKey.PRES_RANGE: {TYPE: int, VALUE: 508, REQUIRED: True },
+        SBE19CalibrationParticleKey.PRES_RANGE: {TYPE: float, VALUE: 5.080000e+02, REQUIRED: True },
         SBE19CalibrationParticleKey.EXT_VOLT0_OFFSET: {TYPE: float, VALUE: -4.650526e-02, REQUIRED: True},
         SBE19CalibrationParticleKey.EXT_VOLT0_SLOPE: {TYPE: float, VALUE: 1.246381e+00, REQUIRED: True},
         SBE19CalibrationParticleKey.EXT_VOLT1_OFFSET: {TYPE: float, VALUE: -4.618105e-02, REQUIRED: True},
