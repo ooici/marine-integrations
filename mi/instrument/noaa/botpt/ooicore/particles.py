@@ -156,8 +156,7 @@ class BotptDataParticle(DataParticle):
         Default encode all implementation.  Covers all status particles, should be overridden for samples.
         """
         name = self.match.group('name')
-        status = self.match.group('status')
-        status = NEWLINE.join(line for line in status.split(NEWLINE) if line.startswith(name))
+        status = NEWLINE.join(line for line in self.raw_data.split(NEWLINE) if line.startswith(name))
         try:
             ts = self.match.group('date_time')
         except IndexError:
@@ -345,8 +344,10 @@ class LilyLevelingParticle(BotptDataParticle):
         supply_volts = self.match.group('volts')
         if supply_volts.startswith(','):
             status, supply_volts = supply_volts.split('!')
+            status = status[1:]
 
         return [
+            self._encode_value(LilyLevelingParticleKey.SENSOR_ID, 'LILY', str),
             self._encode_value(LilyLevelingParticleKey.TIME, self.match.group('date_time'), str),
             self._encode_value(LilyLevelingParticleKey.X_TILT, self.match.group('x_tilt'), float),
             self._encode_value(LilyLevelingParticleKey.Y_TILT, self.match.group('y_tilt'), float),
