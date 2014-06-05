@@ -564,14 +564,16 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'USER_DEFAULT_SETTINGS',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
+                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
+                                    'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_INIT_PARAMS',
                                        'PROTOCOL_EVENT_GET_CALIBRATION',
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
+                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
         driver = InstrumentDriver(self._got_data_event_callback)
