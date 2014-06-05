@@ -1313,9 +1313,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Set params requires a parameter dict.')
 
-        if not isinstance(params, dict):
-            raise InstrumentParameterException('Set parameters not a dict.')
-
         old_config = self._param_dict.get_config()
 
         # For each key, value in the params list set the value in parameters copy.
@@ -1529,7 +1526,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
         not a dict, or if parameter can't be properly formatted.
         """
-
+        self._verify_not_readonly(*args, **kwargs)
         self._set_params(*args, **kwargs)
 
         return None, None
@@ -1994,7 +1991,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         output = ['\xa5\x00\x00\x01']
 
         for param in self.order_of_user_config:
-            log.debug('_create_set_output: adding %s to list', param)
+            log.trace('_create_set_output: adding %s to list', param)
             if param == Parameter.COMMENTS:
                 output.append(parameters.format(param).ljust(180, "\x00"))
             elif param == Parameter.DEPLOYMENT_NAME:
@@ -2005,7 +2002,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                 output.append(base64.b64decode(parameters.format(param)))
             else:
                 output.append(parameters.format(param))
-            log.debug('_create_set_output: ADDED %s output size = %s', param, len(output))
+            log.trace('_create_set_output: ADDED %s output size = %s', param, len(output))
 
         log.debug("Created set output: %r with length: %s", output, len(output))
 
@@ -2017,10 +2014,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug('_create_set_output: user checksum = %r', checksum)
 
         output += (NortekProtocolParameterDict.word_to_string(checksum))
-        # self._dump_config(output)
 
         return output
-        #return "".join(output)
 
     def _build_command_default(self, cmd):
         return cmd

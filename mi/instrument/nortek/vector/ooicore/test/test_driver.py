@@ -445,7 +445,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-def test_parameters(self):
+    def test_parameters(self):
         """
         Verify that we can set the parameters
 
@@ -455,13 +455,13 @@ def test_parameters(self):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test read/write parameter
-        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 20)
+        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 2)
         self.assert_set(Parameter.RECEIVE_LENGTH, 8)
-        self.assert_set(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 1)
+        self.assert_set(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 44)
         self.assert_set(Parameter.TIMING_CONTROL_REGISTER, 131)
         self.assert_set(Parameter.BIN_LENGTH, 8)
         self.assert_set(Parameter.ADJUSTMENT_SOUND_SPEED, 16658)
-        self.assert_set(Parameter.VELOCITY_ADJ_TABLE, 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+        self.assert_set(Parameter.VELOCITY_ADJ_TABLE, 'B50ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
                                           'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
                                           'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
                                           'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
@@ -494,7 +494,7 @@ def test_parameters(self):
         self.assert_set_exception(Parameter.ANALOG_INPUT_ADDR, '123')
         self.assert_set_exception(Parameter.SW_VERSION, 'blah')
         self.assert_set_exception(Parameter.USER_1_SPARE, 23)
-        self.assert_set_exception(Parameter.COMMENTS, 'hell there')
+        self.assert_set_exception(Parameter.COMMENTS, 'hello there')
         self.assert_set_exception(Parameter.WAVE_MEASUREMENT_MODE, 3)
         self.assert_set_exception(Parameter.DYN_PERCENTAGE_POSITION, 3)
         self.assert_set_exception(Parameter.WAVE_TRANSMIT_PULSE,3 )
@@ -542,11 +542,50 @@ class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
         self.tcp_client.expect("\x06\x06")
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
 
         #verify the setting got restored.
-        #TODO VERIFY ALL PARAMS
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH, 2)
+        self.assert_get_parameter(Parameter.RECEIVE_LENGTH, 7)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 0)
+        self.assert_get_parameter(Parameter.TIMING_CONTROL_REGISTER, 131)
+        self.assert_get_parameter(Parameter.BIN_LENGTH, 7)
+        self.assert_get_parameter(Parameter.ADJUSTMENT_SOUND_SPEED, 16657)
+        self.assert_get_parameter(Parameter.VELOCITY_ADJ_TABLE, 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
+
+        self.assert_get_parameter(EngineeringParameter.CLOCK_SYNC_INTERVAL, '00:00:00')
+        self.assert_get_parameter(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:00:00')
+        self.assert_get_parameter(Parameter.BLANKING_DISTANCE, 16)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_PINGS, 44)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS, 0)
+        self.assert_get_parameter(Parameter.AVG_INTERVAL, 64)
+        self.assert_get_parameter(Parameter.USER_NUMBER_BEAMS, 3)
+        self.assert_get_parameter(Parameter.POWER_CONTROL_REGISTER, 0)
+        self.assert_get_parameter(Parameter.COMPASS_UPDATE_RATE, 1)
+        self.assert_get_parameter(Parameter.COORDINATE_SYSTEM, 2)
+        self.assert_get_parameter(Parameter.NUMBER_BINS, 1)
+        self.assert_get_parameter(Parameter.MEASUREMENT_INTERVAL, 600)
+        self.assert_get_parameter(Parameter.WRAP_MODE, 0)
+        self.assert_get_parameter(Parameter.CLOCK_DEPLOY, [0,0,0,0,0,0])
         self.assert_get_parameter(Parameter.DIAGNOSTIC_INTERVAL, 10800)
+        self.assert_get_parameter(Parameter.MODE, 48)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.MODE_TEST, 4)
+        self.assert_get_parameter(Parameter.WAVE_MEASUREMENT_MODE, 295)
+        self.assert_get_parameter(Parameter.DYN_PERCENTAGE_POSITION, 32768)
+        self.assert_get_parameter(Parameter.WAVE_TRANSMIT_PULSE, 16384)
+        self.assert_get_parameter(Parameter.WAVE_BLANKING_DISTANCE, 0)
+        self.assert_get_parameter(Parameter.WAVE_CELL_SIZE, 0)
+        self.assert_get_parameter(Parameter.NUMBER_DIAG_SAMPLES, 0)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
+        self.assert_get_parameter(Parameter.ANALOG_OUTPUT_SCALE, 6711)
+        self.assert_get_parameter(Parameter.CORRELATION_THRESHOLD, 0)
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG, 2)
 
         # Test direct access inactivity timeout
         self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
@@ -568,15 +607,71 @@ class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
 
     def test_get_set_parameters(self):
         """
-        Verify that parameters can be get set properly
+        Verify that parameters can be get/set properly
         """
         self.assert_enter_command_mode()
 
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 16)
-        self.assert_set_parameter(Parameter.USER_NUMBER_BEAMS, 3)
-        #TODO
-        #integration testing: set params and verify setting read only params throw exception
-        #qual test: set params and verify can get read only params
+        #read/write params
+        self.assert_set_parameter(Parameter.TRANSMIT_PULSE_LENGTH, 2)
+        self.assert_set_parameter(Parameter.RECEIVE_LENGTH, 8)
+        self.assert_set_parameter(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 45)
+        self.assert_set_parameter(Parameter.TIMING_CONTROL_REGISTER, 131)
+        self.assert_set_parameter(Parameter.BIN_LENGTH, 8)
+        self.assert_set_parameter(Parameter.ADJUSTMENT_SOUND_SPEED, 16658)
+        self.assert_set_parameter(Parameter.VELOCITY_ADJ_TABLE, 'B50ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
+
+        #read-only params
+        self.assert_get_parameter(EngineeringParameter.CLOCK_SYNC_INTERVAL, '00:00:00')
+        self.assert_get_parameter(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:00:00')
+        self.assert_get_parameter(Parameter.BLANKING_DISTANCE, 16)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_PINGS, 44)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS, 0)
+        self.assert_get_parameter(Parameter.AVG_INTERVAL, 64)
+        self.assert_get_parameter(Parameter.USER_NUMBER_BEAMS, 3)
+        self.assert_get_parameter(Parameter.POWER_CONTROL_REGISTER, 0)
+        self.assert_get_parameter(Parameter.COMPASS_UPDATE_RATE, 1)
+        self.assert_get_parameter(Parameter.COORDINATE_SYSTEM, 2)
+        self.assert_get_parameter(Parameter.NUMBER_BINS, 1)
+        self.assert_get_parameter(Parameter.MEASUREMENT_INTERVAL, 600)
+        self.assert_get_parameter(Parameter.WRAP_MODE, 0)
+        self.assert_get_parameter(Parameter.CLOCK_DEPLOY, [0,0,0,0,0,0])
+        self.assert_get_parameter(Parameter.DIAGNOSTIC_INTERVAL, 10800)
+        self.assert_get_parameter(Parameter.MODE, 48)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.MODE_TEST, 4)
+        self.assert_get_parameter(Parameter.WAVE_MEASUREMENT_MODE, 295)
+        self.assert_get_parameter(Parameter.DYN_PERCENTAGE_POSITION, 32768)
+        self.assert_get_parameter(Parameter.WAVE_TRANSMIT_PULSE, 16384)
+        self.assert_get_parameter(Parameter.WAVE_BLANKING_DISTANCE, 0)
+        self.assert_get_parameter(Parameter.WAVE_CELL_SIZE, 0)
+        self.assert_get_parameter(Parameter.NUMBER_DIAG_SAMPLES, 0)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
+        self.assert_get_parameter(Parameter.ANALOG_OUTPUT_SCALE, 6711)
+        self.assert_get_parameter(Parameter.CORRELATION_THRESHOLD, 0)
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG, 2)
+
+        #NOTE: the following cannot be tested because there are no default values
+        #    'spare' parameters are not used by the driver, only place holders for the config file sent to set params
+        #     other parameter values are dependent on the instrument being tested
+        # self.assert_get_parameter(Parameter.A1_1_SPARE, 3)
+        # self.assert_get_parameter(Parameter.B0_1_SPARE, 1)
+        # self.assert_get_parameter(Parameter.B1_1_SPARE, 2)
+        # self.assert_get_parameter(Parameter.DEPLOYMENT_NAME, 'test')
+        # self.assert_get_parameter(Parameter.ANALOG_INPUT_ADDR, '123')
+        # self.assert_get_parameter(Parameter.SW_VERSION, 'blah')
+        # self.assert_get_parameter(Parameter.USER_1_SPARE, 23)
+        # self.assert_get_parameter(Parameter.COMMENTS, 'hello there')
+        # self.assert_get_parameter(Parameter.A1_2_SPARE, 6)
+        # self.assert_get_parameter(Parameter.B0_2_SPARE, 4)
+        # self.assert_get_parameter(Parameter.USER_2_SPARE, 1)
+        # self.assert_get_parameter(Parameter.USER_3_SPARE, 1)
+        # self.assert_get_parameter(Parameter.USER_4_SPARE, 1)
+        # self.assert_get_parameter(Parameter.QUAL_CONSTANTS, 'consts')
 
     def test_poll(self):
         """

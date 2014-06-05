@@ -44,7 +44,7 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataP
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, user_config2
 from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, Parameter, NortekEngIdDataParticleKey, \
-    NortekInstrumentProtocol, NEWLINE
+    NortekInstrumentProtocol, NEWLINE, EngineeringParameter
 
 ###
 #   Driver parameters for the tests
@@ -278,6 +278,75 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
                                               particle_count=4, timeout=TIMEOUT)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
+    def test_parameters(self):
+        """
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        #test read/write parameter
+        self.assert_set(Parameter.BLANKING_DISTANCE, 50)
+        self.assert_set(Parameter.TIMING_CONTROL_REGISTER, 131)
+        self.assert_set(Parameter.COMPASS_UPDATE_RATE, 2)
+        self.assert_set(Parameter.COORDINATE_SYSTEM, 1)
+        self.assert_set(Parameter.VELOCITY_ADJ_TABLE, 'bu0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
+
+        #these need to update simultaneously
+        #self.assert_set(Parameter.MEASUREMENT_INTERVAL, 61)
+        #self.assert_set(Parameter.AVG_INTERVAL, 61)
+
+        #test read only parameters (includes immutable, when not startup)
+        self.assert_set_exception(EngineeringParameter.CLOCK_SYNC_INTERVAL, '12:00:00')
+        self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '12:00:00')
+        self.assert_set_exception(Parameter.TRANSMIT_PULSE_LENGTH, 20)
+        self.assert_set_exception(Parameter.TIME_BETWEEN_PINGS, 45)
+        self.assert_set_exception(Parameter.NUMBER_PINGS, 1)
+        self.assert_set_exception(Parameter.RECEIVE_LENGTH, 8)
+        self.assert_set_exception(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 1)
+        self.assert_set_exception(Parameter.USER_NUMBER_BEAMS, 4)
+        self.assert_set_exception(Parameter.POWER_CONTROL_REGISTER, 1)
+        self.assert_set_exception(Parameter.A1_1_SPARE, 3)
+        self.assert_set_exception(Parameter.B0_1_SPARE, 1)
+        self.assert_set_exception(Parameter.B1_1_SPARE, 2)
+        self.assert_set_exception(Parameter.NUMBER_BINS, 2)
+        self.assert_set_exception(Parameter.BIN_LENGTH, 8)
+        self.assert_set_exception(Parameter.ADJUSTMENT_SOUND_SPEED, 16658)
+        self.assert_set_exception(Parameter.DEPLOYMENT_NAME, 'test')
+        self.assert_set_exception(Parameter.WRAP_MODE, 0)
+        self.assert_set_exception(Parameter.CLOCK_DEPLOY, 123)
+        self.assert_set_exception(Parameter.DIAGNOSTIC_INTERVAL, 10801)
+        self.assert_set_exception(Parameter.MODE, 49)
+        self.assert_set_exception(Parameter.NUMBER_SAMPLES_DIAGNOSTIC, 2)
+        self.assert_set_exception(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC, 2)
+        self.assert_set_exception(Parameter.NUMBER_PINGS_DIAGNOSTIC, 2)
+        self.assert_set_exception(Parameter.MODE_TEST, 5)
+        self.assert_set_exception(Parameter.ANALOG_INPUT_ADDR, '123')
+        self.assert_set_exception(Parameter.SW_VERSION, 'blah')
+        self.assert_set_exception(Parameter.USER_1_SPARE, 23)
+        self.assert_set_exception(Parameter.COMMENTS, 'hello there')
+        self.assert_set_exception(Parameter.WAVE_MEASUREMENT_MODE, 3)
+        self.assert_set_exception(Parameter.DYN_PERCENTAGE_POSITION, 3)
+        self.assert_set_exception(Parameter.WAVE_TRANSMIT_PULSE,3 )
+        self.assert_set_exception(Parameter.WAVE_BLANKING_DISTANCE, 3)
+        self.assert_set_exception(Parameter.WAVE_CELL_SIZE, 3)
+        self.assert_set_exception(Parameter.NUMBER_DIAG_SAMPLES, 1)
+        self.assert_set_exception(Parameter.A1_2_SPARE, 6)
+        self.assert_set_exception(Parameter.B0_2_SPARE, 4)
+        self.assert_set_exception(Parameter.NUMBER_SAMPLES_PER_BURST, 4)
+        self.assert_set_exception(Parameter.USER_2_SPARE, 1)
+        self.assert_set_exception(Parameter.ANALOG_OUTPUT_SCALE, 234)
+        self.assert_set_exception(Parameter.CORRELATION_THRESHOLD, 1234)
+        self.assert_set_exception(Parameter.USER_3_SPARE, 1)
+        self.assert_set_exception(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG, 1)
+        self.assert_set_exception(Parameter.USER_4_SPARE, 1)
+        self.assert_set_exception(Parameter.QUAL_CONSTANTS, 'consts')
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -309,10 +378,50 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
         self.tcp_client.expect("\x06\x06")
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
 
         #verify the setting got restored.
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH, 125)
+        self.assert_get_parameter(Parameter.RECEIVE_LENGTH, 32)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 512)
+        self.assert_get_parameter(Parameter.TIMING_CONTROL_REGISTER, 131)
+        self.assert_get_parameter(Parameter.BIN_LENGTH, 7)
+        self.assert_get_parameter(Parameter.ADJUSTMENT_SOUND_SPEED, 1525)
+        self.assert_get_parameter(Parameter.VELOCITY_ADJ_TABLE, 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
+
+        self.assert_get_parameter(EngineeringParameter.CLOCK_SYNC_INTERVAL, '00:00:00')
+        self.assert_get_parameter(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:00:00')
+        self.assert_get_parameter(Parameter.BLANKING_DISTANCE, 49)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_PINGS, 437)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS, 1)
+        self.assert_get_parameter(Parameter.AVG_INTERVAL, 1)
+        self.assert_get_parameter(Parameter.USER_NUMBER_BEAMS, 3)
+        self.assert_get_parameter(Parameter.POWER_CONTROL_REGISTER, 0)
+        self.assert_get_parameter(Parameter.COMPASS_UPDATE_RATE, 1)
+        self.assert_get_parameter(Parameter.COORDINATE_SYSTEM, 2)
+        self.assert_get_parameter(Parameter.NUMBER_BINS, 1)
+        self.assert_get_parameter(Parameter.MEASUREMENT_INTERVAL, 1)
+        self.assert_get_parameter(Parameter.WRAP_MODE, 0)
+        self.assert_get_parameter(Parameter.CLOCK_DEPLOY, [0,0,0,0,0,0])
         self.assert_get_parameter(Parameter.DIAGNOSTIC_INTERVAL, 11250)
+        self.assert_get_parameter(Parameter.MODE, 48)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_DIAGNOSTIC, 20)
+        self.assert_get_parameter(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.MODE_TEST, 4)
+        self.assert_get_parameter(Parameter.WAVE_MEASUREMENT_MODE, 0)
+        self.assert_get_parameter(Parameter.DYN_PERCENTAGE_POSITION, 0)
+        self.assert_get_parameter(Parameter.WAVE_TRANSMIT_PULSE, 0)
+        self.assert_get_parameter(Parameter.WAVE_BLANKING_DISTANCE, 0)
+        self.assert_get_parameter(Parameter.WAVE_CELL_SIZE, 0)
+        self.assert_get_parameter(Parameter.NUMBER_DIAG_SAMPLES, 0)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
+        self.assert_get_parameter(Parameter.ANALOG_OUTPUT_SCALE, 6711)
+        self.assert_get_parameter(Parameter.CORRELATION_THRESHOLD, 0)
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG, 2)
 
         # Test direct access inactivity timeout
         self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
@@ -334,13 +443,70 @@ class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
 
     def test_get_set_parameters(self):
         """
-        Verify that parameters can be get set properly
+        Verify that parameters can be get/set properly
         """
         self.assert_enter_command_mode()
 
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 16)
-        self.assert_set_parameter(Parameter.USER_NUMBER_BEAMS, 3)
-        #TODO
+        #test read/write parameter
+        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 50)
+        self.assert_set_parameter(Parameter.TIMING_CONTROL_REGISTER, 131)
+        self.assert_set_parameter(Parameter.COMPASS_UPDATE_RATE, 2)
+        self.assert_set_parameter(Parameter.COORDINATE_SYSTEM, 1)
+        self.assert_set_parameter(Parameter.VELOCITY_ADJ_TABLE, 'bu0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                          'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                          'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                          'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',)
+
+        #test read only parameters (includes immutable, when not startup)
+        self.assert_get_parameter(EngineeringParameter.CLOCK_SYNC_INTERVAL, '00:00:00')
+        self.assert_get_parameter(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:00:00')
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH, 125)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_PINGS, 437)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS, 1)
+        self.assert_get_parameter(Parameter.RECEIVE_LENGTH, 32)
+        self.assert_get_parameter(Parameter.TIME_BETWEEN_BURST_SEQUENCES, 512)
+        self.assert_get_parameter(Parameter.USER_NUMBER_BEAMS, 3)
+        self.assert_get_parameter(Parameter.POWER_CONTROL_REGISTER, 0)
+        self.assert_get_parameter(Parameter.NUMBER_BINS, 1)
+        self.assert_get_parameter(Parameter.BIN_LENGTH, 7)
+        self.assert_get_parameter(Parameter.ADJUSTMENT_SOUND_SPEED, 1525)
+        self.assert_get_parameter(Parameter.WRAP_MODE, 0)
+        self.assert_get_parameter(Parameter.CLOCK_DEPLOY, [0, 0, 0, 0, 0, 0])
+        self.assert_get_parameter(Parameter.DIAGNOSTIC_INTERVAL, 11250)
+        self.assert_get_parameter(Parameter.MODE, 48)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_DIAGNOSTIC, 20)
+        self.assert_get_parameter(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.ANALOG_INPUT_ADDR, 0)
+        self.assert_get_parameter(Parameter.NUMBER_PINGS_DIAGNOSTIC, 1)
+        self.assert_get_parameter(Parameter.MODE_TEST, 4)
+        self.assert_get_parameter(Parameter.SW_VERSION, 13902)
+        self.assert_get_parameter(Parameter.SW_VERSION, 13902)
+        self.assert_get_parameter(Parameter.WAVE_MEASUREMENT_MODE, 0)
+        self.assert_get_parameter(Parameter.DYN_PERCENTAGE_POSITION, 0)
+        self.assert_get_parameter(Parameter.WAVE_TRANSMIT_PULSE, 0)
+        self.assert_get_parameter(Parameter.WAVE_BLANKING_DISTANCE, 0)
+        self.assert_get_parameter(Parameter.WAVE_CELL_SIZE, 0)
+        self.assert_get_parameter(Parameter.NUMBER_DIAG_SAMPLES, 0)
+        self.assert_get_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
+        self.assert_get_parameter(Parameter.ANALOG_OUTPUT_SCALE, 6711)
+        self.assert_get_parameter(Parameter.CORRELATION_THRESHOLD, 0)
+        self.assert_get_parameter(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG, 2)
+
+        #NOTE: the following cannot be tested because there are no default values
+        #    'spare' parameters are not used by the driver, only place holders for the config file sent to set params
+        #     other parameter values are dependent on the instrument being tested
+        # self.assert_get_parameter(Parameter.A1_1_SPARE, 3)
+        # self.assert_get_parameter(Parameter.B0_1_SPARE, 1)
+        # self.assert_get_parameter(Parameter.B1_1_SPARE, 2)
+        # self.assert_get_parameter(Parameter.DEPLOYMENT_NAME, 'test')
+        # self.assert_get_parameter(Parameter.USER_1_SPARE, 23)
+        # self.assert_get_parameter(Parameter.COMMENTS, 'hello there')
+        # self.assert_get_parameter(Parameter.A1_2_SPARE, 6)
+        # self.assert_get_parameter(Parameter.B0_2_SPARE, 4)
+        # self.assert_get_parameter(Parameter.USER_2_SPARE, 1)
+        # self.assert_get_parameter(Parameter.USER_3_SPARE, 1)
+        # self.assert_get_parameter(Parameter.USER_4_SPARE, 1)
+        # self.assert_get_parameter(Parameter.QUAL_CONSTANTS, 'consts')
 
     def test_poll(self):
         """
