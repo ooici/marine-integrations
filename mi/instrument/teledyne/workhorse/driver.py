@@ -16,7 +16,6 @@ from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
 from mi.instrument.teledyne.driver import TeledyneParameter
-from mi.instrument.teledyne.driver import TeledyneParameter2
 from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.instrument.teledyne.particles import *
 from mi.core.instrument.chunker import StringChunker
@@ -26,11 +25,6 @@ from mi.core.instrument.chunker import StringChunker
 # Driver
 ###############################################################################
 class WorkhorseParameter(TeledyneParameter):
-    """
-    Device parameters
-    """
-
-class WorkhorseParameter2(TeledyneParameter2):
     """
     Device parameters
     """
@@ -79,6 +73,8 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         sieve_matchers = [ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                           ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+                          ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                          ADCP_TRANSMIT_PATH_REGEX_MATCHER,
                           ADCP_PD0_PARSED_REGEX_MATCHER]
 
         return_list = []
@@ -102,6 +98,7 @@ class WorkhorseProtocol(TeledyneProtocol):
                             return_list.append((match.start(), match.end()))
             else:
                 for match in matcher.finditer(raw_data):
+                    log.error("Sung sieve match %s", raw_data)
                     return_list.append((match.start(), match.end()))
 
         return return_list
