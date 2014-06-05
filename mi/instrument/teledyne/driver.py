@@ -19,7 +19,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterExpirationException
 
-from mi.core.log import get_logger,get_logging_metaclass
+from mi.core.log import get_logger, get_logging_metaclass
 
 log = get_logger()
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -46,8 +46,9 @@ TIMEOUT = 20
 # newline.
 NEWLINE = '\r\n'
 
-DEFAULT_CMD_TIMEOUT=20
-DEFAULT_WRITE_DELAY=0
+DEFAULT_CMD_TIMEOUT = 20
+DEFAULT_WRITE_DELAY = 0
+
 
 class TeledynePrompt(BaseEnum):
     """
@@ -56,6 +57,7 @@ class TeledynePrompt(BaseEnum):
     COMMAND = '\r\n>\r\n>'
     ERR = 'ERR:'
 
+
 class TeledyneParameter(DriverParameter):
     """
     Device parameters
@@ -63,55 +65,55 @@ class TeledyneParameter(DriverParameter):
     #
     # set-able parameters
     #
-    SERIAL_DATA_OUT = 'CD'              # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
-    INSTRUMENT_ID = 'CI'                # Int 0-255
-    XMIT_POWER = 'CQ'                   # 0=Low, 255=High
-    SPEED_OF_SOUND = 'EC'               # 1500  Speed Of Sound (m/s)
-    SALINITY = 'ES'                     # 35 (0-40 pp thousand)
-    COORDINATE_TRANSFORMATION = 'EX'    #
-    SENSOR_SOURCE = 'EZ'                # Sensor Source (C;D;H;P;R;S;T)
-    TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
-    TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-    TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
-    TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
-    FALSE_TARGET_THRESHOLD = 'WA'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
-    BANDWIDTH_CONTROL = 'WB'            # Bandwidth Control (0=Wid,1=Nar)
-    CORRELATION_THRESHOLD = 'WC'        # 064  Correlation Threshold
-    SERIAL_OUT_FW_SWITCHES = 'WD'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
-    ERROR_VELOCITY_THRESHOLD = 'WE'     # 5000  Error Velocity Threshold (0-5000 mm/s)
-    BLANK_AFTER_TRANSMIT = 'WF'         # 0088  Blank After Transmit (cm)
-    CLIP_DATA_PAST_BOTTOM = 'WI'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
-    RECEIVER_GAIN_SELECT = 'WJ'         # 1  Rcvr Gain Select (0=Low,1=High)
-    NUMBER_OF_DEPTH_CELLS = 'WN'        # Number of depth cells (1-255)
-    PINGS_PER_ENSEMBLE = 'WP'           # Pings per Ensemble (0-16384)
-    DEPTH_CELL_SIZE = 'WS'              # 0800  Depth Cell Size (cm)
-    TRANSMIT_LENGTH = 'WT'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
-    PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
-    AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
+    SERIAL_DATA_OUT = 'CD'  # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    INSTRUMENT_ID = 'CI'  # Int 0-255
+    XMIT_POWER = 'CQ'  # 0=Low, 255=High
+    SPEED_OF_SOUND = 'EC'  # 1500  Speed Of Sound (m/s)
+    SALINITY = 'ES'  # 35 (0-40 pp thousand)
+    COORDINATE_TRANSFORMATION = 'EX'  #
+    SENSOR_SOURCE = 'EZ'  # Sensor Source (C;D;H;P;R;S;T)
+    TIME_PER_ENSEMBLE = 'TE'  # 01:00:00.00 (hrs:min:sec.sec/100)
+    TIME_OF_FIRST_PING = 'TG'  # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    TIME_PER_PING = 'TP'  # 00:00.20  (min:sec.sec/100)
+    TIME = 'TT'  # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    FALSE_TARGET_THRESHOLD = 'WA'  # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+    BANDWIDTH_CONTROL = 'WB'  # Bandwidth Control (0=Wid,1=Nar)
+    CORRELATION_THRESHOLD = 'WC'  # 064  Correlation Threshold
+    SERIAL_OUT_FW_SWITCHES = 'WD'  # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    ERROR_VELOCITY_THRESHOLD = 'WE'  # 5000  Error Velocity Threshold (0-5000 mm/s)
+    BLANK_AFTER_TRANSMIT = 'WF'  # 0088  Blank After Transmit (cm)
+    CLIP_DATA_PAST_BOTTOM = 'WI'  # 0 Clip Data Past Bottom (0=OFF,1=ON)
+    RECEIVER_GAIN_SELECT = 'WJ'  # 1  Rcvr Gain Select (0=Low,1=High)
+    NUMBER_OF_DEPTH_CELLS = 'WN'  # Number of depth cells (1-255)
+    PINGS_PER_ENSEMBLE = 'WP'  # Pings per Ensemble (0-16384)
+    DEPTH_CELL_SIZE = 'WS'  # 0800  Depth Cell Size (cm)
+    TRANSMIT_LENGTH = 'WT'  # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
+    PING_WEIGHT = 'WU'  # 0 Ping Weighting (0=Box,1=Triangle)
+    AMBIGUITY_VELOCITY = 'WV'  # 175 Mode 1 Ambiguity Vel (cm/s radial)
 
     #
     # Workhorse parameters
     #
-    SERIAL_FLOW_CONTROL = 'CF'          # Flow Control
-    BANNER = 'CH'                       # Banner
-    SLEEP_ENABLE = 'CL'                 # SLEEP Enable
-    SAVE_NVRAM_TO_RECORDER = 'CN'       # Save NVRAM to RECORD
-    POLLED_MODE = 'CP'                  # Polled Mode
-    PITCH = 'EP'                        # Pitch
-    ROLL = 'ER'                         # Roll
+    SERIAL_FLOW_CONTROL = 'CF'  # Flow Control
+    BANNER = 'CH'  # Banner
+    SLEEP_ENABLE = 'CL'  # SLEEP Enable
+    SAVE_NVRAM_TO_RECORDER = 'CN'  # Save NVRAM to RECORD
+    POLLED_MODE = 'CP'  # Polled Mode
+    PITCH = 'EP'  # Pitch
+    ROLL = 'ER'  # Roll
 
-    LATENCY_TRIGGER = 'CX'              #Latency Trigger
-    HEADING_ALIGNMENT = 'EA'            # Heading Alignment
-    HEADING_BIAS = 'EB'                 # Heading Bias
-    DATA_STREAM_SELECTION ='PD'         # Data Stream selection
-    ENSEMBLE_PER_BURST ='TC'            # Ensemble per Burst
-    BUFFERED_OUTPUT_PERIOD ='TX'        # Buffered Output Period
-    SAMPLE_AMBIENT_SOUND ='WQ'          # Sample Ambient sound
-    TRANSDUCER_DEPTH ='ED'              # Transducer Depth
+    LATENCY_TRIGGER = 'CX'  # Latency Trigger
+    HEADING_ALIGNMENT = 'EA'  # Heading Alignment
+    HEADING_BIAS = 'EB'  # Heading Bias
+    DATA_STREAM_SELECTION = 'PD'  # Data Stream selection
+    ENSEMBLE_PER_BURST = 'TC'  # Ensemble per Burst
+    BUFFERED_OUTPUT_PERIOD = 'TX'  # Buffered Output Period
+    SAMPLE_AMBIENT_SOUND = 'WQ'  # Sample Ambient sound
+    TRANSDUCER_DEPTH = 'ED'  # Transducer Depth
 
     # Engineering parameters for the scheduled commands
-    CLOCK_SYNCH_INTERVAL ='clockSynchInterval'
-    GET_STATUS_INTERVAL ='getStatusInterval'
+    CLOCK_SYNCH_INTERVAL = 'clockSynchInterval'
+    GET_STATUS_INTERVAL = 'getStatusInterval'
 
 
 class TeledyneInstrumentCmds(BaseEnum):
@@ -122,13 +124,13 @@ class TeledyneInstrumentCmds(BaseEnum):
     """
 
     OUTPUT_CALIBRATION_DATA = 'AC'
-    BREAK = 'break' # < case sensitive!!!!
+    BREAK = 'break'  # < case sensitive!!!!
     SAVE_SETUP_TO_RAM = 'CK'
-    FACTORY_SETS = 'CR1' #Factory default set
-    USER_SETS = 'CR0'  #User default set
+    FACTORY_SETS = 'CR1'  # Factory default set
+    USER_SETS = 'CR0'  # User default set
     START_LOGGING = 'CS'
-    CLEAR_ERROR_STATUS_WORD = 'CY0'         # May combine with next
-    DISPLAY_ERROR_STATUS_WORD = 'CY1'       # May combine with prior
+    CLEAR_ERROR_STATUS_WORD = 'CY0'  # May combine with next
+    DISPLAY_ERROR_STATUS_WORD = 'CY1'  # May combine with prior
     CLEAR_FAULT_LOG = 'FC'
     GET_FAULT_LOG = 'FD'
 
@@ -140,7 +142,6 @@ class TeledyneInstrumentCmds(BaseEnum):
     OUTPUT_PT4 = 'PT4'
 
 
-
 class TeledyneProtocolState(BaseEnum):
     """
     Instrument protocol states
@@ -149,6 +150,7 @@ class TeledyneProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+
 
 class TeledyneProtocolEvent(BaseEnum):
     """
@@ -196,6 +198,7 @@ class TeledyneProtocolEvent(BaseEnum):
 
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
+
 class TeledyneCapability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -220,15 +223,16 @@ class TeledyneCapability(BaseEnum):
 
 
 class TeledyneScheduledJob(BaseEnum):
-
     CLOCK_SYNC = 'clock_sync'
     GET_CONFIGURATION = 'acquire_configuration'
     GET_CALIBRATION = 'acquire_calibration'
+
 
 class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver Family SubClass
     """
+
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -237,23 +241,27 @@ class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
-            DriverEvent.DISCOVER,
-            self._handler_connected_discover)
+                                         DriverEvent.DISCOVER,
+                                         self._handler_connected_discover)
 
     def _handler_connected_discover(self, event, *args, **kwargs):
         # Redefine discover handler so that we can apply startup params
         # when we discover. Gotta get into command mode first though.
-        log.trace("in TeledyneInstrumentDriver._handler_connected_discover calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
+        log.trace(
+            "in TeledyneInstrumentDriver._handler_connected_discover \
+            calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
         result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
         log.trace("in TeledyneInstrumentDriver._handler_connected_discover apply_startup_params")
         self.apply_startup_params()
         return result
+
 
 class TeledyneProtocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol Family SubClass
     """
     __metaclass__ = get_logging_metaclass("error")
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -272,52 +280,91 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         # Build ADCPT protocol state machine.
         self._protocol_fsm = ThreadSafeFSM(TeledyneProtocolState, TeledyneProtocolEvent,
-                            TeledyneProtocolEvent.ENTER, TeledyneProtocolEvent.EXIT)
+                                           TeledyneProtocolEvent.ENTER, TeledyneProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(TeledyneProtocolState.UNKNOWN, TeledyneProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.UNKNOWN, TeledyneProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.UNKNOWN, TeledyneProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.INIT_PARAMS, self._handler_command_init_params)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SCHEDULED_GET_STATUS, self._handler_command_get_status)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_CALIBRATION, self._handler_command_get_calibration)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, self._handler_command_save_setup_to_ram)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RUN_TEST_200, self._handler_command_run_test_200)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.FACTORY_SETS, self._handler_command_factory_sets)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.USER_SETS, self._handler_command_user_sets)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, self._handler_command_acquire_error_status_word)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, self._handler_command_clear_error_status_word)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_FAULT_LOG, self._handler_command_clear_fault_log)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_FAULT_LOG, self._handler_command_display_fault_log)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_GET_STATUS, self._handler_autosample_get_status)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CALIBRATION, self._handler_autosample_get_calibration)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.UNKNOWN, TeledyneProtocolEvent.ENTER,
+                                       self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.UNKNOWN, TeledyneProtocolEvent.EXIT,
+                                       self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.UNKNOWN, TeledyneProtocolEvent.DISCOVER,
+                                       self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ENTER,
+                                       self._handler_command_enter)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.EXIT,
+                                       self._handler_command_exit)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.INIT_PARAMS,
+                                       self._handler_command_init_params)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET,
+                                       self._handler_command_get)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SET,
+                                       self._handler_command_set)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLOCK_SYNC,
+                                       self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC,
+                                       self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SCHEDULED_GET_STATUS,
+                                       self._handler_command_get_status)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_CALIBRATION,
+                                       self._handler_command_get_calibration)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_CONFIGURATION,
+                                       self._handler_command_get_configuration)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
+                                       self._handler_command_save_setup_to_ram)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_DIRECT,
+                                       self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RUN_TEST_200,
+                                       self._handler_command_run_test_200)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.FACTORY_SETS,
+                                       self._handler_command_factory_sets)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.USER_SETS,
+                                       self._handler_command_user_sets)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_ERROR_STATUS_WORD,
+                                       self._handler_command_acquire_error_status_word)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD,
+                                       self._handler_command_clear_error_status_word)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_FAULT_LOG,
+                                       self._handler_command_clear_fault_log)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_FAULT_LOG,
+                                       self._handler_command_display_fault_log)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ACQUIRE_STATUS,
+                                       self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.ENTER,
+                                       self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.EXIT,
+                                       self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.INIT_PARAMS,
+                                       self._handler_autosample_init_params)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET,
+                                       self._handler_command_get)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC,
+                                       self._handler_autosample_clock_sync)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_GET_STATUS,
+                                       self._handler_autosample_get_status)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CALIBRATION,
+                                       self._handler_autosample_get_calibration)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CONFIGURATION,
+                                       self._handler_autosample_get_configuration)
 
         # we may have got a particle and slipped into AUTOSAMPLE, so we should honor discover...
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.DISCOVER, self._handler_unknown_discover) 
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.DISCOVER,
+                                       self._handler_unknown_discover)
 
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE, self._handler_recover_autosample)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE,
+                                       self._handler_recover_autosample)
 
-        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.ENTER,
+                                       self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.EXIT,
+                                       self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.EXECUTE_DIRECT,
+                                       self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.STOP_DIRECT,
+                                       self._handler_direct_access_stop_direct)
 
         # Build dictionaries for driver schema
         self._build_param_dict()
@@ -348,13 +395,16 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         #
         # Response handlers
         #
-        self._add_response_handler(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, self._parse_output_calibration_data_response)
+        self._add_response_handler(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,
+                                   self._parse_output_calibration_data_response)
         self._add_response_handler(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, self._parse_save_setup_to_ram_response)
-        self._add_response_handler(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._parse_clear_error_status_response)
+        self._add_response_handler(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD,
+                                   self._parse_clear_error_status_response)
         self._add_response_handler(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._parse_error_status_response)
         self._add_response_handler(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, self._parse_clear_fault_log_response)
         self._add_response_handler(TeledyneInstrumentCmds.GET_FAULT_LOG, self._parse_fault_log_response)
-        self._add_response_handler(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, self._parse_get_system_configuration)
+        self._add_response_handler(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION,
+                                   self._parse_get_system_configuration)
         self._add_response_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._parse_test_response)
 
         self._add_response_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._parse_factory_set_response)
@@ -387,7 +437,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             except KeyError:
                 log.debug("_remove_scheduler could not find %s", schedule_job)
 
-    def  start_scheduled_job(self, param, schedule_job, protocol_event):
+    def start_scheduled_job(self, param, schedule_job, protocol_event):
         """
         Add a scheduled job
         """
@@ -399,7 +449,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         seconds = interval[2]
         log.debug("Setting scheduled interval to: %s %s %s", hours, minutes, seconds)
 
-        if(hours == '00' and minutes=='00' and seconds=='00'):
+        if hours == '00' and minutes == '00' and seconds == '00':
             self.stop_scheduled_job(schedule_job)
         else:
             config = {DriverConfigKey.SCHEDULER: {
@@ -411,7 +461,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                         DriverSchedulerConfigKey.SECONDS: int(seconds)
                     }
                 }
-                }
+            }
             }
             self.set_init_params(config)
             self._add_scheduler_event(schedule_job, protocol_event)
@@ -430,6 +480,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _build_simple_command(self, cmd):
         """
+        OVERWRITE
         Build handler for basic adcpt commands.
         @param cmd the simple adcpt command to format
                 (no value to attach to the command)
@@ -446,26 +497,25 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
         """
-        Send the command to the instrument to syncronize the clock
+        Send the command to the instrument to synchronize the clock
         @param date_time_param: date time parameter that we want to set
-        @param prompts: expected prompt
         @param timeout: command timeout
         @param delay: wakeup delay
         @param time_format: time format string for set command
         @return: true if the command is successful
         @throws: InstrumentProtocolException if command fails
         """
-        prompt = self._wakeup(timeout=3, delay=delay)
+        self._wakeup(timeout=3, delay=delay)
 
         # lets clear out any past data so it doesnt confuse the command
         self._linebuf = ''
         self._promptbuf = ''
 
-        prompt = self._wakeup(timeout=3, delay=delay)
+        self._wakeup(timeout=3, delay=delay)
         str_val = get_timestamp_delayed(time_format)
-        reply = self._do_cmd_direct(date_time_param + str_val)
+        self._do_cmd_direct(date_time_param + str_val)
         time.sleep(1)
-        reply = self._get_response(TIMEOUT)
+        self._get_response(TIMEOUT)
 
         return True
 
@@ -487,7 +537,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Let's give it a try in unknown state
         log.debug("in apply_startup_params")
         if (self.get_current_state() != TeledyneProtocolState.COMMAND and
-            self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
+                    self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         logging = self._is_logging()
@@ -495,7 +545,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # instrument matches what we think it should be then we
         # don't need to do anything.
 
-        if(not self._instrument_config_dirty()):
+        if not self._instrument_config_dirty():
             log.trace("in apply_startup_params returning True")
             return True
 
@@ -522,7 +572,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 log.trace("current_state = %s", my_state)
                 self._start_logging()
 
-        if(error):
+        if error:
             raise error
 
     def _apply_params(self):
@@ -563,7 +613,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             cmds = self._get_params()
             results = ""
             for attr in sorted(cmds):
-                if attr not in ['dict', 'has', 'list', 'ALL','GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL' ]:
+                if attr not in ['dict', 'has', 'list', 'ALL', 'GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL']:
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
                         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, key, **kwargs)
@@ -588,7 +638,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 log.debug("current_state = %s calling start_logging", my_state)
                 self._start_logging()
 
-        if(error):
+        if error:
             raise error
 
         return results
@@ -614,7 +664,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
         for (key, val) in params.iteritems():
-            if(key.find('_') ==-1): # Not found
+            if key.find('_') == -1:  # Not found
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
@@ -656,22 +706,22 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("self._linebuf = " + self._linebuf)
 
         break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
-        "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
-        "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
-        "All Rights Reserved.")
+                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
+                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+                                  "All Rights Reserved.")
 
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
         timeout = 30
         count = 0
-        while (not found):
+        while not found:
             count += 1
             for break_message in break_confirmation:
                 if break_message in self._linebuf:
                     log.error("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
             if count > (timeout * 10):
-                if True != found:
+                if not found:
                     raise InstrumentTimeoutException("NO BREAK RESPONSE.")
             time.sleep(0.1)
         self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
@@ -735,8 +785,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             if not self._has_parameter(param):
                 raise InstrumentParameterException("in _instrument_config_dirty")
 
-            if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
-                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+            if self._param_dict.get(param) != self._param_dict.get_config_value(param):
+                log.trace("DIRTY: %s %s != %s" % (
+                    param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
                 return True
 
         log.trace("Clean instrument config")
@@ -773,7 +824,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws: InstrumentProtocolException if failed to start logging
         """
         log.debug("in _start_logging - are we logging? ")
-        if (self._is_logging()):
+        if self._is_logging():
             log.debug("ALREADY LOGGING")
             return True
         log.debug("SENDING START LOGGING")
@@ -804,7 +855,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._wakeup_until(timeout, TeledynePrompt.COMMAND)
 
         # set logging to false, as we just got a prompt after a break
-        logging = False
 
         if self._is_logging(timeout):
             log.debug("FAILED TO STOP LOGGING")
@@ -835,7 +885,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_factory_sets(self, *args, **kwargs):
         """
@@ -846,7 +896,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_user_sets(self, *args, **kwargs):
         """
@@ -857,7 +907,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_save_setup_to_ram(self, *args, **kwargs):
         """
@@ -868,7 +918,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_clear_error_status_word(self, *args, **kwargs):
         """
@@ -878,7 +928,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_acquire_error_status_word(self, *args, **kwargs):
         """
@@ -888,7 +938,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_display_fault_log(self, *args, **kwargs):
         """
@@ -898,7 +948,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_clear_fault_log(self, *args, **kwargs):
         """
@@ -908,7 +958,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_enter(self, *args, **kwargs):
         """
@@ -918,11 +968,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Command device to initialize parameters and send a config change event.
         self._protocol_fsm.on_event(TeledyneProtocolEvent.INIT_PARAMS)
-     
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
 
         log.trace("in _handler_command_enter()")
         #self._update_params()
@@ -934,12 +983,14 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # start scheduled event for clock synch
         clock_interval = self._param_dict.get(self._getattr_key('CLOCK_SYNCH_INTERVAL'))
         if clock_interval != '00:00:00':
-            self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+            self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
+                                     TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
         # start scheduled event for get_status
         status_interval = self._param_dict.get(self._getattr_key('GET_STATUS_INTERVAL'))
         if status_interval != '00:00:00':
-            self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+            self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION,
+                                     TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -975,10 +1026,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         an expected state.
         """
         (protocol_state, agent_state) = self._discover()
-        if(protocol_state == TeledyneProtocolState.COMMAND):
+        if protocol_state == TeledyneProtocolState.COMMAND:
             agent_state = ResourceAgentState.IDLE
 
-        return (protocol_state, agent_state)
+        return protocol_state, agent_state
 
     ######################################################
     #                                                    #
@@ -989,9 +1040,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
-     
+
         self._init_params()
-        return (next_state, result)
+        return next_state, result
 
     def _handler_autosample_enter(self, *args, **kwargs):
         """
@@ -1010,7 +1061,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("IN _handler_autosample_exit")
 
         pass
-    
+
     def _handler_autosample_init_params(self, *args, **kwargs):
         """
         initialize parameters.  For this instrument we need to
@@ -1036,13 +1087,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Switch back to streaming
             log.debug("starting logging")
             self._start_logging()
-                #self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
+            #self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
 
-        if (error):
+        if error:
             log.error("Error in apply_startup_params: %s", error)
             raise error
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -1057,10 +1108,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
 
         log.info("SYNCING TIME WITH SENSOR.")
-        resp = self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+        self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
+                                 get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
 
         # Save setup to nvram and switch to autosample if successful.
-        resp = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
+        self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
 
         # Issue start command and switch to autosample if successful.
         self._start_logging()
@@ -1068,7 +1120,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         next_state = TeledyneProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -1091,7 +1143,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         next_state = TeledyneProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -1100,6 +1152,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentParameterException if missing or invalid parameter.
         """
         log.trace("in _handler_command_get")
+        log.error("Sung in _handler_command_get...")
         next_state = None
         result = None
         error = None
@@ -1142,7 +1195,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     # Switch back to streaming
                     self._start_logging()
 
-                if(error):
+                if error:
                     raise error
             else:
                 log.trace("I am not logging")
@@ -1151,7 +1204,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 # have all fresh values.
                 log.trace("Fetching parameters for the second time")
                 result = self._get_param_result(param_list, expire_time)
-        return (next_state, result)
+        return next_state, result
 
     def _handler_autosample_get_calibration(self, *args, **kwargs):
         """
@@ -1187,11 +1240,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Switch back to streaming
             self._start_logging()
 
-        if(error):
+        if error:
             raise error
-     
+
         result = self._sanitize(base64.b64decode(output))
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
         #return (next_state, (next_agent_state, {'result': result}))
 
     def _handler_autosample_get_configuration(self, *args, **kwargs):
@@ -1206,7 +1259,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
-        
+
         next_state = None
         next_agent_state = None
         result = None
@@ -1217,7 +1270,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._stop_logging(*args, **kwargs)
 
             # Sync the clock
-            timeout = kwargs.get('timeout', TIMEOUT)
             output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
 
         # Catch all error so we can put ourself back into
@@ -1229,13 +1281,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Switch back to streaming
             self._start_logging()
 
-        if(error):
+        if error:
             raise error
-        
+
         result = self._sanitize(base64.b64decode(output))
-        
-        return (next_state, (next_agent_state, result))
-        
+
+        return next_state, (next_agent_state, result)
+
 
     def _handler_recover_autosample(self, *args, **kwargs):
         """
@@ -1245,11 +1297,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = TeledyneProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
-        result = None
 
         self._async_agent_state_change(ResourceAgentState.STREAMING)
 
-        return (next_state, next_agent_state)
+        return next_state, next_agent_state
 
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
@@ -1268,23 +1319,24 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
         error = None
-        
+
         logging = False
-        
+
         self._promptbuf = ""
         self._linebuf = ""
-        
+
         if self._is_logging():
             logging = True
             # Switch to command mode,
             self._stop_logging()
-            
+
         log.debug("in _handler_autosample_clock_sync")
         try:
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
 
-            self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
+            self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout,
+                             time_format="%Y/%m/%d,%H:%M:%S")
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1296,10 +1348,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             if logging:
                 self._start_logging()
 
-        if(error):
+        if error:
             raise error
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -1333,23 +1385,29 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
-                if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
-                    self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
-                    self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+            if TeledyneParameter.CLOCK_SYNCH_INTERVAL in params:
+                if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
+                        TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
+                    self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL,
+                                               params[TeledyneParameter.CLOCK_SYNCH_INTERVAL])
+                    self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
+                                             TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                     changed = True
 
-            if(TeledyneParameter.GET_STATUS_INTERVAL in params):
-                if(params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(TeledyneParameter.GET_STATUS_INTERVAL)) :
-                    self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL, params[TeledyneParameter.GET_STATUS_INTERVAL] )
-                    self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+            if TeledyneParameter.GET_STATUS_INTERVAL in params:
+                if (params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(
+                        TeledyneParameter.GET_STATUS_INTERVAL)):
+                    self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL,
+                                               params[TeledyneParameter.GET_STATUS_INTERVAL])
+                    self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL,
+                                             TeledyneScheduledJob.GET_CONFIGURATION,
+                                             TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
                     changed = True
-            if(changed):
+            if changed:
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             result = self._set_params(params, startup)
 
-
-        return (next_state, result)
+        return next_state, result
 
 
     def _handler_command_get_calibration(self, *args, **kwargs):
@@ -1368,7 +1426,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
@@ -1385,7 +1443,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("in _handler_command_get_configuration")
         output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
-        return (next_state, (next_agent_state, {'result': result}))
+        return next_state, (next_agent_state, {'result': result})
 
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
@@ -1400,9 +1458,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        prompt = self._wakeup(timeout=3)
+        self._wakeup(timeout=3)
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get_status(self, *args, **kwargs):
         """
@@ -1418,14 +1476,15 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         try:
             # Get calibration, PT2 and PT4 events
-            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
         except Exception as e:
-            raise InstrumentParameterException('Unknown driver parameter on _do_cmd_no_resp in handle_command_clock_sync. Exception :' + str(e))
+            raise InstrumentParameterException(
+                'Unknown driver parameter on _do_cmd_no_resp in handle_command_clock_sync. Exception :' + str(e))
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_autosample_get_status(self, *args, **kwargs):
         """
@@ -1440,25 +1499,25 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         result = None
 
         logging = False
-        error = None
 
         if self._is_logging():
             logging = True
             # Switch to command mode,
             self._stop_logging()
         try:
-            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
         except Exception as e:
-            raise InstrumentParameterException('Unknown driver parameter on _do_cmd_no_resp in handle_autosample_get_status. Exception :' + str(e))
+            raise InstrumentParameterException(
+                'Unknown driver parameter on _do_cmd_no_resp in handle_autosample_get_status. Exception :' + str(e))
 
         finally:
             # Switch back to streaming
             if logging:
                 self._start_logging()
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_start_direct(self, *args, **kwargs):
         next_state = None
@@ -1467,7 +1526,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         next_state = TeledyneProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_direct_access_enter(self, *args, **kwargs):
         """
@@ -1503,9 +1562,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
-    def _handler_command_acquire_status(self,*args, **kwargs ):
+    def _handler_command_acquire_status(self, *args, **kwargs):
         """
         Get the raw format outputs of the following commands, AC, PT2, PT4
         """
@@ -1516,14 +1575,15 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
         try:
-            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
         except Exception as e:
-            raise InstrumentParameterException('Unknown driver parameter on _do_cmd_no_resp in _handler_command_acquire_status. Exception :' + str(e))
+            raise InstrumentParameterException(
+                'Unknown driver parameter on _do_cmd_no_resp in _handler_command_acquire_status. Exception :' + str(e))
 
-        return (next_state, (None, None))
+        return next_state, (None, None)
 
     def _discover(self):
         """
@@ -1536,12 +1596,12 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("IN _discover")
         logging = self._is_logging()
         log.error("LOGGING = " + str(logging))
-        if (logging == True):
-            return (TeledyneProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING)
-        elif (logging == False):
-            return (TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND)
+        if logging == True:
+            return TeledyneProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
+        elif not logging:
+            return TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND
         else:
-            return (TeledyneProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN)
+            return TeledyneProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN
 
     def _handler_direct_access_stop_direct(self):
         """
@@ -1552,7 +1612,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("IN _handler_direct_access_stop_direct")
         (next_state, next_agent_state) = self._discover()
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_restore_factory_params(self):
         """
@@ -1588,7 +1648,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if set command misunderstood.
         """
         if prompt == TeledynePrompt.ERR:
-            raise InstrumentParameterException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+            raise InstrumentParameterException(
+                'Protocol._parse_set_response : Set command not recognized: %s' % response)
 
         if " ERR" in response:
             raise InstrumentParameterException('Protocol._parse_set_response : Set command failed: %s' % response)
@@ -1616,11 +1677,12 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _parse_get_response(self, response, prompt):
         log.trace("GET RESPONSE = " + repr(response))
         if prompt == TeledynePrompt.ERR:
-            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+            raise InstrumentProtocolException(
+                'Protocol._parse_set_response : Set command not recognized: %s' % response)
 
         while (not response.endswith('\r\n>\r\n>')) or ('?' not in response):
             (prompt, response) = self._get_raw_response(30, TeledynePrompt.COMMAND)
-            time.sleep(.05) # was 1
+            time.sleep(.05)  # was 1
         self._param_dict.update(response)
         for line in response.split(NEWLINE):
             self._param_dict.update(line)
@@ -1662,7 +1724,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         response = re.sub("\[", "", response)
         response = re.sub("\]", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_clear_error_status_response(self, response, prompt):
         """
@@ -1671,7 +1733,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("parse_error_status_response = %s", str(response))
         response = re.sub("CY0\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_error_status_response(self, response, prompt):
         """
@@ -1681,7 +1743,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("parse_error_status_response = %s", str(response))
         response = re.sub("CY1\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_clear_fault_log_response(self, response, prompt):
         """
@@ -1689,7 +1751,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         response = re.sub("FC\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_fault_log_response(self, response, prompt):
         """
@@ -1697,7 +1759,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         response = re.sub("FD\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_instrument_transform_matrix_response(self, response, prompt):
         """
@@ -1705,7 +1767,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         response = re.sub("PS3\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_test_response(self, response, prompt):
         """
@@ -1713,7 +1775,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         response = re.sub("PT200\r\n\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_factory_set_response(self, response, prompt):
         """
@@ -1721,7 +1783,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         response = re.sub("CR1\r\n\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
+        return True, response
 
     def _parse_user_set_response(self, response, prompt):
         """
@@ -1729,11 +1791,12 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         response = re.sub("CR0\r\n\r\n", "", response)
         response = re.sub("\r\n>", "", response)
-        return (True, response)
-        
+        return True, response
+
     def _parse_restore_factory_params_response(self):
         """
         """
+
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################
