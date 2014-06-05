@@ -139,14 +139,14 @@ class Prompt(BaseEnum):
 # Data Particles
 ###############################################################################
 class THSPHDataParticleKey(BaseEnum):
-    HIGH_IMPEDANCE_ELECTRODE_1 = "hie1"  # High Impedance Electrode 1 for pH
-    HIGH_IMPEDANCE_ELECTRODE_2 = "hie2"  # High Impedance Electrode 2 for pH
-    H2_ELECTRODE = "h2electrode"  # H2 electrode
-    S2_ELECTRODE = "s2electrode"  # Sulfide Electrode
-    THERMOCOUPLE1 = "thermocouple1"  # Type E thermocouple 1-high
-    THERMOCOUPLE2 = "thermocouple2"  # Type E thermocouple 2-low
-    REFERENCE_THERMISTOR = "rthermistor"  # Reference Thermistor
-    BOARD_THERMISTOR = "bthermistor"  # Board Thermistor
+    HIGH_IMPEDANCE_ELECTRODE_1 = "thsph_hie1"  # High Impedance Electrode 1 for pH
+    HIGH_IMPEDANCE_ELECTRODE_2 = "thsph_hie2"  # High Impedance Electrode 2 for pH
+    H2_ELECTRODE = "thsph_h2electrode"  # H2 electrode
+    S2_ELECTRODE = "thsph_s2electrode"  # Sulfide Electrode
+    THERMOCOUPLE1 = "thsph_thermocouple1"  # Type E thermocouple 1-high
+    THERMOCOUPLE2 = "thsph_thermocouple2"  # Type E thermocouple 2-low
+    REFERENCE_THERMISTOR = "thsph_rthermistor"  # Reference Thermistor
+    BOARD_THERMISTOR = "thsph_bthermistor"  # Board Thermistor
 
 
 class THSPHParticle(DataParticle):
