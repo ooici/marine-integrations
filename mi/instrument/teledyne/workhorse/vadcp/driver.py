@@ -7,6 +7,7 @@ Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
+
 from mi.instrument.teledyne.workhorse.driver import WorkhorseInstrumentDriver
 from mi.instrument.teledyne.workhorse.driver import WorkhorseProtocol
 
@@ -17,7 +18,9 @@ from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledynePrompt
 
 from mi.instrument.teledyne.workhorse.driver import NEWLINE
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger, get_logging_metaclass
+
+log = get_logger()
 
 import json
 import socket
@@ -33,7 +36,7 @@ from mi.core.instrument.driver_dict import DriverDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
-from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter2
+from mi.instrument.teledyne.workhorse.adcp.driver import ADCPUnits
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.exceptions import InstrumentParameterException
@@ -49,7 +52,7 @@ from mi.instrument.teledyne.particles import *
 
 from mi.core.instrument.instrument_protocol import InitializationType
 
-from mi.instrument.teledyne.driver import  TeledyneProtocol
+from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.instrument.instrument_driver import ResourceAgentState
@@ -62,14 +65,17 @@ from mi.core.instrument.instrument_driver import ConfigMetadataKey
 import re
 import base64
 
+
 class SlaveProtocol(BaseEnum):
     FOURBEAM = '4Beam'
     FIFTHBEAM = '5thBeam'
+
 
 class Prompt(TeledynePrompt):
     """
     Device i/o prompts..
     """
+
 
 class Parameter(WorkhorseParameter):
     """
@@ -83,17 +89,6 @@ class Parameter(WorkhorseParameter):
     SLAVE_TIMEOUT = 'ST'
     SYNCH_DELAY = 'SW'
 
-class Parameter2(WorkhorseParameter2):
-    """
-    Device parameters
-    """
-    #
-    # set-able parameters
-    #
-    SYNC_PING_ENSEMBLE = 'SA_5th'
-    RDS3_MODE_SEL = 'SM_5th'     # 0=off, 1=master, 2=slave
-    SLAVE_TIMEOUT = 'ST_5th'
-    SYNCH_DELAY = 'SW_5th'
 
 class TeledyneParameter2(DriverParameter):
     """
@@ -102,51 +97,65 @@ class TeledyneParameter2(DriverParameter):
     #
     # set-able parameters
     #
-    SERIAL_DATA_OUT = 'CD_5th'              # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
-    INSTRUMENT_ID = 'CI_5th'                # Int 0-255
-    XMIT_POWER = 'CQ_5th'                   # 0=Low, 255=High
-    SPEED_OF_SOUND = 'EC_5th'               # 1500  Speed Of Sound (m/s)
-    SALINITY = 'ES_5th'                     # 35 (0-40 pp thousand)
-    COORDINATE_TRANSFORMATION = 'EX_5th'    #
-    SENSOR_SOURCE = 'EZ_5th'                # Sensor Source (C;D;H;P;R;S;T)
-    TIME_PER_ENSEMBLE = 'TE_5th'            # 01:00:00.00 (hrs:min:sec.sec/100)
-    TIME_OF_FIRST_PING = 'TG_5th'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-    TIME_PER_PING = 'TP_5th'                # 00:00.20  (min:sec.sec/100)
-    TIME = 'TT_5th'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
-    FALSE_TARGET_THRESHOLD = 'WA_5th'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
-    BANDWIDTH_CONTROL = 'WB_5th'            # Bandwidth Control (0=Wid,1=Nar)
-    CORRELATION_THRESHOLD = 'WC_5th'        # 064  Correlation Threshold
-    SERIAL_OUT_FW_SWITCHES = 'WD_5th'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
-    ERROR_VELOCITY_THRESHOLD = 'WE_5th'     # 5000  Error Velocity Threshold (0-5000 mm/s)
-    BLANK_AFTER_TRANSMIT = 'WF_5th'         # 0088  Blank After Transmit (cm)
-    CLIP_DATA_PAST_BOTTOM = 'WI_5th'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
-    RECEIVER_GAIN_SELECT = 'WJ_5th'         # 1  Rcvr Gain Select (0=Low,1=High)
-    NUMBER_OF_DEPTH_CELLS = 'WN_5th'        # Number of depth cells (1-255)
-    PINGS_PER_ENSEMBLE = 'WP_5th'           # Pings per Ensemble (0-16384)
-    DEPTH_CELL_SIZE = 'WS_5th'              # 0800  Depth Cell Size (cm)
-    TRANSMIT_LENGTH = 'WT_5th'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
-    PING_WEIGHT = 'WU_5th'                  # 0 Ping Weighting (0=Box,1=Triangle)
-    AMBIGUITY_VELOCITY = 'WV_5th'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
+    SERIAL_DATA_OUT = 'CD_5th'  # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    INSTRUMENT_ID = 'CI_5th'  # Int 0-255
+    XMIT_POWER = 'CQ_5th'  # 0=Low, 255=High
+    SPEED_OF_SOUND = 'EC_5th'  # 1500  Speed Of Sound (m/s)
+    SALINITY = 'ES_5th'  # 35 (0-40 pp thousand)
+    COORDINATE_TRANSFORMATION = 'EX_5th'  #
+    SENSOR_SOURCE = 'EZ_5th'  # Sensor Source (C;D;H;P;R;S;T)
+    TIME_PER_ENSEMBLE = 'TE_5th'  # 01:00:00.00 (hrs:min:sec.sec/100)
+    TIME_OF_FIRST_PING = 'TG_5th'  # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    TIME_PER_PING = 'TP_5th'  # 00:00.20  (min:sec.sec/100)
+    TIME = 'TT_5th'  # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    FALSE_TARGET_THRESHOLD = 'WA_5th'  # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+    BANDWIDTH_CONTROL = 'WB_5th'  # Bandwidth Control (0=Wid,1=Nar)
+    CORRELATION_THRESHOLD = 'WC_5th'  # 064  Correlation Threshold
+    SERIAL_OUT_FW_SWITCHES = 'WD_5th'  # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    ERROR_VELOCITY_THRESHOLD = 'WE_5th'  # 5000  Error Velocity Threshold (0-5000 mm/s)
+    BLANK_AFTER_TRANSMIT = 'WF_5th'  # 0088  Blank After Transmit (cm)
+    CLIP_DATA_PAST_BOTTOM = 'WI_5th'  # 0 Clip Data Past Bottom (0=OFF,1=ON)
+    RECEIVER_GAIN_SELECT = 'WJ_5th'  # 1  Rcvr Gain Select (0=Low,1=High)
+    NUMBER_OF_DEPTH_CELLS = 'WN_5th'  # Number of depth cells (1-255)
+    PINGS_PER_ENSEMBLE = 'WP_5th'  # Pings per Ensemble (0-16384)
+    DEPTH_CELL_SIZE = 'WS_5th'  # 0800  Depth Cell Size (cm)
+    TRANSMIT_LENGTH = 'WT_5th'  # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
+    PING_WEIGHT = 'WU_5th'  # 0 Ping Weighting (0=Box,1=Triangle)
+    AMBIGUITY_VELOCITY = 'WV_5th'  # 175 Mode 1 Ambiguity Vel (cm/s radial)
 
     #
     # Workhorse parameters
     #
-    SERIAL_FLOW_CONTROL = 'CF_5th'          # Flow Control
-    BANNER = 'CH_5th'                       # Banner
-    SLEEP_ENABLE = 'CL_5th'                 # SLEEP Enable
-    SAVE_NVRAM_TO_RECORDER = 'CN_5th'       # Save NVRAM to RECORD
-    POLLED_MODE = 'CP_5th'                  # Polled Mode
-    PITCH = 'EP_5th'                        # Pitch
-    ROLL = 'ER_5th'                         # Roll
+    SERIAL_FLOW_CONTROL = 'CF_5th'  # Flow Control
+    BANNER = 'CH_5th'  # Banner
+    SLEEP_ENABLE = 'CL_5th'  # SLEEP Enable
+    SAVE_NVRAM_TO_RECORDER = 'CN_5th'  # Save NVRAM to RECORD
+    POLLED_MODE = 'CP_5th'  # Polled Mode
+    PITCH = 'EP_5th'  # Pitch
+    ROLL = 'ER_5th'  # Roll
 
-    LATENCY_TRIGGER = 'CX_5th'              #Latency Trigger
-    HEADING_ALIGNMENT = 'EA_5th'            # Heading Alignment
-    HEADING_BIAS = 'EB_5th'                 # Heading Bias
-    DATA_STREAM_SELECTION ='PD_5th'         # Data Stream selection
-    ENSEMBLE_PER_BURST ='TC_5th'            # Ensemble per Burst
-    BUFFERED_OUTPUT_PERIOD ='TX_5th'        # Buffered Output Period
-    SAMPLE_AMBIENT_SOUND ='WQ_5th'          # Sample Ambient sound
-    TRANSDUCER_DEPTH ='ED_5th'              # Transducer Depth
+    LATENCY_TRIGGER = 'CX_5th'  # Latency Trigger
+    HEADING_ALIGNMENT = 'EA_5th'  # Heading Alignment
+    HEADING_BIAS = 'EB_5th'  # Heading Bias
+    DATA_STREAM_SELECTION = 'PD_5th'  # Data Stream selection
+    ENSEMBLE_PER_BURST = 'TC_5th'  # Ensemble per Burst
+    BUFFERED_OUTPUT_PERIOD = 'TX_5th'  # Buffered Output Period
+    SAMPLE_AMBIENT_SOUND = 'WQ_5th'  # Sample Ambient sound
+    TRANSDUCER_DEPTH = 'ED_5th'  # Transducer Depth
+
+
+class Parameter2(TeledyneParameter2):
+    """
+    Device parameters
+    """
+    #
+    # set-able parameters
+    #
+    SYNC_PING_ENSEMBLE = 'SA_5th'
+    RDS3_MODE_SEL = 'SM_5th'  # 0=off, 1=master, 2=slave
+    SLAVE_TIMEOUT = 'ST_5th'
+    SYNCH_DELAY = 'SW_5th'
+
 
 class ProtocolEvent(TeledyneProtocolEvent):
     """
@@ -177,29 +186,37 @@ class InstrumentCmds(TeledyneInstrumentCmds):
     GET2 = 'get2'
     SET2 = 'set2'
 
+
 class RawDataParticle_5thbeam(RawDataParticle):
     _data_particle_type = "raw_5thbeam"
+
 
 class VADCP_COMPASS_CALIBRATION_DataParticle(ADCP_COMPASS_CALIBRATION_DataParticle):
     _data_particle_type = "vadcp_5thbeam_compass_calibration"
 
+
 class VADCP_SYSTEM_CONFIGURATION_DataParticle(ADCP_SYSTEM_CONFIGURATION_DataParticle):
     _data_particle_type = "adcp_5thbeam_system_configuration"
+
 
 class VADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE):
     _data_particle_type = "vadcp_ancillary_system_data"
 
+
 class VADCP_TRANSMIT_PATH_PARTICLE(ADCP_TRANSMIT_PATH_PARTICLE):
     _data_particle_type = "vadcp_transmit_path"
+
 
 class VADCP_PD0_PARSED_DataParticle(ADCP_PD0_PARSED_DataParticle):
     _data_particle_type = "VADCP"
     _slave = True
 
-class AdcpPortAgentClient (PortAgentClient):
+
+class AdcpPortAgentClient(PortAgentClient):
     def __init__(self, host, port, cmd_port, delim=None):
         PortAgentClient.__init__(self, host, port, cmd_port, delim=None)
         self.info = "This is portAgentClient for VADCP"
+
 
 class ProtocolState(TeledyneProtocolState):
     """
@@ -211,6 +228,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
     """
     Specialization for this version of the workhorse ADCP driver
     """
+    __metaclass__ = get_logging_metaclass("error")
     def __init__(self, evt_callback):
         """
         InstrumentDriver constructor.
@@ -223,11 +241,11 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         self._connections = {}
 
 
-
     #def _handler_connected_discover(self, event, *args, **kwargs):
     #    # Redefine discover handler so that we can apply startup params
     #    # when we discover. Gotta get into command mode first though.
-    #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
+    #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover
+    #    calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
     #    result = WorkhorseInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
     #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover apply_startup_params")
     #    log.error("Sung driver calling apply_startup_params()")
@@ -358,25 +376,25 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         result = None
         self._build_protocol()
         log.error('Sung _handler_disconnected_connect built protocol')
+        log.error("Sung self.connection %s", self._connections)
         try:
             self._connections[SlaveProtocol.FOURBEAM].init_comms(self._protocol.got_data,
-                                      self._protocol.got_raw,
-                                      self._got_exception,
-                                      self._lost_connection_callback)
+                                                                 self._protocol.got_raw,
+                                                                 self._got_exception,
+                                                                 self._lost_connection_callback)
             self._protocol._connection_4Beam = self._connections[SlaveProtocol.FOURBEAM]
         except InstrumentConnectionException as e:
             log.error("4 beam Connection Exception: %s", e)
             log.error("Instrument Driver remaining in disconnected state.")
             # Re-raise the exception
             raise
-        log.error('Sung _handler_disconnected_connect built the first connection')
         try:
             self._connections[SlaveProtocol.FIFTHBEAM].init_comms(self._protocol.got_data2,
-                                      self._protocol.got_raw2,
-                                      self._got_exception,
-                                      self._lost_connection_callback)
+                                                                  self._protocol.got_raw2,
+                                                                  self._got_exception,
+                                                                  self._lost_connection_callback)
             self._protocol._connection_5thBeam = self._connections[SlaveProtocol.FIFTHBEAM]
-            log.error('Sung _handler_disconnected_connect init comm22 %s', self._protocol._connection_5thBeam.info)
+
 
         except InstrumentConnectionException as e:
             log.error("5th beam Connection Exception: %s", e)
@@ -386,6 +404,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
             # Re-raise the exception
             raise
         log.debug('_handler_disconnected_connect exit')
+        log.error('Sung _handler_disconnected_connect built the second connection')
         return next_state, result
 
     ########################################################################
@@ -464,10 +483,12 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
             if not isinstance(config, dict):
                 continue
             log.debug('_build_connections: config received: %r', config)
+            log.error('Sung _build_connections: config received: %r', config)
             if 'mock_port_agent' in config:
                 mock_port_agent = config['mock_port_agent']
                 # check for validity here...
                 if mock_port_agent is not None:
+                    log.error('Sung set connections to mock %r', config)
                     connections[name] = mock_port_agent
             else:
                 try:
@@ -482,13 +503,13 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
                 except (TypeError, KeyError):
                     raise InstrumentParameterException('Invalid comms config dict..')
+        log.error('Sung _build_connections: return connections: %r', connections)
         return connections
 
 
 class Protocol(WorkhorseProtocol):
-
-    DEFAULT_CMD_TIMEOUT=20
-    DEFAULT_WRITE_DELAY=0
+    DEFAULT_CMD_TIMEOUT = 20
+    DEFAULT_WRITE_DELAY = 0
 
     def _get_params(self):
         return dir(Parameter)
@@ -610,11 +631,12 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung GET RESPONSE2 = " + repr(response))
         log.trace("GET RESPONSE2 = " + repr(response))
         if prompt == TeledynePrompt.ERR:
-            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+            raise InstrumentProtocolException(
+                'Protocol._parse_set_response : Set command not recognized: %s' % response)
 
         while (not response.endswith('\r\n>\r\n>')) or ('?' not in response):
             (prompt, response) = self._get_raw_response2(30, TeledynePrompt.COMMAND)
-            time.sleep(.05) # was 1
+            time.sleep(.05)  # was 1
 
         log.error("Sung GET RESPONSE2  calling param_dict2 = " + repr(response))
         self._param_dict2.update(response)
@@ -674,7 +696,7 @@ class Protocol(WorkhorseProtocol):
         if response_regex:
             prompt_list = []
 
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
@@ -695,7 +717,7 @@ class Protocol(WorkhorseProtocol):
                 for item in prompt_list:
                     index = self._promptbuf2.find(item)
                     if index >= 0:
-                        result = self._promptbuf2[0:index+len(item)]
+                        result = self._promptbuf2[0:index + len(item)]
                         return (item, result)
                     else:
                         time.sleep(.1)
@@ -746,16 +768,16 @@ class Protocol(WorkhorseProtocol):
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         log.error('Sung _do_cmd_direct: <%s>' % cmd)
-        if(cmd.find('::') != -1) :  # Found
+        if (cmd.find('::') != -1):  # Found
             cmd_split = cmd.split('::', 1)
             log.error('Sung _do_cmd_direct split[0]: <%s>' % cmd_split[0])
             log.error('Sung _do_cmd_direct split[1]: <%s>' % cmd_split[1])
             log.error('Sung _do_cmd_direct split[1]: strip <%s>' % cmd_split[0].strip())
             instrument = cmd_split[0].strip()
-            if(instrument == "master"):
+            if (instrument == "master"):
                 log.error('Sung _do_cmd_direct: <%s> to master' % cmd_split[1])
                 self._connection_4Beam.send(NEWLINE + cmd_split[1])
-            if(instrument == "slave"):
+            if (instrument == "slave"):
                 log.error('Sung _do_cmd_direct: <%s> to slave' % cmd_split[1])
                 self._connection_5thBeam.send(NEWLINE + cmd_split[1])
         else:
@@ -817,10 +839,10 @@ class Protocol(WorkhorseProtocol):
 
         # Send command.
         log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
-                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
+                  repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
 
         if (write_delay == 0):
-            log.error("Sung send the command: %s", repr(cmd_line) )
+            log.error("Sung send the command: %s", repr(cmd_line))
             self._connection_4Beam.send(cmd_line)
             #self._connection.send(cmd_line)
         else:
@@ -844,7 +866,7 @@ class Protocol(WorkhorseProtocol):
 
         log.error("Sung do_cmd_resp result %s", repr(result))
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
+                       self._response_handlers.get(cmd, None)
         resp_result = None
         log.error("Sung do_cmd_resp result... %s", repr(result))
         if resp_handler:
@@ -909,10 +931,10 @@ class Protocol(WorkhorseProtocol):
 
         # Send command.
         log.debug('_do_cmd_resp2: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
-                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
+                  repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
         log.error("Sung do_cmd_resp2 4")
         if (write_delay == 0):
-            log.error("Sung send the command (5th Beam): %s", repr(cmd_line) )
+            log.error("Sung send the command (5th Beam): %s", repr(cmd_line))
             self._connection_5thBeam.send(cmd_line)
             #self._connection.send(cmd_line)
         else:
@@ -927,18 +949,18 @@ class Protocol(WorkhorseProtocol):
         if response_regex:
             prompt = ""
             result_tuple = self._get_response2(timeout,
-                                              response_regex=response_regex,
-                                              expected_prompt=expected_prompt)
+                                               response_regex=response_regex,
+                                               expected_prompt=expected_prompt)
             log.error("Sung2 before join %s", repr(result_tuple))
             result = "".join(result_tuple)
         else:
             (prompt, result) = self._get_response2(timeout,
-                                                  expected_prompt=expected_prompt)
+                                                   expected_prompt=expected_prompt)
 
         log.error("Sung do_cmd_resp2 6")
         log.error("Sung do_cmd_resp2 result %s", repr(result))
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
+                       self._response_handlers.get(cmd, None)
         resp_result = None
         log.error("Sung do_cmd_resp2 result... %s", repr(result))
         if resp_handler:
@@ -946,7 +968,6 @@ class Protocol(WorkhorseProtocol):
 
         log.error("Sung do_cmd_resp2 Response handler %s", repr(resp_result))
         return resp_result
-
 
 
     def _get_response2(self, timeout=10, expected_prompt=None, response_regex=None):
@@ -984,7 +1005,7 @@ class Protocol(WorkhorseProtocol):
         if response_regex:
             prompt_list = []
 
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
@@ -1005,7 +1026,7 @@ class Protocol(WorkhorseProtocol):
                 for item in prompt_list:
                     index = self._promptbuf2.find(item)
                     if index >= 0:
-                        result = self._promptbuf2[0:index+len(item)]
+                        result = self._promptbuf2[0:index + len(item)]
                         return (item, result)
                     else:
                         time.sleep(.1)
@@ -1122,7 +1143,7 @@ class Protocol(WorkhorseProtocol):
 
             self._chunker2.add_chunk(data, timestamp)
             (timestamp, chunk) = self._chunker2.get_next_data()
-            while(chunk):
+            while (chunk):
                 self._got_chunk2(chunk, timestamp)
                 (timestamp, chunk) = self._chunker2.get_next_data()
 
@@ -1225,7 +1246,7 @@ class Protocol(WorkhorseProtocol):
         @param: port_agent_packet port agent packet containing raw
         """
         particle = RawDataParticle_5thbeam(port_agent_packet.get_as_dict(),
-                                   port_timestamp=port_agent_packet.get_timestamp())
+                                           port_timestamp=port_agent_packet.get_timestamp())
 
         parsed_sample = particle.generate()
         if self._driver_event:
@@ -1233,10 +1254,10 @@ class Protocol(WorkhorseProtocol):
             log.error("Sung send raw2 sample %s", repr(parsed_sample))
 
     def add_to_buffer2(self, data):
-        '''
+        """
         Add a chunk of data to the internal data buffers
         @param data: bytes to add to the buffer
-        '''
+        """
         # Update the line and prompt buffers.
         self._linebuf2 += data
         self._promptbuf2 += data
@@ -1245,7 +1266,6 @@ class Protocol(WorkhorseProtocol):
         log.debug("LINE BUF2: %s", self._linebuf2)
         log.error("Sung LINE BUF2: %s", self._linebuf2)
         log.debug("PROMPT BUF2: %s", self._promptbuf2)
-
 
 
     ########################################################################
@@ -1328,9 +1348,9 @@ class Protocol(WorkhorseProtocol):
         log.trace("self._linebuf = " + self._linebuf)
 
         break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
-        "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
-        "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
-        "All Rights Reserved.")
+                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
+                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+                                  "All Rights Reserved.")
 
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
@@ -1343,7 +1363,7 @@ class Protocol(WorkhorseProtocol):
                     log.error("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
             if count > (timeout * 10):
-                if True != found:
+                if not found:
                     raise InstrumentTimeoutException("NO BREAK RESPONSE.")
             time.sleep(0.1)
         self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
@@ -1364,9 +1384,9 @@ class Protocol(WorkhorseProtocol):
         log.trace("self._linebuf2 = " + self._linebuf2)
 
         break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
-        "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
-        "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
-        "All Rights Reserved.")
+                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
+                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+                                  "All Rights Reserved.")
 
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
@@ -1393,9 +1413,8 @@ class Protocol(WorkhorseProtocol):
         Send a newline to attempt to wake the device.
         """
         log.trace("IN _send_wakeup")
-        log.error("Sung before send in _send_wakeup %s",self._connection_4Beam )
-        log.error("Sung before send in _send_wakeup %s",self._connection_4Beam.info )
-
+        log.error("Sung before send in _send_wakeup %s", self._connection_4Beam)
+        log.error("Sung before send in _send_wakeup %s", self._connection_4Beam.info)
 
         self._connection_4Beam.send(NEWLINE)
 
@@ -1508,15 +1527,13 @@ class Protocol(WorkhorseProtocol):
         self._linebuf2 = ''
         self._promptbuf2 = ''
 
-
-        prompt = self._wakeup(timeout=3, delay=delay)
-        prompt = self._wakeup2(timeout=3, delay=delay)
+        self._wakeup(timeout=3, delay=delay)
+        self._wakeup2(timeout=3, delay=delay)
         str_val = get_timestamp_delayed(time_format)
-        reply = self._do_cmd_direct(date_time_param + str_val)
+        self._do_cmd_direct(date_time_param + str_val)
         time.sleep(1)
-        reply = self._get_response(TIMEOUT)
-        reply = self._get_response2(TIMEOUT)
-
+        self._get_response(TIMEOUT)
+        self._get_response2(TIMEOUT)
 
 
     def _instrument_config_dirty2(self):
@@ -1546,7 +1563,8 @@ class Protocol(WorkhorseProtocol):
 
             log.error("Sung there is param: %s", param)
             if (self._param_dict2.get(param) != self._param_dict2.get_config_value(param)):
-                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict2.get(param), self._param_dict2.get_config_value(param)))
+                log.trace("DIRTY: %s %s != %s" % (
+                    param, self._param_dict2.get(param), self._param_dict2.get_config_value(param)))
                 return True
 
         log.trace("Clean instrument config")
@@ -1593,7 +1611,7 @@ class Protocol(WorkhorseProtocol):
             if not dict_equal(new_config, old_config, ['TT', 'TT_5th']):
                 log.error("Sung generate CONFIG Change Event")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            ####
+                ####
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1609,7 +1627,7 @@ class Protocol(WorkhorseProtocol):
                 log.debug("current_state = %s calling start_logging", my_state)
                 self._start_logging2()
 
-        if(error):
+        if (error):
             raise error
 
         return results
@@ -1634,11 +1652,11 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             pass
         log.trace("_set_params 2 calling _verify_not_readonly ARGS = " + repr(args))
-        log.error("Sung set_params2 calling _verify_not_readonly ARGS ="  + repr(args) )
+        log.error("Sung set_params2 calling _verify_not_readonly ARGS =" + repr(args))
         self._verify_not_readonly2(*args, **kwargs)
         for (key, val) in params.iteritems():
             log.error("Sung set_params2 key %s", key)
-            if(key.find('_') != -1) :  # Found
+            if (key.find('_') != -1):  # Found
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     log.error("Sung set_params2 key %s", key)
                     log.error("Sung set_params2 value %s", val)
@@ -1658,19 +1676,19 @@ class Protocol(WorkhorseProtocol):
         @raises InstrumentProtocolException if the init_type isn't set or it
                                             is unknown
         """
-        if(self._init_type == InitializationType.STARTUP):
+        if (self._init_type == InitializationType.STARTUP):
             log.debug("_init_params: Apply Startup Config")
             self.apply_startup_params2()
             self._init_type = InitializationType.NONE
-        elif(self._init_type == InitializationType.DIRECTACCESS):
+        elif (self._init_type == InitializationType.DIRECTACCESS):
             log.debug("_init_params: Apply DA Config")
             self.apply_direct_access_params2()
             self._init_type = InitializationType.NONE
             pass
-        elif(self._init_type == InitializationType.NONE):
+        elif (self._init_type == InitializationType.NONE):
             log.debug("_init_params: No initialization required")
             pass
-        elif(self._init_type == None):
+        elif (self._init_type == None):
             raise InstrumentProtocolException("initialization type not set")
         else:
             raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
@@ -1689,7 +1707,7 @@ class Protocol(WorkhorseProtocol):
         # Let's give it a try in unknown state
         log.debug("in apply_startup_params")
         if (self.get_current_state() != TeledyneProtocolState.COMMAND and
-            self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
+                    self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         logging = self._is_logging2()
@@ -1697,7 +1715,7 @@ class Protocol(WorkhorseProtocol):
         # instrument matches what we think it should be then we
         # don't need to do anything.
 
-        if(not self._instrument_config_dirty2()):
+        if (not self._instrument_config_dirty2()):
             log.trace("in apply_startup_params returning True")
             log.error("Sung in apply_startup_params config_dirty2 returning True")
             return True
@@ -1725,7 +1743,7 @@ class Protocol(WorkhorseProtocol):
                 log.trace("current_state = %s", my_state)
                 self._start_logging2()
 
-        if(error):
+        if (error):
             raise error
 
     def _apply_params2(self):
@@ -1759,9 +1777,9 @@ class Protocol(WorkhorseProtocol):
         for param in start_list:
             log.error("Sung test001 %s", param)
             result = self._param_dict2.get_config_value(param)
-            if(result != None):
+            if (result is not None):
                 return_dict[param] = result
-            elif(self._param_dict2.is_startup_param(param)):
+            elif (self._param_dict2.is_startup_param(param)):
                 raise InstrumentProtocolException("Required startup value not specified: %s" % param)
 
         log.debug("Applying startup config: %s", return_dict)
@@ -1778,19 +1796,19 @@ class Protocol(WorkhorseProtocol):
         @raises InstrumentProtocolException if the init_type isn't set or it
                                             is unknown
         """
-        if(self._init_type == InitializationType.STARTUP):
+        if (self._init_type == InitializationType.STARTUP):
             log.debug("_init_params2: Apply Startup Config")
             self.apply_startup_params2()
             self._init_type = InitializationType.NONE
-        elif(self._init_type == InitializationType.DIRECTACCESS):
+        elif (self._init_type == InitializationType.DIRECTACCESS):
             log.debug("_init_params2: Apply DA Config")
             self.apply_direct_access_params2()
             self._init_type = InitializationType.NONE
             pass
-        elif(self._init_type == InitializationType.NONE):
+        elif (self._init_type == InitializationType.NONE):
             log.debug("_init_params2: No initialization required")
             pass
-        elif(self._init_type == None):
+        elif (self._init_type == None):
             raise InstrumentProtocolException("initialization type not set")
         else:
             raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
@@ -1893,7 +1911,7 @@ class Protocol(WorkhorseProtocol):
             if key in readonly_params:
                 not_settable.append(key)
         if len(not_settable) > 0:
-            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
+            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" % not_settable)
 
         return True
 
@@ -1913,9 +1931,9 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             raise InstrumentParameterException('Parameter required, none specified')
 
-        if(isinstance(param_list, str)):
+        if (isinstance(param_list, str)):
             param_list = [param_list]
-        elif(not isinstance(param_list, (list, tuple))):
+        elif (not isinstance(param_list, (list, tuple))):
             raise InstrumentParameterException("Expected a list, tuple or a string")
 
         log.error("Sung param list : %s", repr(param_list))
@@ -1924,16 +1942,16 @@ class Protocol(WorkhorseProtocol):
         new_param_list = []
         known_params = self._param_dict.get_keys() + [DriverParameter.ALL]
         for param in param_list:
-            if(param.find('_') == -1) :  # Not Found
-                if(param not in [DriverParameter.ALL]):
+            if (param.find('_') == -1):  # Not Found
+                if (param not in [DriverParameter.ALL]):
                     new_param_list.append(param)
-                if(param not in known_params):
+                if (param not in known_params):
                     bad_params.append(param)
 
-        if(len(bad_params)):
+        if (len(bad_params)):
             raise InstrumentParameterException("Unknown parameters: %s" % bad_params)
 
-        if(DriverParameter.ALL in param_list):
+        if (DriverParameter.ALL in param_list):
             return self._param_dict.get_keys()
         else:
             return new_param_list
@@ -1954,9 +1972,9 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             raise InstrumentParameterException('Parameter required, none specified')
 
-        if(isinstance(param_list, str)):
+        if (isinstance(param_list, str)):
             param_list = [param_list]
-        elif(not isinstance(param_list, (list, tuple))):
+        elif (not isinstance(param_list, (list, tuple))):
             raise InstrumentParameterException("Expected a list, tuple or a string")
         log.error("Sung param list : %s", repr(param_list))
         # Verify all parameters are known parameters
@@ -1964,15 +1982,15 @@ class Protocol(WorkhorseProtocol):
         new_param_list = []
         known_params = self._param_dict2.get_keys() + [DriverParameter.ALL]
         for param in param_list:
-            if(param.find('_') != -1) :  # Found
+            if (param.find('_') != -1):  # Found
                 new_param_list.append(param)
-                if(param not in known_params):
+                if (param not in known_params):
                     bad_params.append(param)
 
-        if(len(bad_params)):
+        if (len(bad_params)):
             raise InstrumentParameterException("Unknown parameters2: %s" % bad_params)
 
-        if(DriverParameter.ALL in param_list):
+        if (DriverParameter.ALL in param_list):
             return self._param_dict2.get_keys()
         else:
             return new_param_list
@@ -2004,473 +2022,517 @@ class Protocol(WorkhorseProtocol):
 
         log.error("Sung calling build_param_dic for master")
         self._param_dict.add(Parameter.SERIAL_DATA_OUT,
-            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="serial data out",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='000 000 000')
+                             r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="serial data out",
+                             units=ADCPUnits.SERIALDATAOUT,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value='000 000 000')
 
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
-            r'CF = (\d+) \-+ Flow Ctrl ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="serial flow control",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='11110')
+                             r'CF = (\d+) \-+ Flow Ctrl ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="serial flow control",
+                             units=ADCPUnits.FLOWCONTROL,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value='11110')
 
         self._param_dict.add(Parameter.BANNER,
-            r'CH = (\d) \-+ Suppress Banner',
-            lambda match:  bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="banner",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=0)
+                             r'CH = (\d) \-+ Suppress Banner',
+                             lambda match: bool(int(match.group(1), base=10)),
+                             self._bool_to_int,
+                             type=ParameterDictType.BOOL,
+                             display_name="banner",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=0)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
-            r'CI = (\d+) \-+ Instrument ID ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="instrument id",
-            direct_access=True,
-            startup_param=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=0)
+                             r'CI = (\d+) \-+ Instrument ID ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="instrument id",
+                             units=ADCPUnits.NONE,
+                             direct_access=True,
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=0)
 
         self._param_dict.add(Parameter.SLEEP_ENABLE,
-            r'CL = (\d) \-+ Sleep Enable',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="sleep enable",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=False)
+                             r'CL = (\d) \-+ Sleep Enable',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="sleep enable",
+                             units=ADCPUnits.SLEEP,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=False)
 
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
-            r'CN = (\d) \-+ Save NVRAM to recorder',
-            lambda match: bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="save nvram to recorder",
-            startup_param=True,
-            default_value=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE)
+                             r'CN = (\d) \-+ Save NVRAM to recorder',
+                             lambda match: bool(int(match.group(1), base=10)),
+                             self._bool_to_int,
+                             type=ParameterDictType.BOOL,
+                             display_name="save nvram to recorder",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             default_value=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict.add(Parameter.POLLED_MODE,
-            r'CP = (\d) \-+ PolledMode ',
-            lambda match: bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="polled mode",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=False)
+                             r'CP = (\d) \-+ PolledMode ',
+                             lambda match: bool(int(match.group(1), base=10)),
+                             self._bool_to_int,
+                             type=ParameterDictType.BOOL,
+                             display_name="polled mode",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=False)
 
         self._param_dict.add(Parameter.XMIT_POWER,
-            r'CQ = (\d+) \-+ Xmt Power ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="xmit power",
-            startup_param=True,
-            direct_access=True,
-            default_value=255)
+                             r'CQ = (\d+) \-+ Xmt Power ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="xmit power",
+                             units=ADCPUnits.XMTPOWER,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=255)
 
         self._param_dict.add(Parameter.LATENCY_TRIGGER,
-            r'CX = (\d) \-+ Trigger Enable ',
-            lambda match: int(match.group(1), base=10),
-            self._bool_to_int,
-            type=ParameterDictType.INT,
-            display_name="latency trigger",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=False)
+                             r'CX = (\d) \-+ Trigger Enable ',
+                             lambda match: int(match.group(1), base=10),
+                             self._bool_to_int,
+                             type=ParameterDictType.INT,
+                             display_name="latency trigger",
+                             units=ADCPUnits.TRUEFALSE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False)
 
         self._param_dict.add(Parameter.HEADING_ALIGNMENT,
-            r'EA = ([\+\-\d]+) \-+ Heading Alignment',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Heading alignment",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            direct_access=True,
-            startup_param=True,
-            default_value='+00000')
+                             r'EA = ([\+\-\d]+) \-+ Heading Alignment',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="Heading alignment",
+                             units=ADCPUnits.CDEGREE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             direct_access=True,
+                             startup_param=True,
+                             default_value='+00000')
 
         self._param_dict.add(Parameter.HEADING_BIAS,
-            r'EB = ([\+\-\d]+) \-+ Heading Bias',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Heading Bias",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='+00000')
+                             r'EB = ([\+\-\d]+) \-+ Heading Bias',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="Heading Bias",
+                             units=ADCPUnits.CDEGREE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='+00000')
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
-            r'EC = (\d+) \-+ Speed Of Sound',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="speed of sound",
-            startup_param=True,
-            direct_access=True,
-            default_value=1485)
+                             r'EC = (\d+) \-+ Speed Of Sound',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="speed of sound",
+                             units=ADCPUnits.MPERS,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1485)
 
         self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
-            r'ED = (\d+) \-+ Transducer Depth ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Transducer Depth",
-            startup_param=True,
-            direct_access=True,
-            default_value=2000)
+                             r'ED = (\d+) \-+ Transducer Depth ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Transducer Depth",
+                             units=ADCPUnits.DM,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=2000)
 
         self._param_dict.add(Parameter.PITCH,
-            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="pitch",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="pitch",
+                             units=ADCPUnits.CDEGREE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.ROLL,
-            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="roll",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="roll",
+                             units=ADCPUnits.CDEGREE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.SALINITY,
-            r'ES = (\d+) \-+ Salinity ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="salinity",
-            startup_param=True,
-            direct_access=True,
-            default_value=35)
+                             r'ES = (\d+) \-+ Salinity ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="salinity",
+                             units=ADCPUnits.PPTHOUSAND,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=35)
 
         self._param_dict.add(Parameter.COORDINATE_TRANSFORMATION,
-            r'EX = (\d+) \-+ Coord Transform ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="coordinate transformation",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='00111')
+                             r'EX = (\d+) \-+ Coord Transform ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="coordinate transformation",
+                             units=ADCPUnits.BIT,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value='00111')
 
         self._param_dict.add(Parameter.SENSOR_SOURCE,
-            r'EZ = (\d+) \-+ Sensor Source ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="sensor source",
-            startup_param=True,
-            direct_access=True,
-            default_value='1111101')
+                             r'EZ = (\d+) \-+ Sensor Source ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="sensor source",
+                             units=ADCPUnits.BIT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='1111101')
 
         self._param_dict.add(Parameter.DATA_STREAM_SELECTION,
-            r'PD = (\d+) \-+ Data Stream Select',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Data Stream Selection",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'PD = (\d+) \-+ Data Stream Select',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Data Stream Selection",
+                             units=ADCPUnits.SELECTION,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.SYNC_PING_ENSEMBLE,
-            r'SA = (\d+) \-+ Synch Before',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Synch ping ensemble",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='001')
+                             r'SA = (\d+) \-+ Synch Before',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="Synch ping ensemble",
+                             units=ADCPUnits.NONE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='001')
 
         self._param_dict.add(Parameter.RDS3_MODE_SEL,
-            r'SM = (\d+) \-+ Mode Select',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="RDS3 mode selection",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=1)
+                             r'SM = (\d+) \-+ Mode Select',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="RDS3 mode selection",
+                             units=ADCPUnits.NONE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1)
 
         self._param_dict.add(Parameter.SYNCH_DELAY,
-            r'SW = (\d+) \-+ Synch Delay',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Synch delay",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=100)
-
+                             r'SW = (\d+) \-+ Synch Delay',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Synch delay",
+                             units=ADCPUnits.TENTHMILLISECOND,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=100)
 
         self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
-            r'TC (\d+) \-+ Ensembles Per Burst',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Ensemble per burst",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'TC (\d+) \-+ Ensembles Per Burst',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Ensemble per burst",
+                             units=ADCPUnits.ENSEMBLEPERBURST,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
-            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time per ensemble",
-            startup_param=True,
-            direct_access=True,
-            default_value='00:00:00.00')
+                             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="time per ensemble",
+                             units=ADCPUnits.INTERVALTIMEMILLI,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='00:00:00.00')
 
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
-            r'TG (..../../..,..:..:..) - Time of First Ping ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time of first ping",
-            startup_param=False,
-            direct_access=False,
-            visibility=ParameterDictVisibility.READ_ONLY)
+                             r'TG (..../../..,..:..:..) - Time of First Ping ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="time of first ping",
+                             units=ADCPUnits.DATETIME,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.TIME_PER_PING,
-            r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time per ping",
-            startup_param=True,
-            direct_access=True,
-            default_value='00:01.00')
+                             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="time per ping",
+                             units=ADCPUnits.PINGTIME,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='00:01.00')
 
         self._param_dict.add(Parameter.TIME,
-            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-            lambda match: str(match.group(1) + " UTC"),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time",
-            expiration=86400) # expire once per day 60 * 60 * 24
+                             r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+                             lambda match: str(match.group(1) + " UTC"),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="time",
+                             units=ADCPUnits.SETTIME,
+                             expiration=86400)  # expire once per day 60 * 60 * 24
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
-            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Buffered output period",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='00:00:00')
+                             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="Buffered output period",
+                             units=ADCPUnits.INTERVALTIME,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='00:00:00')
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
-            r'WA (\d+,\d+) \-+ False Target Threshold ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="false target threshold",
-            startup_param=True,
-            direct_access=True,
-            default_value='050,001')
+                             r'WA (\d+,\d+) \-+ False Target Threshold ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="false target threshold",
+                             units=ADCPUnits.BIT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='050,001')
 
         self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
-            r'WB (\d) \-+ Bandwidth Control ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="bandwidth control",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'WB (\d) \-+ Bandwidth Control ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="bandwidth control",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
-            r'WC (\d+) \-+ Correlation Threshold',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="correlation threshold",
-            startup_param=True,
-            direct_access=True,
-            default_value=64)
+                             r'WC (\d+) \-+ Correlation Threshold',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="correlation threshold",
+                             units=ADCPUnits.NONE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=64)
 
         self._param_dict.add(Parameter.SERIAL_OUT_FW_SWITCHES,
-            r'WD ([\d ]+) \-+ Data Out ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="serial out fw switches",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='111100000')
+                             r'WD ([\d ]+) \-+ Data Out ',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="serial out fw switches",
+                             units=ADCPUnits.BIT,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value='111100000')
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
-            r'WE (\d+) \-+ Error Velocity Threshold',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="error velocity threshold",
-            startup_param=True,
-            direct_access=True,
-            default_value=2000)
+                             r'WE (\d+) \-+ Error Velocity Threshold',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="error velocity threshold",
+                             units=ADCPUnits.MPERS,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=2000)
 
         self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
-            r'WF (\d+) \-+ Blank After Transmit',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="blank after transmit",
-            startup_param=True,
-            direct_access=True,
-            default_value=88)
+                             r'WF (\d+) \-+ Blank After Transmit',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="blank after transmit",
+                             units=ADCPUnits.CENTIMETER,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=88)
 
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
-            r'WI (\d) \-+ Clip Data Past Bottom',
-            lambda match: bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="clip data past bottom",
-            startup_param=True,
-            direct_access=True,
-            default_value=False)
+                             r'WI (\d) \-+ Clip Data Past Bottom',
+                             lambda match: bool(int(match.group(1), base=10)),
+                             self._bool_to_int,
+                             type=ParameterDictType.BOOL,
+                             display_name="clip data past bottom",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
-            r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="receiver gain select",
-            startup_param=True,
-            direct_access=True,
-            default_value=1)
+                             r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="receiver gain select",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1)
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
-            r'WN (\d+) \-+ Number of depth cells',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="number of depth cells",
-            startup_param=True,
-            direct_access=True,
-            default_value=22)
+                             r'WN (\d+) \-+ Number of depth cells',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="number of depth cells",
+                             units=ADCPUnits.NONE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=22)
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
-            r'WP (\d+) \-+ Pings per Ensemble ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="pings per ensemble",
-            startup_param=True,
-            direct_access=True,
-            default_value=1)
+                             r'WP (\d+) \-+ Pings per Ensemble ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="pings per ensemble",
+                             units=ADCPUnits.NONE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1)
 
         self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
-            r'WQ (\d) \-+ Sample Ambient Sound',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Sample ambient sound",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'WQ (\d) \-+ Sample Ambient Sound',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Sample ambient sound",
+                             units=ADCPUnits.TRUEFALSE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
-            r'WS (\d+) \-+ Depth Cell Size \(cm\)',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="depth cell size",
-            startup_param=True,
-            direct_access=True,
-            default_value=100)
+                             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="depth cell size",
+                             units=ADCPUnits.CENTIMETER,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=100)
 
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
-            r'WT (\d+) \-+ Transmit Length ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="transmit length",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'WT (\d+) \-+ Transmit Length ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="transmit length",
+                             units=ADCPUnits.CENTIMETER,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.PING_WEIGHT,
-            r'WU (\d) \-+ Ping Weighting ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="ping weight",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                             r'WU (\d) \-+ Ping Weighting ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="ping weight",
+                             units=ADCPUnits.TRUEFALSE,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0)
 
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
-            r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="ambiguity velocity",
-            startup_param=True,
-            direct_access=True,
-            default_value=175)
+                             r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="ambiguity velocity",
+                             units=ADCPUnits.CMPERSRADIAL,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=175)
 
         # Engineering parameters
         self._param_dict.add(Parameter.CLOCK_SYNCH_INTERVAL,
-            r'BOGUS',
-            None,
-            str,
-            type=ParameterDictType.STRING,
-            display_name="clock synch interval",
-            startup_param=True,
-            direct_access=False,
-            default_value="00:00:00")
+                             r'BOGUS',
+                             None,
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="clock synch interval",
+                             units=ADCPUnits.INTERVALTIME,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value="00:00:00")
 
         self._param_dict.add(Parameter.GET_STATUS_INTERVAL,
-            r'BOGUS',
-            None,
-            str,
-            type=ParameterDictType.STRING,
-            display_name="get status interval",
-            startup_param=True,
-            direct_access=False,
-            default_value="00:00:00")
+                             r'BOGUS',
+                             None,
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="get status interval",
+                             units=ADCPUnits.INTERVALTIME,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value="00:00:00")
 
         self._param_dict.set_default(Parameter.CLOCK_SYNCH_INTERVAL)
         self._param_dict.set_default(Parameter.GET_STATUS_INTERVAL)
@@ -2483,476 +2545,495 @@ class Protocol(WorkhorseProtocol):
         """
 
         self._param_dict2.add(Parameter2.SERIAL_DATA_OUT,
-            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="serial data out for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='000 000 000')
+                              r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="serial data out for 5th beam",
+                              units=ADCPUnits.SERIALDATAOUT,
+                              startup_param=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value='000 000 000')
 
         self._param_dict2.add(Parameter2.SERIAL_FLOW_CONTROL,
-            r'CF = (\d+) \-+ Flow Ctrl ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="serial flow control for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='11110')
+                              r'CF = (\d+) \-+ Flow Ctrl ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="serial flow control for 5th beam",
+                              units=ADCPUnits.FLOWCONTROL,
+                              startup_param=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value='11110')
 
         self._param_dict2.add(Parameter2.BANNER,
-            r'CH = (\d) \-+ Suppress Banner',
-            lambda match:  bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="banner for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=0)
+                              r'CH = (\d) \-+ Suppress Banner',
+                              lambda match: bool(int(match.group(1), base=10)),
+                              self._bool_to_int,
+                              type=ParameterDictType.BOOL,
+                              display_name="banner for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.INSTRUMENT_ID,
-            r'CI = (\d+) \-+ Instrument ID ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="instrument id for 5th beam",
-            direct_access=True,
-            startup_param=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=0)
+                              r'CI = (\d+) \-+ Instrument ID ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="instrument id for 5th beam",
+                              units=ADCPUnits.NONE,
+                              direct_access=True,
+                              startup_param=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.SLEEP_ENABLE,
-            r'CL = (\d) \-+ Sleep Enable',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="sleep enable for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=False)
+                              r'CL = (\d) \-+ Sleep Enable',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="sleep enable for 5th beam",
+                              units=ADCPUnits.SLEEP,
+                              startup_param=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.SAVE_NVRAM_TO_RECORDER,
-            r'CN = (\d) \-+ Save NVRAM to recorder',
-            lambda match: bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="save nvram to recorder for 5th beam",
-            startup_param=True,
-            default_value=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE)
+                              r'CN = (\d) \-+ Save NVRAM to recorder',
+                              lambda match: bool(int(match.group(1), base=10)),
+                              self._bool_to_int,
+                              type=ParameterDictType.BOOL,
+                              display_name="save nvram to recorder for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              default_value=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict2.add(Parameter2.POLLED_MODE,
-            r'CP = (\d) \-+ PolledMode ',
-            lambda match: bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="polled mode for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value=False)
+                              r'CP = (\d) \-+ PolledMode ',
+                              lambda match: bool(int(match.group(1), base=10)),
+                              self._bool_to_int,
+                              type=ParameterDictType.BOOL,
+                              display_name="polled mode for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.XMIT_POWER,
-            r'CQ = (\d+) \-+ Xmt Power ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="xmit power for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=255)
+                              r'CQ = (\d+) \-+ Xmt Power ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="xmit power for 5th beam",
+                              units=ADCPUnits.XMTPOWER,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=255)
 
         self._param_dict2.add(Parameter2.LATENCY_TRIGGER,
-            r'CX = (\d) \-+ Trigger Enable ',
-            lambda match: int(match.group(1), base=10),
-            self._bool_to_int,
-            type=ParameterDictType.INT,
-            display_name="latency trigger for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=False)
+                              r'CX = (\d) \-+ Trigger Enable ',
+                              lambda match: int(match.group(1), base=10),
+                              self._bool_to_int,
+                              type=ParameterDictType.INT,
+                              display_name="latency trigger for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.HEADING_ALIGNMENT,
-            r'EA = ([\+\-\d]+) \-+ Heading Alignment',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Heading alignment for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            direct_access=True,
-            startup_param=True,
-            default_value='+00000')
+                              r'EA = ([\+\-\d]+) \-+ Heading Alignment',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="Heading alignment for 5th beam",
+                              units=ADCPUnits.CDEGREE,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              direct_access=True,
+                              startup_param=True,
+                              default_value='+00000')
 
         self._param_dict2.add(Parameter2.HEADING_BIAS,
-            r'EB = ([\+\-\d]+) \-+ Heading Bias',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Heading Bias for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='+00000')
+                              r'EB = ([\+\-\d]+) \-+ Heading Bias',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="Heading Bias for 5th beam",
+                              units=ADCPUnits.CDEGREE,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='+00000')
 
         self._param_dict2.add(Parameter2.SPEED_OF_SOUND,
-            r'EC = (\d+) \-+ Speed Of Sound',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="speed of sound for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=1485)
+                              r'EC = (\d+) \-+ Speed Of Sound',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="speed of sound for 5th beam",
+                              units=ADCPUnits.MPERS,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=1485)
 
         self._param_dict2.add(Parameter2.TRANSDUCER_DEPTH,
-            r'ED = (\d+) \-+ Transducer Depth ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Transducer Depth for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=2000)
+                              r'ED = (\d+) \-+ Transducer Depth ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="Transducer Depth for 5th beam",
+                              units=ADCPUnits.DM,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=2000)
 
         self._param_dict2.add(Parameter2.PITCH,
-            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="pitch for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="pitch for 5th beam",
+                              units=ADCPUnits.CDEGREE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.ROLL,
-            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="roll for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="roll for 5th beam",
+                              units=ADCPUnits.CDEGREE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.SALINITY,
-            r'ES = (\d+) \-+ Salinity ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="salinity for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=35)
+                              r'ES = (\d+) \-+ Salinity ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="salinity for 5th beam",
+                              units=ADCPUnits.PPTHOUSAND,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=35)
 
         self._param_dict2.add(Parameter2.COORDINATE_TRANSFORMATION,
-            r'EX = (\d+) \-+ Coord Transform ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="coordinate transformation for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='00111')
+                              r'EX = (\d+) \-+ Coord Transform ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="coordinate transformation for 5th beam",
+                              units=ADCPUnits.BIT,
+                              startup_param=True,
+                              direct_access=True,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              default_value='00111')
 
         self._param_dict2.add(Parameter2.SENSOR_SOURCE,
-            r'EZ = (\d+) \-+ Sensor Source ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="sensor source for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value='1111101')
+                              r'EZ = (\d+) \-+ Sensor Source ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="sensor source for 5th beam",
+                              units=ADCPUnits.BIT,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='1111101')
 
         self._param_dict2.add(Parameter2.DATA_STREAM_SELECTION,
-            r'PD = (\d+) \-+ Data Stream Select',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Data Stream Selection for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'PD = (\d+) \-+ Data Stream Select',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="Data Stream Selection for 5th beam",
+                              units=ADCPUnits.SELECTION,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.SYNC_PING_ENSEMBLE,
-            r'SA = (\d+) \-+ Synch Before',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Synch ping ensemble for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='001')
+                              r'SA = (\d+) \-+ Synch Before',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="Synch ping ensemble for 5th beam",
+                              units=ADCPUnits.NONE,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='001')
 
         self._param_dict2.add(Parameter2.RDS3_MODE_SEL,
-            r'SM = (\d+) \-+ Mode Select',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="RDS3 mode selection for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=2)
+                              r'SM = (\d+) \-+ Mode Select',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="RDS3 mode selection for 5th beam",
+                              units=ADCPUnits.NONE,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=2)
 
         self._param_dict2.add(Parameter2.SLAVE_TIMEOUT,
-            r'ST = (\d+) \-+ Slave Timeout',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Slave timeout for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'ST = (\d+) \-+ Slave Timeout',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="Slave timeout for 5th beam",
+                              units=ADCPUnits.SECOND,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.SYNCH_DELAY,
-            r'SW = (\d+) \-+ Synch Delay',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Synch delay for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'SW = (\d+) \-+ Synch Delay',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="Synch delay for 5th beam",
+                              units=ADCPUnits.TENTHMILLISECOND,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.ENSEMBLE_PER_BURST,
-            r'TC (\d+) \-+ Ensembles Per Burst',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Ensemble per burst for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'TC (\d+) \-+ Ensembles Per Burst',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="Ensemble per burst for 5th beam",
+                              units=ADCPUnits.ENSEMBLEPERBURST,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.TIME_PER_ENSEMBLE,
-            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time per ensemble for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value='00:00:00.00')
+                              r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="time per ensemble for 5th beam",
+                              units=ADCPUnits.INTERVALTIMEMILLI,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='00:00:00.00')
 
         self._param_dict2.add(Parameter2.TIME_OF_FIRST_PING,
-            r'TG (..../../..,..:..:..) - Time of First Ping ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time of first ping for 5th beam",
-            startup_param=False,
-            direct_access=False,
-            visibility=ParameterDictVisibility.READ_ONLY)
+                              r'TG (..../../..,..:..:..) - Time of First Ping ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="time of first ping for 5th beam",
+                              units=ADCPUnits.DATETIME,
+                              startup_param=False,
+                              direct_access=False,
+                              visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict2.add(Parameter2.TIME,
-            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-            lambda match: str(match.group(1) + " UTC"),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time for 5th beam",
-            expiration=86400) # expire once per day 60 * 60 * 24
+                              r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+                              lambda match: str(match.group(1) + " UTC"),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="time for 5th beam",
+                              units=ADCPUnits.SETTIME,
+                              expiration=86400)  # expire once per day 60 * 60 * 24
 
         self._param_dict2.add(Parameter2.BUFFERED_OUTPUT_PERIOD,
-            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Buffered output period for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='00:00:00')
+                              r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="Buffered output period for 5th beam",
+                              units=ADCPUnits.INTERVALTIME,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='00:00:00')
 
         self._param_dict2.add(Parameter2.FALSE_TARGET_THRESHOLD,
-            r'WA (\d+,\d+) \-+ False Target Threshold ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="false target threshold for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value='050,001')
+                              r'WA (\d+,\d+) \-+ False Target Threshold ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="false target threshold for 5th beam",
+                              units=ADCPUnits.BIT,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='050,001')
 
         self._param_dict2.add(Parameter2.BANDWIDTH_CONTROL,
-            r'WB (\d) \-+ Bandwidth Control ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="bandwidth control for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'WB (\d) \-+ Bandwidth Control ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="bandwidth control for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.CORRELATION_THRESHOLD,
-            r'WC (\d+) \-+ Correlation Threshold',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="correlation threshold for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=64)
+                              r'WC (\d+) \-+ Correlation Threshold',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="correlation threshold for 5th beam",
+                              units=ADCPUnits.NONE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=64)
 
         self._param_dict2.add(Parameter2.SERIAL_OUT_FW_SWITCHES,
-            r'WD ([\d ]+) \-+ Data Out ',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="serial out fw switches for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value='111100000')
+                              r'WD ([\d ]+) \-+ Data Out ',
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
+                              display_name="serial out fw switches for 5th beam",
+                              units=ADCPUnits.BIT,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value='111100000')
 
         self._param_dict2.add(Parameter2.ERROR_VELOCITY_THRESHOLD,
-            r'WE (\d+) \-+ Error Velocity Threshold',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="error velocity threshold for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=2000)
+                              r'WE (\d+) \-+ Error Velocity Threshold',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="error velocity threshold for 5th beam",
+                              units=ADCPUnits.MPERS,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=2000)
 
         self._param_dict2.add(Parameter2.BLANK_AFTER_TRANSMIT,
-            r'WF (\d+) \-+ Blank After Transmit',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="blank after transmit for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=83)
+                              r'WF (\d+) \-+ Blank After Transmit',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="blank after transmit for 5th beam",
+                              units=ADCPUnits.CENTIMETER,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=83)
 
         self._param_dict2.add(Parameter2.CLIP_DATA_PAST_BOTTOM,
-            r'WI (\d) \-+ Clip Data Past Bottom',
-            lambda match: bool(int(match.group(1), base=10)),
-            self._bool_to_int,
-            type=ParameterDictType.BOOL,
-            display_name="clip data past bottom for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=False)
+                              r'WI (\d) \-+ Clip Data Past Bottom',
+                              lambda match: bool(int(match.group(1), base=10)),
+                              self._bool_to_int,
+                              type=ParameterDictType.BOOL,
+                              display_name="clip data past bottom for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.RECEIVER_GAIN_SELECT,
-            r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="receiver gain select for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=1)
+                              r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="receiver gain select for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=1)
 
         self._param_dict2.add(Parameter2.NUMBER_OF_DEPTH_CELLS,
-            r'WN (\d+) \-+ Number of depth cells',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="number of depth cells for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=22)
+                              r'WN (\d+) \-+ Number of depth cells',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="number of depth cells for 5th beam",
+                              units=ADCPUnits.NONE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=22)
 
         self._param_dict2.add(Parameter2.PINGS_PER_ENSEMBLE,
-            r'WP (\d+) \-+ Pings per Ensemble ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="pings per ensemble for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=1)
+                              r'WP (\d+) \-+ Pings per Ensemble ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="pings per ensemble for 5th beam",
+                              units=ADCPUnits.NONE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=1)
 
         self._param_dict2.add(Parameter2.SAMPLE_AMBIENT_SOUND,
-            r'WQ (\d) \-+ Sample Ambient Sound',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Sample ambient sound for 5th beam",
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'WQ (\d) \-+ Sample Ambient Sound',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="Sample ambient sound for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              visibility=ParameterDictVisibility.IMMUTABLE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.DEPTH_CELL_SIZE,
-            r'WS (\d+) \-+ Depth Cell Size \(cm\)',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="depth cell size for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=94)
+                              r'WS (\d+) \-+ Depth Cell Size \(cm\)',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="depth cell size for 5th beam",
+                              units=ADCPUnits.CENTIMETER,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=94)
 
         self._param_dict2.add(Parameter2.TRANSMIT_LENGTH,
-            r'WT (\d+) \-+ Transmit Length ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="transmit length for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'WT (\d+) \-+ Transmit Length ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="transmit length for 5th beam",
+                              units=ADCPUnits.CENTIMETER,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.PING_WEIGHT,
-            r'WU (\d) \-+ Ping Weighting ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="ping weight for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=0)
+                              r'WU (\d) \-+ Ping Weighting ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="ping weight for 5th beam",
+                              units=ADCPUnits.TRUEFALSE,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=0)
 
         self._param_dict2.add(Parameter2.AMBIGUITY_VELOCITY,
-            r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="ambiguity velocity for 5th beam",
-            startup_param=True,
-            direct_access=True,
-            default_value=175)
-
-        # Engineering parameters
-        #self._param_dict2.add(Parameter2.CLOCK_SYNCH_INTERVAL,
-        #    r'BOGUS',
-        #    None,
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="clock synch interval for 5th beam",
-        #    startup_param=True,
-        #    direct_access=False,
-        #    default_value="00:00:00")
-
-        #self._param_dict2.add(Parameter2.GET_STATUS_INTERVAL,
-        #    r'BOGUS',
-        #    None,
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="get status interval for 5th beam",
-        #    startup_param=True,
-        #   direct_access=False,
-        #    default_value="00:00:00")
-
-        #self._param_dict2.set_default(Parameter2.CLOCK_SYNCH_INTERVAL)
-        #self._param_dict2.set_default(Parameter2.GET_STATUS_INTERVAL)
+                              r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
+                              lambda match: int(match.group(1), base=10),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
+                              display_name="ambiguity velocity for 5th beam",
+                              units=ADCPUnits.CMPERSRADIAL,
+                              startup_param=True,
+                              direct_access=True,
+                              default_value=175)
 
     def _handler_command_init_params(self, *args, **kwargs):
         """
@@ -2978,8 +3059,10 @@ class Protocol(WorkhorseProtocol):
         kwargs['timeout'] = 30
 
         log.info("SYNCING TIME WITH SENSOR.")
-        resp = self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
-        resp = self._do_cmd_resp2(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+        resp = self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
+                                 get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+        resp = self._do_cmd_resp2(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
+                                  get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
 
         # Save setup to nvram and switch to autosample if successful.
         resp = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
@@ -3048,7 +3131,7 @@ class Protocol(WorkhorseProtocol):
                     # Switch back to streaming
                     self._start_logging()
 
-                if(error):
+                if (error):
                     raise error
             else:
                 log.trace("I am not logging")
@@ -3093,7 +3176,7 @@ class Protocol(WorkhorseProtocol):
                     # Switch back to streaming
                     self._start_logging2()
 
-                if(error):
+                if (error):
                     raise error
             else:
                 log.trace("I am not logging")
@@ -3148,8 +3231,8 @@ class Protocol(WorkhorseProtocol):
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
         log.error("Sung get_calibration combined")
-        result_combined = result  + result2
-        log.error("Sung get_calibration combined %s",result_combined )
+        result_combined = result + result2
+        log.error("Sung get_calibration combined %s", result_combined)
         return (next_state, (next_agent_state, result_combined))
 
     def _handler_command_save_setup_to_ram(self, *args, **kwargs):
@@ -3162,24 +3245,24 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
         result = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
 
-
         return (next_state, result)
 
-    #def _handler_command_send_last_sample(self, *args, **kwargs):
-    #    log.debug("IN _handler_command_send_last_sample")
+        #def _handler_command_send_last_sample(self, *args, **kwargs):
+        #    log.debug("IN _handler_command_send_last_sample")
 
-    #    next_state = None
-    #    next_agent_state = None
-    #    kwargs['timeout'] = 30
-    #    kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
-    #    prompt = self._wakeup(timeout=3)
-    #    prompt = self._wakeup2(timeout=3)
+        #    next_state = None
+        #    next_agent_state = None
+        #    kwargs['timeout'] = 30
+        #    kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
+        #    prompt = self._wakeup(timeout=3)
+        #    prompt = self._wakeup2(timeout=3)
 
         # Disable autosample recover, so it isnt faked out....
-    #    self.disable_autosample_recover = True
-    #    (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-    #    (result2, last_sample2) = self._do_cmd_resp2(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        #    self.disable_autosample_recover = True
+        #    (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        #    (result2, last_sample2) = self._do_cmd_resp2(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
         # re-enable it.
+
     #    self.disable_autosample_recover = False
 
     #    last_sample_combined = last_sample + ", "  + last_sample2
@@ -3216,8 +3299,8 @@ class Protocol(WorkhorseProtocol):
         output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
-        result_combined =  result + result2
-        log.error("Sung get_configuration combined %s",result_combined )
+        result_combined = result + result2
+        log.error("Sung get_configuration combined %s", result_combined)
         return (next_state, (next_agent_state, {'result': result_combined}))
 
     def _handler_command_run_test_200(self, *args, **kwargs):
@@ -3229,8 +3312,8 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
-        result_combined = result  + result2
-        log.error("Sung get_test_200 combined %s",result_combined )
+        result_combined = result + result2
+        log.error("Sung get_test_200 combined %s", result_combined)
         return (next_state, result_combined)
 
     def _handler_command_factory_sets(self, *args, **kwargs):
@@ -3243,7 +3326,7 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
         result_combined = result + result2
-        log.error("Sung get_factory combined %s",result_combined )
+        log.error("Sung get_factory combined %s", result_combined)
         return (next_state, result_combined)
 
     def _handler_command_user_sets(self, *args, **kwargs):
@@ -3256,7 +3339,7 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
         result_combined = result + result2
-        log.error("Sung get_user set combined %s",result_combined )
+        log.error("Sung get_user set combined %s", result_combined)
         return (next_state, result_combined)
 
     def _handler_command_clear_error_status_word(self, *args, **kwargs):
@@ -3269,8 +3352,8 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
         log.error("Sung clear_error_status_word combined")
-        result_combined = result  + result2
-        log.error("Sung clear_error_status_word combined %s",repr(result_combined) )
+        result_combined = result + result2
+        log.error("Sung clear_error_status_word combined %s", repr(result_combined))
         return (next_state, result_combined)
 
     def _handler_command_acquire_error_status_word(self, *args, **kwargs):
@@ -3284,8 +3367,8 @@ class Protocol(WorkhorseProtocol):
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
         log.error("Sung acquire_error_status_word combined %s", repr(result))
         log.error("Sung acquire_error_status_word combined2 %s", repr(result2))
-        result_combined = result  + result2
-        log.error("Sung acquire_error_status_word combined %s", repr(result_combined) )
+        result_combined = result + result2
+        log.error("Sung acquire_error_status_word combined %s", repr(result_combined))
         return (next_state, result_combined)
         #return (next_state, result)
 
@@ -3310,7 +3393,7 @@ class Protocol(WorkhorseProtocol):
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
-        result_combined = result  + result2
+        result_combined = result + result2
         return (next_state, result_combined)
 
     def _handler_autosample_init_params(self, *args, **kwargs):
@@ -3420,25 +3503,32 @@ class Protocol(WorkhorseProtocol):
         # Raise if the command not understood.
         else:
             log.error("Sung test test 007 %s", repr(params))
-            if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
+            if (TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
                 log.error("Sung the param is either CLOCK_SYNCH_INTERVAL or GET_STATUS_INTERVAL")
-                if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
+                if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
+                        TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
                     log.error("Sung the param CLOCK_SYNCH_INTERVAL is changed")
-                    self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
-                    self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+                    self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL,
+                                               params[TeledyneParameter.CLOCK_SYNCH_INTERVAL])
+                    self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
+                                             TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                     changed = True
 
-            if(TeledyneParameter.GET_STATUS_INTERVAL in params):
-                if(params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(TeledyneParameter.GET_STATUS_INTERVAL)) :
+            if (TeledyneParameter.GET_STATUS_INTERVAL in params):
+                if (params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(
+                        TeledyneParameter.GET_STATUS_INTERVAL)):
                     log.error("Sung the param GET_STATUS_INTERVAL is changed")
-                    self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL, params[TeledyneParameter.GET_STATUS_INTERVAL] )
-                    self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+                    self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL,
+                                               params[TeledyneParameter.GET_STATUS_INTERVAL])
+                    self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL,
+                                             TeledyneScheduledJob.GET_CONFIGURATION,
+                                             TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
                     changed = True
-                #params.remove()
-                #if(len(params)>1):
-                #    log.error("Sung test test00555 %s", repr(params))
-                #    result = self._set_params(params, startup)
-            if(changed):
+                    #params.remove()
+                    #if(len(params)>1):
+                    #    log.error("Sung test test00555 %s", repr(params))
+                    #    result = self._set_params(params, startup)
+            if (changed):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             log.error("Calling set params in _handler_command_set %s", repr(params))
 
@@ -3503,7 +3593,8 @@ class Protocol(WorkhorseProtocol):
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
 
-            self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
+            self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout,
+                             time_format="%Y/%m/%d,%H:%M:%S")
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -3517,7 +3608,7 @@ class Protocol(WorkhorseProtocol):
             if logging2:
                 self._start_logging2()
 
-        if(error):
+        if (error):
             raise error
 
         return (next_state, (next_agent_state, result))
@@ -3538,8 +3629,8 @@ class Protocol(WorkhorseProtocol):
         #prompt = self._wakeup(timeout=3)
         #self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
         #output = self._do_cmd_resp(TeledyneInstrumentCmds., *args, **kwargs)
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         #result_AC = self._sanitize(base64.b64decode(output))
         #time.sleep(.05)
         output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
@@ -3589,7 +3680,7 @@ class Protocol(WorkhorseProtocol):
             self._start_logging()
             self._start_logging2()
 
-        if(error):
+        if (error):
             raise error
 
         result = self._sanitize(base64.b64decode(output))
@@ -3636,12 +3727,12 @@ class Protocol(WorkhorseProtocol):
             self._start_logging()
             self._start_logging2()
 
-        if(error):
+        if (error):
             raise error
 
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
-        result_combined = result  + result2
+        result_combined = result + result2
 
         return (next_state, (next_agent_state, result_combined))
 
@@ -3679,14 +3770,14 @@ class Protocol(WorkhorseProtocol):
         return (next_state, (next_agent_state, result))
 
 
-    def _handler_command_acquire_status(self,*args, **kwargs ): # Sung to do
+    def _handler_command_acquire_status(self, *args, **kwargs):  # Sung to do
         log.debug("IN _handler_command_acquire_status")
         next_state = None
 
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         #result_AC = self._sanitize(base64.b64decode(output))
         #time.sleep(.05)
         output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
@@ -3696,7 +3787,7 @@ class Protocol(WorkhorseProtocol):
         #result_PT4 = self._sanitize(base64.b64decode(output))
         #time.sleep(.05)
 
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         #result2_AC = self._sanitize(base64.b64decode(output))
         #time.sleep(.05)
         output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
