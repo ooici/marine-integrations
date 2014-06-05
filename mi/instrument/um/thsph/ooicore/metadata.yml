@@ -4,6 +4,5 @@ driver_metadata:
   driver_model: thsph
   driver_name: ooicore
   email: rhan1498@gmail.com
-  release_notes: "THSPH Driver\n\n\n\n\n\n\n 'done'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\
-    \n\n\n\n\n\n\n\n"
+  release_notes: "THSPH Driver\n 'done'\n"
   version: '1.0'
