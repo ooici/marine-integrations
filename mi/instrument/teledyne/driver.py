@@ -260,7 +260,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol Family SubClass
     """
-    __metaclass__ = get_logging_metaclass("error")
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -387,7 +386,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(TeledyneInstrumentCmds.GET, self._build_get_command)
         self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT2, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT4, self._build_simple_command)
-
 
         #
         # Response handlers
@@ -537,7 +535,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Let's give it a try in unknown state
         log.debug("in apply_startup_params")
         if (self.get_current_state() != TeledyneProtocolState.COMMAND and
-                    self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
+                self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         logging = self._is_logging()
@@ -651,7 +649,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         result = None
-        startup = False
         try:
             params = args[0]
         except IndexError:
@@ -766,7 +763,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     return item
         return None
 
-
     def _instrument_config_dirty(self):
         """
         Read the startup config and compare that to what the instrument
@@ -842,7 +838,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("in Stop Logging!")
         # Issue the stop command.
-
 
         # Send break twice, as sometimes the driver ack's the first one then 
         # forgets to actually break.
@@ -1109,7 +1104,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         log.info("SYNCING TIME WITH SENSOR.")
         self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
-                                 get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+                          get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
 
         # Save setup to nvram and switch to autosample if successful.
         self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
@@ -1152,7 +1147,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentParameterException if missing or invalid parameter.
         """
         log.trace("in _handler_command_get")
-        log.error("Sung in _handler_command_get...")
         next_state = None
         result = None
         error = None
@@ -1230,7 +1224,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             kwargs['timeout'] = 120
             output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
-
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
@@ -1288,7 +1281,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-
     def _handler_recover_autosample(self, *args, **kwargs):
         """
         Reenter autosample mode.  Used when our data handler detects
@@ -1301,7 +1293,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._async_agent_state_change(ResourceAgentState.STREAMING)
 
         return next_state, next_agent_state
-
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
@@ -1408,7 +1399,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             result = self._set_params(params, startup)
 
         return next_state, result
-
 
     def _handler_command_get_calibration(self, *args, **kwargs):
         """
@@ -1596,7 +1586,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("IN _discover")
         logging = self._is_logging()
         log.error("LOGGING = " + str(logging))
-        if logging == True:
+        if logging:
             return TeledyneProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
         elif not logging:
             return TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND
@@ -1713,7 +1703,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         return the output from the get system configuration request base 64 encoded
         """
         return base64.b64encode(response)
-
 
     def _parse_save_setup_to_ram_response(self, response, prompt):
         """
