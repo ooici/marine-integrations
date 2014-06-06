@@ -141,12 +141,12 @@ NEWLINE = '\r\n'
 # methods for validating data particles.									  #
 ###############################################################################
 class TRHPHMixinSub(DriverTestMixin):
-    global VALUE
-    InstrumentDriver = InstrumentDriver
 
-    '''
+    """
     Mixin class used for storing data particle constants and common data assertion methods.
-    '''
+    """
+
+    InstrumentDriver = InstrumentDriver
     # Create some short names for the parameter test config
     TYPE = ParameterTestConfigKey.TYPE
     READONLY = ParameterTestConfigKey.READONLY
@@ -359,10 +359,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
             ProtocolState.COMMAND: ['DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_SET',
-                                    'DRIVER_EVENT_START_DIRECT',
-                                    'DRIVER_EVENT_DISCOVER'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
-                                       'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+                                    'DRIVER_EVENT_START_DIRECT'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                           'EXECUTE_DIRECT'],
 
@@ -434,23 +432,23 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_state_change(ProtocolState.COMMAND, 3)
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DISCOVER)
+        self.assert_driver_command(ProtocolEvent.DISCOVER)
         self.assert_state_change(ProtocolState.COMMAND, 3)
 
         # Test transition to auto sample
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 3)
 
         # Test transition back to command state
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
         self.assert_state_change(ProtocolState.COMMAND, 3)
 
         # Test transition to direct access state
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_driver_command(ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 3)
 
         # Test transition back to command state
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
+        self.assert_driver_command(ProtocolEvent.STOP_DIRECT)
         self.assert_state_change(ProtocolState.COMMAND, 3)
 
     def test_parameters(self):
@@ -464,7 +462,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         self.assert_driver_parameters(reply, True)
 
         # verify we can set read/write parameters
-        self.assert_set(Parameter.CYCLE_TIME, 20)
+        self.assert_set(Parameter.CYCLE_TIME, 30)
 
 
     def test_readonly_set(self):
@@ -531,48 +529,40 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         """
         self.assert_direct_access_start_telnet(timeout=1200)
         self.assertTrue(self.tcp_client)
-        log.debug(">>$$Successfully entered DA start telnet")
+
 
         self.tcp_client.send_data("\r")
         result = self.tcp_client.expect(Prompt.MAIN_MENU, max_retries=20)
         self.assertTrue(result)
-        log.debug(">>Successfully sent return and got Command prompt")
+        log.debug("Successfully sent return and got Command prompt")
 
         # Select Menu option 2 to change data collection parameters
         self.tcp_client.send_data("2\r")
 
         result = self.tcp_client.expect(Prompt.CHANGE_PARAM_MENU, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully received CHANGE_PARAM_MENU ")
 
         # Select SubMenu option 1 to change the Cycle Time
         self.tcp_client.send_data("1\r")
-        #log.debug(">>Sent 1 to change Cycle time ")
 
         result = self.tcp_client.expect(Prompt.CYCLE_TIME_PROMPT, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully received CYCLE_TIME_PROMPT ")
 
         # Select SubMenu option 1 for Seconds( 1 for Seconds, 2 for Minutes)
         self.tcp_client.send_data("1\r")
         result = self.tcp_client.expect(Prompt.CYCLE_TIME_SEC_VALUE_PROMPT, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully received CYCLE_TIME_SEC_VALUE_PROMPT ")
 
         # Enter 16 for Cycle Time
         self.tcp_client.send_data("16\r")
         result = self.tcp_client.expect(Prompt.CHANGE_PARAM_MENU, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully sent 16 for Cycle time")
-
 
         # Select SubMenu option 3 to change Print Status of Metadata on Powerup
         self.tcp_client.send_data("3\r")
-        #log.debug(">>Sent 3 to Change Print Status of Metadata on Powerup ")
 
         result = self.tcp_client.expect(Prompt.METADATA_PROMPT, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully received METADATA_PROMPT on Powerup ")
 
         # Enter 2 for Yes option
         self.tcp_client.send_data("2\r")
@@ -584,7 +574,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
 
         result = self.tcp_client.expect(Prompt.METADATA_PROMPT, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully received METADATA_PROMPT on Restart ")
 
         # Enter 2 for Yes option
         self.tcp_client.send_data("2\r")
@@ -595,12 +584,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.tcp_client.send_data("9\r")
         result = self.tcp_client.expect(Prompt.MAIN_MENU, max_retries=20)
         self.assertTrue(result)
-        #log.debug(">>Successfully sent BACK Menu Command")
-
-        #log.debug(">>Successfully sent DA command and got prompt")
 
         self.assert_direct_access_stop_telnet()
-        #log.debug(">>Successfully left direct access")
 
         # verify the setting got restored.
         self.assert_get_parameter(Parameter.CYCLE_TIME, 20)
@@ -635,7 +620,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         @brief Verify that the correct capabilities are returned from get_capabilities
         at various driver/agent states.
         """
-        fn = "test_get_capabilities"
+
         self.assert_enter_command_mode()
 
         ##################
@@ -665,7 +650,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
             ProtocolEvent.STOP_AUTOSAMPLE,
         ]
 
-        #log.debug("%s: assert_start_autosample", fn)
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
@@ -678,7 +662,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
             ProtocolEvent.STOP_DIRECT,
             ProtocolEvent.EXECUTE_DIRECT,
         ]
-        #log.debug('%s: assert_direct_access_start_telnet', fn)
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
         self.assert_direct_access_stop_telnet()
@@ -691,21 +674,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
-        log.debug('%s: assert_reset', fn)
         self.assert_reset()
         self.assert_capabilities(capabilities)
 
 
     def test_get_set_parameters(self):
-        '''
+        """
         verify that all parameters can be get and set properly
-        '''
+        """
         self.assert_enter_command_mode()
 
         self.assert_get_parameter(Parameter.CYCLE_TIME, 20)
 
         self.assert_set_parameter(Parameter.CYCLE_TIME, 16)
-        self.assert_get_parameter(Parameter.CYCLE_TIME, 16)
 
         self.assert_get_parameter(Parameter.VERBOSE, None)
         self.assert_get_parameter(Parameter.METADATA_POWERUP, 0)
