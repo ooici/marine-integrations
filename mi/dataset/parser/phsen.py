@@ -46,6 +46,11 @@ TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
 HEX_INT_REGEX = b'[0-9A-Fa-f]{4}'
 HEX_INT_MATCHER = re.compile(HEX_INT_REGEX)
 
+# this occurs frequently at the end of ph messages, don't send an exception for this case
+PH_EXTRA_END = b'?03\r'
+# end of sio block of data marker
+SIO_END = b'\x03'
+
 PH_ID = '0A'
 # the control message has an optional data or battery field for some control IDs
 DATA_CONTROL_IDS = ['BF', 'FF']
@@ -152,7 +157,7 @@ class PhsenParserDataParticle(DataParticle):
             # calculate the checksum and compare with the received checksum
             passed_checksum = True
             try: 
-                chksum = PhsenParserDataParticle.encode_int_16(self._data_match.group(0)[-3:-1])
+                chksum = int(self._data_match.group(0)[-3:-1], 16)
                 sum_bytes = 0
                 for i in range(7, 467, 2):
                     sum_bytes += int(self._data_match.group(0)[i:i+2], 16)
@@ -165,33 +170,26 @@ class PhsenParserDataParticle(DataParticle):
                 passed_checksum = False
 
             result = [self._encode_value(PhsenParserDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[:8],
-                                         PhsenParserDataParticle.encode_int_16),
+                                         lambda val: int(val, 16)),
                       self._encode_value(PhsenParserDataParticleKey.UNIQUE_ID, self._data_match.group(2)[0:2],
-                                         PhsenParserDataParticle.encode_int_16),
+                                         lambda val: int(val, 16)),
                       self._encode_value(PhsenParserDataParticleKey.RECORD_TYPE, self._data_match.group(2)[4:6],
-                                         PhsenParserDataParticle.encode_int_16),
+                                         lambda val: int(val, 16)),
                       self._encode_value(PhsenParserDataParticleKey.RECORD_TIME, self._data_match.group(3),
                                          PhsenParserDataParticle.encode_timestamp),
                       self._encode_value(PhsenParserDataParticleKey.THERMISTOR_START, self._data_match.group(4)[0:4],
-                                         PhsenParserDataParticle.encode_int_16),
+                                         lambda val: int(val, 16)),
                       self._encode_value(PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS,
                                          ref_meas, list),
                       self._encode_value(PhsenParserDataParticleKey.LIGHT_MEASUREMENTS,
                                          light_meas, list),
                       self._encode_value(PhsenParserDataParticleKey.VOLTAGE_BATTERY, self._data_match.group(0)[-11:-7],
-                                         PhsenParserDataParticle.encode_int_16),
+                                         lambda val: int(val, 16)),
                       self._encode_value(PhsenParserDataParticleKey.THERMISTOR_END, self._data_match.group(0)[-7:-3],
-                                         PhsenParserDataParticle.encode_int_16),
+                                         lambda val: int(val, 16)),
                       self._encode_value(PhsenParserDataParticleKey.PASSED_CHECKSUM, passed_checksum,
                                          bool)]
         return result
-
-    @staticmethod
-    def encode_int_16(int_val):
-        """
-        Use to convert from hex-ascii to int when encoding data particle values
-        """
-        return int(int_val, 16)
 
     @staticmethod
     def encode_timestamp(timestamp_str):
@@ -199,7 +197,7 @@ class PhsenParserDataParticle(DataParticle):
         if not timestamp_match:
             return None
         else:
-            return PhsenParserDataParticle.encode_int_16(timestamp_str)
+            return int(timestamp_str, 16)
 
 class PhsenControlDataParticleKey(PhsenCommonDataParticleKey):
     CLOCK_ACTIVE = 'clock_active'
@@ -275,7 +273,7 @@ class PhsenControlDataParticle(DataParticle):
             # calculate the checksum and compare with the received checksum
             passed_checksum = True
             try: 
-                chksum = PhsenParserDataParticle.encode_int_16(self._data_match.group(0)[-3:-1])
+                chksum = int(self._data_match.group(0)[-3:-1], 16)
                 sum_bytes = 0
                 # subtract the 3 bytes for the '*' and unique ID, 2 for the checksum, and 1 for the last \r
                 control_len = len(self._data_match.group(0)) - 6
@@ -298,11 +296,11 @@ class PhsenControlDataParticle(DataParticle):
 
             result = [
                 self._encode_value(PhsenControlDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[:8],
-                                   PhsenParserDataParticle.encode_int_16),
+                                   lambda val: int(val, 16)),
                 self._encode_value(PhsenControlDataParticleKey.UNIQUE_ID, self._data_match.group(2)[0:2],
-                                   PhsenParserDataParticle.encode_int_16),
+                                   lambda val: int(val, 16)),
                 self._encode_value(PhsenControlDataParticleKey.RECORD_TYPE, control_id,
-                                   PhsenParserDataParticle.encode_int_16),
+                                   lambda val: int(val, 16)),
                 self._encode_value(PhsenControlDataParticleKey.RECORD_TIME, self._data_match.group(3)[0:8],
                                    PhsenParserDataParticle.encode_timestamp)]
             # if the flag is valid, fill in the values, otherwise set to None
@@ -390,7 +388,7 @@ class PhsenControlDataParticle(DataParticle):
             if control_id in BATT_CONTROL_IDS and HEX_INT_MATCHER.match(self._data_match.group(3)[30:34]):
                 result.append(self._encode_value(PhsenControlDataParticleKey.VOLTAGE_BATTERY,
                                                  self._data_match.group(3)[30:34],
-                                                 PhsenParserDataParticle.encode_int_16))
+                                                 lambda val: int(val, 16)))
             else:
                 result.append({DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.VOLTAGE_BATTERY,
                                DataParticleKey.VALUE: None})
@@ -408,7 +406,7 @@ class PhsenControlDataParticle(DataParticle):
         try:
             result = int(int_val, 16)
         except Exception:
-            # the result will stay at None if we fail the encoding
+            # the result will stay at None if we fail the encoding, and no exception
             pass
         return result
 
@@ -452,12 +450,25 @@ class PhsenParser(SioMuleParser):
             if header_match.group(1) == 'PH':
                 # start after the sio header
                 index = SIO_HEADER_BYTES
+                last_index = index
                 chunk_len = len(chunk)
                 while index < chunk_len:
                     data_match = DATA_MATCHER.match(chunk[index:])
                     control_match = CONTROL_MATCHER.match(chunk[index:])
+                    # check for any valid match and make sure no extra data was found between valid matches
+                    if data_match or control_match or chunk[index] == SIO_END:
+                        # if the indices don't match we have data that doesn't match
+                        # exclude the expected possible ph end bytes
+                        if last_index != index and chunk[last_index:index] != PH_EXTRA_END:
+                            # we found bad data, send a sample exception but keep processing the file
+                            log.warning("unknown data found in chunk %s from %d to %d",
+                                        chunk[1:32], last_index, index)
+                            self._exception_callback(SampleException("unknown data found in chunk %s from %d to %d" %
+                                                                     (chunk[1:32], last_index, index)))
+                            # stop processing this sio block, it is bad
+                            break;
                     if data_match:
-                        log.debug('Found data match in chunk %s', chunk[1:32])
+                        log.debug('Found data match in chunk %s at index %d', chunk[1:32], index)
                         # particle-ize the data block received, return the record
                         # pre-pend the sio header timestamp to the data record (in header_match.group(3))
                         sample = self._extract_sample(PhsenParserDataParticle, None,
@@ -468,8 +479,9 @@ class PhsenParser(SioMuleParser):
                             result_particles.append(sample)
                             sample_count += 1
                         index += len(data_match.group(0))
+                        last_index = index
                     elif control_match:
-                        log.debug('Found control match in chunk %s', chunk[1:32])
+                        log.debug('Found control match in chunk %s at index %d', chunk[1:32], index)
                         # particle-ize the data block received, return the record
                         # pre-pend the sio header timestamp to the control record (in header_match.group(3))
                         sample = self._extract_sample(PhsenControlDataParticle, None,
@@ -480,8 +492,12 @@ class PhsenParser(SioMuleParser):
                             result_particles.append(sample)
                             sample_count += 1
                         index += len(control_match.group(0))
+                        last_index = index
+                    elif chunk[index] == SIO_END:
+                        # found end of sio block marker, we are done with this chunk
+                        break;
                     else:
-                        log.warning("extra data found between records in chunk %s at index %d", chunk[1:32], index)
+                        # we found extra data, warn on chunks of extra data not each byte
                         index += 1
 
             self._chunk_sample_count.append(sample_count)
