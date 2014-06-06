@@ -1476,7 +1476,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         Command the instrument to acquire sample data. Instrument will enter Power Down mode when finished
         """
         self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=self.velocity_sync_bytes,
-                                   timeout=SAMPLE_TIMEOUT, *args, **kwargs)
+                                   timeout=SAMPLE_TIMEOUT)
 
         return None, (None, None)
 
@@ -2045,7 +2045,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         start = response.find(key)
         if start != -1:
             log.debug("_parse_acquire_data_response: response=%r", response[start:start+len(key)])
-            self._handler_autosample_stop_autosample(None, None)
+            self._handler_autosample_stop_autosample()
             return response[start:start+len(key)]
 
         log.warn("_parse_acquire_data_response: Bad acquire data response from instrument (%s)", response)
