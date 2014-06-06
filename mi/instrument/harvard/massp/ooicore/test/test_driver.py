@@ -442,7 +442,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         Launch the driver process and driver client.  This is used in the
         integration and qualification tests.  The port agent abstracts the physical
         interface with the instrument.
-        @retval return the pid to the logger process
+        @returns pid to the logger process
         """
         if self.port_agents:
             log.error("Port agent already initialized")
@@ -488,6 +488,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.port_agents = {}
 
     def port_agent_comm_config(self):
+        """
+        Generate the port agent comm config from the port agents
+        @return config
+        """
         config = {}
         for name, each in self.port_agents.items():
             port = each.get_data_port()
@@ -502,7 +506,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     def test_driver_process(self):
         """
-        @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
+        Test for correct launch of driver process and communications, including asynchronous driver events.
         Overridden to support multiple port agents.
         """
         log.info("Ensuring driver process was started properly ...")
@@ -543,11 +547,17 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
             self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
     def test_get_parameters(self):
+        """
+        Test get action for all parameters
+        """
         self.assert_initialize_driver()
         for key, value in startup_config[DriverConfigKey.PARAMETERS].iteritems():
             self.assert_get(key, value)
 
     def test_set_parameters(self):
+        """
+        Test set action for all parameters
+        """
         self.assert_initialize_driver()
 
         parameters = Parameter.dict()
@@ -575,6 +585,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set_exception('BOGUS', 'CHEESE')
 
     def test_out_of_range(self):
+        """
+        Verify setting parameters out of range raises exceptions
+        """
         self.assert_initialize_driver()
         parameters = Parameter.dict()
         parameters.update(turbo.Parameter.dict())
@@ -627,6 +640,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
             self.fail('Failed to throw exception on missing parameter')
 
     def test_acquire_sample(self):
+        """
+        Verify the acquire sample command
+        Particles are tested elsewhere, so skipped here.
+        """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.ACQUIRE_SAMPLE)
         self.assert_state_change(ProtocolState.POLL, 10)
@@ -650,12 +667,18 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_state_change(ProtocolState.COMMAND, timeout=interval)
 
     def test_nafreg(self):
+        """
+        Verify Nafion Regeneration sequence
+        """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_NAFION)
         self.assert_state_change(ProtocolState.NAFION_REGEN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
     def test_ionreg(self):
+        """
+        Verify Ion Chamber Regeneration sequence
+        """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_ION)
         self.assert_state_change(ProtocolState.ION_REGEN, 10)
@@ -679,10 +702,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def init_port_agent(self):
         """
-        @brief Launch the driver process and driver client.  This is used in the
+        Launch the driver process and driver client.  This is used in the
         integration and qualification tests.  The port agent abstracts the physical
         interface with the instrument.
-        @retval return the pid to the logger process
+        @return pid to the logger process
         """
         if self.port_agent:
             log.error("Port agent already initialized")
@@ -728,6 +751,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.port_agents = {}
 
     def port_agent_comm_config(self):
+        """
+        Generate the port agent comm config from the port agents
+        @return config
+        """
         config = {}
         for name, each in self.port_agents.items():
             port = each.get_data_port()
@@ -741,6 +768,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         return config
 
     def init_instrument_agent_client(self):
+        """
+        Overridden to handle multiple port agent config
+        """
         log.info("Start Instrument Agent Client")
 
         # Driver config
@@ -777,6 +807,13 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
     def assert_da_command(self, command, response=None, max_retries=None):
+        """
+        Assert direct access command returns the expected response
+        @param command: command to send
+        @param response: expected response
+        @param max_retries: maximum number of retries
+        @return: result of command
+        """
         self.tcp_client.send_data(command + NEWLINE)
         if response:
             if max_retries:
@@ -800,7 +837,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports
+        This test manually tests that the Instrument Driver properly supports
         direct access to the physical instrument. (telnet mode)
 
         We want to verify direct access to all three parts of the instrument, so we'll need
@@ -949,7 +986,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_get_capabilities(self):
         """
-        @brief Walk through all driver protocol states and verify capabilities
+        Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
         ##################

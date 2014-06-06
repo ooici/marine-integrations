@@ -165,8 +165,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Establish communications with the device via port agent / logger and
         construct and initialize a protocol FSM for device interaction.
-        @retval (next_state, result) tuple, (DriverConnectionState.CONNECTED,
-        None) if successful.
+        @return (next_state, result) tuple, (DriverConnectionState.CONNECTED, None) if successful.
         @raises InstrumentConnectionException if the attempt to connect failed.
         """
         self._build_protocol()
@@ -191,10 +190,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
     def _handler_connected_disconnect(self, *args, **kwargs):
         """
-        Disconnect to the device via port agent / logger and destroy the
-        protocol FSM.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
-        None) if successful.
+        Disconnect to the device via port agent / logger and destroy the protocol FSM.
+        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED, None) if successful.
         """
         for connection in self._connection.values():
             connection.stop_comms()
@@ -204,10 +201,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
     def _handler_connected_connection_lost(self, *args, **kwargs):
         """
-        The device connection was lost. Stop comms, destroy protocol FSM and
-        revert to disconnected state.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
-        None).
+        The device connection was lost. Stop comms, destroy protocol FSM and revert to disconnected state.
+        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED, None).
         """
         for connection in self._connection.values():
             connection.stop_comms()
@@ -314,7 +309,6 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
-                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
@@ -395,13 +389,15 @@ class Protocol(InstrumentProtocol):
 
     def register_slave_protocol(self, name, protocol):
         """
-        Register a slave protocol
+        @param name: slave protocol name
+        @param protocol: slave protocol instance
         """
         self._slave_protocols[name] = protocol
 
     def _slave_protocol_event(self, event, *args, **kwargs):
         """
         Handle an event from a slave protocol.
+        @param event: event to be processed
         """
         name = kwargs.get('name')
         if name is not None and name in self._slave_protocols:
@@ -459,7 +455,7 @@ class Protocol(InstrumentProtocol):
         slave_states = self._get_slave_states()
 
         if MASSP_STATE_ERROR in slave_states:
-            return self._error(state, slave_states)
+            return self._error()
 
         # these actions are only applicable in POLL, AUTOSAMPLE or CALIBRATE states
         if state not in [ProtocolState.POLL, ProtocolState.AUTOSAMPLE, ProtocolState.CALIBRATE]:
@@ -504,7 +500,13 @@ class Protocol(InstrumentProtocol):
                     self._send_event_to_slave(target, command)
         return action
 
-    def _error(self, state, slave_states):
+    def _error(self):
+        """
+        Handle error state in slave protocol
+        """
+        state = self.get_current_state()
+        slave_states = self._get_slave_states()
+
         # if we are not currently in the error state, make the transition
         if state != ProtocolState.ERROR:
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
@@ -529,6 +531,8 @@ class Protocol(InstrumentProtocol):
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
+        @param events: Events to be filtered
+        @return: list of events which are also capabilities
         """
         return [x for x in events if Capability.has(x)]
 
@@ -545,12 +549,15 @@ class Protocol(InstrumentProtocol):
     def _send_event_to_all(self, event):
         """
         Send the same event to all slave protocols.
+        @return: List of (name, result) for a slave protocols
         """
         return [(name, slave._protocol_fsm.on_event(event)) for name, slave in self._slave_protocols.items()]
 
     def _send_event_to_slave(self, name, event):
         """
         Send an event to a specific protocol
+        @param name: Name of slave protocol
+        @param event: Event to be sent
         """
         slave_protocol = self._slave_protocols.get(name)
         if slave_protocol is None:
@@ -565,6 +572,7 @@ class Protocol(InstrumentProtocol):
         target:command
 
         It then routes the command to the appropriate slave protocol.
+        @param command: Direct access command received
         """
         err_string = 'Invalid command.  Command must be in the following format: "target:command' + NEWLINE + \
                      'Valid targets are: %r' % self._slave_protocols.keys()
@@ -585,6 +593,8 @@ class Protocol(InstrumentProtocol):
         """
         Set one or more parameters.  This method will determine where the parameter actually resides and
         forward it to the appropriate parameter dictionary based on name.
+        @param args: arglist which must contain a parameter dictionary
+        @throws InstrumentParameterException
         """
         params = args[0]
 
@@ -624,6 +634,7 @@ class Protocol(InstrumentProtocol):
     def set_init_params(self, config):
         """
         Set initial parameters.  Parameters are forwarded to the appropriate parameter dictionary based on name.
+        @param config: Init param config to be handled
         """
         temp_dict = {}
         self._startup_config = config
@@ -647,6 +658,7 @@ class Protocol(InstrumentProtocol):
         """
         See base class for full description.  This method is overridden to retrieve the parameter
         dictionary from each slave protocol and merge them.
+        @return: dictionary containing driver metadata
         """
         log.debug("Getting metadata dict from protocol...")
         return_dict = {ConfigMetadataKey.DRIVER: self._driver_dict.generate_dict(),
@@ -661,6 +673,8 @@ class Protocol(InstrumentProtocol):
     def get_resource_capabilities(self, current_state=True):
         """
         Overrides base class to include slave protocol parameters
+        @param current_state: Boolean indicating whether we should return only the current state events
+        @return: (resource_commands, resource_parameters)
         """
         res_cmds = self._protocol_fsm.get_events(current_state)
         res_cmds = self._filter_capabilities(res_cmds)
@@ -669,7 +683,7 @@ class Protocol(InstrumentProtocol):
         for protocol in self._slave_protocols.values():
             res_params.extend(protocol._param_dict.get_keys())
 
-        return [res_cmds, res_params]
+        return res_cmds, res_params
 
     def _build_scheduler(self):
         """
@@ -717,6 +731,7 @@ class Protocol(InstrumentProtocol):
     def _handler_stop_generic(self, *args, **kwargs):
         """
         Generic stop method to return to COMMAND (via POLL if appropriate)
+        @return next_state, (next_agent_state, None)
         """
         self._delete_scheduler()
 
@@ -741,7 +756,7 @@ class Protocol(InstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
-        @retval (next_state, result)
+        @return (next_state, next_agent_state)
         """
         result = self._send_event_to_all(ProtocolEvent.DISCOVER)
         log.debug('_handler_unknown_discover -- send DISCOVER to all: %r', result)
@@ -765,6 +780,8 @@ class Protocol(InstrumentProtocol):
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter.  Query this protocol plus all slave protocols.
+        @param args: arglist which should contain a list of parameters to get
+        @return None, results
         """
         params = args[0]
 
@@ -813,6 +830,7 @@ class Protocol(InstrumentProtocol):
     def _handler_command_start_direct(self):
         """
         Start direct access
+        @return next_state, (next_agent_state, result)
         """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
@@ -820,6 +838,7 @@ class Protocol(InstrumentProtocol):
         """
         Move my FSM to autosample and start the sample sequence by sending START1 to the MCU.
         Create the scheduler to automatically start the next sample sequence
+        @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.START1)
         self._build_scheduler()
@@ -828,6 +847,7 @@ class Protocol(InstrumentProtocol):
     def _handler_command_start_poll(self):
         """
         Move my FSM to poll and start the sample sequence by sending START1 to the MCU
+        @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.START1)
         return ProtocolState.POLL, (ResourceAgentState.BUSY, None)
@@ -835,6 +855,7 @@ class Protocol(InstrumentProtocol):
     def _handler_command_start_calibrate(self):
         """
         Move my FSM to calibrate and start the calibrate sequence by sending START1 to the MCU
+        @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.START1)
         return ProtocolState.CALIBRATE, (ResourceAgentState.BUSY, None)
@@ -842,6 +863,7 @@ class Protocol(InstrumentProtocol):
     def _handler_command_start_nafion_regen(self):
         """
         Move my FSM to NAFION_REGEN and send NAFION_REGEN to the MCU
+        @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.NAFREG)
         return ProtocolState.NAFION_REGEN, (ResourceAgentState.BUSY, None)
@@ -849,6 +871,7 @@ class Protocol(InstrumentProtocol):
     def _handler_command_start_ion_regen(self):
         """
         Move my FSM to ION_REGEN and send ION_REGEN to the MCU
+        @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.IONREG)
         return ProtocolState.ION_REGEN, (ResourceAgentState.BUSY, None)
@@ -858,11 +881,15 @@ class Protocol(InstrumentProtocol):
     ########################################################################
 
     def _handler_error(self):
+        """
+        @return next_state, next_agent_state
+        """
         return ProtocolState.ERROR, ResourceAgentState.BUSY
 
     def _handler_error_clear(self):
         """
         Send the CLEAR event to any slave protocol in the error state and return this driver to COMMAND
+        @return next_state, (next_agent_state, result)
         """
         for protocol in self._slave_protocols:
             state = protocol.get_current_state()
@@ -879,6 +906,7 @@ class Protocol(InstrumentProtocol):
     def _handler_autosample_acquire_sample(self):
         """
         Fire off a sample sequence while in the autosample state.
+        @return None, None
         @throws InstrumentProtocolException
         """
         slave_states = self._get_slave_states()
@@ -924,6 +952,7 @@ class Protocol(InstrumentProtocol):
         """
         Execute a direct access command.  For MASSP, this means passing the actual command to the
         correct slave protocol.  This is handled by _send_massp_direct_access.
+        @return next_state, (next_agent_state, result)
         """
         self._send_massp_direct_access(data)
 
@@ -933,5 +962,8 @@ class Protocol(InstrumentProtocol):
         return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
+        """
+        @return next_state, (next_agent_state, result)
+        """
         self._send_event_to_all(ProtocolEvent.STOP_DIRECT)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
