@@ -13,9 +13,7 @@ __license__ = 'Apache 2.0'
 
 import re
 import time
-import copy
 import base64
-import sys
 
 from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
@@ -56,6 +54,8 @@ NEWLINE = '\n\r'
 
 # default timeout.
 TIMEOUT = 15
+# allowable time delay for sync the clock
+TIME_DELAY = 2
 # sample collection is ~60 seconds, add padding
 SAMPLE_TIMEOUT = 70
 # set up the 'structure' lengths (in bytes) and sync/id/size constants
@@ -1644,7 +1644,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         seconds = int(response[17:18])
         total_time2 = (hours * 3600) + (minutes * 60) + seconds
 
-        if total_time - total_time2 > 10:
+        if total_time - total_time2 > TIME_DELAY:
             raise InstrumentCommandException("Syncing the clock did not work! Off by %s seconds" %
                                              (total_time - total_time2))
 
