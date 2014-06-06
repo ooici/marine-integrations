@@ -597,7 +597,7 @@ class ProtocolParameterDict(InstrumentDict):
         if not self._param_dict[name].description:
             raise InstrumentParameterException("No description present!")
 
-        if self._param_dict[name].description.default_value:
+        if self._param_dict[name].description.default_value is not None:
             self._param_dict[name].value.set_value(self._param_dict[name].description.default_value)
         else:
             raise ValueError("Missing default value")
