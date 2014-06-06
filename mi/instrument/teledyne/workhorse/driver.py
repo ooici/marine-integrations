@@ -7,6 +7,7 @@ Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
+from mi.core.exceptions import InstrumentProtocolException
 
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
@@ -197,26 +198,29 @@ class WorkhorseProtocol(TeledyneProtocol):
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
 
-    # This will over-write _send_break_cmd in teledyne/driver.py
+    # This is only temperary solution for now until port agent is fixed
     def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        #self._connection.send_break(delay)
+        # self._connection.send_break(delay)
         # Then remove below lines
 
         log.trace("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
-            log.trace("WHOOPS! 1")
+            log.error("Failed to connect Break socket")
+            raise InstrumentProtocolException("Init break socket exception")
 
         try:
             sock.connect(('10.180.80.178', 2102))
         except socket.error, msg:
-            log.trace("WHOOPS! 2")
+            log.error("Failed to connect Break socket")
+            raise InstrumentProtocolException("Init break socket exception")
+
         sock.send("break " + str(delay) + "\r\n")
         sock.close()
     
