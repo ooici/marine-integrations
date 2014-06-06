@@ -13,7 +13,7 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Anton Kueltz'
+__author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -23,8 +23,6 @@ from mock import Mock
 
 from mi.core.log import get_logger
 log = get_logger()
-
-import json
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -52,8 +50,6 @@ from mi.instrument.satlantic.suna_deep.ooicore.driver import NEWLINE
 from mi.instrument.satlantic.suna_deep.ooicore.driver import SUNASampleDataParticle
 
 from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.exceptions import InstrumentTimeoutException
 
 from pyon.agent.agent import ResourceAgentEvent
@@ -699,13 +695,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         """
         Verify the driver can command an acquire status from the instrument
         """
-        #todo
+        self.assert_enter_command_mode()
 
     def test_execute_test(self):
         """
         Verify the instrument can perform a self test
         """
-        #todo
+        self.assert_enter_command_mode()
+        self.assert_resource_command(Capability.TEST, self.assert_data_particle)
 
     def test_poll(self):
         """

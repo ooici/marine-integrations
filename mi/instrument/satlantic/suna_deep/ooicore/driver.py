@@ -8,7 +8,7 @@ Release notes:
 initial_rev
 """
 
-__author__ = 'Anton Kueltz'
+__author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger, get_logging_metaclass
