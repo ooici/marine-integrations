@@ -1111,11 +1111,8 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         """
         self.assert_enter_command_mode()
 
-        # Begin streaming.
         cmd = AgentCommand(command=DriverEvent.CLOCK_SYNC)
         self.instrument_agent_client.execute_resource(cmd, timeout=TIMEOUT)
-
-        #log.debug('retval = %s', retval)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -1129,8 +1126,6 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         # Begin streaming.
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_STATUS)
         retval = self.instrument_agent_client.execute_resource(cmd, timeout=TIMEOUT)
-
-        log.debug('retval = %s', retval)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
