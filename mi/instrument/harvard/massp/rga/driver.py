@@ -532,6 +532,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.
         We only generate sample particles and they cannot be verified (beyond size, which is done in the chunker).
         Just create a particle, reset the scheduler and start the next scan.
+        @param chunk: data to process
+        @param ts: timestamp
         """
         elapsed = time.time() - self.scan_start_time
         self.in_scan = False
@@ -550,6 +552,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Generic response handler.  Shove the results into the param dict.
         The associated command should be frozen when the response handler is registered using functools.partial
+        @param resp: command response
+        @param prompt: not used, required to match signature
+        @param command: command which generated response
+        @return: response
         """
         parameter = getattr(Parameter, command, None)
         log.debug('_generic_response_handler: command: %s parameter: %s resp: %s', command, parameter, resp)
@@ -567,6 +573,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _generic_build_handler(self, command, *args, **kwargs):
         """
         Generic build handler.  If a value is passed, then this is a set, otherwise it's a query...
+        @param command: command to build
+        @param args: arglist which may contain a value
+        @return: command string
         """
         if len(args) == 1:
             # this is a set action
@@ -578,18 +587,25 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_rga_set(self, command, value):
         """
         Build a set command
+        @param command: command to build
+        @param value: value to set
+        @return: command string
         """
         return command + str(value)
 
     def _build_rga_query(self, command):
         """
         Build a query command
+        @param command: command to build
+        @return: command string
         """
         return command + '?'
 
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
+        @param events: list of events to be filtered
+        @return: list of events which are in capability
         """
         return [x for x in events if Capability.has(x)]
 
@@ -640,6 +656,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _set_params(self, *args, **kwargs):
         """
         Set parameters, raise a CONFIG_CHANGE event if necessary.
+        @throws InstrumentParameterException
         """
         self._verify_not_readonly(*args, **kwargs)
         params_to_set = args[0]
@@ -681,6 +698,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _check_error_byte(self, error_string):
         """
         Check the error byte as returned by some commands
+        @param error_string: byte to be checked for errors
+        @throws InstrumentStateException
         """
         # trim, just in case we received some garbage with our response...
         if len(error_string) > 1:
@@ -699,6 +718,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         2. verify error byte, if returned (per Responses)
         3. send query command
         4. verify returned value equals the set value (within tolerance)
+        @throws InstrumentParameterException
         """
         response_type = getattr(Responses, command)
         parameter = getattr(Parameter, command)
@@ -798,7 +818,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
-        @retval (next_state, result)
+        @return (next_state, result)
         """
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
@@ -834,12 +854,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_direct(self):
         """
         Start direct access
+        @return next_state, (next_agent_state, None)
         """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_scan(self):
         """
         Start a scan
+        @return next_state, (next_agent_state, None)
         """
         return ProtocolState.SCAN, (ResourceAgentState.STREAMING, None)
 
@@ -859,6 +881,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_execute_direct(self, data):
         """
         Forward direct access commands to the instrument.
+        @return next_state, (next_agent_state, None)
         """
         self._do_cmd_direct(data)
 
@@ -869,6 +892,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_stop_direct(self):
         """
         Stop direct access, return to COMMAND.
+        @return next_state, (next_agent_state, None)
         """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
@@ -879,6 +903,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_scan_enter(self, *args, **kwargs):
         """
         Enter the scan state.  Configure the RGA, start the first scan and the scheduler.
+        @throws InstrumentTimeoutException
         """
         for attempt in range(1, MAX_RETRIES+1):
             try:
@@ -943,6 +968,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_scan_take_scan(self, *args, **kwargs):
         """
         place a sentinel value in the chunker, then perform one analog scan from the RGA
+        @return next_state, (next_agent_state, None)
         """
         # empty the chunker
         self._chunker.clean_all_chunks()
@@ -956,6 +982,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         return None, (None, None)
 
     def _handler_scan_timeout(self, *args, **kwargs):
+        """
+        Handle scan timeout
+        @return next_state, (next_agent_state, None)
+        """
         # timeout, clear the instrument buffers
         self._do_cmd_resp(InstrumentCommand.INITIALIZE, 0)
         # verify the filament is still on
@@ -965,6 +995,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_scan_stop_scan(self, *args, **kwargs):
         """
         Stop scanning, go to COMMAND.
+        @return next_state, (next_agent_state, None)
         """
         self._stop_instrument()
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
@@ -972,6 +1003,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_scan_error(self, *args, **kwargs):
         """
         Stop scanning, go to ERROR.
+        @return next_state, (next_agent_state, None)
         """
         self._stop_instrument()
         return ProtocolState.ERROR, (ResourceAgentState.COMMAND, None)
@@ -983,6 +1015,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_error_clear(self):
         """
         Leave the error state, return to COMMAND.
+        @return next_state, (next_agent_state, None)
         """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 

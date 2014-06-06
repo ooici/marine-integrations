@@ -112,6 +112,11 @@ class DriverTestMixinSub(DriverTestMixin):
 
     @staticmethod
     def send_port_agent_packet(protocol, data):
+        """
+        Send a port agent packet via got_data
+        @param driver Instrument Driver instance
+        @param data data to send
+        """
         ts = ntplib.system_to_ntp_time(time.time())
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(data)
@@ -124,7 +129,17 @@ class DriverTestMixinSub(DriverTestMixin):
         log.debug('Sent port agent packet containing: %r', data)
 
     def send_side_effect(self, protocol, name):
+        """
+        Side effect function generator - will send responses based on input
+        @param driver Instrument driver instance
+        @returns side effect function
+        """
         def inner(data):
+            """
+            Inner function for side effect generator
+            @param data Data to send
+            @returns length of response
+            """
             my_response = str(self.responses[name].get(data.strip()))
             log.debug('my_send data: %r responses: %r', data, self.responses[name])
             if my_response is not None:
@@ -379,7 +394,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
         also be defined in the protocol FSM.
         """
-
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self._capabilities)
 

@@ -201,6 +201,11 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     def _send_port_agent_packet(self, driver, data):
+        """
+        Send the supplied data to the driver in a port agent packet
+        @param driver: instrument driver instance
+        @param data: data to be sent
+        """
         ts = ntplib.system_to_ntp_time(time.time())
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(data)
@@ -211,7 +216,17 @@ class DriverTestMixinSub(DriverTestMixin):
         driver._protocol.got_data(port_agent_packet)
 
     def my_send(self, driver):
+        """
+        Side effect function generator - will send responses based on input
+        @param driver Instrument driver instance
+        @returns side effect function
+        """
         def inner(data):
+            """
+            Inner function for side effect generator
+            @param data Data to send
+            @returns length of response
+            """
             data = data.replace(NEWLINE, '')
             log.debug('my_send data: %r', data)
             my_response = str(self.responses.get(data))
@@ -285,7 +300,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
         also be defined in the protocol FSM.
         """
-
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self._capabilities)
 
@@ -430,260 +444,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
     @unittest.skip("This takes a very long time...  Don't run it unless you mean it!")
     def test_scan_parameters(self):
         """
-        Step through a sequence of configuration parameters to test scan timing.  Data is below.
-
-        chunk: Received complete scan.  AP: 51 NF: 1 SIZE: 208 ET: 8 secs
-        chunk: Received complete scan.  AP: 51 NF: 1 SIZE: 208 ET: 8 secs
-        chunk: Received complete scan.  AP: 51 NF: 2 SIZE: 208 ET: 3 secs
-        chunk: Received complete scan.  AP: 51 NF: 2 SIZE: 208 ET: 3 secs
-        chunk: Received complete scan.  AP: 51 NF: 3 SIZE: 208 ET: 2 secs
-        chunk: Received complete scan.  AP: 51 NF: 3 SIZE: 208 ET: 2 secs
-        chunk: Received complete scan.  AP: 51 NF: 4 SIZE: 208 ET: 1 secs
-        chunk: Received complete scan.  AP: 51 NF: 4 SIZE: 208 ET: 1 secs
-        chunk: Received complete scan.  AP: 51 NF: 5 SIZE: 208 ET: 0 secs
-        chunk: Received complete scan.  AP: 51 NF: 5 SIZE: 208 ET: 0 secs
-        chunk: Received complete scan.  AP: 51 NF: 6 SIZE: 208 ET: 0 secs
-        chunk: Received complete scan.  AP: 51 NF: 6 SIZE: 208 ET: 0 secs
-        chunk: Received complete scan.  AP: 51 NF: 7 SIZE: 208 ET: 0 secs
-        chunk: Received complete scan.  AP: 51 NF: 7 SIZE: 208 ET: 0 secs
-        chunk: Received complete scan.  AP: 101 NF: 1 SIZE: 408 ET: 13 secs
-        chunk: Received complete scan.  AP: 101 NF: 1 SIZE: 408 ET: 13 secs
-        chunk: Received complete scan.  AP: 101 NF: 2 SIZE: 408 ET: 5 secs
-        chunk: Received complete scan.  AP: 101 NF: 2 SIZE: 408 ET: 5 secs
-        chunk: Received complete scan.  AP: 101 NF: 3 SIZE: 408 ET: 3 secs
-        chunk: Received complete scan.  AP: 101 NF: 3 SIZE: 408 ET: 3 secs
-        chunk: Received complete scan.  AP: 101 NF: 4 SIZE: 408 ET: 2 secs
-        chunk: Received complete scan.  AP: 101 NF: 4 SIZE: 408 ET: 2 secs
-        chunk: Received complete scan.  AP: 101 NF: 5 SIZE: 408 ET: 1 secs
-        chunk: Received complete scan.  AP: 101 NF: 5 SIZE: 408 ET: 1 secs
-        chunk: Received complete scan.  AP: 101 NF: 6 SIZE: 408 ET: 1 secs
-        chunk: Received complete scan.  AP: 101 NF: 6 SIZE: 408 ET: 1 secs
-        chunk: Received complete scan.  AP: 101 NF: 7 SIZE: 408 ET: 0 secs
-        chunk: Received complete scan.  AP: 101 NF: 7 SIZE: 408 ET: 0 secs
-        chunk: Received complete scan.  AP: 151 NF: 1 SIZE: 608 ET: 18 secs
-        chunk: Received complete scan.  AP: 151 NF: 1 SIZE: 608 ET: 18 secs
-        chunk: Received complete scan.  AP: 151 NF: 2 SIZE: 608 ET: 7 secs
-        chunk: Received complete scan.  AP: 151 NF: 2 SIZE: 608 ET: 7 secs
-        chunk: Received complete scan.  AP: 151 NF: 3 SIZE: 608 ET: 4 secs
-        chunk: Received complete scan.  AP: 151 NF: 3 SIZE: 608 ET: 4 secs
-        chunk: Received complete scan.  AP: 151 NF: 4 SIZE: 608 ET: 2 secs
-        chunk: Received complete scan.  AP: 151 NF: 4 SIZE: 608 ET: 2 secs
-        chunk: Received complete scan.  AP: 151 NF: 5 SIZE: 608 ET: 1 secs
-        chunk: Received complete scan.  AP: 151 NF: 5 SIZE: 608 ET: 1 secs
-        chunk: Received complete scan.  AP: 151 NF: 6 SIZE: 608 ET: 1 secs
-        chunk: Received complete scan.  AP: 151 NF: 6 SIZE: 608 ET: 1 secs
-        chunk: Received complete scan.  AP: 151 NF: 7 SIZE: 608 ET: 0 secs
-        chunk: Received complete scan.  AP: 151 NF: 7 SIZE: 608 ET: 0 secs
-        chunk: Received complete scan.  AP: 201 NF: 1 SIZE: 808 ET: 23 secs
-        chunk: Received complete scan.  AP: 201 NF: 1 SIZE: 808 ET: 23 secs
-        chunk: Received complete scan.  AP: 201 NF: 2 SIZE: 808 ET: 9 secs
-        chunk: Received complete scan.  AP: 201 NF: 2 SIZE: 808 ET: 9 secs
-        chunk: Received complete scan.  AP: 201 NF: 3 SIZE: 808 ET: 5 secs
-        chunk: Received complete scan.  AP: 201 NF: 3 SIZE: 808 ET: 5 secs
-        chunk: Received complete scan.  AP: 201 NF: 4 SIZE: 808 ET: 3 secs
-        chunk: Received complete scan.  AP: 201 NF: 4 SIZE: 808 ET: 3 secs
-        chunk: Received complete scan.  AP: 201 NF: 5 SIZE: 808 ET: 1 secs
-        chunk: Received complete scan.  AP: 201 NF: 5 SIZE: 808 ET: 1 secs
-        chunk: Received complete scan.  AP: 201 NF: 6 SIZE: 808 ET: 1 secs
-        chunk: Received complete scan.  AP: 201 NF: 6 SIZE: 808 ET: 1 secs
-        chunk: Received complete scan.  AP: 201 NF: 7 SIZE: 808 ET: 0 secs
-        chunk: Received complete scan.  AP: 201 NF: 7 SIZE: 808 ET: 0 secs
-        chunk: Received complete scan.  AP: 251 NF: 1 SIZE: 1008 ET: 28 secs
-        chunk: Received complete scan.  AP: 251 NF: 1 SIZE: 1008 ET: 28 secs
-        chunk: Received complete scan.  AP: 251 NF: 2 SIZE: 1008 ET: 11 secs
-        chunk: Received complete scan.  AP: 251 NF: 2 SIZE: 1008 ET: 11 secs
-        chunk: Received complete scan.  AP: 251 NF: 3 SIZE: 1008 ET: 6 secs
-        chunk: Received complete scan.  AP: 251 NF: 3 SIZE: 1008 ET: 6 secs
-        chunk: Received complete scan.  AP: 251 NF: 4 SIZE: 1008 ET: 4 secs
-        chunk: Received complete scan.  AP: 251 NF: 4 SIZE: 1008 ET: 4 secs
-        chunk: Received complete scan.  AP: 251 NF: 5 SIZE: 1008 ET: 1 secs
-        chunk: Received complete scan.  AP: 251 NF: 5 SIZE: 1008 ET: 1 secs
-        chunk: Received complete scan.  AP: 251 NF: 6 SIZE: 1008 ET: 1 secs
-        chunk: Received complete scan.  AP: 251 NF: 6 SIZE: 1008 ET: 1 secs
-        chunk: Received complete scan.  AP: 251 NF: 7 SIZE: 1008 ET: 0 secs
-        chunk: Received complete scan.  AP: 251 NF: 7 SIZE: 1008 ET: 0 secs
-        chunk: Received complete scan.  AP: 301 NF: 1 SIZE: 1208 ET: 33 secs
-        chunk: Received complete scan.  AP: 301 NF: 1 SIZE: 1208 ET: 33 secs
-        chunk: Received complete scan.  AP: 301 NF: 2 SIZE: 1208 ET: 13 secs
-        chunk: Received complete scan.  AP: 301 NF: 2 SIZE: 1208 ET: 13 secs
-        chunk: Received complete scan.  AP: 301 NF: 3 SIZE: 1208 ET: 7 secs
-        chunk: Received complete scan.  AP: 301 NF: 3 SIZE: 1208 ET: 7 secs
-        chunk: Received complete scan.  AP: 301 NF: 4 SIZE: 1208 ET: 4 secs
-        chunk: Received complete scan.  AP: 301 NF: 4 SIZE: 1208 ET: 4 secs
-        chunk: Received complete scan.  AP: 301 NF: 5 SIZE: 1208 ET: 2 secs
-        chunk: Received complete scan.  AP: 301 NF: 5 SIZE: 1208 ET: 2 secs
-        chunk: Received complete scan.  AP: 301 NF: 6 SIZE: 1208 ET: 2 secs
-        chunk: Received complete scan.  AP: 301 NF: 6 SIZE: 1208 ET: 2 secs
-        chunk: Received complete scan.  AP: 301 NF: 7 SIZE: 1208 ET: 1 secs
-        chunk: Received complete scan.  AP: 301 NF: 7 SIZE: 1208 ET: 1 secs
-        chunk: Received complete scan.  AP: 351 NF: 1 SIZE: 1408 ET: 38 secs
-        chunk: Received complete scan.  AP: 351 NF: 1 SIZE: 1408 ET: 38 secs
-        chunk: Received complete scan.  AP: 351 NF: 2 SIZE: 1408 ET: 15 secs
-        chunk: Received complete scan.  AP: 351 NF: 2 SIZE: 1408 ET: 15 secs
-        chunk: Received complete scan.  AP: 351 NF: 3 SIZE: 1408 ET: 8 secs
-        chunk: Received complete scan.  AP: 351 NF: 3 SIZE: 1408 ET: 8 secs
-        chunk: Received complete scan.  AP: 351 NF: 4 SIZE: 1408 ET: 5 secs
-        chunk: Received complete scan.  AP: 351 NF: 4 SIZE: 1408 ET: 5 secs
-        chunk: Received complete scan.  AP: 351 NF: 5 SIZE: 1408 ET: 2 secs
-        chunk: Received complete scan.  AP: 351 NF: 5 SIZE: 1408 ET: 2 secs
-        chunk: Received complete scan.  AP: 351 NF: 6 SIZE: 1408 ET: 2 secs
-        chunk: Received complete scan.  AP: 351 NF: 6 SIZE: 1408 ET: 2 secs
-        chunk: Received complete scan.  AP: 351 NF: 7 SIZE: 1408 ET: 1 secs
-        chunk: Received complete scan.  AP: 351 NF: 7 SIZE: 1408 ET: 1 secs
-        chunk: Received complete scan.  AP: 401 NF: 1 SIZE: 1608 ET: 43 secs
-        chunk: Received complete scan.  AP: 401 NF: 1 SIZE: 1608 ET: 43 secs
-        chunk: Received complete scan.  AP: 401 NF: 2 SIZE: 1608 ET: 17 secs
-        chunk: Received complete scan.  AP: 401 NF: 2 SIZE: 1608 ET: 17 secs
-        chunk: Received complete scan.  AP: 401 NF: 3 SIZE: 1608 ET: 9 secs
-        chunk: Received complete scan.  AP: 401 NF: 3 SIZE: 1608 ET: 9 secs
-        chunk: Received complete scan.  AP: 401 NF: 4 SIZE: 1608 ET: 6 secs
-        chunk: Received complete scan.  AP: 401 NF: 4 SIZE: 1608 ET: 6 secs
-        chunk: Received complete scan.  AP: 401 NF: 5 SIZE: 1608 ET: 3 secs
-        chunk: Received complete scan.  AP: 401 NF: 5 SIZE: 1608 ET: 3 secs
-        chunk: Received complete scan.  AP: 401 NF: 6 SIZE: 1608 ET: 2 secs
-        chunk: Received complete scan.  AP: 401 NF: 6 SIZE: 1608 ET: 1 secs
-        chunk: Received complete scan.  AP: 401 NF: 7 SIZE: 1608 ET: 1 secs
-        chunk: Received complete scan.  AP: 401 NF: 7 SIZE: 1608 ET: 1 secs
-        chunk: Received complete scan.  AP: 451 NF: 1 SIZE: 1808 ET: 49 secs
-        chunk: Received complete scan.  AP: 451 NF: 1 SIZE: 1808 ET: 49 secs
-        chunk: Received complete scan.  AP: 451 NF: 2 SIZE: 1808 ET: 19 secs
-        chunk: Received complete scan.  AP: 451 NF: 2 SIZE: 1808 ET: 19 secs
-        chunk: Received complete scan.  AP: 451 NF: 3 SIZE: 1808 ET: 10 secs
-        chunk: Received complete scan.  AP: 451 NF: 3 SIZE: 1808 ET: 10 secs
-        chunk: Received complete scan.  AP: 451 NF: 4 SIZE: 1808 ET: 6 secs
-        chunk: Received complete scan.  AP: 451 NF: 4 SIZE: 1808 ET: 7 secs
-        chunk: Received complete scan.  AP: 451 NF: 5 SIZE: 1808 ET: 3 secs
-        chunk: Received complete scan.  AP: 451 NF: 5 SIZE: 1808 ET: 3 secs
-        chunk: Received complete scan.  AP: 451 NF: 6 SIZE: 1808 ET: 3 secs
-        chunk: Received complete scan.  AP: 451 NF: 6 SIZE: 1808 ET: 3 secs
-        chunk: Received complete scan.  AP: 451 NF: 7 SIZE: 1808 ET: 1 secs
-        chunk: Received complete scan.  AP: 451 NF: 7 SIZE: 1808 ET: 1 secs
-        chunk: Received complete scan.  AP: 501 NF: 1 SIZE: 2008 ET: 54 secs
-        chunk: Received complete scan.  AP: 501 NF: 1 SIZE: 2008 ET: 54 secs
-        chunk: Received complete scan.  AP: 501 NF: 2 SIZE: 2008 ET: 21 secs
-        chunk: Received complete scan.  AP: 501 NF: 2 SIZE: 2008 ET: 21 secs
-        chunk: Received complete scan.  AP: 501 NF: 3 SIZE: 2008 ET: 11 secs
-        chunk: Received complete scan.  AP: 501 NF: 3 SIZE: 2008 ET: 11 secs
-        chunk: Received complete scan.  AP: 501 NF: 4 SIZE: 2008 ET: 7 secs
-        chunk: Received complete scan.  AP: 501 NF: 4 SIZE: 2008 ET: 7 secs
-        chunk: Received complete scan.  AP: 501 NF: 5 SIZE: 2008 ET: 4 secs
-        chunk: Received complete scan.  AP: 501 NF: 5 SIZE: 2008 ET: 4 secs
-        chunk: Received complete scan.  AP: 501 NF: 6 SIZE: 2008 ET: 4 secs
-        chunk: Received complete scan.  AP: 501 NF: 6 SIZE: 2008 ET: 4 secs
-        chunk: Received complete scan.  AP: 501 NF: 7 SIZE: 2008 ET: 1 secs
-        chunk: Received complete scan.  AP: 501 NF: 7 SIZE: 2008 ET: 1 secs
-        chunk: Received complete scan.  AP: 551 NF: 1 SIZE: 2208 ET: 59 secs
-        chunk: Received complete scan.  AP: 551 NF: 1 SIZE: 2208 ET: 59 secs
-        chunk: Received complete scan.  AP: 551 NF: 2 SIZE: 2208 ET: 23 secs
-        chunk: Received complete scan.  AP: 551 NF: 2 SIZE: 2208 ET: 23 secs
-        chunk: Received complete scan.  AP: 551 NF: 3 SIZE: 2208 ET: 12 secs
-        chunk: Received complete scan.  AP: 551 NF: 3 SIZE: 2208 ET: 12 secs
-        chunk: Received complete scan.  AP: 551 NF: 4 SIZE: 2208 ET: 8 secs
-        chunk: Received complete scan.  AP: 551 NF: 4 SIZE: 2208 ET: 8 secs
-        chunk: Received complete scan.  AP: 551 NF: 5 SIZE: 2208 ET: 5 secs
-        chunk: Received complete scan.  AP: 551 NF: 5 SIZE: 2208 ET: 5 secs
-        chunk: Received complete scan.  AP: 551 NF: 6 SIZE: 2208 ET: 4 secs
-        chunk: Received complete scan.  AP: 551 NF: 6 SIZE: 2208 ET: 4 secs
-        chunk: Received complete scan.  AP: 551 NF: 7 SIZE: 2208 ET: 1 secs
-        chunk: Received complete scan.  AP: 551 NF: 7 SIZE: 2208 ET: 1 secs
-        chunk: Received complete scan.  AP: 601 NF: 1 SIZE: 2408 ET: 64 secs
-        chunk: Received complete scan.  AP: 601 NF: 1 SIZE: 2408 ET: 64 secs
-        chunk: Received complete scan.  AP: 601 NF: 2 SIZE: 2408 ET: 27 secs
-        chunk: Received complete scan.  AP: 601 NF: 2 SIZE: 2408 ET: 25 secs
-        chunk: Received complete scan.  AP: 601 NF: 3 SIZE: 2408 ET: 13 secs
-        chunk: Received complete scan.  AP: 601 NF: 3 SIZE: 2408 ET: 13 secs
-        chunk: Received complete scan.  AP: 601 NF: 4 SIZE: 2408 ET: 8 secs
-        chunk: Received complete scan.  AP: 601 NF: 4 SIZE: 2408 ET: 9 secs
-        chunk: Received complete scan.  AP: 601 NF: 5 SIZE: 2408 ET: 5 secs
-        chunk: Received complete scan.  AP: 601 NF: 5 SIZE: 2408 ET: 6 secs
-        chunk: Received complete scan.  AP: 601 NF: 6 SIZE: 2408 ET: 2 secs
-        chunk: Received complete scan.  AP: 601 NF: 6 SIZE: 2408 ET: 5 secs
-        chunk: Received complete scan.  AP: 601 NF: 7 SIZE: 2408 ET: 1 secs
-        chunk: Received complete scan.  AP: 601 NF: 7 SIZE: 2408 ET: 1 secs
-        chunk: Received complete scan.  AP: 651 NF: 1 SIZE: 2608 ET: 69 secs
-        chunk: Received complete scan.  AP: 651 NF: 1 SIZE: 2608 ET: 69 secs
-        chunk: Received complete scan.  AP: 651 NF: 2 SIZE: 2608 ET: 27 secs
-        chunk: Received complete scan.  AP: 651 NF: 2 SIZE: 2608 ET: 27 secs
-        chunk: Received complete scan.  AP: 651 NF: 3 SIZE: 2608 ET: 14 secs
-        chunk: Received complete scan.  AP: 651 NF: 3 SIZE: 2608 ET: 14 secs
-        chunk: Received complete scan.  AP: 651 NF: 4 SIZE: 2608 ET: 10 secs
-        chunk: Received complete scan.  AP: 651 NF: 4 SIZE: 2608 ET: 10 secs
-        chunk: Received complete scan.  AP: 651 NF: 5 SIZE: 2608 ET: 6 secs
-        chunk: Received complete scan.  AP: 651 NF: 5 SIZE: 2608 ET: 6 secs
-        chunk: Received complete scan.  AP: 651 NF: 6 SIZE: 2608 ET: 6 secs
-        chunk: Received complete scan.  AP: 651 NF: 6 SIZE: 2608 ET: 6 secs
-        chunk: Received complete scan.  AP: 651 NF: 7 SIZE: 2608 ET: 1 secs
-        chunk: Received complete scan.  AP: 651 NF: 7 SIZE: 2608 ET: 1 secs
-        chunk: Received complete scan.  AP: 701 NF: 1 SIZE: 2808 ET: 74 secs
-        chunk: Received complete scan.  AP: 701 NF: 1 SIZE: 2808 ET: 75 secs
-        chunk: Received complete scan.  AP: 701 NF: 2 SIZE: 2808 ET: 29 secs
-        chunk: Received complete scan.  AP: 701 NF: 2 SIZE: 2808 ET: 29 secs
-        chunk: Received complete scan.  AP: 701 NF: 3 SIZE: 2808 ET: 15 secs
-        chunk: Received complete scan.  AP: 701 NF: 3 SIZE: 2808 ET: 15 secs
-        chunk: Received complete scan.  AP: 701 NF: 4 SIZE: 2808 ET: 10 secs
-        chunk: Received complete scan.  AP: 701 NF: 4 SIZE: 2808 ET: 10 secs
-        chunk: Received complete scan.  AP: 701 NF: 5 SIZE: 2808 ET: 7 secs
-        chunk: Received complete scan.  AP: 701 NF: 5 SIZE: 2808 ET: 7 secs
-        chunk: Received complete scan.  AP: 701 NF: 6 SIZE: 2808 ET: 5 secs
-        chunk: Received complete scan.  AP: 701 NF: 6 SIZE: 2808 ET: 7 secs
-        chunk: Received complete scan.  AP: 701 NF: 7 SIZE: 2808 ET: 1 secs
-        chunk: Received complete scan.  AP: 701 NF: 7 SIZE: 2808 ET: 1 secs
-        chunk: Received complete scan.  AP: 751 NF: 1 SIZE: 3008 ET: 79 secs
-        chunk: Received complete scan.  AP: 751 NF: 1 SIZE: 3008 ET: 79 secs
-        chunk: Received complete scan.  AP: 751 NF: 2 SIZE: 3008 ET: 31 secs
-        chunk: Received complete scan.  AP: 751 NF: 2 SIZE: 3008 ET: 31 secs
-        chunk: Received complete scan.  AP: 751 NF: 3 SIZE: 3008 ET: 16 secs
-        chunk: Received complete scan.  AP: 751 NF: 3 SIZE: 3008 ET: 16 secs
-        chunk: Received complete scan.  AP: 751 NF: 4 SIZE: 3008 ET: 12 secs
-        chunk: Received complete scan.  AP: 751 NF: 4 SIZE: 3008 ET: 11 secs
-        chunk: Received complete scan.  AP: 751 NF: 5 SIZE: 3008 ET: 8 secs
-        chunk: Received complete scan.  AP: 751 NF: 5 SIZE: 3008 ET: 7 secs
-        chunk: Received complete scan.  AP: 751 NF: 6 SIZE: 3008 ET: 7 secs
-        chunk: Received complete scan.  AP: 751 NF: 6 SIZE: 3008 ET: 7 secs
-        chunk: Received complete scan.  AP: 751 NF: 7 SIZE: 3008 ET: 1 secs
-        chunk: Received complete scan.  AP: 751 NF: 7 SIZE: 3008 ET: 1 secs
-        chunk: Received complete scan.  AP: 801 NF: 1 SIZE: 3208 ET: 84 secs
-        chunk: Received complete scan.  AP: 801 NF: 1 SIZE: 3208 ET: 84 secs
-        chunk: Received complete scan.  AP: 801 NF: 2 SIZE: 3208 ET: 33 secs
-        chunk: Received complete scan.  AP: 801 NF: 2 SIZE: 3208 ET: 33 secs
-        chunk: Received complete scan.  AP: 801 NF: 3 SIZE: 3208 ET: 17 secs
-        chunk: Received complete scan.  AP: 801 NF: 3 SIZE: 3208 ET: 17 secs
-        chunk: Received complete scan.  AP: 801 NF: 4 SIZE: 3208 ET: 11 secs
-        chunk: Received complete scan.  AP: 801 NF: 4 SIZE: 3208 ET: 11 secs
-        chunk: Received complete scan.  AP: 801 NF: 5 SIZE: 3208 ET: 5 secs
-        chunk: Received complete scan.  AP: 801 NF: 5 SIZE: 3208 ET: 8 secs
-        chunk: Received complete scan.  AP: 801 NF: 6 SIZE: 3208 ET: 8 secs
-        chunk: Received complete scan.  AP: 801 NF: 6 SIZE: 3208 ET: 8 secs
-        chunk: Received complete scan.  AP: 801 NF: 7 SIZE: 3208 ET: 1 secs
-        chunk: Received complete scan.  AP: 801 NF: 7 SIZE: 3208 ET: 1 secs
-        chunk: Received complete scan.  AP: 851 NF: 1 SIZE: 3408 ET: 89 secs
-        chunk: Received complete scan.  AP: 851 NF: 1 SIZE: 3408 ET: 89 secs
-        chunk: Received complete scan.  AP: 851 NF: 2 SIZE: 3408 ET: 35 secs
-        chunk: Received complete scan.  AP: 851 NF: 2 SIZE: 3408 ET: 35 secs
-        chunk: Received complete scan.  AP: 851 NF: 3 SIZE: 3408 ET: 18 secs
-        chunk: Received complete scan.  AP: 851 NF: 3 SIZE: 3408 ET: 18 secs
-        chunk: Received complete scan.  AP: 851 NF: 4 SIZE: 3408 ET: 12 secs
-        chunk: Received complete scan.  AP: 851 NF: 4 SIZE: 3408 ET: 12 secs
-        chunk: Received complete scan.  AP: 851 NF: 5 SIZE: 3408 ET: 9 secs
-        chunk: Received complete scan.  AP: 851 NF: 5 SIZE: 3408 ET: 9 secs
-        chunk: Received complete scan.  AP: 851 NF: 6 SIZE: 3408 ET: 9 secs
-        chunk: Received complete scan.  AP: 851 NF: 6 SIZE: 3408 ET: 9 secs
-        chunk: Received complete scan.  AP: 851 NF: 7 SIZE: 3408 ET: 1 secs
-        chunk: Received complete scan.  AP: 851 NF: 7 SIZE: 3408 ET: 1 secs
-        chunk: Received complete scan.  AP: 901 NF: 1 SIZE: 3608 ET: 94 secs
-        chunk: Received complete scan.  AP: 901 NF: 1 SIZE: 3608 ET: 94 secs
-        chunk: Received complete scan.  AP: 901 NF: 2 SIZE: 3608 ET: 37 secs
-        chunk: Received complete scan.  AP: 901 NF: 2 SIZE: 3608 ET: 38 secs
-        chunk: Received complete scan.  AP: 901 NF: 3 SIZE: 3608 ET: 19 secs
-        chunk: Received complete scan.  AP: 901 NF: 3 SIZE: 3608 ET: 19 secs
-        chunk: Received complete scan.  AP: 901 NF: 4 SIZE: 3608 ET: 15 secs
-        chunk: Received complete scan.  AP: 901 NF: 4 SIZE: 3608 ET: 14 secs
-        chunk: Received complete scan.  AP: 901 NF: 5 SIZE: 3608 ET: 6 secs
-        chunk: Received complete scan.  AP: 901 NF: 5 SIZE: 3608 ET: 8 secs
-        chunk: Received complete scan.  AP: 901 NF: 6 SIZE: 3608 ET: 10 secs
-        chunk: Received complete scan.  AP: 901 NF: 6 SIZE: 3608 ET: 9 secs
-        chunk: Received complete scan.  AP: 901 NF: 7 SIZE: 3608 ET: 1 secs
-        chunk: Received complete scan.  AP: 901 NF: 7 SIZE: 3608 ET: 2 secs
+        Step through a sequence of configuration parameters to test scan timing.  Data is in confluence.
         """
         self.assert_initialize_driver()
         self.assert_set(Parameter.MI, 5, no_get=True)
@@ -701,6 +462,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     # while this is an integration test, it can be run without access to the instrument
     def test_get_parameters(self):
+        """
+        Verify we can get all parameters
+        """
         self.assert_initialize_driver()
         startup_params = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
         for key, value in startup_params.items():
@@ -726,6 +490,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     # while this is an integration test, it can be run without access to the instrument
     def test_out_of_range(self):
+        """
+        Verify out of range values raise exceptions
+        """
         self.assert_initialize_driver()
         constraints = ParameterConstraints.dict()
         parameters = Parameter.dict()
@@ -738,10 +505,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
             self.assert_set_exception(parameter, "strings aren't valid here!")
 
     def test_set_bogus_parameter(self):
+        """
+        Verify bogus parameters raise exceptions
+        """
         self.assert_initialize_driver()
         self.assert_set_exception('BOGUS', 'CHEESE')
 
     def test_state_transitions(self):
+        """
+        Verify state transitions
+        """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_SCAN)
         self.assert_state_change(ProtocolState.SCAN, 5)
@@ -751,6 +524,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_get(Parameter.FL_ACTUAL, 0.0)
 
     def test_bad_command(self):
+        """
+        Verify bad commands raise exceptions
+        """
         self.assert_initialize_driver()
         self.assert_driver_command_exception('BAD_COMMAND', exception_class=InstrumentCommandException)
 
@@ -789,7 +565,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports
+        This test manually tests that the Instrument Driver properly supports
         direct access to the physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
@@ -799,6 +575,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assertTrue(self.tcp_client.expect('SRSRGA200'))
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 5)
 
     def test_poll(self):
         """
