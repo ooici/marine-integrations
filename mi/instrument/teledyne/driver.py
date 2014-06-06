@@ -19,7 +19,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterExpirationException
 
-from mi.core.log import get_logger, get_logging_metaclass
+from mi.core.log import get_logger
 
 log = get_logger()
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -196,7 +196,7 @@ class TeledyneProtocolEvent(BaseEnum):
     RECOVER_AUTOSAMPLE = 'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE'
     RESTORE_FACTORY_PARAMS = "PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS"
 
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS  # The command will execute "AC, PT2, PT4"
 
 
 class TeledyneCapability(BaseEnum):
@@ -256,6 +256,7 @@ class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
         return result
 
 
+# noinspection PyMethodMayBeStatic
 class TeledyneProtocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol Family SubClass
@@ -448,6 +449,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("Setting scheduled interval to: %s %s %s", hours, minutes, seconds)
 
         if hours == '00' and minutes == '00' and seconds == '00':
+            # if interval is all zeroed, then stop scheduling jobs
             self.stop_scheduled_job(schedule_job)
         else:
             config = {DriverConfigKey.SCHEDULER: {
@@ -476,16 +478,16 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
-    def _build_simple_command(self, cmd):
-        """
-        OVERWRITE
-        Build handler for basic adcpt commands.
-        @param cmd the simple adcpt command to format
-                (no value to attach to the command)
-        @retval The command to be sent to the device.
-        """
-        log.trace("build_simple_command: %s" % cmd)
-        return cmd + NEWLINE
+    # def _build_simple_command(self, cmd):
+    #     """
+    #     OVERWRITE
+    #     Build handler for basic adcpt commands.
+    #     @param cmd the simple adcpt command to format
+    #             (no value to attach to the command)
+    #     @retval The command to be sent to the device.
+    #     """
+    #     log.trace("build_simple_command: %s" % cmd)
+    #     return cmd + NEWLINE
 
     def _filter_capabilities(self, events):
         """
@@ -599,6 +601,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("in _update_params")
         error = None
         logging = self._is_logging()
+        results = None
 
         try:
             if logging:
@@ -618,14 +621,15 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                         results += result + NEWLINE
 
             new_config = self._param_dict.get_config()
-            #new_config.
+
+            # Check if there is any changes. Ignore TT
             if not dict_equal(new_config, old_config, ['TT']):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
-            log.error("EXCEPTION WAS " + str(e))
+            log.error("EXCEPTION in _update_params WAS " + str(e))
             error = e
 
         finally:
@@ -654,14 +658,14 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
-        try:
-            startup = args[1]
-        except IndexError:
-            pass
+        #try:
+        #    startup = args[1]
+        #except IndexError:
+        #    pass
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
         for (key, val) in params.iteritems():
-            if key.find('_') == -1:  # Not found
+            if key.find('_') == -1:  # Not found, Master parameters
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
@@ -702,9 +706,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         break_confirmation = []
         log.trace("self._linebuf = " + self._linebuf)
 
-        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
-                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
-                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE +
+                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE +
+                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE +
                                   "All Rights Reserved.")
 
         break_confirmation.append("[BREAK Wakeup A]")
@@ -819,11 +823,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @return: True if successful
         @throws: InstrumentProtocolException if failed to start logging
         """
-        log.debug("in _start_logging - are we logging? ")
+        log.trace("in _start_logging - are we logging? ")
         if self._is_logging():
-            log.debug("ALREADY LOGGING")
+            log.trace("ALREADY LOGGING")
             return True
-        log.debug("SENDING START LOGGING")
+        log.trace("SENDING START LOGGING")
         self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING, timeout=timeout)
 
         return True
@@ -852,7 +856,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # set logging to false, as we just got a prompt after a break
 
         if self._is_logging(timeout):
-            log.debug("FAILED TO STOP LOGGING")
+            log.error("FAILED TO STOP LOGGING in _stop_logging")
             raise InstrumentProtocolException("failed to stop logging")
 
         return True
@@ -975,13 +979,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-        # start scheduled event for clock synch
+        # start scheduled event for clock synch only if the interval is not "00:00:00
         clock_interval = self._param_dict.get(self._getattr_key('CLOCK_SYNCH_INTERVAL'))
         if clock_interval != '00:00:00':
             self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
                                      TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
-        # start scheduled event for get_status
+        # start scheduled event for get_status only if the interval is not "00:00:00
         status_interval = self._param_dict.get(self._getattr_key('GET_STATUS_INTERVAL'))
         if status_interval != '00:00:00':
             self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION,
@@ -1126,7 +1130,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command misunderstood or
         incorrect prompt received.
         """
-        next_state = None
         result = None
 
         # Wake up the device, continuing until autosample prompt seen.
@@ -1214,7 +1217,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
+        output = ""
         error = None
 
         try:
@@ -1255,7 +1258,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         next_state = None
         next_agent_state = None
-        result = None
+        output = ""
         error = None
 
         try:
@@ -1356,7 +1359,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         log.trace("IN _handler_command_set")
         next_state = None
-        result = None
         startup = False
         changed = False
 
@@ -1376,6 +1378,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
+            # Handle engineering parameters
             if TeledyneParameter.CLOCK_SYNCH_INTERVAL in params:
                 if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
                         TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
@@ -1410,7 +1413,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("IN _handler_command_get_calibration")
         next_state = None
         next_agent_state = None
-        result = None
 
         kwargs['timeout'] = 120
 
@@ -1427,7 +1429,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
 
         kwargs['timeout'] = 120  # long time to get params.
         log.debug("in _handler_command_get_configuration")
@@ -1471,6 +1472,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
         except Exception as e:
+            log.error("Unknown driver parameter on _do_cmd_no_resp in handle_command_clock_sync. Exception thrown")
             raise InstrumentParameterException(
                 'Unknown driver parameter on _do_cmd_no_resp in handle_command_clock_sync. Exception :' + str(e))
 
@@ -1500,6 +1502,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
         except Exception as e:
+            log.error("Unknown driver parameter on _do_cmd_no_resp in handle_autosample_get_status. Exception thrown")
             raise InstrumentParameterException(
                 'Unknown driver parameter on _do_cmd_no_resp in handle_autosample_get_status. Exception :' + str(e))
 
@@ -1510,7 +1513,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         return next_state, (next_agent_state, result)
 
     def _handler_command_start_direct(self, *args, **kwargs):
-        next_state = None
         result = None
         log.debug("_handler_command_start_direct: entering DA mode")
 
@@ -1597,7 +1599,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         @throw InstrumentProtocolException on invalid command
         """
-        next_state = None
         result = None
         log.debug("IN _handler_direct_access_stop_direct")
         (next_state, next_agent_state) = self._discover()
@@ -1622,8 +1623,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         try:
             str_val = self._param_dict.format(param, val)
-            set_cmd = '%s%s' % (param, str_val)
-            set_cmd = set_cmd + NEWLINE
+            set_cmd = '%s%s' % (param, str_val) + NEWLINE
             log.trace("IN _build_set_command CMD = '%s'", set_cmd)
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter. %s' % param)
