@@ -152,8 +152,7 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_sample_data_particle(self, data_particle):
         """
-        Verify a particle is a know particle to this driver and verify the particle is
-        correct
+        Verify a particle is a know particle to this driver and verify the particle is correct
         @param data_particle: Data particle of unknown type produced by the driver
         """
         if isinstance(data_particle, RawDataParticle):
@@ -163,8 +162,7 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_exception(self, driver, sample_data):
         """
-        Verify that we can send data through the port agent and the the correct particles
-        are generated.
+        Verify that we can send data through the port agent and the the correct particles are generated.
 
         Create a port agent packet, send it through got_data, then finally grab the data particle
         from the data particle queue and verify it using the passed in assert method.
@@ -180,6 +178,11 @@ class DriverTestMixinSub(DriverTestMixin):
             log.debug('Caught sample exception: %r', e)
 
     def _send_port_agent_packet(self, driver, data):
+        """
+        Send a port agent packet via got_data
+        @param driver Instrument Driver instance
+        @param data data to send
+        """
         ts = ntplib.system_to_ntp_time(time.time())
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(data)
@@ -190,7 +193,17 @@ class DriverTestMixinSub(DriverTestMixin):
         driver._protocol.got_data(port_agent_packet)
 
     def my_send(self, driver):
+        """
+        Side effect function generator - will send responses based on input
+        @param driver Instrument driver instance
+        @returns side effect function
+        """
         def inner(data):
+            """
+            Inner function for side effect generator
+            @param data Data to send
+            @returns length of response
+            """
             my_response = self.responses.get(data.strip())
             log.debug("my_send: data: %r, my_response: %r", data, my_response)
             if my_response is not None:
@@ -363,6 +376,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
         Verify driver can transition to the COMMAND state
+        @param initial_protocol_state Desired initial protocol state
+        @returns driver
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
@@ -374,16 +389,16 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
         do a little extra validation for the Capabilities
         """
-        self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
-        self.assert_enum_has_no_duplicates(Prompt())
+        self.assert_enum_has_no_duplicates(DataParticleType)
+        self.assert_enum_has_no_duplicates(ProtocolState)
+        self.assert_enum_has_no_duplicates(ProtocolEvent)
+        self.assert_enum_has_no_duplicates(Parameter)
+        self.assert_enum_has_no_duplicates(InstrumentCommand)
+        self.assert_enum_has_no_duplicates(Prompt)
 
         # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
+        self.assert_enum_has_no_duplicates(Capability)
+        self.assert_enum_complete(Capability, ProtocolEvent)
 
     def test_capabilities(self):
         """
@@ -425,6 +440,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                 self.assert_particle_exception(driver, sample + NEWLINE)
 
     def test_sample_sequence(self):
+        """
+        Test the MCU ASAMPLE sequence handling
+        """
         driver = self.test_connect()
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.START1)
         self._send_port_agent_packet(driver, Prompt.START1 + NEWLINE)
@@ -436,6 +454,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
 
     def test_cal_sequence(self):
+        """
+        Test the MCU ACAL9 sequence handling
+        """
         driver = self.test_connect()
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.START1)
         self._send_port_agent_packet(driver, Prompt.START1 + NEWLINE)
@@ -471,6 +492,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_already_in_sequence(self):
+        """
+        Verify handling when driver is initiated with MCU already in sequence.
+        """
         sent = []
         def wait(s, timeout=10):
             end_time = time.time() + timeout
@@ -509,23 +533,38 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         InstrumentDriverIntegrationTestCase.setUp(self)
 
     def test_connect(self):
+        """
+        Stand up the driver, transition to COMMAND
+        """
         self.assert_initialize_driver()
 
     def test_start1(self):
+        """
+        Test sending the START1 command
+        """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START1)
         self.assert_state_change(ProtocolState.WAITING_TURBO, 60)
         self.assert_driver_command(Capability.STANDBY)
 
     def test_data_particle(self):
+        """
+        Test data particle generation
+        """
         self.assert_initialize_driver()
         self.assert_async_particle_generation(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=60)
 
     def test_set_bogus_parameter(self):
+        """
+        Test that driver raises exception on receipt of bad parameter.
+        """
         self.assert_initialize_driver()
         self.assert_set_exception('BOGUS', 'CHEESE')
 
     def test_bad_command(self):
+        """
+        Test that driver raises exception on receipt of bad command.
+        """
         self.assert_initialize_driver()
         self.assert_driver_command_exception('BAD_COMMAND', exception_class=InstrumentCommandException)
 
@@ -542,12 +581,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         InstrumentDriverQualificationTestCase.setUp(self)
 
     def test_data_particle(self):
+        """
+        Test data particle generation
+        """
         self.assert_enter_command_mode()
         self.assert_particle_async(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=60)
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports
+        This test manually tests that the Instrument Driver properly supports
         direct access to the physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
@@ -590,7 +632,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_get_capabilities(self):
         """
-        @brief Verify that the correct capabilities are returned from get_capabilities
+        Verify that the correct capabilities are returned from get_capabilities
         at various driver/agent states.
 
         We will only test command, direct_access and unknown, as we cannot reach all states with just the
