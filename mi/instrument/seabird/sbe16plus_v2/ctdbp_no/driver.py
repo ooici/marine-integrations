@@ -474,7 +474,8 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PT4))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PSLOPE))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.POFFSET))
-                result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_RANGE))
+                result.append(
+                    self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_RANGE, self._float_to_int))
             elif id_attr == VOLT0:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT0_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT0_SLOPE))

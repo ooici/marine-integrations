@@ -470,7 +470,7 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19CalibrationParticleKey.PTEMPA1: {TYPE: float, VALUE: 5.424624e+01, REQUIRED: True },
         SBE19CalibrationParticleKey.PTEMPA2: {TYPE: float, VALUE: -2.278113e-01, REQUIRED: True },
         SBE19CalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: True },
-        SBE19CalibrationParticleKey.PRES_RANGE: {TYPE: float, VALUE: 5.080000e+02, REQUIRED: True },
+        SBE19CalibrationParticleKey.PRES_RANGE: {TYPE: int, VALUE: 5.080000e+02, REQUIRED: True },
         SBE19CalibrationParticleKey.EXT_VOLT0_OFFSET: {TYPE: float, VALUE: -4.650526e-02, REQUIRED: True},
         SBE19CalibrationParticleKey.EXT_VOLT0_SLOPE: {TYPE: float, VALUE: 1.246381e+00, REQUIRED: True},
         SBE19CalibrationParticleKey.EXT_VOLT1_OFFSET: {TYPE: float, VALUE: -4.618105e-02, REQUIRED: True},
@@ -1250,10 +1250,16 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         """
         self.assert_enter_command_mode()
 
+        # Perform a clock sync!
         self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+
+        # Call discover so that the driver gets the updated DateTime value from the instrument
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
 
         # get the time from the driver
         check_new_params = self.instrument_agent_client.get_resource([Parameter.DATE_TIME])
+
         # convert driver's time from formatted date/time string to seconds integer
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.DATE_TIME).lower(), "%d %b %Y %H:%M:%S"))
 
@@ -1263,8 +1269,9 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # convert local time from formatted date/time string to seconds integer to drop DST
         local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
 
-        # Now verify that the time matches to within 15 seconds
-        self.assertLessEqual(abs(instrument_time - local_time), 15)
+        # Now verify that the time matches to within 10 seconds
+        # The instrument time will be slightly behind as assert_discover takes a few seconds to complete
+        self.assertLessEqual(abs(instrument_time - local_time), 10)
 
     def test_get_set_parameters(self):
         '''
