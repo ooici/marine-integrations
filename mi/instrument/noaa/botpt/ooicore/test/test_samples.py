@@ -1,4 +1,4 @@
-__author__ = 'pcable'
+__author__ = 'Pete Cable'
 
 NEWLINE = '\n'
 
