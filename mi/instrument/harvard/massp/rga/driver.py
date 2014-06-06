@@ -171,8 +171,8 @@ class ParameterConstraints(BaseEnum):
     FL = (float, 0, 3.5)
     NF = (int, 0, 7)
     SA = (int, 10, 25)
-    MI = (int, 1, 300)
-    MF = (int, 1, 300)
+    MI = (int, 1, 200)
+    MF = (int, 1, 200)
 
 
 class Prompt(BaseEnum):
