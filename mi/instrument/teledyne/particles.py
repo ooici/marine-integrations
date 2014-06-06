@@ -14,15 +14,14 @@ from struct import *
 import time as time
 import datetime as dt
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 from mi.core.common import BaseEnum
 from mi.instrument.teledyne.driver import NEWLINE
-from mi.instrument.teledyne.driver import TIMEOUT
 
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
-
 
 from mi.core.exceptions import SampleException
 
@@ -30,7 +29,7 @@ from mi.core.exceptions import SampleException
 # Particle Regex's'
 #
 
-ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(..)' # .*
+ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(..)'  # .*
 ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX, re.DOTALL)
 
 ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*?)\>'
@@ -68,7 +67,6 @@ class DataParticleType(BaseEnum):
     VADCP_PD0_PARSED_BEAM = 'vadcp_5thbeam_pd0_beam_parsed'
     VADCP_PD0_PARSED_EARTH = 'vadcp_5thbeam_pd0_earth_parsed'
     VADCP_COMPASS_CALIBRATION = 'vadcp_5thbeam_compass_calibration'
-
 
 
 class ADCP_PD0_PARSED_KEY(BaseEnum):
@@ -183,14 +181,14 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     PRESSURE_VARIANCE = "pressure_variance"
     INTERNAL_TIMESTAMP = "internal_timestamp"
     VELOCITY_DATA_ID = "velocity_data_id"
-    BEAM_1_VELOCITY = "beam_1_velocity" # These may live in OOICORE driver as a extension
-    BEAM_2_VELOCITY = "beam_2_velocity" # These may live in OOICORE driver as a extension
-    BEAM_3_VELOCITY = "beam_3_velocity" # These may live in OOICORE driver as a extension
-    BEAM_4_VELOCITY = "beam_4_velocity" # These may live in OOICORE driver as a extension
-    WATER_VELOCITY_EAST = "water_velocity_east" # These may live in OOICORE driver as a extension
-    WATER_VELOCITY_NORTH = "water_velocity_north" # These may live in OOICORE driver as a extension
-    WATER_VELOCITY_UP = "water_velocity_up" # These may live in OOICORE driver as a extension
-    ERROR_VELOCITY = "error_velocity" # These may live in OOICORE driver as a extension
+    BEAM_1_VELOCITY = "beam_1_velocity"  # These may live in OOICORE driver as a extension
+    BEAM_2_VELOCITY = "beam_2_velocity"  # These may live in OOICORE driver as a extension
+    BEAM_3_VELOCITY = "beam_3_velocity"  # These may live in OOICORE driver as a extension
+    BEAM_4_VELOCITY = "beam_4_velocity"  # These may live in OOICORE driver as a extension
+    WATER_VELOCITY_EAST = "water_velocity_east"  # These may live in OOICORE driver as a extension
+    WATER_VELOCITY_NORTH = "water_velocity_north"  # These may live in OOICORE driver as a extension
+    WATER_VELOCITY_UP = "water_velocity_up"  # These may live in OOICORE driver as a extension
+    ERROR_VELOCITY = "error_velocity"  # These may live in OOICORE driver as a extension
     CORRELATION_MAGNITUDE_ID = "correlation_magnitude_id"
     CORRELATION_MAGNITUDE_BEAM1 = "correlation_magnitude_beam1"
     CORRELATION_MAGNITUDE_BEAM2 = "correlation_magnitude_beam2"
@@ -201,10 +199,10 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     ECHO_INTENSITY_BEAM2 = "echo_intesity_beam2"
     ECHO_INTENSITY_BEAM3 = "echo_intesity_beam3"
     ECHO_INTENSITY_BEAM4 = "echo_intesity_beam4"
-    PERCENT_GOOD_BEAM1 = "percent_good_beam1"# These may live in OOICORE driver as a extension
-    PERCENT_GOOD_BEAM2 = "percent_good_beam2"# These may live in OOICORE driver as a extension
-    PERCENT_GOOD_BEAM3 = "percent_good_beam3"# These may live in OOICORE driver as a extension
-    PERCENT_GOOD_BEAM4 = "percent_good_beam4"# These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM1 = "percent_good_beam1"  # These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM2 = "percent_good_beam2"  # These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM3 = "percent_good_beam3"  # These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM4 = "percent_good_beam4"  # These may live in OOICORE driver as a extension
     PERCENT_GOOD_ID = "percent_good_id"
     PERCENT_GOOD_3BEAM = "percent_good_3beam"
     PERCENT_TRANSFORMS_REJECT = "percent_transforms_reject"
@@ -214,11 +212,9 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
 
 
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
-
     #The data particle type will be overwritten based on coordinate (Earth/Beam)
-    _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse_monitor_75_khz.particles ADCP_PD0_PARSED_DataParticle' # DataParticleType.ADCP_PD0_PARSED_BEAM #
+    _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse ADCP_PD0_PARSED_DataParticle'
     _slave = False
-
 
     def _build_parsed_values(self):
         """
@@ -240,10 +236,11 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         for i in range(0, length):
             total += int(ord(data[i]))
 
-        checksum = total & 65535    # bitwise and with 65535 or mod vs 65536
+        checksum = total & 65535  # bitwise and with 65535 or mod vs 65536
 
-        if checksum != unpack("H", self.raw_data[length: length+2])[0]:
-            log.debug("Checksum mismatch "+ str(checksum) + "!= " + str(unpack("H", self.raw_data[length: length+2])[0]))
+        if checksum != unpack("H", self.raw_data[length: length + 2])[0]:
+            log.debug(
+                "Checksum mismatch " + str(checksum) + "!= " + str(unpack("H", self.raw_data[length: length + 2])[0]))
 
             raise SampleException("Checksum mismatch")
 
@@ -272,7 +269,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         chunks = []
         for offset in range(0, num_data_types):
-            chunks.append(self.raw_data[offsets[offset] : offsets[offset + 1] ])
+            chunks.append(self.raw_data[offsets[offset]: offsets[offset + 1]])
 
             variable_leader_id = unpack('!H', chunks[offset][0:2])[0]
 
@@ -297,13 +294,17 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        (fixed_leader_id, firmware_version, firmware_revision, sysconfig_frequency, data_flag, lag_length, num_beams, num_cells, pings_per_ensemble,
-         depth_cell_length, blank_after_transmit, signal_processing_mode, low_corr_threshold, num_code_repetitions, percent_good_min, error_vel_threshold,
-         time_per_ping_minutes, time_per_ping_seconds, time_per_ping_hundredths, coord_transform_type, heading_alignment, heading_bias, sensor_source,
-         sensor_available, bin_1_distance, transmit_pulse_length, reference_layer_start, reference_layer_stop, false_target_threshold,
+        (fixed_leader_id, firmware_version, firmware_revision, sysconfig_frequency, data_flag, lag_length, num_beams,
+         num_cells, pings_per_ensemble,
+         depth_cell_length, blank_after_transmit, signal_processing_mode, low_corr_threshold, num_code_repetitions,
+         percent_good_min, error_vel_threshold,
+         time_per_ping_minutes, time_per_ping_seconds, time_per_ping_hundredths, coord_transform_type,
+         heading_alignment, heading_bias, sensor_source,
+         sensor_available, bin_1_distance, transmit_pulse_length, reference_layer_start, reference_layer_stop,
+         false_target_threshold,
          low_latency_trigger, transmit_lag_distance, cpu_board_serial_number, system_bandwidth, system_power,
          spare, serial_number, beam_angle) \
-        = unpack('!HBBHbBBBHHHBBBBHBBBBhhBBHHBBBBHQHBBIB', chunk[0:59])
+            = unpack('!HBBHbBBBHHHBBBBHBBBBhhBBHHBBBBHQHBBIB', chunk[0:59])
 
         if 0 != fixed_leader_id:
             raise SampleException("fixed_leader_id was not equal to 0")
@@ -362,7 +363,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TIME_PER_PING_MINUTES,
                                   DataParticleKey.VALUE: time_per_ping_minutes})
 
-        tpp_float_seconds = float(time_per_ping_seconds + (time_per_ping_hundredths/100))
+        tpp_float_seconds = float(time_per_ping_seconds + (time_per_ping_hundredths / 100))
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TIME_PER_PING_SECONDS,
                                   DataParticleKey.VALUE: tpp_float_seconds})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COORD_TRANSFORM_TYPE,
@@ -428,7 +429,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSTEM_POWER,
                                   DataParticleKey.VALUE: system_power})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SERIAL_NUMBER,
-                                  DataParticleKey.VALUE: serial_number})     
+                                  DataParticleKey.VALUE: serial_number})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_ANGLE,
                                   DataParticleKey.VALUE: beam_angle})
 
@@ -453,8 +454,9 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
          adc_pressure_minus, adc_attitude_temp, adc_attitiude, adc_contamination_sensor,
          error_status_word_1, error_status_word_2, error_status_word_3, error_status_word_4,
          RESERVED1, RESERVED2, pressure, RESERVED3, pressure_variance,
-         rtc2k['century'], rtc2k['year'], rtc2k['month'], rtc2k['day'], rtc2k['hour'], rtc2k['minute'], rtc2k['second'], rtc2k['hundredths']) \
-        = unpack('<HHBBBBBBBBBBHHHhhHhBBBBBBBBBBBBBBBBBBBBLBLBBBBBBBB', chunk[0:65])
+         rtc2k['century'], rtc2k['year'], rtc2k['month'], rtc2k['day'], rtc2k['hour'], rtc2k['minute'], rtc2k['second'],
+         rtc2k['hundredths']) \
+            = unpack('<HHBBBBBBBBBBHHHhhHhBBBBBBBBBBBBBBBBBBBBLBLBBBBBBBB', chunk[0:65])
 
         if 128 != variable_leader_id:
             raise SampleException("variable_leader_id was not equal to 128")
@@ -488,7 +490,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_MINUTES,
                                   DataParticleKey.VALUE: mpt_minutes})
 
-        mpt_seconds = float(mpt_seconds_component + (mpt_hundredths_component/100))
+        mpt_seconds = float(mpt_seconds_component + (mpt_hundredths_component / 100))
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_SECONDS,
                                   DataParticleKey.VALUE: mpt_seconds})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING_STDEV,
@@ -559,14 +561,14 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: pressure_variance})
 
         dts = dt.datetime(rtc2k['century'] * 100 + rtc2k['year'],
-                               rtc2k['month'],
-                               rtc2k['day'],
-                               rtc2k['hour'],
-                               rtc2k['minute'],
-                               rtc2k['second'])
+                          rtc2k['month'],
+                          rtc2k['day'],
+                          rtc2k['hour'],
+                          rtc2k['minute'],
+                          rtc2k['second'])
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP,
-                                 DataParticleKey.VALUE: time.mktime(dts.timetuple()) + (rtc2k['second'] / 100.0)})
+                                  DataParticleKey.VALUE: time.mktime(dts.timetuple()) + (rtc2k['second'] / 100.0)})
 
     def parse_velocity_chunk(self, chunk):
         """
@@ -574,25 +576,25 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        N = (len(chunk) - 2) / 2 /4
+        N = (len(chunk) - 2) / 2 / 4
         offset = 0
 
         velocity_data_id = unpack("!H", chunk[0:2])[0]
         if 1 != velocity_data_id:
             raise SampleException("velocity_data_id was not equal to 1")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.VELOCITY_DATA_ID,
-                                      DataParticleKey.VALUE: velocity_data_id})
+                                  DataParticleKey.VALUE: velocity_data_id})
 
-        if 0 == self.coord_transform_type: # BEAM Coordinates
+        if 0 == self.coord_transform_type:  # BEAM Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
-            if self._slave == True:
+            if self._slave:
                 self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_BEAM
             beam_1_velocity = []
             beam_2_velocity = []
             beam_3_velocity = []
             beam_4_velocity = []
-            for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            for row in range(1, N):
+                (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 beam_1_velocity.append(a)
                 beam_2_velocity.append(b)
                 beam_3_velocity.append(c)
@@ -606,16 +608,16 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: beam_3_velocity})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
                                       DataParticleKey.VALUE: beam_4_velocity})
-        elif 3 == self.coord_transform_type: # Earth Coordinates
+        elif 3 == self.coord_transform_type:  # Earth Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
-            if self._slave == True:
+            if self._slave:
                 self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_EARTH
             water_velocity_east = []
             water_velocity_north = []
             water_velocity_up = []
             error_velocity = []
-            for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            for row in range(1, N):
+                (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 water_velocity_east.append(a)
                 water_velocity_north.append(b)
                 water_velocity_up.append(c)
@@ -639,20 +641,20 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        N = (len(chunk) - 2) / 2 /4
+        N = (len(chunk) - 2) / 2 / 4
         offset = 0
 
         correlation_magnitude_id = unpack("!H", chunk[0:2])[0]
         if 2 != correlation_magnitude_id:
             raise SampleException("correlation_magnitude_id was not equal to 2")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_ID,
-                                      DataParticleKey.VALUE: correlation_magnitude_id})
+                                  DataParticleKey.VALUE: correlation_magnitude_id})
 
         correlation_magnitude_beam1 = []
         correlation_magnitude_beam2 = []
         correlation_magnitude_beam3 = []
         correlation_magnitude_beam4 = []
-        for row in range (1, N):
+        for row in range(1, N):
             (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
             correlation_magnitude_beam1.append(a)
             correlation_magnitude_beam2.append(b)
@@ -675,20 +677,20 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        N = (len(chunk) - 2) / 2 /4
+        N = (len(chunk) - 2) / 2 / 4
         offset = 0
 
         echo_intensity_id = unpack("!H", chunk[0:2])[0]
         if 3 != echo_intensity_id:
             raise SampleException("echo_intensity_id was not equal to 3")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_ID,
-                                      DataParticleKey.VALUE: echo_intensity_id})
+                                  DataParticleKey.VALUE: echo_intensity_id})
 
         echo_intesity_beam1 = []
         echo_intesity_beam2 = []
         echo_intesity_beam3 = []
         echo_intesity_beam4 = []
-        for row in range (1, N):
+        for row in range(1, N):
             (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
             echo_intesity_beam1.append(a)
             echo_intesity_beam2.append(b)
@@ -712,7 +714,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
 
-        N = (len(chunk) - 2) / 2 /4
+        N = (len(chunk) - 2) / 2 / 4
         offset = 0
 
         # coord_transform_type
@@ -723,19 +725,19 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         if 4 != percent_good_id:
             raise SampleException("percent_good_id was not equal to 4")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_ID,
-                                      DataParticleKey.VALUE: percent_good_id})
+                                  DataParticleKey.VALUE: percent_good_id})
 
-        if 0 == self.coord_transform_type: # BEAM Coordinates
+        if 0 == self.coord_transform_type:  # BEAM Coordinates
 
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
-            if self._slave == True:
+            if self._slave:
                 self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_BEAM
             percent_good_beam1 = []
             percent_good_beam2 = []
             percent_good_beam3 = []
             percent_good_beam4 = []
-            for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            for row in range(1, N):
+                (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 percent_good_beam1.append(a)
                 percent_good_beam2.append(b)
                 percent_good_beam3.append(c)
@@ -749,16 +751,16 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: percent_good_beam3})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
                                       DataParticleKey.VALUE: percent_good_beam4})
-        elif 3 == self.coord_transform_type: # Earth Coordinates
+        elif 3 == self.coord_transform_type:  # Earth Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
-            if self._slave == True:
+            if self._slave:
                 self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_EARTH
             percent_good_3beam = []
             percent_transforms_reject = []
             percent_bad_beams = []
             percent_good_4beam = []
-            for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            for row in range(1, N):
+                (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 percent_good_3beam.append(a)
                 percent_transforms_reject.append(b)
                 percent_bad_beams.append(c)
@@ -802,6 +804,7 @@ class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     POWER_TIMING_VERSION = "power_timing_version"
     POWER_TIMING_TYPE = "power_timing_type"
     BOARD_SERIAL_NUMBERS = "board_serial_numbers"
+
 
 class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_SYSTEM_CONFIGURATION
@@ -947,16 +950,21 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
         lines = self.raw_data.split(NEWLINE)
         match = self.RE01.match(lines[1])
         timestamp = match.group(1)
-        matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
+        matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(
+            time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
 
         match = self.RE04.match(lines[4])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [float(match.group(1)), float(match.group(2)),
+                                                              float(match.group(3)), float(match.group(4))]
         match = self.RE05.match(lines[5])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [float(match.group(1)), float(match.group(2)),
+                                                              float(match.group(3)), float(match.group(4))]
         match = self.RE06.match(lines[6])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [float(match.group(1)), float(match.group(2)),
+                                                              float(match.group(3)), float(match.group(4))]
         match = self.RE07.match(lines[7])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [float(match.group(1)), float(match.group(2)),
+                                                               float(match.group(3)), float(match.group(4))]
 
         match = self.RE11.match(lines[11])
         matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET] = [float(match.group(1))]
@@ -972,17 +980,21 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
 
         match = self.RE21.match(lines[21])
         timestamp = match.group(1)
-        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
+        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = time.mktime(
+            time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
 
         match = self.RE22.match(lines[22])
         matches[ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP] = float(match.group(1))
 
         match = self.RE27.match(lines[27])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [float(match.group(1)), float(match.group(2)),
+                                                              float(match.group(3)), float(match.group(4))]
         match = self.RE28.match(lines[28])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [float(match.group(1)), float(match.group(2)),
+                                                               float(match.group(3)), float(match.group(4))]
         match = self.RE32.match(lines[32])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN] = [float(match.group(1)), float(match.group(2)),
+                                                                float(match.group(3)), float(match.group(4))]
 
         match = self.RE36.match(lines[36])
         matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = float(match.group(1))
@@ -994,10 +1006,12 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
 
         return result
 
-class ADCP_ANCILLARY_SYSTEM_DATA_KEY (BaseEnum):
+
+class ADCP_ANCILLARY_SYSTEM_DATA_KEY(BaseEnum):
     ADCP_AMBIENT_CURRENT = "adcp_ambient_temp"
     ADCP_ATTITUDE_TEMP = "adcp_attitude_temp"
     ADCP_INTERNAL_MOISTURE = "adcp_internal_moisture"
+
 
 class ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(DataParticle):
     _data_particle_type = DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA
@@ -1025,11 +1039,13 @@ class ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(DataParticle):
 
         return result
 
-class ADCP_TRANSMIT_PATH_KEY (BaseEnum):
+
+class ADCP_TRANSMIT_PATH_KEY(BaseEnum):
     ADCP_TRANSIT_CURRENT = "adcp_transmit_current"
     ADCP_TRANSIT_VOLTAGE = "adcp_transmit_voltage"
     ADCP_TRANSIT_IMPEDANCE = "adcp_transmit_impedance"
     ADCP_TRANSIT_TEST_RESULT = "adcp_transmit_test_results"
+
 
 class ADCP_TRANSMIT_PATH_PARTICLE(DataParticle):
     _data_particle_type = DataParticleType.ADCP_TRANSMIT_PATH
