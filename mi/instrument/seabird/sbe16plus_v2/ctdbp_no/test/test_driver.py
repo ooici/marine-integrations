@@ -132,7 +132,6 @@ class SBE16NOMixin(DriverTestMixin):
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
 
-
     ###
     #  Instrument output (driver input) Definitions
     ###

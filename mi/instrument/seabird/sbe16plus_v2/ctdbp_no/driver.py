@@ -265,7 +265,6 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: volt1_type},
         ]
 
-        log.debug("Hardware Dictionary: %s" % result)
         return result
 
 

@@ -1224,7 +1224,6 @@ class SBE19Protocol(SBE16Protocol):
         """
         Set up auto scheduler configuration.
         """
-        log.debug("_setup_scheduler_config")
         basetime = self._param_dict.get_current_timestamp()
 
         clock_sync_interval = self._param_dict.get(Parameter.CLOCK_INTERVAL, basetime)

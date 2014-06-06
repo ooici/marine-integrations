@@ -194,7 +194,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 "   </ExternalSensors>" + NEWLINE + \
 "</HardwareData>" + NEWLINE
 
-
     VALID_GETCC_RESPONSE =  "" + \
 "<CalibrationCoefficients DeviceType = 'SBE19plus' SerialNumber = '01906914'>" + NEWLINE + \
 "   <Calibration format = 'TEMP1' id = 'Main Temperature'>" + NEWLINE + \
@@ -264,7 +263,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 "   </Calibration>" + NEWLINE + \
 "</CalibrationCoefficients>" + NEWLINE
 
-
     VALID_GETCD_RESPONSE =  "" + \
 "<ConfigurationData DeviceType = 'SBE19plus' SerialNumber = '01906914'>" + NEWLINE + \
 "   <ProfileMode>" + NEWLINE + \
@@ -295,7 +293,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 "   <OutputExecutedTag>no</OutputExecutedTag>" + NEWLINE + \
 "   <OutputFormat>raw HEX</OutputFormat>" + NEWLINE + \
 "</ConfigurationData>" + NEWLINE
-
 
     VALID_GETSD_RESPONSE =  "" + \
 "<StatusData DeviceType = 'SBE19plus' SerialNumber = '01906914'>" + NEWLINE + \
