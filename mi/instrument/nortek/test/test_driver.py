@@ -31,9 +31,7 @@ from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
 from mi.core.instrument.instrument_driver import DriverConnectionState, DriverParameter, DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import ConfigMetadataKey
-from mi.core.instrument.protocol_cmd_dict import CommandDictKey
-from mi.core.instrument.protocol_param_dict import ParameterDictKey, ParameterDictVisibility, ParameterDictType
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 
 from mi.instrument.nortek.driver import NortekProtocolParameterDict, TIMEOUT, EngineeringParameter, INTERVAL_TIME_REGEX, \
     ParameterUnits
@@ -524,7 +522,6 @@ class DriverTestMixinSub(DriverTestMixin):
                                          ProtocolEvent.SET,
                                          ProtocolEvent.START_DIRECT,
                                          ProtocolEvent.START_AUTOSAMPLE,
-                                         ProtocolEvent.STOP_AUTOSAMPLE,
                                          ProtocolEvent.CLOCK_SYNC,
                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                          ProtocolEvent.ACQUIRE_STATUS,
@@ -1173,8 +1170,7 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
                                                               ProtocolEvent.ACQUIRE_STATUS,
                                                               ProtocolEvent.CLOCK_SYNC,
                                                               ProtocolEvent.START_AUTOSAMPLE,
-                                                              ProtocolEvent.START_DIRECT,
-                                                              ProtocolEvent.STOP_AUTOSAMPLE]
+                                                              ProtocolEvent.START_DIRECT]
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 

@@ -1172,7 +1172,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
@@ -2046,7 +2045,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         start = response.find(key)
         if start != -1:
             log.debug("_parse_acquire_data_response: response=%r", response[start:start+len(key)])
-            self._protocol_fsm.on_event(ProtocolEvent.STOP_AUTOSAMPLE)
+            self._handler_autosample_stop_autosample(None, None)
             return response[start:start+len(key)]
 
         log.warn("_parse_acquire_data_response: Bad acquire data response from instrument (%s)", response)
