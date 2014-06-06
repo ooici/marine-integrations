@@ -326,7 +326,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
-                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -400,6 +399,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     def sieve_function(raw_data):
         """
         The method that splits samples
+        @param raw_data: data to be searched
+        @return: list of (start,stop) indexes of matches
         """
         return [(m.start(), m.end()) for m in TurboStatusParticle.regex_compiled().finditer(raw_data)]
 
@@ -468,12 +469,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and regexes.
+        @param chunk: data to be processed
+        @param ts: timestamp
         """
         self._extract_sample(TurboStatusParticle, TurboStatusParticle.regex_compiled(), chunk, ts)
 
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
+        @param events: events to be filtered
+        @return: list of events that are in Capability
         """
         return [x for x in events if Capability.has(x)]
 
@@ -481,12 +486,18 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _checksum(s):
         """
         Calculate the turbopump checksum for the given string.
+        @param s: string to be checked
+        @return: checksum string
         """
         return '%03d' % (sum([ord(x) for x in s]) % 256)
 
     def _build_turbo_command(self, address, c_type, c, data):
         """
         Build a command for the turbopump
+        @param address: target address
+        @param c_type: command type (QUERY/SET)
+        @param c_data: command data
+        @return: command string
         """
         command = '%03d%02d%03d%02d%s' % (address, c_type, c, len(data), data)
         checksum = self._checksum(command)
@@ -496,6 +507,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Determine if this is a query or set action based on the
         input args.  Dispatch the builder with the appropriate arguments.
+        @param command: command to be sent
+        @param args: arglist which may contain a value
+        @return: command string
         """
         if len(args) == 1:
             # this is a set action
@@ -507,6 +521,10 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _generic_response_handler(self, resp, prompt):
         """
         Parse the response from the turbopump.
+        @param resp: response
+        @param prompt: unused, require to match signature
+        @returns: integer value extracted from response
+        @throws InstrumentDataException
         """
         my_checksum = self._checksum(resp[:-3])
         if resp[-3:] != my_checksum:
@@ -554,6 +572,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _set_params(self, *args, **kwargs):
         """
         Set parameters, raise a CONFIG_CHANGE event if necessary.
+        @throws InstrumentParameterException
         """
         self._verify_not_readonly(*args, **kwargs)
         params_to_set = args[0]
@@ -596,6 +615,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Attempt to send a command up to max_retries times.  Protocol state will move to ERROR if we fail to
         receive a response after max_retries attempts.
+        @throws InstrumentTimeoutException
         """
         for attempt in xrange(1, max_retries + 1):
             try:
@@ -636,6 +656,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             rotation speed
 
         Verify no values exceed the limits specified in the parameter dictionary.
+        @returns: next_state, (next_agent_state, result)
+        @throws InstrumentStateException
         """
         responses = {}
 
@@ -688,6 +710,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_stop_turbo(self):
         """
         Stop the turbo
+        @returns: next_state, (next_agent_state, result)
         """
         for command in [InstrumentCommand.PUMP_STATION, InstrumentCommand.MOTOR_PUMP]:
             self._send_command_with_retry(command, value=FALSE)
@@ -701,6 +724,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state.  This instrument always discovers to COMMAND
+        @returns: next_state, next_agent_state
         """
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
@@ -729,12 +753,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
+        @returns: next_state, result
         """
         return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
+        @returns: next_state, result
         """
         next_state = None
         result = None
@@ -745,12 +771,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_direct(self):
         """
         Start direct access
+        @returns: next_state, (next_agent_state, result)
         """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_turbo(self):
         """
         Start the turbo, periodic status scheduler
+        @returns: next_state, (next_agent_state, result)
         """
         for command in [InstrumentCommand.PUMP_STATION, InstrumentCommand.MOTOR_PUMP]:
             self._send_command_with_retry(command, value=TRUE)
@@ -774,6 +802,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_execute_direct(self, data):
         """
         Forward a direct access command to the instrument
+        @returns: next_state, (next_agent_state, result)
         """
         self._do_cmd_direct(data)
 
@@ -785,6 +814,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_stop_direct(self):
         """
         Stop direct access, return to COMMAND
+        @returns: next_state, (next_agent_state, result)
         """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
@@ -795,12 +825,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_spinning_up_at_speed(self):
         """
         Instrument has reached operating speed, transition states.
+        @returns: next_state, next_agent_state
         """
         return ProtocolState.AT_SPEED, ResourceAgentState.BUSY
 
     def _handler_spinning_down_stopped(self):
         """
         Instrument has spun down, transition states.
+        @returns: next_state, next_agent_state
         """
         self._async_agent_state_change(ResourceAgentState.COMMAND)
         return ProtocolState.COMMAND, ResourceAgentState.COMMAND
@@ -812,11 +844,13 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_error(self, *args, **kwargs):
         """
         Error detected, go to the ERROR state.
+        @returns: next_state, (next_agent_state, result)
         """
         return ProtocolState.ERROR, (ResourceAgentState.COMMAND, None)
 
     def _handler_clear(self, *args, **kwargs):
         """
         User requests error state be cleared, go to COMMAND.
+        @returns: next_state, (next_agent_state, result)
         """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
