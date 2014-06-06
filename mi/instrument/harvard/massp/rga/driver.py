@@ -327,10 +327,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
-                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
-                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
@@ -649,7 +648,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _update_params(self, *args, **kwargs):
         """
-        Parameters are NOT set in the instrument by this method, as the RGA is configured any time
+        Parameters are NOT set in the instrument by this method, as the RGA is configured anytime
         a scan is started, as it may have been powered off since the last time we saw it.
         """
 
@@ -704,11 +703,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         # trim, just in case we received some garbage with our response...
         if len(error_string) > 1:
             error_string = error_string[-1]
-        error = int(error_string)
-        if error == 0:
-            return
-        self._async_raise_fsm_event(ProtocolEvent.ERROR)
-        raise exceptions.InstrumentStateException('RGA Error byte set: %d' % error)
+        if int(error_string):
+            self._async_raise_fsm_event(ProtocolEvent.ERROR)
+            raise exceptions.InstrumentStateException('RGA Error byte set: %s' % error_string)
 
     def _set_instrument_parameter(self, command):
         """
@@ -731,7 +728,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug('response_type: %s parameter: %s command: %s', response_type, getattr(Parameter, command), command)
         # attempt to set the value up to MAX_SET_RETRIES times
-        for x in range(MAX_RETRIES):
+        for x in xrange(MAX_RETRIES):
             if response_type == STATUS:
                 resp = self._do_cmd_resp(command, old_value)
                 self._check_error_byte(resp)
@@ -787,13 +784,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _verify_filament(self):
         """
         Ensure the filament is on and the current is within tolerance
+        @throws InstrumentProtocolException
         """
         self._do_cmd_resp(InstrumentCommand.FILAMENT_EMISSION)
         filament_difference = abs(1 - self._param_dict.get(Parameter.FL_ACTUAL))
-        if not filament_difference <= CLOSE_ENOUGH:
+        if filament_difference > CLOSE_ENOUGH:
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
-            raise exceptions.InstrumentProtocolException('Filament power not withing tolerance: %f'
-                                                         % filament_difference)
+            raise exceptions.InstrumentProtocolException('Filament power not withing tolerance (%.2f): %.2f'
+                                                         % (CLOSE_ENOUGH, filament_difference))
 
     def _stop_instrument(self):
         """
@@ -825,18 +823,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        self._init_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -1027,6 +1013,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Generic method to handle entering state.
         """
+        self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_generic_exit(self):

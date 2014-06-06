@@ -13,11 +13,6 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-
-
-__author__ = 'Peter Cable'
-__license__ = 'Apache 2.0'
-
 from nose.plugins.attrib import attr
 from mock import Mock
 import time
@@ -25,7 +20,7 @@ import ntplib
 
 from mi.core.exceptions import InstrumentCommandException, InstrumentProtocolException
 from mi.core.instrument.data_particle import RawDataParticle
-from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState, DriverProtocolState
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.log import get_logger
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -53,6 +48,9 @@ from mi.instrument.harvard.massp.turbo.driver import Parameter
 from mi.instrument.harvard.massp.turbo.driver import Protocol
 from mi.instrument.harvard.massp.turbo.driver import Prompt
 from mi.instrument.harvard.massp.turbo.driver import NEWLINE
+
+__author__ = 'Peter Cable'
+__license__ = 'Apache 2.0'
 
 log = get_logger()
 
@@ -226,6 +224,11 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     def _send_port_agent_packet(self, driver, data):
+        """
+        Send a port agent packet via got_data
+        @param driver Instrument Driver instance
+        @param data data to send
+        """
         ts = ntplib.system_to_ntp_time(time.time())
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(data)
@@ -236,7 +239,17 @@ class DriverTestMixinSub(DriverTestMixin):
         driver._protocol.got_data(port_agent_packet)
 
     def my_send(self, driver):
+        """
+        Side effect function generator - will send responses based on input
+        @param driver Instrument driver instance
+        @returns side effect function
+        """
         def inner(data):
+            """
+            Inner function for side effect generator
+            @param data Data to send
+            @returns length of response
+            """
             data = data.replace(NEWLINE, '')
             log.debug('my_send data: %r', data)
             my_response = self.responses.get(data)
@@ -395,7 +408,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                 time.sleep(.1)
                 self.assertEqual(driver._protocol.get_current_state(), ProtocolState.AT_SPEED)
                 self.responses = each
-                for x in range(4):
+                for x in xrange(4):
                     driver._protocol._protocol_fsm.on_event(Capability.ACQUIRE_STATUS)
                     time.sleep(.1)
             except Exception as e:
@@ -561,6 +574,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
             self.assertTrue(self.tcp_client.expect(self.responses[command]))
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 5)
 
     def test_particles(self):
         self.assert_enter_command_mode()
@@ -586,7 +600,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
                 _, minimum, maximum = constraints[parameters[key]]
                 self.assert_set_parameter(key, maximum-1)
             else:
-                self.assert_set_parameter(key, value + 1)
+                self.assert_set_parameter(key, value+1)
 
     def test_reset(self):
         """
@@ -594,6 +608,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         Overridden, driver does not have autosample
         """
         self.assert_enter_command_mode()
+        self.assert_reset()
+
+        self.assert_enter_command_mode()
+        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
     def test_discover(self):
@@ -610,7 +629,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_get_capabilities(self):
         """
-        @brief Walk through all driver protocol states and verify capabilities
+        Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
         self.assert_enter_command_mode()
