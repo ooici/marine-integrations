@@ -173,6 +173,7 @@ class Prompt(BaseEnum):
 # Driver
 ###############################################################################
 
+# noinspection PyMethodMayBeStatic
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -191,7 +192,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
-    # noinspection PyMethodMayBeStatic
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -274,7 +274,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
-        # self._build_command_dict()
+        self._build_command_dict()
+        self._build_driver_dict()
 
         # Add build handlers for device commands.
         for command in InstrumentCommand.list():
@@ -298,6 +299,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.initialize_scheduler()
         self._last_data_timestamp = 0
         self.leveling = False
+        self.has_pps = True
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.NANO_TIME_SYNC, ProtocolEvent.NANO_TIME_SYNC)
 
@@ -327,7 +329,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             (particles.LilyLevelingParticle, self._check_completed_leveling),
             (particles.HeatSampleParticle, None),
             (particles.IrisSampleParticle, None),
-            (particles.NanoSampleParticle, None),
+            (particles.NanoSampleParticle, self._check_pps_sync),
         ]
 
         for particle_type, func in possible_particles:
@@ -358,6 +360,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return sample
 
+    def _filter_capabilities(self, events):
+        return [x for x in events if Capability.has(x)]
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with commands.
+        """
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="Start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="Stop autosample")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="Acquire instrument status")
+        self._cmd_dict.add(Capability.START_LEVELING, display_name="Start the LILY leveling sequence")
+        self._cmd_dict.add(Capability.STOP_LEVELING, display_name="Stop the LILY leveling sequence")
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -373,23 +388,27 @@ class Protocol(CommandResponseInstrumentProtocol):
                 'type': _bool,
                 'display_name': 'Automatic Releveling Enabled',
                 'visibility': rw,
+                'startup_param': True,
             },
             Parameter.XTILT_TRIGGER: {
                 'type': _float,
                 'display_name': 'X-tilt Releveling Trigger',
                 'units': Prefixes.MICRO + Units.RADIAN,
                 'visibility': rw,
+                'startup_param': True,
             },
             Parameter.YTILT_TRIGGER: {
                 'type': _float,
                 'display_name': 'Y-tilt Releveling Trigger',
                 'visibility': rw,
+                'startup_param': True,
             },
             Parameter.LEVELING_TIMEOUT: {
                 'type': _int,
                 'display_name': 'LILY Leveling Timeout',
                 'units': Prefixes.MICRO + Units.RADIAN,
                 'visibility': rw,
+                'startup_param': True,
             },
             Parameter.LEVELING_FAILED: {
                 'type': _bool,
@@ -402,18 +421,21 @@ class Protocol(CommandResponseInstrumentProtocol):
                 'display_name': 'Heater Run Time Duration',
                 'units': Units.SECOND,
                 'visibility': rw,
+                'startup_param': True,
             },
             Parameter.OUTPUT_RATE: {
                 'type': _int,
                 'display_name': 'NANO Output Rate',
                 'units': Units.HERTZ,
                 'visibility': rw,
+                'startup_param': True,
             },
             Parameter.SYNC_INTERVAL: {
                 'type': _int,
                 'display_name': 'NANO Time Sync Interval',
                 'units': Units.SECOND,
                 'visibility': rw,
+                'startup_param': True,
             },
         }
         for param in parameters:
@@ -471,7 +493,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # all constraints met or no constraints exist, set the values
         for key, value in params.iteritems():
-            self._param_dict.set_value(key, value)
+            try:
+                self._param_dict.set_value(key, value)
+            except KeyError:
+                raise InstrumentParameterException('Received invalid parameter in SET: %s' % key)
 
         new_config = self._param_dict.get_config()
 
@@ -552,6 +577,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.STOP_LEVELING)
 
     def _stop_autosample(self):
+        self.leveling = False
         self._do_cmd_no_resp(InstrumentCommand.NANO_OFF)
         self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, expected_prompt=Prompt.LILY_STOP_LEVELING)
         self._do_cmd_resp(InstrumentCommand.LILY_OFF, expected_prompt=Prompt.LILY_OFF)
@@ -576,7 +602,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             x_tilt = abs(sample[particles.LilySampleParticleKey.X_TILT])
             y_tilt = abs(sample[particles.LilySampleParticleKey.Y_TILT])
             if x_tilt > self._param_dict.get(Parameter.XTILT_TRIGGER) or \
-                            y_tilt > self._param_dict.get(Parameter.YTILT_TRIGGER):
+                    y_tilt > self._param_dict.get(Parameter.YTILT_TRIGGER):
                 self._async_raise_fsm_event(ProtocolEvent.START_LEVELING)
 
     def _failed_leveling(self, axis):
@@ -608,6 +634,15 @@ class Protocol(CommandResponseInstrumentProtocol):
             elif 'Y Axis out of range' in status:
                 self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
                 self._failed_leveling('Y')
+
+    def _check_pps_sync(self, sample):
+        sample = self._particle_to_dict(sample)
+        pps_sync = sample[particles.NanoSampleParticleKey.PPS_SYNC] == 'P'
+        if pps_sync and not self.has_pps:
+            # pps sync regained, sync the time
+            self._async_raise_fsm_event(ProtocolEvent.NANO_TIME_SYNC)
+        elif self.has_pps:
+            self.has_pps = False
 
     ########################################################################
     # Unknown handlers.
