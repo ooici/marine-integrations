@@ -9,7 +9,6 @@ import json
 import re
 import time
 import datetime
-
 import ntplib
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue

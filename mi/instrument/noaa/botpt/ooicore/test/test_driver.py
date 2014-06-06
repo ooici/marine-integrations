@@ -41,6 +41,7 @@ from mi.instrument.noaa.botpt.ooicore.driver import ParameterConstraint
 from mi.instrument.noaa.botpt.ooicore.driver import Capability
 from mi.instrument.noaa.botpt.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.botpt.ooicore.test.test_samples import *
+from pyon.core.exception import BadRequest
 
 
 __author__ = 'Pete Cable'
@@ -803,7 +804,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
 
     def test_leveling(self):
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.LEVELING_TIMEOUT, 5, False)
         self.assert_resource_command(Capability.START_LEVELING)
         self.assert_particle_async(particles.DataParticleType.LILY_LEVELING, self.assert_particle_lily_leveling_01)
         self.assert_resource_command(Capability.STOP_LEVELING)
@@ -825,15 +825,17 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
                 # assert we can set in range
                 self.assert_set_parameter(key, maximum - 1)
                 # assert exception when out of range
-                # self.assert_set_exception(key, maximum + 1)
+                with self.assertRaises(BadRequest):
+                    self.assert_set_parameter(key, maximum + 1)
             elif _type == bool:
                 # assert we can toggle a boolean parameter
                 if startup_config[key]:
-                    self.assert_set(key, False)
+                    self.assert_set_parameter(key, False)
                 else:
-                    self.assert_set(key, True)
+                    self.assert_set_parameter(key, True)
             # assert bad types throw an exception
-            self.assert_set_exception(key, 'BOGUS')
+            with self.assertRaises(BadRequest):
+                self.assert_set_parameter(key, 'BOGUS')
 
     def test_get_capabilities(self):
         """
@@ -905,3 +907,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
         """
         Overridden.  This driver always discovers to command
         """
+
+    def test_discover(self):
+        """
+        Overridden.  The driver always discovers to command
+        """
+        # Verify the agent is in command mode
+        self.assert_enter_command_mode()
+
+        # Now reset and try to discover.  This will stop the driver which holds the current
+        # instrument state.
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)

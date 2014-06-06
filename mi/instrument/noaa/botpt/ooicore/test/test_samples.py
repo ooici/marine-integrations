@@ -230,4 +230,3 @@ IRIS_FILTERED_STATUS1 = NEWLINE.join([line for line in IRIS_STATUS1.split(NEWLIN
 IRIS_FILTERED_STATUS2 = NEWLINE.join([line for line in IRIS_STATUS2.split(NEWLINE) if line.startswith('IRIS')])
 NANO_FILTERED_STATUS = NEWLINE.join([line for line in NANO_STATUS.split(NEWLINE) if line.startswith('NANO')])
 SYST_FILTERED_STATUS = NEWLINE.join([line for line in SYST_STATUS.split(NEWLINE) if line.startswith('SYST')])
-
