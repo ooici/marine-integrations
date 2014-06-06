@@ -317,7 +317,7 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
-                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
@@ -706,6 +706,7 @@ class Protocol(InstrumentProtocol):
         """
         Generic enter handler, raise STATE CHANGE
         """
+        self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_generic_exit(self, *args, **kwargs):
@@ -760,17 +761,6 @@ class Protocol(InstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        self._init_params()
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -889,6 +879,7 @@ class Protocol(InstrumentProtocol):
     def _handler_autosample_acquire_sample(self):
         """
         Fire off a sample sequence while in the autosample state.
+        @throws InstrumentProtocolException
         """
         slave_states = self._get_slave_states()
         # verify the MCU is not already in a sequence
@@ -917,6 +908,7 @@ class Protocol(InstrumentProtocol):
         """
         Exit direct access state.  Check slave protocol states and verify they all
         return to COMMAND, otherwise raise InstrumentProtocolException.
+        @throws InstrumentProtocolException
         """
         for attempt in range(DA_EXIT_MAX_RETRIES):
             slave_states = self._get_slave_states()
@@ -931,7 +923,7 @@ class Protocol(InstrumentProtocol):
     def _handler_direct_access_execute_direct(self, data):
         """
         Execute a direct access command.  For MASSP, this means passing the actual command to the
-        correct slave protocol.  This is handled by _do_cmd_direct.
+        correct slave protocol.  This is handled by _send_massp_direct_access.
         """
         self._send_massp_direct_access(data)
 
@@ -941,8 +933,5 @@ class Protocol(InstrumentProtocol):
         return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
         self._send_event_to_all(ProtocolEvent.STOP_DIRECT)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)

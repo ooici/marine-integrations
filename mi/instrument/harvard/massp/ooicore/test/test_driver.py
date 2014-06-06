@@ -439,7 +439,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     def init_port_agent(self):
         """
-        @brief Launch the driver process and driver client.  This is used in the
+        Launch the driver process and driver client.  This is used in the
         integration and qualification tests.  The port agent abstracts the physical
         interface with the instrument.
         @retval return the pid to the logger process
