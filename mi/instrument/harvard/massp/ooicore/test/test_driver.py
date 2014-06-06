@@ -14,7 +14,6 @@ USAGE:
 """
 
 import re
-import unittest
 import ntplib
 import json
 import time

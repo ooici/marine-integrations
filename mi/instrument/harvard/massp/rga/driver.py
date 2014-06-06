@@ -731,7 +731,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # configuring the RGA failed, restore the setting from our configuration and raise an exception
         self._param_dict.set_value(parameter, old_value)
         raise exceptions.InstrumentParameterException('Unable to set instrument parameter: %s, attempted %d times' %
-                                           (parameter, MAX_RETRIES))
+                                                      (parameter, MAX_RETRIES))
 
     def _build_sieve_function(self):
         """
