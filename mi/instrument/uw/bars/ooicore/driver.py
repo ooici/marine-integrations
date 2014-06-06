@@ -390,14 +390,12 @@ class Protocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_discover)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DISCOVER, self._handler_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DISCOVER, self._handler_discover)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -646,32 +644,32 @@ class Protocol(MenuInstrumentProtocol):
 
                 self._go_to_root_menu()
 
-            elif (key == Parameter.EH_ISOLATION_AMP_POWER):
-
-                result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-
-            elif (key == Parameter.HYDROGEN_POWER):
-
-                result = self._navigate(SubMenu.HYDROGEN_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.HYDROGEN_POWER)
-
-            elif (key == Parameter.INST_AMP_POWER):
-                result = self._navigate(SubMenu.INST_AMP_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.INST_AMP_POWER)
-
-            elif (key == Parameter.REFERENCE_TEMP_POWER):
-                result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-
-            elif (key == Parameter.RES_SENSOR_POWER):
-                result = self._navigate(SubMenu.RES_SENSOR_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.RES_SENSOR_POWER)
+            # elif (key == Parameter.EH_ISOLATION_AMP_POWER):
+            #
+            #     result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+            #     while not result:
+            #         result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+            #
+            # elif (key == Parameter.HYDROGEN_POWER):
+            #
+            #     result = self._navigate(SubMenu.HYDROGEN_POWER)
+            #     while not result:
+            #         result = self._navigate(SubMenu.HYDROGEN_POWER)
+            #
+            # elif (key == Parameter.INST_AMP_POWER):
+            #     result = self._navigate(SubMenu.INST_AMP_POWER)
+            #     while not result:
+            #         result = self._navigate(SubMenu.INST_AMP_POWER)
+            #
+            # elif (key == Parameter.REFERENCE_TEMP_POWER):
+            #     result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+            #     while not result:
+            #         result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+            #
+            # elif (key == Parameter.RES_SENSOR_POWER):
+            #     result = self._navigate(SubMenu.RES_SENSOR_POWER)
+            #     while not result:
+            #         result = self._navigate(SubMenu.RES_SENSOR_POWER)
 
 
     def _set_params(self, *args, **kwargs):
@@ -995,6 +993,8 @@ class Protocol(MenuInstrumentProtocol):
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.CHANGE_PARAM,
+                             value_description= "Value over 59 will rounded down to the nearest minute ",
+                             units= Units.Seconds,
                              submenu_write=[["1", Prompt.CYCLE_TIME_PROMPT]])
         
         self._param_dict.add(Parameter.VERBOSE,
