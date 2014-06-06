@@ -1,13 +1,10 @@
 """
-@package mi.instrument.teledyne.workhorse.adcp.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse/adcp/driver.py
+@package mi.instrument.teledyne.workhorse.vadcp.driver
+@file marine-integrations/mi/instrument/teledyne/workhorse/vadcp/driver.py
 @author Sung Ahn
-@brief Driver for the ADCP
-Release notes:
-
-Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
+@brief Driver for the VADCP
 """
-
+from mi.instrument.teledyne.driver import TIMEOUT
 from mi.instrument.teledyne.workhorse.driver import WorkhorseInstrumentDriver
 from mi.instrument.teledyne.workhorse.driver import WorkhorseProtocol
 
@@ -17,12 +14,9 @@ from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledynePrompt
 
-from mi.instrument.teledyne.workhorse.driver import NEWLINE
-from mi.core.log import get_logger, get_logging_metaclass
-
+from mi.core.log import get_logger
 log = get_logger()
 
-import json
 import socket
 from mi.core.util import dict_equal
 
@@ -52,7 +46,7 @@ from mi.instrument.teledyne.particles import *
 
 from mi.core.instrument.instrument_protocol import InitializationType
 
-from mi.instrument.teledyne.driver import TeledyneProtocol
+#from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.instrument.instrument_driver import ResourceAgentState
@@ -61,12 +55,13 @@ from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
-
-import re
 import base64
 
 
 class SlaveProtocol(BaseEnum):
+    """
+    The protocol needs to have 2 connections, 4Beam(Master) and 5thBeam(Slave)
+    """
     FOURBEAM = '4Beam'
     FIFTHBEAM = '5thBeam'
 
@@ -181,8 +176,6 @@ class InstrumentCmds(TeledyneInstrumentCmds):
     Represents the commands the driver implements and the string that
     must be sent to the instrument to execute the command.
     """
-    #GET2 = '    '
-    #SET2 = '     '
     GET2 = 'get2'
     SET2 = 'set2'
 
@@ -228,32 +221,19 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
     """
     Specialization for this version of the workhorse ADCP driver
     """
-    __metaclass__ = get_logging_metaclass("error")
+
     def __init__(self, evt_callback):
         """
         InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
+        # Construct superclass.
         WorkhorseInstrumentDriver.__init__(self, evt_callback)
 
-        #multiple portAgentClient
+        # multiple portAgentClient
         self._connections = {}
 
-
-    #def _handler_connected_discover(self, event, *args, **kwargs):
-    #    # Redefine discover handler so that we can apply startup params
-    #    # when we discover. Gotta get into command mode first though.
-    #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover
-    #    calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
-    #    result = WorkhorseInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-    #    log.trace("in TeledyneInstrumentDriver._handler_connected_discover apply_startup_params")
-    #    log.error("Sung driver calling apply_startup_params()")
-    #    self.apply_startup_params()
-    #    log.error("Sung first driver params are done")
-    #    return result
-
-    # Delete it if you don't want to overwrite
+    # for Master and Slave
     def apply_startup_params(self):
         """
         Apply the startup values previously stored in the protocol to
@@ -274,9 +254,8 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         from the base InstrumentProtocol implementation.
         """
         log.debug("Base driver applying startup params...")
-        log.error("Sung driver calling protocol apply_startup_params()")
+        # Apply startup params for Master and Slave
         self._protocol.apply_startup_params()
-        log.error("Sung driver calling protocol apply_startup_params2()")
         self._protocol.apply_startup_params2()
 
     def _build_protocol(self):
@@ -285,10 +264,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         self._protocol = Protocol(TeledynePrompt, NEWLINE, self._driver_event)
 
-    ########################################################################
-    # Unconfigured handlers.
-    ########################################################################
-
+    # for master and slave
     def _handler_unconfigured_configure(self, *args, **kwargs):
         """
         Configure driver for device comms.
@@ -313,15 +289,14 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
         # Verify dict and construct connection client.
         log.error("Sung handler_unconfigured_configure args: setting connections %s", repr(config))
+
+        # multiple portAgentClients
         self._connections = self._build_connections(config)
         next_state = DriverConnectionState.DISCONNECTED
 
         return next_state, result
 
-    ########################################################################
-    # Disconnected handlers.
-    ########################################################################
-
+    # for Master and Slave
     def _handler_disconnected_initialize(self, *args, **kwargs):
         """
         Initialize device communications. Causes the connection parameters to
@@ -335,6 +310,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
         return next_state, result
 
+    # for master and slave
     def _handler_disconnected_configure(self, *args, **kwargs):
         """
         Configure driver for device comms.
@@ -357,11 +333,12 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         if config is None:
             raise InstrumentParameterException('Missing comms config parameter.')
 
-        # Verify configuration dict, and update connection if possible.
+        # Verify configuration dict, and update connections if possible.
         self._connections = self._build_connections(config)
 
         return next_state, result
 
+    # for Master and Slave
     def _handler_disconnected_connect(self, *args, **kwargs):
         """
         Establish communications with the device via port agent / logger and
@@ -395,7 +372,6 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
                                                                   self._lost_connection_callback)
             self._protocol._connection_5thBeam = self._connections[SlaveProtocol.FIFTHBEAM]
 
-
         except InstrumentConnectionException as e:
             log.error("5th beam Connection Exception: %s", e)
             log.error("Instrument Driver remaining in disconnected state.")
@@ -407,10 +383,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         log.error('Sung _handler_disconnected_connect built the second connection')
         return next_state, result
 
-    ########################################################################
-    # Connected handlers.
-    ########################################################################
-
+    # for master and slave
     def _handler_connected_disconnect(self, *args, **kwargs):
         """
         Disconnect to the device via port agent / logger and destroy the
@@ -428,6 +401,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
         return next_state, result
 
+    # for master and slave
     def _handler_connected_connection_lost(self, *args, **kwargs):
         """
         The device connection was lost. Stop comms, destroy protocol FSM and
@@ -452,7 +426,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
         return next_state, result
 
-
+    # for Master and Slave
     def _build_connections(self, all_configs):
         """
         Constructs and returns a Connection object according to the given
@@ -470,25 +444,18 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         @throws InstrumentParameterException Invalid configuration.
         """
         log.debug('all_configs: %r', all_configs)
-        log.error('Sung all_configs: %r', all_configs)
         connections = {}
         all_config = {}
         for name, config in all_configs.items():
-            log.error('Sung small config name: %s', name)
-            log.error('Sung small config: %r', config)
             all_config[name] = config
         for name, config in all_config.items():
-            log.error('Sung small config name: %s', name)
-            log.error('Sung small config: %r', config)
             if not isinstance(config, dict):
                 continue
             log.debug('_build_connections: config received: %r', config)
-            log.error('Sung _build_connections: config received: %r', config)
             if 'mock_port_agent' in config:
                 mock_port_agent = config['mock_port_agent']
                 # check for validity here...
                 if mock_port_agent is not None:
-                    log.error('Sung set connections to mock %r', config)
                     connections[name] = mock_port_agent
             else:
                 try:
@@ -503,9 +470,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
                 except (TypeError, KeyError):
                     raise InstrumentParameterException('Invalid comms config dict..')
-        log.error('Sung _build_connections: return connections: %r', connections)
         return connections
-
 
 class Protocol(WorkhorseProtocol):
     DEFAULT_CMD_TIMEOUT = 20
@@ -532,12 +497,10 @@ class Protocol(WorkhorseProtocol):
         """
         log.debug("IN WorkhorseProtocol.__init__")
         log.error("Sung build protocol for VADCP")
+
         # Construct protocol superclass.
         WorkhorseProtocol.__init__(self, prompts, newline, driver_event)
 
-        # Sung to do
-        #self._add_build_handler(InstrumentCmds.SET2, self._build_set_command2)
-        #self._add_response_handler(InstrumentCmds.GET2, self._parse_get_response2)
 
         self._add_build_handler(InstrumentCmds.SET2, self._build_set_command2)
         self._add_build_handler(InstrumentCmds.GET2, self._build_get_command)
@@ -563,13 +526,15 @@ class Protocol(WorkhorseProtocol):
 
         self._chunker2 = StringChunker(WorkhorseProtocol.sieve_function)
 
+    # for Master and Slave
     def get_config_metadata_dict(self):
         """
         Return a list of metadata about the protocol's driver support,
         command formats, and parameter formats. The format should be easily
         JSONifyable (as will happen in the driver on the way out to the agent)
         @retval A python dict that represents the metadata
-        @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
+        @see https://confluence.oceanobservatories.org/display/syseng/
+                   CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
         log.debug("Getting metadata dict from protocol...")
         return_dict = {}
@@ -581,6 +546,7 @@ class Protocol(WorkhorseProtocol):
 
         return return_dict
 
+    # for Slave
     def _build_get_command2(self, cmd, param, **kwargs):
         """
         Build handler for set commands. param=val followed by newline.
@@ -603,6 +569,7 @@ class Protocol(WorkhorseProtocol):
 
         return get_cmd
 
+    # for Slave
     def _build_set_command2(self, cmd, param, val):
         """
         Build handler for set commands. param=val followed by newline.
@@ -627,6 +594,7 @@ class Protocol(WorkhorseProtocol):
 
         return set_cmd
 
+    # for Slave
     def _parse_get_response2(self, response, prompt):
         log.error("Sung GET RESPONSE2 = " + repr(response))
         log.trace("GET RESPONSE2 = " + repr(response))
@@ -653,78 +621,7 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung GET RESPONSE2  return response " + repr(response))
         return response
 
-
-    """
-    Specialization for this version of the workhorse driver
-    """
-
-    ##########################
-
-
-    def _get_response2(self, timeout=10, expected_prompt=None, response_regex=None):
-        """
-        Get a response from the instrument, but be a bit loose with what we
-        find. Leave some room for white space around prompts and not try to
-        match that just in case we are off by a little whitespace or not quite
-        at the end of a line.
-
-        @todo Consider cases with no prompt
-        @param timeout The timeout in seconds
-        @param expected_prompt Only consider the specific expected prompt as
-        presented by this string
-        @param response_regex Look for a resposne value that matches the
-        supplied compiled regex pattern. Groups that match will be returned as a
-        string. Cannot be used with expected prompt. None
-        will be returned as a prompt with this match. If a regex is supplied,
-        internal the prompt list will be ignored.
-        @retval Regex search result tuple (as MatchObject.groups() would return
-        if a response_regex is supplied. A tuple of (prompt, response) if a
-        prompt is looked for.
-        @throw InstrumentProtocolException if both regex and expected prompt are
-        passed in or regex is not a compiled pattern.
-        @throw InstrumentTimeoutExecption on timeout
-        """
-        # Grab time for timeout and wait for prompt.
-        starttime = time.time()
-
-        if response_regex and not isinstance(response_regex, self.RE_PATTERN):
-            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
-
-        if expected_prompt and response_regex:
-            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
-
-        if response_regex:
-            prompt_list = []
-
-        if expected_prompt is None:
-            prompt_list = self._get_prompts()
-        else:
-            if isinstance(expected_prompt, str):
-                prompt_list = [expected_prompt]
-            else:
-                prompt_list = expected_prompt
-
-        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s, response_regex=%s, promptbuf=%s',
-                  timeout, prompt_list, expected_prompt, response_regex, self._promptbuf2)
-        while True:
-            if response_regex:
-                match = response_regex.search(self._linebuf2)
-                if match:
-                    return match.groups()
-                else:
-                    time.sleep(.1)
-            else:
-                for item in prompt_list:
-                    index = self._promptbuf2.find(item)
-                    if index >= 0:
-                        result = self._promptbuf2[0:index + len(item)]
-                        return (item, result)
-                    else:
-                        time.sleep(.1)
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
-
+    # for Slave
     def _get_raw_response2(self, timeout=10, expected_prompt=None):
         """
         Get a response from the instrument, but dont trim whitespace. Used in
@@ -739,7 +636,7 @@ class Protocol(WorkhorseProtocol):
         strip_chars = "\t "
 
         starttime = time.time()
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
@@ -750,13 +647,14 @@ class Protocol(WorkhorseProtocol):
         while True:
             for item in prompt_list:
                 if self._promptbuf2.rstrip(strip_chars).endswith(item.rstrip(strip_chars)):
-                    return (item, self._linebuf2)
+                    return item, self._linebuf2
                 else:
                     time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_raw_response()")
 
+    # for Master and Slave
     def _do_cmd_direct(self, cmd):
         """
         Issue an untranslated command to the instrument. No response is handled
@@ -768,16 +666,16 @@ class Protocol(WorkhorseProtocol):
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         log.error('Sung _do_cmd_direct: <%s>' % cmd)
-        if (cmd.find('::') != -1):  # Found
+        if cmd.find('::') != -1:  # Found
             cmd_split = cmd.split('::', 1)
             log.error('Sung _do_cmd_direct split[0]: <%s>' % cmd_split[0])
             log.error('Sung _do_cmd_direct split[1]: <%s>' % cmd_split[1])
             log.error('Sung _do_cmd_direct split[1]: strip <%s>' % cmd_split[0].strip())
             instrument = cmd_split[0].strip()
-            if (instrument == "master"):
+            if instrument == "master":
                 log.error('Sung _do_cmd_direct: <%s> to master' % cmd_split[1])
                 self._connection_4Beam.send(NEWLINE + cmd_split[1])
-            if (instrument == "slave"):
+            if instrument == "slave":
                 log.error('Sung _do_cmd_direct: <%s> to slave' % cmd_split[1])
                 self._connection_5thBeam.send(NEWLINE + cmd_split[1])
         else:
@@ -785,6 +683,7 @@ class Protocol(WorkhorseProtocol):
             self._connection_4Beam.send(cmd)
             self._connection_5thBeam.send(cmd)
 
+    # for Master
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -841,7 +740,7 @@ class Protocol(WorkhorseProtocol):
         log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
                   repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
 
-        if (write_delay == 0):
+        if write_delay == 0:
             log.error("Sung send the command: %s", repr(cmd_line))
             self._connection_4Beam.send(cmd_line)
             #self._connection.send(cmd_line)
@@ -874,6 +773,7 @@ class Protocol(WorkhorseProtocol):
 
         return resp_result
 
+    # for Slave
     def _do_cmd_resp2(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -933,7 +833,7 @@ class Protocol(WorkhorseProtocol):
         log.debug('_do_cmd_resp2: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
                   repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
         log.error("Sung do_cmd_resp2 4")
-        if (write_delay == 0):
+        if write_delay == 0:
             log.error("Sung send the command (5th Beam): %s", repr(cmd_line))
             self._connection_5thBeam.send(cmd_line)
             #self._connection.send(cmd_line)
@@ -969,7 +869,7 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung do_cmd_resp2 Response handler %s", repr(resp_result))
         return resp_result
 
-
+    # for Slave
     def _get_response2(self, timeout=10, expected_prompt=None, response_regex=None):
         """
         Get a response from the instrument, but be a bit loose with what we
@@ -1027,13 +927,14 @@ class Protocol(WorkhorseProtocol):
                     index = self._promptbuf2.find(item)
                     if index >= 0:
                         result = self._promptbuf2[0:index + len(item)]
-                        return (item, result)
+                        return item, result
                     else:
                         time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
 
+    # for Master
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
         """
         Issue a command to the instrument after a wake up and clearing of
@@ -1051,7 +952,7 @@ class Protocol(WorkhorseProtocol):
 
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
-            log.error('_do_cmd_no_resp: no handler for command: %s' % (cmd))
+            log.error('_do_cmd_no_resp: no handler for command: %s' % cmd)
             raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
         cmd_line = build_handler(cmd, *args)
 
@@ -1065,7 +966,7 @@ class Protocol(WorkhorseProtocol):
 
         # Send command.
         log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
-        if (write_delay == 0):
+        if write_delay == 0:
             self._connection_4Beam.send(cmd_line)
         else:
             for char in cmd_line:
@@ -1073,6 +974,7 @@ class Protocol(WorkhorseProtocol):
                 #self._connection_5thBeam.send(char)
                 time.sleep(write_delay)
 
+    # for Slave
     def _do_cmd_no_resp2(self, cmd, *args, **kwargs):
         """
         Issue a command to the instrument after a wake up and clearing of
@@ -1090,7 +992,7 @@ class Protocol(WorkhorseProtocol):
 
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
-            log.error('_do_cmd_no_resp: no handler for command: %s' % (cmd))
+            log.error('_do_cmd_no_resp: no handler for command: %s' % cmd)
             raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
         cmd_line = build_handler(cmd, *args)
 
@@ -1104,7 +1006,7 @@ class Protocol(WorkhorseProtocol):
 
         # Send command.
         log.debug('_do_cmd_no_resp2: %s, timeout=%s' % (repr(cmd_line), timeout))
-        if (write_delay == 0):
+        if write_delay == 0:
             #self._connection_4beam.send(cmd_line)
             self._connection_5thBeam.send(cmd_line)
         else:
@@ -1113,10 +1015,7 @@ class Protocol(WorkhorseProtocol):
                 self._connection_5thBeam.send(char)
                 time.sleep(write_delay)
 
-
-    ########################################################################
-    # Incomming data 2 (for parsing) callback.
-    ########################################################################
+    # for Slave
     def got_data2(self, port_agent_packet):
         """
         Called by the instrument connection when data is available.
@@ -1143,10 +1042,11 @@ class Protocol(WorkhorseProtocol):
 
             self._chunker2.add_chunk(data, timestamp)
             (timestamp, chunk) = self._chunker2.get_next_data()
-            while (chunk):
+            while chunk:
                 self._got_chunk2(chunk, timestamp)
                 (timestamp, chunk) = self._chunker2.get_next_data()
 
+    # for Master
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.
@@ -1189,6 +1089,7 @@ class Protocol(WorkhorseProtocol):
             log.debug("_got_chunk2 - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
             log.error("Sung _got_chunk2 - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
 
+    # for Slave
     def _got_chunk2(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.
@@ -1226,6 +1127,7 @@ class Protocol(WorkhorseProtocol):
                                  timestamp)):
             log.debug("_got_chunk2 - successful match for VADCP_TRANSMIT_PATH_PARTICLE")
 
+    # for Master
     def got_raw(self, port_agent_packet):
         """
         Called by the port agent client when raw data is available, such as data
@@ -1233,6 +1135,7 @@ class Protocol(WorkhorseProtocol):
         """
         self.publish_raw(port_agent_packet)
 
+    # for Slave
     def got_raw2(self, port_agent_packet):
         """
         Called by the port agent client when raw data is available, such as data
@@ -1240,6 +1143,7 @@ class Protocol(WorkhorseProtocol):
         """
         self.publish_raw2(port_agent_packet)
 
+    # for Slave
     def publish_raw2(self, port_agent_packet):
         """
         Publish raw data
@@ -1253,6 +1157,7 @@ class Protocol(WorkhorseProtocol):
             self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
             log.error("Sung send raw2 sample %s", repr(parsed_sample))
 
+    # for Slave
     def add_to_buffer2(self, data):
         """
         Add a chunk of data to the internal data buffers
@@ -1267,47 +1172,7 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung LINE BUF2: %s", self._linebuf2)
         log.debug("PROMPT BUF2: %s", self._promptbuf2)
 
-
-    ########################################################################
-    # Wakeup helpers.
-    ########################################################################
-
-    def _wakeup2(self, timeout, delay=1):
-        """
-        Clear buffers and send a wakeup command to the instrument
-        @param timeout The timeout to wake the device.
-        @param delay The time to wait between consecutive wakeups.
-        @throw InstrumentTimeoutException if the device could not be woken.
-        """
-        # Clear the prompt buffer.
-        log.debug("clearing promptbuf: %s", self._promptbuf2)
-        self._promptbuf2 = ''
-
-        # Grab time for timeout.
-        starttime = time.time()
-
-        while True:
-            # Send a line return and wait a sec.
-            log.trace('Sending wakeup. timeout=%s', timeout)
-            self._send_wakeup2()
-            time.sleep(delay)
-
-            log.debug("Prompts: %s", self._get_prompts())
-            log.error("Sung Prompts: %s", self._get_prompts())
-
-            for item in self._get_prompts():
-                log.debug("buffer: %s", self._promptbuf2)
-                log.debug("find prompt: %s", item)
-                index = self._promptbuf2.find(item)
-                log.debug("Got prompt (index: %s): %s ", index, repr(self._promptbuf2))
-                if index >= 0:
-                    log.trace('wakeup got prompt: %s', repr(item))
-                    return item
-            log.debug("Searched for all prompts")
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in _wakeup()")
-
+    # for Slave
     def _wakeup_until2(self, timeout, desired_prompt, delay=1, no_tries=5):
         """
         Continue waking device until a specific prompt appears or a number
@@ -1333,9 +1198,7 @@ class Protocol(WorkhorseProtocol):
                 if count >= no_tries:
                     raise InstrumentProtocolException('Incorrect prompt.')
 
-
-    ####
-
+    # for Master
     def _send_break(self, duration=500):
         """
         Send a BREAK to attempt to wake the device.
@@ -1347,16 +1210,16 @@ class Protocol(WorkhorseProtocol):
         break_confirmation = []
         log.trace("self._linebuf = " + self._linebuf)
 
-        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
-                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
-                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE +
+                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE +
+                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE +
                                   "All Rights Reserved.")
 
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
         timeout = 30
         count = 0
-        while (not found):
+        while not found:
             count += 1
             for break_message in break_confirmation:
                 if break_message in self._linebuf:
@@ -1372,6 +1235,7 @@ class Protocol(WorkhorseProtocol):
         log.trace("leaving send_break")
         return True
 
+    # for Slave
     def _send_break2(self, duration=500):
         """
         Send a BREAK to attempt to wake the device.
@@ -1383,23 +1247,23 @@ class Protocol(WorkhorseProtocol):
         break_confirmation = []
         log.trace("self._linebuf2 = " + self._linebuf2)
 
-        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
-                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
-                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE +
+                                  "WorkHorse Broadband ADCP Version 50.40" + NEWLINE +
+                                  "Teledyne RD Instruments (c) 1996-2010" + NEWLINE +
                                   "All Rights Reserved.")
 
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
         timeout = 30
         count = 0
-        while (not found):
+        while not found:
             count += 1
             for break_message in break_confirmation:
                 if break_message in self._linebuf2:
                     log.error("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
             if count > (timeout * 10):
-                if True != found:
+                if not found:
                     raise InstrumentTimeoutException("NO BREAK RESPONSE.")
             time.sleep(0.1)
         self._chunker2._clean_buffer(len(self._chunker2.raw_chunk_list))
@@ -1408,6 +1272,7 @@ class Protocol(WorkhorseProtocol):
         log.trace("leaving send_break")
         return True
 
+    # for Master
     def _send_wakeup(self):
         """
         Send a newline to attempt to wake the device.
@@ -1418,6 +1283,7 @@ class Protocol(WorkhorseProtocol):
 
         self._connection_4Beam.send(NEWLINE)
 
+    # for Slave
     def _send_wakeup2(self):
         """
         Send a newline to attempt to wake the device.
@@ -1427,6 +1293,7 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung before send in _send_wakeup2")
         self._connection_5thBeam.send(NEWLINE)
 
+    # For slave
     def _wakeup2(self, timeout=3, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
@@ -1456,9 +1323,44 @@ class Protocol(WorkhorseProtocol):
                     return item
         return None
 
-    ####
+    # def _wakeup2(self, timeout, delay=1):
+    #     """
+    #     Clear buffers and send a wakeup command to the instrument
+    #     @param timeout The timeout to wake the device.
+    #     @param delay The time to wait between consecutive wakeups.
+    #     @throw InstrumentTimeoutException if the device could not be woken.
+    #     """
+    #     # Clear the prompt buffer.
+    #     log.debug("clearing promptbuf: %s", self._promptbuf2)
+    #     self._promptbuf2 = ''
+    #
+    #     # Grab time for timeout.
+    #     starttime = time.time()
+    #
+    #     while True:
+    #         # Send a line return and wait a sec.
+    #         log.trace('Sending wakeup. timeout=%s', timeout)
+    #         self._send_wakeup2()
+    #         time.sleep(delay)
+    #
+    #         log.debug("Prompts: %s", self._get_prompts())
+    #         log.error("Sung Prompts: %s", self._get_prompts())
+    #
+    #         for item in self._get_prompts():
+    #             log.debug("buffer: %s", self._promptbuf2)
+    #             log.debug("find prompt: %s", item)
+    #             index = self._promptbuf2.find(item)
+    #             log.debug("Got prompt (index: %s): %s ", index, repr(self._promptbuf2))
+    #             if index >= 0:
+    #                 log.trace('wakeup got prompt: %s', repr(item))
+    #                 return item
+    #         log.debug("Searched for all prompts")
+    #
+    #         if time.time() > starttime + timeout:
+    #            raise InstrumentTimeoutException("in _wakeup()")
 
-    # This will over-write _send_break_cmd in teledyne/driver.py
+    # For Master
+    # This is only temperary solution for now until port agent is fixed
     def _send_break_cmd_4beam(self, delay):
         """
         Send a BREAK to attempt to wake the device.
@@ -1472,41 +1374,46 @@ class Protocol(WorkhorseProtocol):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
-            log.trace("WHOOPS! 1")
+            log.error("Failed to init Break socket")
+            raise InstrumentProtocolException("Connect break socket exception")
 
         try:
             sock.connect(('10.180.80.176', 2102))
         except socket.error, msg:
-            log.trace("WHOOPS! 2")
+            log.error("Failed to connect Break socket")
+            raise InstrumentProtocolException("Init break socket exception")
+
         sock.send("break " + str(delay) + "\r\n")
         sock.close()
 
-    # This will over-write _send_break_cmd in teledyne/driver.py
+    # for Slave
+    # This is only temperary solution for now until port agent is fixed
     def _send_break_cmd_5thBeam(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        #self._connection.send_break(delay)
+        # self._connection.send_break(delay)
         # Then remove below lines
 
         log.trace("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
-            log.trace("WHOOPS! 1")
+            log.error("Failed to init Break socket")
+            raise InstrumentParameterException("Connect break socket exception")
 
         try:
             sock.connect(('10.180.80.179', 2102))
         except socket.error, msg:
-            log.trace("WHOOPS! 2")
+            log.error("Failed to connect Break socket")
+            raise InstrumentParameterException("Init break socket exception")
+
         sock.send("break " + str(delay) + "\r\n")
         sock.close()
 
-    ############################
-
-
+    # for Master and Slave
     def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
         """
         Send the command to the instrument to syncronize the clock
@@ -1535,7 +1442,7 @@ class Protocol(WorkhorseProtocol):
         self._get_response(TIMEOUT)
         self._get_response2(TIMEOUT)
 
-
+    # for Slave
     def _instrument_config_dirty2(self):
         """
         Read the startup config and compare that to what the instrument
@@ -1562,7 +1469,7 @@ class Protocol(WorkhorseProtocol):
                 raise InstrumentParameterException("in _instrument_config_dirty2")
 
             log.error("Sung there is param: %s", param)
-            if (self._param_dict2.get(param) != self._param_dict2.get_config_value(param)):
+            if self._param_dict2.get(param) != self._param_dict2.get_config_value(param):
                 log.trace("DIRTY: %s %s != %s" % (
                     param, self._param_dict2.get(param), self._param_dict2.get_config_value(param)))
                 return True
@@ -1570,20 +1477,21 @@ class Protocol(WorkhorseProtocol):
         log.trace("Clean instrument config")
         return False
 
+    # for Slave
     def _update_params2(self, *args, **kwargs):
         """
         Update the parameter dictionary.
         """
         log.debug("in _update_params2")
         log.error("Sung apply_startup_params2")
-        error = None
+        _error = None
         logging = self._is_logging2()
+        key = ""
 
         try:
             if logging:
                 # Switch to command mode,
                 self._stop_logging2()
-
 
             ###
             # Get old param dict config.
@@ -1594,7 +1502,6 @@ class Protocol(WorkhorseProtocol):
             results = ""
             for attr in sorted(cmds):
                 log.error("Sung test test2 %s", attr)
-                #if attr not in ['dict', 'has', 'list', 'ALL', TeledyneParameter2.CLOCK_SYNCH_INTERVAL, TeledyneParameter2.GET_STATUS_INTERVAL]:
                 if attr not in ['dict', 'has', 'list', 'ALL', 'GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL']:
 
                     if not attr.startswith("_"):
@@ -1606,7 +1513,7 @@ class Protocol(WorkhorseProtocol):
                         results += result + NEWLINE
 
             new_config = self._param_dict2.get_config()
-            log.error("Sung update_params2 new_config %s", repr(key))
+            log.error("Sung update_params2 new_config %r", key)
 
             if not dict_equal(new_config, old_config, ['TT', 'TT_5th']):
                 log.error("Sung generate CONFIG Change Event")
@@ -1617,7 +1524,7 @@ class Protocol(WorkhorseProtocol):
         # streaming.  Then rethrow the error
         except Exception as e:
             log.error("EXCEPTION WAS " + str(e))
-            error = e
+            _error = e
 
         finally:
             # Switch back to streaming
@@ -1627,11 +1534,12 @@ class Protocol(WorkhorseProtocol):
                 log.debug("current_state = %s calling start_logging", my_state)
                 self._start_logging2()
 
-        if (error):
-            raise error
+        if _error:
+            raise _error
 
         return results
 
+    # for Slave
     def _set_params2(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters
@@ -1656,7 +1564,7 @@ class Protocol(WorkhorseProtocol):
         self._verify_not_readonly2(*args, **kwargs)
         for (key, val) in params.iteritems():
             log.error("Sung set_params2 key %s", key)
-            if (key.find('_') != -1):  # Found
+            if key.find('_') != -1:  # Found
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     log.error("Sung set_params2 key %s", key)
                     log.error("Sung set_params2 value %s", val)
@@ -1668,31 +1576,7 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung set_params2 value after calling update_params")
         return result
 
-    def _init_params2(self):
-        """
-        Initialize parameters based on initialization type.  If we actually
-        do some initialization (either startup or DA) after we are done
-        set the init type to None so we don't initialize again.
-        @raises InstrumentProtocolException if the init_type isn't set or it
-                                            is unknown
-        """
-        if (self._init_type == InitializationType.STARTUP):
-            log.debug("_init_params: Apply Startup Config")
-            self.apply_startup_params2()
-            self._init_type = InitializationType.NONE
-        elif (self._init_type == InitializationType.DIRECTACCESS):
-            log.debug("_init_params: Apply DA Config")
-            self.apply_direct_access_params2()
-            self._init_type = InitializationType.NONE
-            pass
-        elif (self._init_type == InitializationType.NONE):
-            log.debug("_init_params: No initialization required")
-            pass
-        elif (self._init_type == None):
-            raise InstrumentProtocolException("initialization type not set")
-        else:
-            raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
-
+    # for Slave
     def apply_startup_params2(self):
         """
         Apply all startup parameters.  First we check the instrument to see
@@ -1715,12 +1599,12 @@ class Protocol(WorkhorseProtocol):
         # instrument matches what we think it should be then we
         # don't need to do anything.
 
-        if (not self._instrument_config_dirty2()):
+        if not self._instrument_config_dirty2():
             log.trace("in apply_startup_params returning True")
             log.error("Sung in apply_startup_params config_dirty2 returning True")
             return True
 
-        error = None
+        error_status = None
 
         try:
             if logging:
@@ -1733,7 +1617,7 @@ class Protocol(WorkhorseProtocol):
         # streaming.  Then rethrow the error
         except Exception as e:
             log.error("EXCEPTION WAS " + str(e))
-            error = e
+            error_status = e
 
         finally:
             # Switch back to streaming
@@ -1743,9 +1627,10 @@ class Protocol(WorkhorseProtocol):
                 log.trace("current_state = %s", my_state)
                 self._start_logging2()
 
-        if (error):
-            raise error
+        if error_status:
+            raise error_status
 
+    # for Slave
     def _apply_params2(self):
         """
         apply startup parameters to the instrument.
@@ -1756,6 +1641,7 @@ class Protocol(WorkhorseProtocol):
         # Pass true to _set_params so we know these are startup values
         self._set_params2(config, True)
 
+    # for Slave
     def get_startup_config2(self):
         """
         Gets the startup configuration for the instrument. The parameters
@@ -1777,17 +1663,15 @@ class Protocol(WorkhorseProtocol):
         for param in start_list:
             log.error("Sung test001 %s", param)
             result = self._param_dict2.get_config_value(param)
-            if (result is not None):
+            if result is not None:
                 return_dict[param] = result
-            elif (self._param_dict2.is_startup_param(param)):
+            elif self._param_dict2.is_startup_param(param):
                 raise InstrumentProtocolException("Required startup value not specified: %s" % param)
 
         log.debug("Applying startup config: %s", return_dict)
         return return_dict
 
-    ########################################################################
-    # Helper methods
-    ########################################################################
+    # for Slave
     def _init_params2(self):
         """
         Initialize parameters based on initialization type.  If we actually
@@ -1796,24 +1680,24 @@ class Protocol(WorkhorseProtocol):
         @raises InstrumentProtocolException if the init_type isn't set or it
                                             is unknown
         """
-        if (self._init_type == InitializationType.STARTUP):
+        if self._init_type == InitializationType.STARTUP:
             log.debug("_init_params2: Apply Startup Config")
             self.apply_startup_params2()
             self._init_type = InitializationType.NONE
-        elif (self._init_type == InitializationType.DIRECTACCESS):
+        elif self._init_type == InitializationType.DIRECTACCESS:
             log.debug("_init_params2: Apply DA Config")
             self.apply_direct_access_params2()
             self._init_type = InitializationType.NONE
             pass
-        elif (self._init_type == InitializationType.NONE):
+        elif self._init_type == InitializationType.NONE:
             log.debug("_init_params2: No initialization required")
             pass
-        elif (self._init_type == None):
+        elif self._init_type is None:
             raise InstrumentProtocolException("initialization type not set")
         else:
             raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
 
-
+    # for Slave
     def _is_logging2(self, timeout=TIMEOUT):
         """
         Poll the instrument to see if we are in logging mode.  Return True
@@ -1837,6 +1721,7 @@ class Protocol(WorkhorseProtocol):
 
         return logging
 
+    # for Slave
     def _start_logging2(self, timeout=TIMEOUT):
         """
         Command the instrument to start logging
@@ -1845,7 +1730,7 @@ class Protocol(WorkhorseProtocol):
         @throws: InstrumentProtocolException if failed to start logging
         """
         log.debug("in _start_logging2 - are we logging? ")
-        if (self._is_logging2()):
+        if self._is_logging2():
             log.debug("ALREADY LOGGING2")
             return True
         log.debug("SENDING START LOGGING2")
@@ -1853,6 +1738,7 @@ class Protocol(WorkhorseProtocol):
 
         return True
 
+    # for Slave
     def _stop_logging2(self, timeout=TIMEOUT):
         """
         Command the instrument to stop logging
@@ -1863,7 +1749,6 @@ class Protocol(WorkhorseProtocol):
         """
         log.debug("in Stop Logging2!")
         # Issue the stop command.
-
 
         # Send break twice, as sometimes the driver ack's the first one then
         # forgets to actually break.
@@ -1884,7 +1769,7 @@ class Protocol(WorkhorseProtocol):
 
         return True
 
-
+    # for Slave
     def _verify_not_readonly2(self, params_to_set, startup=False):
         """
         Verify that the parameters we are attempting to set in upstream methods
@@ -1915,6 +1800,7 @@ class Protocol(WorkhorseProtocol):
 
         return True
 
+    # For master
     def _get_param_list(self, *args, **kwargs):
         """
         returns a list of parameters based on the list passed in.  If the
@@ -1931,9 +1817,9 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             raise InstrumentParameterException('Parameter required, none specified')
 
-        if (isinstance(param_list, str)):
+        if isinstance(param_list, str):
             param_list = [param_list]
-        elif (not isinstance(param_list, (list, tuple))):
+        elif not isinstance(param_list, (list, tuple)):
             raise InstrumentParameterException("Expected a list, tuple or a string")
 
         log.error("Sung param list : %s", repr(param_list))
@@ -1942,20 +1828,21 @@ class Protocol(WorkhorseProtocol):
         new_param_list = []
         known_params = self._param_dict.get_keys() + [DriverParameter.ALL]
         for param in param_list:
-            if (param.find('_') == -1):  # Not Found
-                if (param not in [DriverParameter.ALL]):
+            if param.find('_') == -1:  # Not Found
+                if param not in [DriverParameter.ALL]:
                     new_param_list.append(param)
-                if (param not in known_params):
+                if param not in known_params:
                     bad_params.append(param)
 
-        if (len(bad_params)):
+        if len(bad_params):
             raise InstrumentParameterException("Unknown parameters: %s" % bad_params)
 
-        if (DriverParameter.ALL in param_list):
+        if DriverParameter.ALL in param_list:
             return self._param_dict.get_keys()
         else:
             return new_param_list
 
+    # for Slave
     def _get_param_list2(self, *args, **kwargs):
         """
         returns a list of parameters based on the list passed in.  If the
@@ -1972,9 +1859,9 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             raise InstrumentParameterException('Parameter required, none specified')
 
-        if (isinstance(param_list, str)):
+        if isinstance(param_list, str):
             param_list = [param_list]
-        elif (not isinstance(param_list, (list, tuple))):
+        elif not isinstance(param_list, (list, tuple)):
             raise InstrumentParameterException("Expected a list, tuple or a string")
         log.error("Sung param list : %s", repr(param_list))
         # Verify all parameters are known parameters
@@ -1982,20 +1869,20 @@ class Protocol(WorkhorseProtocol):
         new_param_list = []
         known_params = self._param_dict2.get_keys() + [DriverParameter.ALL]
         for param in param_list:
-            if (param.find('_') != -1):  # Found
+            if param.find('_') != -1:  # Found
                 new_param_list.append(param)
-                if (param not in known_params):
+                if param not in known_params:
                     bad_params.append(param)
 
-        if (len(bad_params)):
+        if len(bad_params):
             raise InstrumentParameterException("Unknown parameters2: %s" % bad_params)
 
-        if (DriverParameter.ALL in param_list):
+        if DriverParameter.ALL in param_list:
             return self._param_dict2.get_keys()
         else:
             return new_param_list
 
-
+    # for Slave
     def _get_param_result2(self, param_list, expire_time):
         """
         return a dictionary of the parameters and values
@@ -2015,7 +1902,7 @@ class Protocol(WorkhorseProtocol):
 
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with ADCP parameters.
+        Populate the parameter dictionary with ADCP parameters for master instrument.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
@@ -2539,7 +2426,7 @@ class Protocol(WorkhorseProtocol):
 
     def _build_param_dict2(self):
         """
-        Populate the parameter dictionary with ADCP parameters.
+        Populate the parameter dictionary with ADCP parameters for slave instrument.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
@@ -3035,6 +2922,7 @@ class Protocol(WorkhorseProtocol):
                               direct_access=True,
                               default_value=175)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_init_params(self, *args, **kwargs):
         """
         initialize parameters
@@ -3044,8 +2932,9 @@ class Protocol(WorkhorseProtocol):
 
         self._init_params()
         self._init_params2()
-        return (next_state, result)
+        return next_state, result
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -3075,8 +2964,9 @@ class Protocol(WorkhorseProtocol):
         next_state = TeledyneProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_get(self, *args, **kwargs):
         """
         Get device parameters from the parameter dict.
@@ -3087,7 +2977,7 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung in _handler_command_get")
         next_state = None
         result = None
-        error = None
+        error_status = None
 
         # Grab a baseline time for calculating expiration time.  It is assumed
         # that all data if valid if acquired after this time.
@@ -3125,14 +3015,14 @@ class Protocol(WorkhorseProtocol):
                 # Catch all error so we can put ourself back into
                 # streaming.  Then rethrow the error
                 except Exception as e:
-                    error = e
+                    error_status = e
 
                 finally:
                     # Switch back to streaming
                     self._start_logging()
 
-                if (error):
-                    raise error
+                if error_status:
+                    raise error_status
             else:
                 log.trace("I am not logging")
                 log.error("Sung Get params before calling update_params %s", repr(result))
@@ -3170,14 +3060,14 @@ class Protocol(WorkhorseProtocol):
                 # Catch all error so we can put ourself back into
                 # streaming.  Then rethrow the error
                 except Exception as e:
-                    error = e
+                    error_status = e
 
                 finally:
                     # Switch back to streaming
                     self._start_logging2()
 
-                if (error):
-                    raise error
+                if error_status:
+                    raise error_status
             else:
                 log.trace("I am not logging")
                 log.error("Sung Get params before calling update_params2 %s", repr(result2))
@@ -3192,9 +3082,9 @@ class Protocol(WorkhorseProtocol):
         result.update(result2)
         log.error("Sung Get params %s", repr(result))
         #result_combined = ",".join(result, result2)
-        return (next_state, result)
+        return next_state, result
 
-
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change
@@ -3211,8 +3101,9 @@ class Protocol(WorkhorseProtocol):
         prompt = self._wakeup(timeout=3)
         prompt = self._wakeup2(timeout=3)
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_get_calibration(self, *args, **kwargs):
         """
         @param args:
@@ -3233,8 +3124,9 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung get_calibration combined")
         result_combined = result + result2
         log.error("Sung get_calibration combined %s", result_combined)
-        return (next_state, (next_agent_state, result_combined))
+        return next_state, (next_agent_state, result_combined)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_save_setup_to_ram(self, *args, **kwargs):
         """
         save setup to ram.
@@ -3245,44 +3137,9 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
         result = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
 
-        return (next_state, result)
+        return next_state, result
 
-        #def _handler_command_send_last_sample(self, *args, **kwargs):
-        #    log.debug("IN _handler_command_send_last_sample")
-
-        #    next_state = None
-        #    next_agent_state = None
-        #    kwargs['timeout'] = 30
-        #    kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
-        #    prompt = self._wakeup(timeout=3)
-        #    prompt = self._wakeup2(timeout=3)
-
-        # Disable autosample recover, so it isnt faked out....
-        #    self.disable_autosample_recover = True
-        #    (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-        #    (result2, last_sample2) = self._do_cmd_resp2(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-        # re-enable it.
-
-    #    self.disable_autosample_recover = False
-
-    #    last_sample_combined = last_sample + ", "  + last_sample2
-    #    decoded_last_sample = base64.b64decode(last_sample_combined)
-
-    #    return (next_state, (next_agent_state, decoded_last_sample))
-
-    #def _handler_command_get_instrument_transform_matrix(self, *args, **kwargs):
-    #    """
-    #    get instrument transform matrix.
-    #    """
-    #    next_state = None
-    #    kwargs['timeout'] = 30
-    #    kwargs['expected_prompt'] = TeledynePrompt.COMMAND
-    #    result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
-    #    result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
-    #    result_combined = result + ", " + result2
-    #    log.error("Sung get_instrument_transform_matrix combined %s",result_combined )
-    #    return (next_state, result_combined)
-
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
         @param args:
@@ -3301,8 +3158,9 @@ class Protocol(WorkhorseProtocol):
         result2 = self._sanitize(base64.b64decode(output2))
         result_combined = result + result2
         log.error("Sung get_configuration combined %s", result_combined)
-        return (next_state, (next_agent_state, {'result': result_combined}))
+        return next_state, (next_agent_state, {'result': result_combined})
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_run_test_200(self, *args, **kwargs):
         """
         run test PT200
@@ -3314,8 +3172,9 @@ class Protocol(WorkhorseProtocol):
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
         result_combined = result + result2
         log.error("Sung get_test_200 combined %s", result_combined)
-        return (next_state, result_combined)
+        return next_state, result_combined
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_factory_sets(self, *args, **kwargs):
         """
         run Factory set
@@ -3327,8 +3186,9 @@ class Protocol(WorkhorseProtocol):
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
         result_combined = result + result2
         log.error("Sung get_factory combined %s", result_combined)
-        return (next_state, result_combined)
+        return next_state, result_combined
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_user_sets(self, *args, **kwargs):
         """
         run user set
@@ -3340,8 +3200,9 @@ class Protocol(WorkhorseProtocol):
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
         result_combined = result + result2
         log.error("Sung get_user set combined %s", result_combined)
-        return (next_state, result_combined)
+        return next_state, result_combined
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_clear_error_status_word(self, *args, **kwargs):
         """
         clear the error status word
@@ -3354,8 +3215,9 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung clear_error_status_word combined")
         result_combined = result + result2
         log.error("Sung clear_error_status_word combined %s", repr(result_combined))
-        return (next_state, result_combined)
+        return next_state, result_combined
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_acquire_error_status_word(self, *args, **kwargs):
         """
         read the error status word
@@ -3369,9 +3231,10 @@ class Protocol(WorkhorseProtocol):
         log.error("Sung acquire_error_status_word combined2 %s", repr(result2))
         result_combined = result + result2
         log.error("Sung acquire_error_status_word combined %s", repr(result_combined))
-        return (next_state, result_combined)
+        return next_state, result_combined
         #return (next_state, result)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_display_fault_log(self, *args, **kwargs):
         """
         display the error log.
@@ -3382,8 +3245,9 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
         result_combined = result + result2
-        return (next_state, result_combined)
+        return next_state, result_combined
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_clear_fault_log(self, *args, **kwargs):
         """
         clear the error log.
@@ -3394,8 +3258,9 @@ class Protocol(WorkhorseProtocol):
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
         result_combined = result + result2
-        return (next_state, result_combined)
+        return next_state, result_combined
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_autosample_init_params(self, *args, **kwargs):
         """
         initialize parameters.  For this instrument we need to
@@ -3405,7 +3270,7 @@ class Protocol(WorkhorseProtocol):
         log.debug("in _handler_autosample_init_params")
         next_state = None
         result = None
-        error = None
+        error_status = None
 
         try:
             log.debug("stopping logging without checking")
@@ -3413,16 +3278,16 @@ class Protocol(WorkhorseProtocol):
             self._init_params()
 
         except Exception as e:
-            error = e
+            error_status = e
 
         finally:
             # Switch back to streaming
             log.debug("starting logging")
             self._start_logging()
 
-        if (error):
-            log.error("Error in apply_startup_params: %s", error)
-            raise error
+        if error_status:
+            log.error("Error in apply_startup_params: %s", error_status)
+            raise error_status
 
         try:
             log.debug("stopping logging without checking")
@@ -3432,19 +3297,20 @@ class Protocol(WorkhorseProtocol):
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
-            error = e
+            error_status = e
 
         finally:
             # Switch back to streaming
             log.debug("starting logging")
             self._start_logging2()
 
-        if (error):
-            log.error("Error in apply_startup_params2: %s", error)
-            raise error
+        if error_status:
+            log.error("Error in apply_startup_params2: %s", error_status)
+            raise error_status
 
-        return (next_state, result)
+        return next_state, result
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
@@ -3467,8 +3333,9 @@ class Protocol(WorkhorseProtocol):
         next_state = TeledyneProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -3503,7 +3370,7 @@ class Protocol(WorkhorseProtocol):
         # Raise if the command not understood.
         else:
             log.error("Sung test test 007 %s", repr(params))
-            if (TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
+            if TeledyneParameter.CLOCK_SYNCH_INTERVAL in params:
                 log.error("Sung the param is either CLOCK_SYNCH_INTERVAL or GET_STATUS_INTERVAL")
                 if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
                         TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
@@ -3514,7 +3381,7 @@ class Protocol(WorkhorseProtocol):
                                              TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                     changed = True
 
-            if (TeledyneParameter.GET_STATUS_INTERVAL in params):
+            if TeledyneParameter.GET_STATUS_INTERVAL in params:
                 if (params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(
                         TeledyneParameter.GET_STATUS_INTERVAL)):
                     log.error("Sung the param GET_STATUS_INTERVAL is changed")
@@ -3524,35 +3391,15 @@ class Protocol(WorkhorseProtocol):
                                              TeledyneScheduledJob.GET_CONFIGURATION,
                                              TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
                     changed = True
-                    #params.remove()
-                    #if(len(params)>1):
-                    #    log.error("Sung test test00555 %s", repr(params))
-                    #    result = self._set_params(params, startup)
-            if (changed):
+            if changed:
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            log.error("Calling set params in _handler_command_set %s", repr(params))
-
-            #for param in param_list:
-            #if(param.find('_') == -1) :  # Not Found
-            #    if(param not in [DriverParameter.ALL]):
-
 
             result = self._set_params(params, startup)
             result = self._set_params2(params, startup)
 
-            #if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
-            #    if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
-            #        self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
-            #        self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-            #        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            #else:
-            #     log.error("Sung test test002 %s", repr(params))
-            #     result = self._set_params(params, startup)
-            #     log.error("Sung test test003 %s", repr(params))
-            #     result2 = self._set_params2(params, startup)
+        return next_state, result
 
-        return (next_state, result)
-
+    # Overwritten to invoke Master/Slave instruments
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change from
@@ -3588,7 +3435,6 @@ class Protocol(WorkhorseProtocol):
             # Switch to command mode,
             self._stop_logging2()
 
-        log.debug("in _handler_autosample_clock_sync")
         try:
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
@@ -3608,11 +3454,12 @@ class Protocol(WorkhorseProtocol):
             if logging2:
                 self._start_logging2()
 
-        if (error):
+        if error:
             raise error
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_command_get_status(self, *args, **kwargs):
         """
         execute a get status on the leading edge of a second change
@@ -3620,30 +3467,26 @@ class Protocol(WorkhorseProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
-
         next_state = None
         next_agent_state = None
         result = None
+        try:
+            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+            self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
-        #timeout = kwargs.get('timeout', TIMEOUT)
-        #prompt = self._wakeup(timeout=3)
-        #self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
-        #output = self._do_cmd_resp(TeledyneInstrumentCmds., *args, **kwargs)
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
-        #result_AC = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
-        #result_PT2 = self._sanitize(base64.b64decode(output))
-        time.sleep(.05)
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
-        #result_PT4 = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
-        return (next_state, (next_agent_state, result))
+            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+            self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
 
+            self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
+            self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
+        except Exception as e:
+            log.error("Exception on Executing do_cmd_no_resp() " + e)
+            error = e
+
+        return next_state, (next_agent_state, result)
+
+    # Overwritten to invoke Master/Slave instruments
     def _handler_autosample_get_calibration(self, *args, **kwargs):
         """
         execute a get calibration from autosample mode.
@@ -3680,15 +3523,16 @@ class Protocol(WorkhorseProtocol):
             self._start_logging()
             self._start_logging2()
 
-        if (error):
+        if error:
             raise error
 
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
         result_combined = result + ", " + result2
-        return (next_state, (next_agent_state, result_combined))
+        return next_state, (next_agent_state, result_combined)
         #return (next_state, (next_agent_state, {'result': result}))
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_autosample_get_configuration(self, *args, **kwargs):
         """
         execute a get configuration from autosample mode.
@@ -3727,15 +3571,16 @@ class Protocol(WorkhorseProtocol):
             self._start_logging()
             self._start_logging2()
 
-        if (error):
+        if error:
             raise error
 
         result = self._sanitize(base64.b64decode(output))
         result2 = self._sanitize(base64.b64decode(output2))
         result_combined = result + result2
 
-        return (next_state, (next_agent_state, result_combined))
+        return next_state, (next_agent_state, result_combined)
 
+    # Overwritten to invoke Master/Slave instruments
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
@@ -3756,55 +3601,26 @@ class Protocol(WorkhorseProtocol):
 
             self._send_break2()
 
-    def _handler_direct_access_execute_direct(self, data):
-        log.debug("IN _handler_direct_access_execute_direct")
-        log.error("Sung IN _handler_direct_access_execute_direct")
-        next_state = None
-        result = None
-        next_agent_state = None
-        self._do_cmd_direct(data)
-
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
-
-        return (next_state, (next_agent_state, result))
-
-
-    def _handler_command_acquire_status(self, *args, **kwargs):  # Sung to do
+    # Overwritten to invoke Master/Slave instruments
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Handle acquire status by executing AC, PT2 and PT4
+        """
         log.debug("IN _handler_command_acquire_status")
         next_state = None
 
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
-        #result_AC = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
-        #result_PT2 = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
-        output = self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
-        #result_PT4 = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
+        self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
-        #result2_AC = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
-        #result2_PT2 = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
-        output = self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
-        #result2_PT4 = self._sanitize(base64.b64decode(output))
-        #time.sleep(.05)
+        self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        self._do_cmd_no_resp2(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
 
-        #result_start = "4 beam status outputs:" + result_AC
-        #result2_start = "5th beam status outputs:" +result2_AC
-
-        #result_4beam = ", ".join([result_start,result_PT2,result_PT4])
-        #result_5thBeam = ", ".join([result2_start,result2_PT2,result2_PT4])
-
-        #result = result_4beam + " " + result_5thBeam
-        return (next_state, None)
+        return next_state, None
 
     def _wakeup(self, timeout=3, delay=1):
         """
