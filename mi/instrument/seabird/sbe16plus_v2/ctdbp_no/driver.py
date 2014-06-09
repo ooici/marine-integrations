@@ -8,21 +8,20 @@
 __author__ = 'Tapana Gupta'
 __license__ = 'Apache 2.0'
 
-
 import re
 import time
 import string
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+
+log = get_logger()
 
 from mi.core.common import BaseEnum
 
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.data_particle import CommonDataParticleType
 
 from mi.core.exceptions import InstrumentProtocolException
-from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 
 from xml.dom.minidom import parseString
@@ -31,11 +30,13 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ParameterUnit
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Parameter
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SendOptodeCommand
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Protocol
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticle
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19ConfigurationParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticle
 
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
@@ -46,60 +47,12 @@ from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import NEWLINE
 from mi.instrument.seabird.driver import TIMEOUT
 
-
 WAKEUP_TIMEOUT = 60
-
-class Parameter(DriverParameter):
-    """
-    Device specific parameters for SBE19.
-    """
-    DATE_TIME = "DateTime"
-    PTYPE = "PType"
-    VOLT0 = "Volt0"
-    VOLT1 = "Volt1"
-    VOLT2 = "Volt2"
-    VOLT3 = "Volt3"
-    VOLT4 = "Volt4"
-    VOLT5 = "Volt5"
-    SBE38 = "SBE38"
-    WETLABS = "WetLabs"
-    GTD = "GTD"
-    DUAL_GTD = "DualGTD"
-    SBE63 = "SBE63"
-    OPTODE = "OPTODE"
-    OUTPUT_FORMAT = "OutputFormat"
-    NUM_AVG_SAMPLES = "Navg"
-    MIN_COND_FREQ = "MinCondFreq"
-    PUMP_DELAY = "PumpDelay"
-    AUTO_RUN = "AutoRun"
-    IGNORE_SWITCH = "IgnoreSwitch"
-    LOGGING = "logging"
-    CLOCK_INTERVAL = "ClockInterval"
-    STATUS_INTERVAL = "StatusInterval"
-
-class ConfirmedParameter(BaseEnum):
-    """
-    List of all parameters that require confirmation
-    i.e. set sent twice to confirm.
-    """
-    PTYPE    =  Parameter.PTYPE
-    SBE38    =  Parameter.SBE38
-    GTD      =  Parameter.GTD
-    DUAL_GTD =  Parameter.DUAL_GTD
-    SBE63    =  Parameter.SBE63
-    OPTODE   =  Parameter.OPTODE
-    WETLABS  =  Parameter.WETLABS
-    VOLT0    =  Parameter.VOLT0
-    VOLT1    =  Parameter.VOLT1
-    VOLT2    =  Parameter.VOLT2
-    VOLT3    =  Parameter.VOLT3
-    VOLT4    =  Parameter.VOLT4
-    VOLT5    =  Parameter.VOLT5
-
 
 ###############################################################################
 # Particles
 ###############################################################################
+
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
@@ -118,12 +71,22 @@ class SBE16NODataParticle(SBE19DataParticle):
     """
     _data_particle_type = DataParticleType.CTD_PARSED
 
+
+class SBE16NOConfigurationParticle(SBE19ConfigurationParticle):
+    """
+    This data particle is identical to the corresponding one for CTDPF-Optode, except for the stream
+    name, which we specify here
+    """
+    _data_particle_type = DataParticleType.DEVICE_CONFIGURATION
+
+
 class SBE16NOStatusParticle(SBE19StatusParticle):
     """
     This data particle is identical to the corresponding one for CTDPF-Optode, except for the stream
     name, which we specify here
     """
     _data_particle_type = DataParticleType.DEVICE_STATUS
+
 
 class SBE16NOOptodeSettingsParticle(OptodeSettingsParticle):
     """
@@ -152,7 +115,6 @@ class SBE16NOHardwareParticleKey(BaseEnum):
 
 
 class SBE16NOHardwareParticle(SeaBirdParticle):
-
     _data_particle_type = DataParticleType.DEVICE_HARDWARE
 
     @staticmethod
@@ -189,6 +151,7 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
         """
         return re.compile(SBE16NOHardwareParticle.resp_regex(), re.DOTALL)
 
+    # noinspection PyPep8Naming
     def _build_parsed_values(self):
         """
         @throws SampleException If there is a problem with sample creation
@@ -221,7 +184,7 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" %root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
 
         firmware_version = self._extract_xml_element_value(root, FIRMWARE_VERSION)
@@ -300,11 +263,10 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: volt1_serial_number},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.VOLT1_TYPE,
                    DataParticleKey.VALUE: volt1_type},
-                  ]
+        ]
 
-        log.debug("Hardware Dictionary: %s" % result)
         return result
-    
+
 
 class SBE16NOCalibrationParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
@@ -357,6 +319,7 @@ class SBE16NOCalibrationParticleKey(BaseEnum):
 
     EXT_FREQ = "ext_freq_sf"
 
+
 class SBE16NOCalibrationParticle(SeaBirdParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -390,7 +353,7 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                             SBE16NOCalibrationParticleKey.TA2: "TA2",
                             SBE16NOCalibrationParticleKey.TA3: "TA3",
                             SBE16NOCalibrationParticleKey.TOFFSET: "TOFFSET",
-                           
+
                             SBE16NOCalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER: "SerialNum",
                             SBE16NOCalibrationParticleKey.COND_CAL_DATE: "CalDate",
                             SBE16NOCalibrationParticleKey.CONDG: "G",
@@ -400,7 +363,7 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                             SBE16NOCalibrationParticleKey.CPCOR: "CPCOR",
                             SBE16NOCalibrationParticleKey.CTCOR: "CTCOR",
                             SBE16NOCalibrationParticleKey.CSLOPE: "CSLOPE",
-        
+
                             SBE16NOCalibrationParticleKey.PRES_SERIAL_NUMBER: "SerialNum",
                             SBE16NOCalibrationParticleKey.PRES_CAL_DATE: "CalDate",
                             SBE16NOCalibrationParticleKey.PC1: "PC1",
@@ -415,7 +378,7 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                             SBE16NOCalibrationParticleKey.PSLOPE: "PSLOPE",
                             SBE16NOCalibrationParticleKey.POFFSET: "POFFSET",
                             SBE16NOCalibrationParticleKey.PRES_RANGE: "PRANGE",
-        
+
                             SBE16NOCalibrationParticleKey.EXT_VOLT0_OFFSET: "OFFSET",
                             SBE16NOCalibrationParticleKey.EXT_VOLT0_SLOPE: "SLOPE",
                             SBE16NOCalibrationParticleKey.EXT_VOLT1_OFFSET: "OFFSET",
@@ -428,14 +391,16 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                             SBE16NOCalibrationParticleKey.EXT_VOLT4_SLOPE: "SLOPE",
                             SBE16NOCalibrationParticleKey.EXT_VOLT5_OFFSET: "OFFSET",
                             SBE16NOCalibrationParticleKey.EXT_VOLT5_SLOPE: "SLOPE",
-         
+
                             SBE16NOCalibrationParticleKey.EXT_FREQ: "EXTFREQSF",
-                           }
+        }
         return map_param_to_tag[parameter_name]
 
-    def _float_to_int(self, str):
-        return int(float(str))
+    @staticmethod
+    def _float_to_int(fl_str):
+        return int(float(fl_str))
 
+    # noinspection PyPep8Naming
     def _build_parsed_values(self):
         """
         Parse the output of the getCC command
@@ -464,25 +429,27 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
 
         dom = parseString(self.raw_data)
         root = dom.documentElement
-        log.debug("root.tagName = %s" %root.tagName)
+        log.debug("root.tagName = %s", root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
         result = [{DataParticleKey.VALUE_ID: SBE16NOCalibrationParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
-                 ]        
-        
+        ]
+
         calibration_elements = self._extract_xml_elements(root, CALIBRATION)
         for calibration in calibration_elements:
-            id = calibration.getAttribute(ID)
-            if id == TEMPERATURE_SENSOR_ID:
-                result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER, int))
+            id_attr = calibration.getAttribute(ID)
+            if id_attr == TEMPERATURE_SENSOR_ID:
+                result.append(
+                    self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER, int))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TEMP_CAL_DATE, str))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TA0))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TA1))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TA2))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TA3))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.TOFFSET))
-            elif id == CONDUCTIVITY_SENSOR_ID:
-                result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER, int))
+            elif id_attr == CONDUCTIVITY_SENSOR_ID:
+                result.append(
+                    self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER, int))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.COND_CAL_DATE, str))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.CONDG))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.CONDH))
@@ -491,8 +458,9 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.CPCOR))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.CTCOR))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.CSLOPE))
-            elif id == PRESSURE_SENSOR_ID:
-                result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_SERIAL_NUMBER, int))
+            elif id_attr == PRESSURE_SENSOR_ID:
+                result.append(
+                    self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_SERIAL_NUMBER, int))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_CAL_DATE, str))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PC1))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PC2))
@@ -505,163 +473,28 @@ class SBE16NOCalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PT4))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PSLOPE))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.POFFSET))
-                result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_RANGE, self._float_to_int))
-            elif id == VOLT0:
+                result.append(
+                    self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.PRES_RANGE, self._float_to_int))
+            elif id_attr == VOLT0:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT0_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT0_SLOPE))
-            elif id == VOLT1:
+            elif id_attr == VOLT1:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT1_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT1_SLOPE))
-            elif id == VOLT2:
+            elif id_attr == VOLT2:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT2_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT2_SLOPE))
-            elif id == VOLT3:
+            elif id_attr == VOLT3:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT3_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT3_SLOPE))
-            elif id == VOLT4:
+            elif id_attr == VOLT4:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT4_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT4_SLOPE))
-            elif id == VOLT5:
+            elif id_attr == VOLT5:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT5_OFFSET))
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_VOLT5_SLOPE))
-            elif id == EXTERNAL_FREQUENCY_CHANNEL:
+            elif id_attr == EXTERNAL_FREQUENCY_CHANNEL:
                 result.append(self._get_xml_parameter(calibration, SBE16NOCalibrationParticleKey.EXT_FREQ))
-
-        return result
-
-
-class SBE16NOConfigurationParticleKey(BaseEnum):
-    SERIAL_NUMBER = "serial_number"
-
-    SCANS_TO_AVERAGE = "scans_to_average"
-    MIN_COND_FREQ = "min_cond_freq"
-    PUMP_DELAY = "pump_delay"
-    AUTO_RUN = "auto_run"
-    IGNORE_SWITCH = "ignore_switch"
-
-    BATTERY_TYPE = "battery_type"
-    BATTERY_CUTOFF = "battery_cutoff"
-
-    EXT_VOLT_0 = "ext_volt_0"
-    EXT_VOLT_1 = "ext_volt_1"
-    EXT_VOLT_2 = "ext_volt_2"
-    EXT_VOLT_3 = "ext_volt_3"
-    EXT_VOLT_4 = "ext_volt_4"
-    EXT_VOLT_5 = "ext_volt_5"
-    SBE38 = "sbe38"
-    SBE63 = "sbe63"
-    WETLABS = "wetlabs"
-    OPTODE = "optode"
-    GAS_TENSION_DEVICE = "gas_tension_device"
-
-    ECHO_CHARACTERS = "echo_characters"
-    OUTPUT_EXECUTED_TAG = "output_executed_tag"
-    OUTPUT_FORMAT = "output_format"
-    
-
-class SBE16NOConfigurationParticle(SeaBirdParticle):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-    """
-    _data_particle_type = DataParticleType.DEVICE_CONFIGURATION
-
-    @staticmethod
-    def regex():
-        pattern = r'(<ConfigurationData.*?</ConfigurationData>)' + NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        return re.compile(SBE16NOConfigurationParticle.regex(), re.DOTALL)
-
-    @staticmethod
-    def resp_regex():
-        pattern = r'(<ConfigurationData.*?</ConfigurationData>)'
-        return pattern
-
-    @staticmethod
-    def resp_regex_compiled():
-        return re.compile(SBE16NOConfigurationParticle.resp_regex(), re.DOTALL)
-
-    def _map_param_to_xml_tag(self, parameter_name):
-        map_param_to_tag = {SBE16NOConfigurationParticleKey.SCANS_TO_AVERAGE: "ScansToAverage",
-                            SBE16NOConfigurationParticleKey.MIN_COND_FREQ: "MinimumCondFreq",
-                            SBE16NOConfigurationParticleKey.PUMP_DELAY: "PumpDelay",
-                            SBE16NOConfigurationParticleKey.AUTO_RUN: "AutoRun",
-                            SBE16NOConfigurationParticleKey.IGNORE_SWITCH: "IgnoreSwitch",
-
-                            SBE16NOConfigurationParticleKey.BATTERY_TYPE: "Type",
-                            SBE16NOConfigurationParticleKey.BATTERY_CUTOFF: "CutOff",
-
-                            SBE16NOConfigurationParticleKey.EXT_VOLT_0: "ExtVolt0",
-                            SBE16NOConfigurationParticleKey.EXT_VOLT_1: "ExtVolt1",
-                            SBE16NOConfigurationParticleKey.EXT_VOLT_2: "ExtVolt2",
-                            SBE16NOConfigurationParticleKey.EXT_VOLT_3: "ExtVolt3",
-                            SBE16NOConfigurationParticleKey.EXT_VOLT_4: "ExtVolt4",
-                            SBE16NOConfigurationParticleKey.EXT_VOLT_5: "ExtVolt5",
-                            SBE16NOConfigurationParticleKey.SBE38: "SBE38",
-                            SBE16NOConfigurationParticleKey.SBE63: "SBE63",
-                            SBE16NOConfigurationParticleKey.WETLABS: "WETLABS",
-                            SBE16NOConfigurationParticleKey.OPTODE: "OPTODE",
-                            SBE16NOConfigurationParticleKey.GAS_TENSION_DEVICE: "GTD",
-
-                            SBE16NOConfigurationParticleKey.ECHO_CHARACTERS: "EchoCharacters",
-                            SBE16NOConfigurationParticleKey.OUTPUT_EXECUTED_TAG: "OutputExecutedTag",
-                            SBE16NOConfigurationParticleKey.OUTPUT_FORMAT: "OutputFormat",
-                           }
-        return map_param_to_tag[parameter_name]
-
-    def _build_parsed_values(self):
-        """
-        Parse the output of the getCD command
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        SERIAL_NUMBER = "SerialNumber"
-        PROFILE_MODE = "ProfileMode"
-        BATTERY = "Battery"
-        DATA_CHANNELS = "DataChannels"
-
-        # check to make sure there is a correct match before continuing
-        match = SBE16NOConfigurationParticle.regex_compiled().match(self.raw_data)
-        if not match:
-            raise SampleException("No regex match of parsed configuration data: [%s]" %
-                                  self.raw_data)
-
-        dom = parseString(self.raw_data)
-        root = dom.documentElement
-        log.debug("root.tagName = %s" %root.tagName)
-        serial_number = int(root.getAttribute(SERIAL_NUMBER))
-        result = [{DataParticleKey.VALUE_ID: SBE16NOConfigurationParticleKey.SERIAL_NUMBER,
-                   DataParticleKey.VALUE: serial_number}]
-        result.append(self._get_xml_parameter(root, SBE16NOConfigurationParticleKey.ECHO_CHARACTERS, self.yesno2bool))
-        result.append(self._get_xml_parameter(root, SBE16NOConfigurationParticleKey.OUTPUT_EXECUTED_TAG, self.yesno2bool))
-        result.append(self._get_xml_parameter(root, SBE16NOConfigurationParticleKey.OUTPUT_FORMAT, str))
-
-        element = self._extract_xml_elements(root, PROFILE_MODE)[0]
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.SCANS_TO_AVERAGE, int))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.MIN_COND_FREQ, int))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.PUMP_DELAY, int))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.AUTO_RUN, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.IGNORE_SWITCH, self.yesno2bool))
-
-        element = self._extract_xml_elements(root, BATTERY)[0]
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.BATTERY_TYPE, str))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.BATTERY_CUTOFF))
-
-        element = self._extract_xml_elements(root, DATA_CHANNELS)[0]
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.EXT_VOLT_0, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.EXT_VOLT_1, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.EXT_VOLT_2, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.EXT_VOLT_3, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.EXT_VOLT_4, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.EXT_VOLT_5, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.SBE38, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.WETLABS, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.OPTODE, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.SBE63, self.yesno2bool))
-        result.append(self._get_xml_parameter(element, SBE16NOConfigurationParticleKey.GAS_TENSION_DEVICE, self.yesno2bool))
 
         return result
 
@@ -676,6 +509,7 @@ class InstrumentDriver(SeaBirdInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
+
     def __init__(self, evt_callback):
         """
         InstrumentDriver constructor.
@@ -688,6 +522,7 @@ class InstrumentDriver(SeaBirdInstrumentDriver):
     # Superclass overrides for resource query.
     ########################################################################
 
+    # noinspection PyMethodMayBeStatic
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -695,11 +530,12 @@ class InstrumentDriver(SeaBirdInstrumentDriver):
         return Parameter.list()
 
 
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-    ########################################################################
+        ########################################################################
         # Protocol builder.
+        ########################################################################
+        ########################################################################
+        # Protocol builder.
+
     ########################################################################
 
     def _build_protocol(self):
@@ -718,7 +554,7 @@ class SBE16NOProtocol(SBE19Protocol):
     Instrument protocol class for SBE16 NO driver.
     Subclasses SBE16Protocol
     """
-        
+
     def __init__(self, prompts, newline, driver_event):
         """
         SBE16Protocol constructor.
@@ -728,7 +564,7 @@ class SBE16NOProtocol(SBE19Protocol):
         """
         # Construct protocol superclass.
         SBE19Protocol.__init__(self, prompts, newline, driver_event)
-        
+
     @staticmethod
     def sieve_function(raw_data):
         """ The method that splits samples
@@ -755,13 +591,18 @@ class SBE16NOProtocol(SBE19Protocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
-        if not (self._extract_sample(SBE16NOHardwareParticle, SBE16NOHardwareParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE16NODataParticle, SBE16NODataParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE16NOCalibrationParticle, SBE16NOCalibrationParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE16NOConfigurationParticle, SBE16NOConfigurationParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE16NOStatusParticle, SBE16NOStatusParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE16NOOptodeSettingsParticle, SBE16NOOptodeSettingsParticle.regex_compiled(), chunk, timestamp)):
-            raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
+        if not (self._extract_sample(SBE16NOHardwareParticle, SBE16NOHardwareParticle.regex_compiled(), chunk,
+                                     timestamp) or
+                    self._extract_sample(SBE16NODataParticle, SBE16NODataParticle.regex_compiled(), chunk, timestamp) or
+                    self._extract_sample(SBE16NOCalibrationParticle, SBE16NOCalibrationParticle.regex_compiled(), chunk,
+                                         timestamp) or
+                    self._extract_sample(SBE16NOConfigurationParticle, SBE16NOConfigurationParticle.regex_compiled(),
+                                         chunk, timestamp) or
+                    self._extract_sample(SBE16NOStatusParticle, SBE16NOStatusParticle.regex_compiled(), chunk,
+                                         timestamp) or
+                    self._extract_sample(SBE16NOOptodeSettingsParticle, SBE16NOOptodeSettingsParticle.regex_compiled(),
+                                         chunk, timestamp)):
+            raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
 
     ########################################################################
     # Command handlers.
@@ -772,7 +613,6 @@ class SBE16NOProtocol(SBE19Protocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
 
         result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
                                    timeout=TIMEOUT)
@@ -781,10 +621,10 @@ class SBE16NOProtocol(SBE19Protocol):
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
-                                timeout=TIMEOUT)
+                                    timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE16NOCalibrationParticle.regex_compiled(),
-                                timeout=TIMEOUT)
+                                    timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
         result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
@@ -811,7 +651,7 @@ class SBE16NOProtocol(SBE19Protocol):
         #restart the optode
         self._do_cmd_resp(Command.SEND_OPTODE, start_command, timeout=TIMEOUT)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
 
     def _handler_autosample_acquire_status(self, *args, **kwargs):
@@ -820,14 +660,13 @@ class SBE16NOProtocol(SBE19Protocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
 
         # When in autosample this command requires two wakeups to get to the right prompt
-        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
-        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+                                   timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
                                     timeout=TIMEOUT)
@@ -844,32 +683,8 @@ class SBE16NOProtocol(SBE19Protocol):
         #Reset the event counter right after getEC
         self._do_cmd_no_resp(Command.RESET_EC)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
-    def _build_set_command(self, cmd, param, val):
-        """
-        Build handler for set commands. param=val followed by newline.
-        String val constructed by param dict formatting function.
-        @param param the parameter key to set.
-        @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the parameter is not valid or
-        if the formatting function could not accept the value passed.
-        """
-        try:
-            str_val = self._param_dict.format(param, val)
-
-            set_cmd = '%s=%s' % (param, str_val)
-            set_cmd = set_cmd + NEWLINE
-
-            # Some set commands need to be sent twice to confirm
-            if(param in ConfirmedParameter.list()):
-                set_cmd = set_cmd + set_cmd
-
-        except KeyError:
-            raise InstrumentParameterException('Unknown driver parameter %s' % param)
-
-        return set_cmd
 
     ########################################################################
     # response handlers.
@@ -948,20 +763,19 @@ class SBE16NOProtocol(SBE19Protocol):
 
         self._param_dict.add(Parameter.DATE_TIME,
                              r'SBE 19plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)',
-                             lambda match : string.upper(match.group(3)),
+                             lambda match: string.upper(match.group(3)),
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             startup_param = False,
-                             direct_access = False,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
-                             lambda match : False if (match.group(1)) else True,
+                             lambda match: False if (match.group(1)) else True,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Is Logging",
-                             #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PTYPE,
                              r'pressure sensor = ([\w\s]+),',
@@ -969,129 +783,129 @@ class SBE16NOProtocol(SBE19Protocol):
                              str,
                              type=ParameterDictType.INT,
                              display_name="Pressure Sensor Type",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = 3,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=3,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT0,
                              r'Ext Volt 0 = ([\w]+)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Volt 0",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = True,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT1,
                              r'Ext Volt 1 = ([\w]+)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Volt 1",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = True,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT2,
                              r'Ext Volt 2 = ([\w]+)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Volt 2",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT3,
                              r'Ext Volt 3 = ([\w]+)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Volt 3",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT4,
                              r'Ext Volt 4 = ([\w]+)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Volt 4",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT5,
                              r'Ext Volt 5 = ([\w]+)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Volt 5",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE38,
                              r'SBE 38 = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="SBE38 Attached",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.WETLABS,
                              r'WETLABS = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Enable Wetlabs sensor",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.GTD,
                              r'Gas Tension Device = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="GTD Attached",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.DUAL_GTD,
                              r'Gas Tension Device = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Dual GTD Attached",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE63,
                              r'SBE63 = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="SBE63 Attached",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.OPTODE,
                              r'OPTODE = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Optode Attached",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = True,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
                              r'output format = (raw HEX)',
@@ -1099,62 +913,62 @@ class SBE16NOProtocol(SBE19Protocol):
                              int,
                              type=ParameterDictType.INT,
                              display_name="Output Format",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = 0,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.NUM_AVG_SAMPLES,
                              r'number of scans to average = ([\d]+)',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              display_name="Scans To Average",
-                             startup_param = True,
-                             direct_access = False,
-                             default_value = 4,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=4,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MIN_COND_FREQ,
                              r'minimum cond freq = ([\d]+)',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              display_name="Minimum Conductivity Frequency",
-                             startup_param = True,
-                             direct_access = False,
-                             default_value = 500,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=500,
                              units=ParameterUnit.HERTZ,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PUMP_DELAY,
                              r'pump delay = ([\d]+) sec',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              display_name="Pump Delay",
-                             startup_param = True,
-                             direct_access = False,
-                             default_value = 60,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=60,
                              units=ParameterUnit.SECONDS,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Auto Run",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.IGNORE_SWITCH,
                              r'ignore magnetic switch = (yes|no)',
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Ignore Switch",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = True,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
@@ -1166,10 +980,10 @@ class SBE16NOProtocol(SBE19Protocol):
                              None,
                              type=ParameterDictType.STRING,
                              display_name="Clock Interval",
-                             startup_param = True,
-                             direct_access = False,
-                             default_value = "00:00:00",
-                             init_value= "00:00:00",
+                             startup_param=True,
+                             direct_access=False,
+                             default_value="00:00:00",
+                             init_value="00:00:00",
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.STATUS_INTERVAL,
@@ -1178,9 +992,9 @@ class SBE16NOProtocol(SBE19Protocol):
                              None,
                              type=ParameterDictType.STRING,
                              display_name="Status Interval",
-                             startup_param = True,
-                             direct_access = False,
-                             default_value = "00:00:00",
-                             init_value= "00:00:00",
+                             startup_param=True,
+                             direct_access=False,
+                             default_value="00:00:00",
+                             init_value="00:00:00",
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
