@@ -54,11 +54,23 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'flort_kn__stc_imodem',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataTypeKey.FLORT_KN_INSTRUMENT:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_FLORT_KN_LIVE,
+                DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+            DataTypeKey.FLORT_KN_RECOVERED:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_FLORT_KN_RECOVERED,
+                DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataTypeKey.FLORT_KN_INSTRUMENT: {},
+            DataTypeKey.FLORT_KN_RECOVERED: {}
+        }
     }
 )
 
