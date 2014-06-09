@@ -129,7 +129,7 @@ class CtdmoParserDataParticle(DataParticle):
 class CtdmoOffsetDataParticleKey(BaseEnum):
     CONTROLLER_TIMESTAMP = "sio_controller_timestamp"
     INDUCTIVE_ID = "inductive_id"
-    CTD_OFFSET = "ctd_offset"
+    CTD_OFFSET = "ctd_time_offset"
 
 class CtdmoOffsetDataParticle(DataParticle):
     """

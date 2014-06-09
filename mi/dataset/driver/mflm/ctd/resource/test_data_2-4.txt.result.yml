@@ -6,6 +6,8 @@ header:
 
 data:
   - _index: 1
+    particle_object: CtdmoParserDataParticle
+    particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T10:00:01Z'
     sio_controller_timestamp: 1374667638
     inductive_id: 55
@@ -24,6 +26,8 @@ data:
     pressure: 4153
     ctd_time: 427982401
   - _index: 3
+    particle_object: CtdmoParserDataParticle
+    particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T14:00:01'
     sio_controller_timestamp: 1374682038
     inductive_id: 55
@@ -57,4 +61,4 @@ data:
     internal_timestamp: '2013-07-24T22:07:18'
     sio_controller_timestamp: 1374703638
     inductive_id: 55
-    ctd_offset: 0
+    ctd_time_offset: 0

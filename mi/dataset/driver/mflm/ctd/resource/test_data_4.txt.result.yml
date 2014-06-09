@@ -41,4 +41,4 @@ data:
     internal_timestamp: '2013-07-24T22:07:18'
     sio_controller_timestamp: 1374703638
     inductive_id: 55
-    ctd_offset: 0
+    ctd_time_offset: 0
