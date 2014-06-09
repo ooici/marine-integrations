@@ -845,14 +845,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         # Send break twice, as sometimes the driver ack's the first one then 
         # forgets to actually break.
-        self._send_break(duration=500)
+        self._wakeup()
+        self._send_break(duration=3000)
         time.sleep(2)
-        self._send_break(duration=500)
-        time.sleep(2)
+
         # Prompt device until command prompt is seen.
         timeout = 3
         self._wakeup_until(timeout, TeledynePrompt.COMMAND)
-
         # set logging to false, as we just got a prompt after a break
 
         if self._is_logging(timeout):
