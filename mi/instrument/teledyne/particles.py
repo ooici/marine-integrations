@@ -28,21 +28,16 @@ from mi.core.exceptions import SampleException
 #
 # Particle Regex's'
 #
-
 ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(..)'  # .*
 ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX, re.DOTALL)
-
 ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*?)\>'
 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_REGEX, re.DOTALL)
-
 ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>'
 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
-
-ADCP_ANCILLARY_SYSTEM_DATA_REGEX = r'(Ambient  Temperature.*?)\>'
-ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER = re.compile(ADCP_ANCILLARY_SYSTEM_DATA_REGEX, re.DOTALL)
-
-ADCP_TRANSMIT_PATH_REGEX = r'(IXMT    =.*?)\>'
-ADCP_TRANSMIT_PATH_REGEX_MATCHER = re.compile(ADCP_TRANSMIT_PATH_REGEX, re.DOTALL)
+ADCP_ANCILLARY_SYSTEM_DATA_REGEX = r'(Ambient  Temperature.*\n.*\n.*)\n>'
+ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER = re.compile(ADCP_ANCILLARY_SYSTEM_DATA_REGEX)
+ADCP_TRANSMIT_PATH_REGEX = r'(IXMT.*\n.*\n.*\n.*)\n>'
+ADCP_TRANSMIT_PATH_REGEX_MATCHER = re.compile(ADCP_TRANSMIT_PATH_REGEX)
 
 
 ###############################################################################
@@ -57,6 +52,8 @@ class DataParticleType(BaseEnum):
     ADCP_PD0_PARSED_EARTH = 'adcp_pd0_earth_parsed'
     ADCP_SYSTEM_CONFIGURATION = 'adcp_system_configuration'
     ADCP_COMPASS_CALIBRATION = 'adcp_compass_calibration'
+    VADCP_4BEAM_SYSTEM_CONFIGURATION = "vadcp_4beam_system_configuration"
+    VADCP_5THBEAM_SYSTEM_CONFIGURATION = "vadcp_5thbeam_system_configuration"
 
     ADCP_ANCILLARY_SYSTEM_DATA = "adcp_ancillary_system_data"
     ADCP_TRANSMIT_PATH = "adcp_transmit_path"
@@ -70,6 +67,9 @@ class DataParticleType(BaseEnum):
 
 
 class ADCP_PD0_PARSED_KEY(BaseEnum):
+    """
+    ADCP PD0 pased keys
+    """
     HEADER_ID = "header_id"
     DATA_SOURCE_ID = "data_source_id"
     NUM_BYTES = "num_bytes"
@@ -211,8 +211,11 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     CHECKSUM = "checksum"
 
 
+#The data particle type will be overwritten based on coordinate (Earth/Beam)
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
-    #The data particle type will be overwritten based on coordinate (Earth/Beam)
+    """
+    ADCP PD0 data particle
+    """
     _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse ADCP_PD0_PARSED_DataParticle'
     _slave = False
 
@@ -778,6 +781,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             raise SampleException("1 coord_transform_type not coded for." + str(self.coord_transform_type))
 
 
+# ADCP System Configuration keys will be varied in VADCP
 class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     # https://confluence.oceanobservatories.org/display/instruments/ADCP+Driver
     # from PS0
@@ -806,8 +810,14 @@ class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     BOARD_SERIAL_NUMBERS = "board_serial_numbers"
 
 
+# ADCP System Configuration keys will be varied in VADCP
+# Some of the output lines will not be available in VADCP as it support only
+# 4 beams and 5th beam
 class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_SYSTEM_CONFIGURATION
+    _slave = False
+    _master = False
+    _offset = 0
 
     RE00 = re.compile(r'Instrument S/N: +(\d+)')
     RE01 = re.compile(r'       Frequency: +(\d+) HZ')
@@ -860,43 +870,50 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION] = match.group(1)
         match = self.RE07.match(lines[7])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS] = match.group(1)
-        match = self.RE09.match(lines[9])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = float(match.group(1))
-        match = self.RE10.match(lines[10])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = float(match.group(1))
-        match = self.RE11.match(lines[11])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = float(match.group(1))
-        match = self.RE12.match(lines[12])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = float(match.group(1))
-        match = self.RE14.match(lines[14])
+
+        # Only availble for ADCP and VADCP master
+        if not self._slave:
+            match = self.RE09.match(lines[9-self._offset])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = float(match.group(1))
+            match = self.RE10.match(lines[10-self._offset])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = float(match.group(1))
+            match = self.RE11.match(lines[11-self._offset])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = float(match.group(1))
+            match = self.RE12.match(lines[12-self._offset])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = float(match.group(1))
+
+        match = self.RE14.match(lines[14-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = float(match.group(1))
-        match = self.RE16.match(lines[16])
+        match = self.RE16.match(lines[16-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
-        match = self.RE17.match(lines[17])
+        match = self.RE17.match(lines[17-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL] = match.group(2)
-        match = self.RE18.match(lines[18])
+        match = self.RE18.match(lines[18-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE] = match.group(2)
-        match = self.RE19.match(lines[19])
+        match = self.RE19.match(lines[19-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE] = match.group(2)
-        match = self.RE20.match(lines[20])
+        match = self.RE20.match(lines[20-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
+        match = self.RE23.match(lines[23-self._offset])
 
-        match = self.RE23.match(lines[23])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1)) + "\n"
-        match = self.RE24.match(lines[24])
+        match = self.RE24.match(lines[24-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE25.match(lines[25])
+        match = self.RE25.match(lines[25-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE26.match(lines[26])
+        match = self.RE26.match(lines[26-self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE27.match(lines[27])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE28.match(lines[28])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1))
+
+        # Only available for ADCP
+        if not self._slave and not self._master:
+            match = self.RE27.match(lines[27-self._offset])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
+            match = self.RE28.match(lines[28-self._offset])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1))
 
         result = []
         for (key, value) in matches.iteritems():
@@ -905,8 +922,11 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         return result
 
 
+# AC command
 class ADCP_COMPASS_CALIBRATION_KEY(BaseEnum):
-    # from AC command / CALIBRATION_RAW_DATA
+    """
+    Keys for ADCP Compass Calibration
+    """
     FLUXGATE_CALIBRATION_TIMESTAMP = "fluxgate_calibration_timestamp"
     S_INVERSE_BX = "s_inverse_bx"
     S_INVERSE_BY = "s_inverse_by"
@@ -923,6 +943,9 @@ class ADCP_COMPASS_CALIBRATION_KEY(BaseEnum):
 
 
 class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
+    """
+    ADCP Compass Calibration data particle
+    """
     _data_particle_type = DataParticleType.ADCP_COMPASS_CALIBRATION
 
     RE01 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
@@ -1007,13 +1030,21 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
         return result
 
 
+# for keys for PT2 command
 class ADCP_ANCILLARY_SYSTEM_DATA_KEY(BaseEnum):
+    """
+    Keys for PT2 command
+    """
     ADCP_AMBIENT_CURRENT = "adcp_ambient_temp"
     ADCP_ATTITUDE_TEMP = "adcp_attitude_temp"
     ADCP_INTERNAL_MOISTURE = "adcp_internal_moisture"
 
 
+# PT2 command data particle
 class ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(DataParticle):
+    """
+    Data particle for PT2 command
+    """
     _data_particle_type = DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA
 
     RE01 = re.compile(r'Ambient  Temperature = +([\+\-0-9.]+) Degrees C')
@@ -1040,6 +1071,7 @@ class ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(DataParticle):
         return result
 
 
+# keys for PT4 command
 class ADCP_TRANSMIT_PATH_KEY(BaseEnum):
     ADCP_TRANSIT_CURRENT = "adcp_transmit_current"
     ADCP_TRANSIT_VOLTAGE = "adcp_transmit_voltage"
@@ -1047,6 +1079,7 @@ class ADCP_TRANSMIT_PATH_KEY(BaseEnum):
     ADCP_TRANSIT_TEST_RESULT = "adcp_transmit_test_results"
 
 
+# Data particle for PT4 command
 class ADCP_TRANSMIT_PATH_PARTICLE(DataParticle):
     _data_particle_type = DataParticleType.ADCP_TRANSMIT_PATH
 
