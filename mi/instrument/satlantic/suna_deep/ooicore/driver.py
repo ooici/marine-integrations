@@ -41,6 +41,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentException
 
+from mi.core.time import get_timestamp_delayed
 
 # newline.
 NEWLINE = '\r\n'
@@ -247,7 +248,8 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    RESET = DriverEvent.RESET
+    #RESET = DriverEvent.RESET
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
     START_POLL = "DRIVER_EVENT_START_POLL"
     STOP_POLL = "DRIVER_EVENT_STOP_POLL"
@@ -283,6 +285,8 @@ class Capability(BaseEnum):
     # Parameter Accessors/Mutators
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
+
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
 
 
 class Parameter(DriverParameter):
@@ -400,6 +404,8 @@ class InstrumentCommand(BaseEnum):
 class InstrumentCommandArgs(BaseEnum):
     POLLED = 'Polled'
     CONTINUOUS = 'Continuous'
+    ON = 'On'
+    OFF = 'Off'
 
 
 class LastSampleState(BaseEnum):
@@ -848,11 +854,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add event handlers for protocol state machine.
         # UNKNOWN State
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_generic_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
         # COMMAND State
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
@@ -861,24 +869,26 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
 
         # DIRECT ACCESS State
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # POLL State
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_poll_enter)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_generic_enter)
+        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.RESET, self._handler_poll_reset)
         self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
 
         # AUTOSAMPLE State
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.RESET, self._handler_autosample_reset)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_generic_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         # State state machine in UNKNOWN state.
@@ -896,15 +906,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.SELFTEST, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.REBOOT, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.SET_CLOCK, self._build_clock_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.GET, self._parse_get_response)
-        self._add_response_handler(InstrumentCommand.SET, self._parse_set_response)
+        self._add_response_handler(InstrumentCommand.GET, self._parse_generic_response)
+        self._add_response_handler(InstrumentCommand.SET, self._parse_generic_response)
         self._add_response_handler(InstrumentCommand.CMD_LINE, self._parse_cmd_line_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_cmd_dict()
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
@@ -945,16 +957,30 @@ class Protocol(CommandResponseInstrumentProtocol):
             sample = json.loads(parsed_sample)
         return sample
 
+    def _build_cmd_dict(self):
+        """
+        Populate the command dictionary with commands
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire a single sample')
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='Run all status commands')
+        self._cmd_dict.add(Capability.MEASURE_N, display_name='Take N light samples following one dark sample')
+        self._cmd_dict.add(Capability.MEASURE_0, display_name='Take one dark sample ')
+        self._cmd_dict.add(Capability.TIMED_N, display_name='Take light data frames for N seconds')
+        self._cmd_dict.add(Capability.TEST, display_name='Run test commands')
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='Start instrument sampling')
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='Stop instrument sampling')
+        self._cmd_dict.add(Capability.START_POLL, display_name='Begin continuous data acquisition')
+        self._cmd_dict.add(Capability.STOP_POLL, display_name='Stop continuous data acquisition')
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='Synchronize the clock')
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-        log.debug("_param_dict is %s: %s", self._param_dict, self._param_dict.get_all())
 
         # TODO!!! WITHOUT STARTUP CONFIG NO REGEX TO MATCH VAL IN CONFIG POSSIBLE (Hence arg 2 is r'') '''
-
         # DATA ACQUISITION
         # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.OPERATION_MODE,
@@ -1056,7 +1082,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value="ON",
+                             default_value=InstrumentCommandArgs.ON,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="Skip Sleep at Start",
                              description='Skip putting instrument to sleep at start: On or Off')
@@ -1187,7 +1213,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value="Off",
+                             default_value=InstrumentCommandArgs.OFF,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Temperature Compensation",
                              description="Temperature compensation: On or Off")
@@ -1266,7 +1292,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value="On",
+                             default_value=InstrumentCommandArgs.ON,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Salinity Fitting")
 
@@ -1277,7 +1303,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value="Off",
+                             default_value=InstrumentCommandArgs.OFF,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Bromide Tracing")
 
@@ -1299,7 +1325,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value="On",
+                             default_value=InstrumentCommandArgs.ON,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Integration Time Adjustment")
 
@@ -1393,17 +1419,20 @@ class Protocol(CommandResponseInstrumentProtocol):
     #             self._connection.send(char)
     #             time.sleep(write_delay)
 
+    def _handler_generic_exit(self, *args, **kwargs):
+        """
+        Generic exit handler, do nothing
+        """
+
+    def _handler_generic_enter(self, *args, **kwargs):
+        """
+        Generic enter handler, raise STATE CHANGE
+        """
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
-    def _handler_unknown_enter(self):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_discover(self):
         """
@@ -1430,14 +1459,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_enter(self):
         """
         Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to initialize parameters and send a config change event.
         self._init_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_acquire_sample(self):
@@ -1448,7 +1471,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        #self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Polled")
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
         self._send_dollar()
@@ -1613,35 +1635,38 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit the command state
         """
-
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
         self._do_cmd_no_resp(InstrumentCommand.SLEEP)
 
         return ProtocolState.UNKNOWN, (None, None)
 
+    def _handler_command_clock_sync(self, *args, **kwargs):
+        """
+        Sync clock close to a second edge
+        set clock YYYY/MM/DD hh:mm:ss
+        """
+        str_time = get_timestamp_delayed("%Y/%m/%d %H:%M:%s")
+        log.debug('syncing clock to: %s', str_time)
+
+        #TODO - WHAT IS THE RESPONSE FROM THE INSTRUMENT???
+        self._do_cmd_no_resp(InstrumentCommand.SET_CLOCK, str_time)
+
+        return None, (None, None)
+
     ########################################################################
     # Direct access handlers.
     ########################################################################
-
     def _handler_direct_access_enter(self):
         """
         Enter direct access state.
         """
-        #get the DA params and store their values for future use in restoring the state after leaving DA
-        da_params = self.get_direct_access_params()
-        self.da_param_restore = {}
-        for param in da_params:
-            self.da_param_restore[param] = self._param_dict.get(param)
 
-        log.debug(' SAVED da_param_restore %r', self.da_param_restore)
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        Send commands from operator directly to the instrument
         """
         next_state = None
         result = None
@@ -1663,25 +1688,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.COMMAND
 
         #restore DA params
-        log.debug("da_param_restore = %s,", self.da_param_restore)
-        self._set_params(self.da_param_restore, startup=True)
+        self._init_params()
 
         return next_state, (next_agent_state, result)
 
     ########################################################################
     # Poll handlers.
     ########################################################################
-
-    def _handler_poll_enter(self):
-        """
-        Enter poll state
-        """
-        next_state = None
-        result = None
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return next_state, result
-
     def _handler_poll_acquire_sample(self):
         """
         Get a sample from the SUNA
@@ -1730,20 +1743,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-    def _handler_poll_reset(self):
-        """
-        Reset the device
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)  # go to cmd line
-        self._do_cmd_no_resp(InstrumentCommand.REBOOT, timeout=100)  # reboot the device
-
-        return next_state, (next_agent_state, result)
-
     def _handler_poll_stop_poll(self):
         """
         Exit the poll state
@@ -1764,33 +1763,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Autosample handlers.
     ########################################################################
-
-    def _handler_autosample_enter(self):
-        """
-        Enter autosample state
-        """
-        next_state = None
-        result = None
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return next_state, result
-
-    def _handler_autosample_reset(self):
-        """
-        reset the device
-        """
-        next_state = ProtocolState.POLL
-        next_agent_state = ResourceAgentState.COMMAND
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
-        self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)  # go to cmd line
-        self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)  # DONT RETURN TO AUTOSAMPLING
-        self._do_cmd_no_resp(InstrumentCommand.REBOOT, timeout=100)  # reboot the device
-
-        return next_state, (next_agent_state, result)
-
     def _handler_autosample_stop_autosample(self):
         """
         Exit the autosample state
@@ -1798,7 +1770,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
-        #time.sleep(15)      # anything done in these 15 seconds can cause undefined behavior in the instrument
         self._wakeup(20)
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
         next_state = ProtocolState.COMMAND
@@ -1809,6 +1780,16 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Build handlers
     ########################################################################
+    def _build_clock_command(self, cmd, value):
+        """
+        Build a command to get the desired argument.
+
+        @param cmd The command being used (Command.CLOCK_SYNC in this case)
+        @param value string containing the date/time to set
+        @retval Returns string ready for sending to instrument
+        """
+        return "%s %s" % (InstrumentCommand.SET_CLOCK, value)
+
     def _build_get_command(self, cmd, param):
         """
         Build a command to get the desired argument.
@@ -1862,29 +1843,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Response handlers
     ########################################################################
-    def _parse_set_response(self, response, prompt):
-        """
-        Determine if a set was successful or not
-
-        @param response What was sent back from the command that was sent
-        """
-        log.debug("SET response %s", response)
+    def _parse_generic_response(self, response, prompt):
         if re.match(Prompt.ERROR, response):
-            raise InstrumentProtocolException("Error occurred for command SET: (%r)" % response)
-
-        return True
-
-    def _parse_get_response(self, response, prompt):
-        """
-        Parse the response from the instrument for a couple of different
-        query responses.
-
-        @param response The response string from the instrument
-        @retval return The numerical value of the parameter in the known units
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if re.match(Prompt.ERROR, response):
-            raise InstrumentProtocolException("Error occurred for command GET: (%r)" % response)
+            raise InstrumentProtocolException("Error occurred for command: (%r)" % response)
 
         return response
 
@@ -1928,12 +1889,11 @@ class Protocol(CommandResponseInstrumentProtocol):
             # retries exhausted, so raise exception
             raise ex
 
-    def _get_from_param_dict(self, param):
-        return self._param_dict.get(param, 0)
-
     def _send_wakeup(self):
-        """Send a wakeup to this instrument...one that wont hurt if it is awake
-        already."""
+        """
+        Send a wakeup to this instrument...one that wont hurt if it is awake
+        already.
+        """
         self._connection.send(NEWLINE)
 
     def _send_dollar(self, timeout=15):

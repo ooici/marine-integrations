@@ -37,7 +37,7 @@ from mi.core.instrument.instrument_driver import DriverConnectionState, Resource
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, \
-    SUNATestDataParticle, TIMEOUT
+    SUNATestDataParticle, TIMEOUT, InstrumentCommandArgs
 from mi.instrument.satlantic.suna_deep.ooicore.driver import DataParticleType
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentCommand
 from mi.instrument.satlantic.suna_deep.ooicore.driver import ProtocolState
@@ -356,7 +356,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -364,7 +364,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -444,25 +444,24 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN:       ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                          'DRIVER_EVENT_ACQUIRE_STATUS',
-                                          'DRIVER_EVENT_START_DIRECT',
-                                          'DRIVER_EVENT_START_POLL',
-                                          'DRIVER_EVENT_START_AUTOSAMPLE',
-                                          'DRIVER_EVENT_GET',
-                                          'DRIVER_EVENT_SET',
-                                          'DRIVER_EVENT_TEST'],
-            ProtocolState.DIRECT_ACCESS: ['EXECUTE_DIRECT',
-                                          'DRIVER_EVENT_STOP_DIRECT'],
-            ProtocolState.POLL:          ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                          'DRIVER_EVENT_MEASURE_0',
-                                          'DRIVER_EVENT_MEASURE_N',
-                                          'DRIVER_EVENT_TIMED_N',
-                                          'DRIVER_EVENT_RESET',
-                                          'DRIVER_EVENT_STOP_POLL'],
-            ProtocolState.AUTOSAMPLE:    ['DRIVER_EVENT_RESET',
-                                          'DRIVER_EVENT_STOP_AUTOSAMPLE']
+            ProtocolState.UNKNOWN:       [ProtocolEvent.DISCOVER],
+            ProtocolState.COMMAND:       [ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.ACQUIRE_STATUS,
+                                          ProtocolEvent.START_DIRECT,
+                                          ProtocolEvent.START_POLL,
+                                          ProtocolEvent.START_AUTOSAMPLE,
+                                          ProtocolEvent.GET,
+                                          ProtocolEvent.SET,
+                                          ProtocolEvent.TEST,
+                                          ProtocolEvent.CLOCK_SYNC],
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.EXECUTE_DIRECT,
+                                          ProtocolEvent.STOP_DIRECT],
+            ProtocolState.POLL:          [ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.MEASURE_N,
+                                          ProtocolEvent.MEASURE_0,
+                                          ProtocolEvent.TIMED_N,
+                                          ProtocolEvent.STOP_POLL],
+            ProtocolState.AUTOSAMPLE:    [ProtocolEvent.STOP_AUTOSAMPLE]
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -487,29 +486,46 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         """
         self.assert_initialize_driver()
 
-        # assert that getting param values works
-        self.assert_get(Parameter.OPERATION_MODE)
-        self.assert_get(Parameter.FIT_WAVELENGTH_HIGH)
-        self.assert_get(Parameter.FIT_WAVELENGTH_LOW)
-        self.assert_get(Parameter.SPECTROMETER_INTEG_PERIOD)
-        self.assert_get(Parameter.REF_MIN_AT_LAMP_ON)
-        self.assert_get(Parameter.COUNTDOWN)
+        #todo - do all params, need to do boundary checking?
 
-        # assert that setting works, then set back to default values
-        self.assert_set(Parameter.OPERATION_CONTROL, "Duration") # default = Samples
-        self.assert_set(Parameter.OPERATION_CONTROL, "Samples")
-        self.assert_set(Parameter.LIGHT_SAMPLES, 57) # default = 58
-        self.assert_set(Parameter.LIGHT_SAMPLES, 58)
-        self.assert_set(Parameter.DARK_SAMPLES, 3)  # default = 2
-        self.assert_set(Parameter.DARK_SAMPLES, 2)
-        self.assert_set(Parameter.COUNTDOWN, 14)    # default = 15
-        self.assert_set(Parameter.COUNTDOWN, 15)
+        self.assert_set(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
+        self.assert_set(Parameter.OPERATION_CONTROL, "Duration")
+        self.assert_set(Parameter.LIGHT_SAMPLES, 57)
+        self.assert_set(Parameter.DARK_SAMPLES, 3)
+        self.assert_set(Parameter.LIGHT_DURATION, 11)
+        self.assert_set(Parameter.DARK_DURATION, 6)
+        self.assert_set(Parameter.DARK_SAMPLES, 3)
+        self.assert_set(Parameter.DARK_SAMPLES, 3)
+        self.assert_set(Parameter.COUNTDOWN, 16)
+        self.assert_set(Parameter.TEMP_COMPENSATION, InstrumentCommandArgs.ON)
+        self.assert_set(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
+        self.assert_set(Parameter.CONCENTRATIONS_IN_FIT, 3)
+        self.assert_set(Parameter.BASELINE_ORDER, 1)
+        self.assert_set(Parameter.DARK_CORRECTION_METHOD, "SWAverage")
+        self.assert_set(Parameter.SALINITY_FITTING, InstrumentCommandArgs.OFF)
+        self.assert_set(Parameter.BROMIDE_TRACING, InstrumentCommandArgs.ON)
+        self.assert_set(Parameter.ABSORBANCE_CUTOFF, 1.4)
+        self.assert_set(Parameter.INTEG_TIME_ADJUSTMENT, InstrumentCommandArgs.OFF)
+        self.assert_set(Parameter.INTEG_TIME_FACTOR, 2)
+        self.assert_set(Parameter.INTEG_TIME_STEP, 19)
+        self.assert_set(Parameter.INTEG_TIME_MAX, 19)
 
         # set read-only parameters with bogus values (should not be allowed)
+        self.assert_set_readonly(Parameter.POLLED_TIMEOUT, 9001)
+        self.assert_set_readonly(Parameter.SKIP_SLEEP_AT_START, InstrumentCommandArgs.OFF)
+        self.assert_set_readonly(Parameter.REF_MIN_AT_LAMP_ON, 9001)
+        self.assert_set_readonly(Parameter.LAMP_STABIL_TIME, 6)
+        self.assert_set_readonly(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 34)
         self.assert_set_readonly(Parameter.SPECTROMETER_INTEG_PERIOD, 9001)
-        self.assert_set_readonly(Parameter.REF_MIN_AT_LAMP_ON, 9002)
-        self.assert_set_readonly(Parameter.LAMP_STABIL_TIME, 9003)
-        self.assert_set_readonly(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 9004)
+        self.assert_set_readonly(Parameter.MESSAGE_LEVEL, "Warn")
+        self.assert_set_readonly(Parameter.MESSAGE_FILE_SIZE, 5)
+        self.assert_set_readonly(Parameter.DATA_FILE_SIZE, 10
+        self.assert_set_readonly(Parameter.OUTPUT_FRAME_TYPE, "Full_Binary")
+
+        self.assert_set_readonly(Parameter.OUTPUT_DARK_FRAME, 9001)
+        self.assert_set_readonly(Parameter., 9002)
+        self.assert_set_readonly(Parameter., 9003)
+        self.assert_set_readonly(Parameter., 9004)
 
     def test_single_sample(self):
         """
@@ -723,23 +739,31 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         """
         self.assert_enter_command_mode()
 
-        # assert that getting param values works
-        self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")
-        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_HIGH, 240.00)
-        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_LOW, 217.00)
-        self.assert_get_parameter(Parameter.SPECTROMETER_INTEG_PERIOD, 450)
-        self.assert_get_parameter(Parameter.REF_MIN_AT_LAMP_ON, 0)
-        self.assert_get_parameter(Parameter.COUNTDOWN, 15)
 
-        # assert that setting works, then set back to default values
-        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration")  # default = Samples
-        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Samples")
-        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57)              # default = 58
-        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 58)
-        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)                # default = 2
-        self.assert_set_parameter(Parameter.DARK_SAMPLES, 2)
-        self.assert_set_parameter(Parameter.COUNTDOWN, 14)                  # default = 15
-        self.assert_set_parameter(Parameter.COUNTDOWN, 15)
+        #TODO - add all params
+
+        # assert that getting param values works
+        self.assert_set_parameter(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
+        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration")
+        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57)
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
+        self.assert_set_parameter(Parameter.LIGHT_DURATION, 11)
+        self.assert_set_parameter(Parameter.DARK_DURATION, 6)
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
+        self.assert_set_parameter(Parameter.COUNTDOWN, 16)
+        self.assert_set_parameter(Parameter.TEMP_COMPENSATION, InstrumentCommandArgs.ON)
+        self.assert_set_parameter(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
+        self.assert_set_parameter(Parameter.CONCENTRATIONS_IN_FIT, 3)
+        self.assert_set_parameter(Parameter.BASELINE_ORDER, 1)
+        self.assert_set_parameter(Parameter.DARK_CORRECTION_METHOD, "SWAverage")
+        self.assert_set_parameter(Parameter.SALINITY_FITTING, InstrumentCommandArgs.OFF)
+        self.assert_set_parameter(Parameter.BROMIDE_TRACING, InstrumentCommandArgs.ON)
+        self.assert_set_parameter(Parameter.ABSORBANCE_CUTOFF, 1.4)
+        self.assert_set_parameter(Parameter.INTEG_TIME_ADJUSTMENT, InstrumentCommandArgs.OFF)
+        self.assert_set_parameter(Parameter.INTEG_TIME_FACTOR, 2)
+        self.assert_set_parameter(Parameter.INTEG_TIME_STEP, 19)
+        self.assert_set_parameter(Parameter.INTEG_TIME_MAX, 19)
 
     def test_get_capabilities(self):
         """
