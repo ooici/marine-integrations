@@ -27,12 +27,15 @@ from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, SAMPLE
 
 class DataParticleType(BaseEnum):
     FLORT_KN_INS = 'flort_kn__stc_imodem_instrument'
+    HOLD_PLACE = 'flort_kn__stc_imodem_instrument_recovered'
 
 class Flort_kn__stc_imodemParserDataParticleKey(BaseEnum):
     TIMESTAMP = 'wfp_timestamp'
     RAW_SIGNAL_BETA = 'raw_signal_beta'
     RAW_SIGNAL_CHL = 'raw_signal_chl'
     RAW_SIGNAL_CDOM = 'raw_signal_cdom'
+
+
 
 class Flort_kn__stc_imodemParserDataParticle(DataParticle):
     """
@@ -88,6 +91,13 @@ class Flort_kn__stc_imodemParserDataParticle(DataParticle):
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
             return False
+
+class Flort_kn__stc_imodemParserDataParticleRecovered(Flort_kn__stc_imodemParserDataParticle):
+    """
+    Class for parsing data from the FLORT_KN__STC_IMODEM data set
+    """
+
+    _data_particle_type = DataParticleType.HOLD_PLACE
 
 class Flort_kn__stc_imodemParser(WfpEFileParser):
 
