@@ -1,7 +1,7 @@
 """
 @package mi.instrument.satlantic.suna_deep.ooicore.test.test_driver
 @file marine-integrations/mi/instrument/satlantic/suna_deep/ooicore/driver.py
-@author Anton Kueltz
+@author Rachel Manoni
 @brief Test cases for ooicore driver
 
 USAGE:
@@ -16,7 +16,6 @@ USAGE:
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
-import unittest
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -24,7 +23,6 @@ from mock import Mock
 from mi.core.log import get_logger
 log = get_logger()
 
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -33,11 +31,11 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
-from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, \
-    SUNATestDataParticle, TIMEOUT, InstrumentCommandArgs
+from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, TIMEOUT, \
+    SUNATestDataParticle, InstrumentCommandArgs
 from mi.instrument.satlantic.suna_deep.ooicore.driver import DataParticleType
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentCommand
 from mi.instrument.satlantic.suna_deep.ooicore.driver import ProtocolState
@@ -50,13 +48,13 @@ from mi.instrument.satlantic.suna_deep.ooicore.driver import NEWLINE
 from mi.instrument.satlantic.suna_deep.ooicore.driver import SUNASampleDataParticle
 
 from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException
-from mi.core.exceptions import InstrumentTimeoutException
 
 from pyon.agent.agent import ResourceAgentEvent
 
 ###
 #   Driver parameters for the tests
 ###
+# noinspection PyPep8,PyPep8,PyPep8,PyPep8,PyPep8,PyPep8
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.suna_deep.ooicore.driver',
     driver_class="InstrumentDriver",
@@ -65,7 +63,13 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='satlantic_suna_deep_ooicore',
     instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config={}
+    driver_startup_config={DriverConfigKey.PARAMETERS: {
+            Parameter.OPERATION_MODE: InstrumentCommandArgs.POLLED,
+            Parameter.OPERATION_CONTROL: "Operation Control",
+            Parameter.LIGHT_SAMPLES: 5,
+            Parameter.DARK_SAMPLES: 1,
+            Parameter.LIGHT_DURATION: 10,
+            Parameter.DARK_DURATION: 5}}
 )
 
 #################################### RULES ####################################
@@ -144,6 +148,7 @@ SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.	  #
 ###############################################################################
+# noinspection PyPep8
 class DriverTestMixinSub(DriverTestMixin):
 
     _reference_sample_parameters = {
@@ -438,6 +443,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
+    # noinspection PyPep8,PyPep8,PyPep8,PyPep8
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -487,7 +493,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
 
         #todo - do all params, need to do boundary checking?
-
+        #set read/write params
         self.assert_set(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
         self.assert_set(Parameter.OPERATION_CONTROL, "Duration")
         self.assert_set(Parameter.LIGHT_SAMPLES, 57)
@@ -510,7 +516,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_set(Parameter.INTEG_TIME_STEP, 19)
         self.assert_set(Parameter.INTEG_TIME_MAX, 19)
 
-        # set read-only parameters with bogus values (should not be allowed)
+        #set read-only parameters with bogus values, should throw exception
         self.assert_set_readonly(Parameter.POLLED_TIMEOUT, 9001)
         self.assert_set_readonly(Parameter.SKIP_SLEEP_AT_START, InstrumentCommandArgs.OFF)
         self.assert_set_readonly(Parameter.REF_MIN_AT_LAMP_ON, 9001)
@@ -519,13 +525,18 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_set_readonly(Parameter.SPECTROMETER_INTEG_PERIOD, 9001)
         self.assert_set_readonly(Parameter.MESSAGE_LEVEL, "Warn")
         self.assert_set_readonly(Parameter.MESSAGE_FILE_SIZE, 5)
-        self.assert_set_readonly(Parameter.DATA_FILE_SIZE, 10
+        self.assert_set_readonly(Parameter.DATA_FILE_SIZE, 10)
         self.assert_set_readonly(Parameter.OUTPUT_FRAME_TYPE, "Full_Binary")
+        self.assert_set_readonly(Parameter.OUTPUT_DARK_FRAME, "Suppress")
+        self.assert_set_readonly(Parameter.FIT_WAVELENGTH_LOW, 9002)
+        self.assert_set_readonly(Parameter.FIT_WAVELENGTH_HIGH, 9003)
 
-        self.assert_set_readonly(Parameter.OUTPUT_DARK_FRAME, 9001)
-        self.assert_set_readonly(Parameter., 9002)
-        self.assert_set_readonly(Parameter., 9003)
-        self.assert_set_readonly(Parameter., 9004)
+    def test_clock_sync(self):
+        """
+        Verify instrument can synchronize the clock
+        """
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
 
     def test_single_sample(self):
         """
@@ -563,6 +574,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
         self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.COMMAND, delay=1)
 
+        # noinspection PyPep8
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
                                          self.assert_data_particle_sample, delay=20)
 
@@ -575,10 +587,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         # Return to command mode.
         self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=1)
 
-        # Verify command mode by issuing a GET
-        self.assert_get(Parameter.OPERATION_MODE)
-
-
     def test_auto_sample(self):
         """
         Verify continuous acquisition of samples in auto-sample mode
@@ -589,10 +597,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
                                         self.assert_data_particle_sample, delay=5)
 
         # Return to command mode. Catch timeouts and retry if necessary.
-        try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-        except InstrumentTimeoutException:
-            self.fail('Could not wakeup device to leave autosample mode.')
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -604,9 +609,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
         # Return to command mode.
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-
-        # Verify command mode by issuing a GET/SET
-        self.assert_get(Parameter.OPERATION_MODE)
 
     def test_errors(self):
         """
@@ -652,7 +654,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
@@ -692,26 +694,62 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ###
         #   Add instrument specific code here.
         ###
-        self.tcp_client.send_data("get opermode\r\n")
+        self.tcp_client.send_data("set opermode Continuous" + NEWLINE)
         self.tcp_client.expect("SUNA>")
 
-        self.tcp_client.send_data("set opermode Continuous\r\n")
+        self.tcp_client.send_data("set polltout 60000" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set outfrtyp Full_Binary" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set spintper 600" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set salinfit Off" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set brmtrace On" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set intadstp 19" + NEWLINE)
         self.tcp_client.expect("SUNA>")
 
         self.assert_direct_access_stop_telnet()
 
         self.assert_enter_command_mode()
 
-        # assert that getting param values works
-        self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
-
-        #todo - will want to test most if not all params
+        #DA param should change back to pre-DA val
+        self.assert_get_parameter(Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)
+        self.assert_get_parameter(Parameter.POLLED_TIMEOUT, 65535)
+        self.assert_get_parameter(Parameter.SKIP_SLEEP_AT_START, InstrumentCommandArgs.ON)
+        self.assert_get_parameter(Parameter.COUNTDOWN, 15)
+        self.assert_get_parameter(Parameter.LAMP_STABIL_TIME, 5)
+        self.assert_get_parameter(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 35)
+        self.assert_get_parameter(Parameter.MESSAGE_LEVEL, "Info")
+        self.assert_get_parameter(Parameter.MESSAGE_FILE_SIZE, 0)
+        self.assert_get_parameter(Parameter.DATA_FILE_SIZE, 5)
+        self.assert_get_parameter(Parameter.OUTPUT_FRAME_TYPE, "Full_ASCII")
+        self.assert_get_parameter(Parameter.OUTPUT_DARK_FRAME, "Output")
+        self.assert_get_parameter(Parameter.TEMP_COMPENSATION, InstrumentCommandArgs.OFF)
+        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_BOTH, "217,240")
+        self.assert_get_parameter(Parameter.CONCENTRATIONS_IN_FIT, 1)
+        self.assert_get_parameter(Parameter.BASELINE_ORDER, 1)
+        self.assert_get_parameter(Parameter.DARK_CORRECTION_METHOD, "SpecAverage")
+        self.assert_get_parameter(Parameter.SALINITY_FITTING, InstrumentCommandArgs.ON)
+        self.assert_get_parameter(Parameter.BROMIDE_TRACING, InstrumentCommandArgs.OFF)
+        self.assert_get_parameter(Parameter.ABSORBANCE_CUTOFF, 1.3)
+        self.assert_get_parameter(Parameter.INTEG_TIME_ADJUSTMENT, InstrumentCommandArgs.ON)
+        self.assert_get_parameter(Parameter.INTEG_TIME_FACTOR, 1)
+        self.assert_get_parameter(Parameter.INTEG_TIME_STEP, 20)
+        self.assert_get_parameter(Parameter.INTEG_TIME_MAX, 20)
 
     def test_acquire_status(self):
         """
         Verify the driver can command an acquire status from the instrument
         """
         self.assert_enter_command_mode()
+        self.assert_resource_command(Capability.ACQUIRE_STATUS, self.assert_data_particle_status)
 
     def test_execute_test(self):
         """
@@ -739,10 +777,24 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         """
         self.assert_enter_command_mode()
 
+        #read only params
+        self.assert_get_parameter(Parameter.POLLED_TIMEOUT, 65535)
+        self.assert_get_parameter(Parameter.SKIP_SLEEP_AT_START, InstrumentCommandArgs.ON)
+        self.assert_get_parameter(Parameter.LAMP_STABIL_TIME, 5)
+        self.assert_get_parameter(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 35)
+        self.assert_get_parameter(Parameter.MESSAGE_LEVEL, "Info")
+        self.assert_get_parameter(Parameter.MESSAGE_FILE_SIZE, 0)
+        self.assert_get_parameter(Parameter.DATA_FILE_SIZE, 5)
+        self.assert_get_parameter(Parameter.OUTPUT_FRAME_TYPE, "Full_ASCII")
+        self.assert_get_parameter(Parameter.OUTPUT_DARK_FRAME, "Output")
 
-        #TODO - add all params
+        #NOTE: THESE ARE READ_ONLY PARMS WITH NO DEFAULT VALUES, THE VALUES ARE DEPENDANT ON THE INSTRUMENT BEING TESTED
+        #self.assert_get_parameter(Parameter.REF_MIN_AT_LAMP_ON, 9001)
+        #self.assert_get_parameter(Parameter.SPECTROMETER_INTEG_PERIOD, 9001)
+        #self.assert_get_parameter(Parameter.FIT_WAVELENGTH_LOW, 9002)
+        #self.assert_get_parameter(Parameter.FIT_WAVELENGTH_HIGH, 9003)
 
-        # assert that getting param values works
+        #read/write params
         self.assert_set_parameter(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
         self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration")
         self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57)

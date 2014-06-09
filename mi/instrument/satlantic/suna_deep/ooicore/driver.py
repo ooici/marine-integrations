@@ -1,7 +1,7 @@
 """
 @package mi.instrument.satlantic.suna_deep.ooicore.driver
 @file marine-integrations/mi/instrument/satlantic/suna_deep/ooicore/driver.py
-@author Anton Kueltz
+@author Rachel Manoni
 @brief Driver for the ooicore
 Release notes:
 
@@ -15,8 +15,6 @@ from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
 
 import re
-import json
-import pprint
 
 from mi.core.common import BaseEnum, Units
 from mi.core.common import InstErrorCode
@@ -248,8 +246,6 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    #RESET = DriverEvent.RESET
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
     START_POLL = "DRIVER_EVENT_START_POLL"
     STOP_POLL = "DRIVER_EVENT_STOP_POLL"
@@ -794,13 +790,11 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
-
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -830,9 +824,6 @@ class Protocol(CommandResponseInstrumentProtocol):
      #logging level
     __metaclass__ = get_logging_metaclass(log_level='debug')
 
-    #used for storing parameter values before they are changed during DA, used for restoring system
-    da_param_restore = []
-
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -849,8 +840,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._newline = NEWLINE
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         # UNKNOWN State
@@ -945,18 +935,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # returns a list of (start, end) tuples for all matches found
         return return_list
 
-    # pretty particle printing
-    def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
-        sample = None
-        if regex.match(line):
-            particle = particle_class(line, port_timestamp=timestamp)
-            parsed_sample = particle.generate()
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
-                log.info("Parsed sample %r", pprint.pformat(parsed_sample))
-            sample = json.loads(parsed_sample)
-        return sample
-
     def _build_cmd_dict(self):
         """
         Populate the command dictionary with commands
@@ -980,24 +958,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         and value formatting function for set commands.
         """
 
-        # TODO!!! WITHOUT STARTUP CONFIG NO REGEX TO MATCH VAL IN CONFIG POSSIBLE (Hence arg 2 is r'') '''
         # DATA ACQUISITION
-        # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.OPERATION_MODE,
-                             r'',
+                             r'OPERMODE\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value=InstrumentCommandArgs.POLLED,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Operation Mode",
                              description='Operation mode: Continuous or Polled')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.OPERATION_CONTROL,
-                             r'',
+                             r'OPERCTRL\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1008,62 +982,54 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Operation Control",
                              description='Operation control: Samples or Duration')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.LIGHT_SAMPLES,
-                             r'',
+                             r'LGTSMPLS\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=5,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Light Samples",
                              description='Number of light samples')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.DARK_SAMPLES,
-                             r'',
+                             r'DRKSMPLS\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Dark Samples",
                              description='Number of dark samples')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.LIGHT_DURATION,
-                             r'',
+                             r'LGTDURAT\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=10,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Light Duration",
                              description='Light duration in seconds',
                              units=Units.SECOND)
 
-        # TODO default value (current default is what was on device, no default in IOS)????
         self._param_dict.add(Parameter.DARK_DURATION,
-                             r'',
+                             r'DRKDURAT\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=5,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Dark Duration",
                              description='Dark duration in seconds',
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.POLLED_TIMEOUT,
-                             r'',
+                             r'POLLTOUT\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1076,7 +1042,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.SKIP_SLEEP_AT_START,
-                             r'',
+                             r'SKPSLEEP\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1088,7 +1054,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              description='Skip putting instrument to sleep at start: On or Off')
 
         self._param_dict.add(Parameter.COUNTDOWN,
-                             r'',
+                             r'COUNTDWN\s(\S*)',
                              lambda match:
                              int(match.group(1)),
                              str,
@@ -1101,7 +1067,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.REF_MIN_AT_LAMP_ON,
-                             r'',
+                             r'REFLIMIT\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1111,7 +1077,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Reference Minute at Lamp-On")
 
         self._param_dict.add(Parameter.LAMP_STABIL_TIME,
-                             r'',
+                             r'STBLTIME\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1123,7 +1089,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=ParameterUnit.DECISIEMENS)
 
         self._param_dict.add(Parameter.LAMP_SWITCH_OFF_TEMPERATURE,
-                             r'',
+                             r'LAMPTOFF\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1136,7 +1102,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.DEGREE_CELSIUS)
 
         self._param_dict.add(Parameter.SPECTROMETER_INTEG_PERIOD,
-                             r'',
+                             r'SPINTPER\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1148,7 +1114,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # INPUT / OUTPUT
         self._param_dict.add(Parameter.MESSAGE_LEVEL,
-                             r'',
+                             r'MSGLEVEL\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1160,7 +1126,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              description="Level of logging: Error, Warn, Info, Debug")
 
         self._param_dict.add(Parameter.MESSAGE_FILE_SIZE,
-                             r'',
+                             r'MSGFSIZE\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1172,7 +1138,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=ParameterUnit.MEGABYTE)
 
         self._param_dict.add(Parameter.DATA_FILE_SIZE,
-                             r'',
+                             r'DATFSIZE\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1184,7 +1150,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=ParameterUnit.MEGABYTE)
 
         self._param_dict.add(Parameter.OUTPUT_FRAME_TYPE,
-                             r'',
+                             r'OUTFRTYP\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1195,7 +1161,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Output Frame Type")
 
         self._param_dict.add(Parameter.OUTPUT_DARK_FRAME,
-                             r'',
+                             r'OUTDRKFR\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1207,7 +1173,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # DATA PROCESSING
         self._param_dict.add(Parameter.TEMP_COMPENSATION,
-                             r'',
+                             r'TEMPCOMP\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1219,7 +1185,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              description="Temperature compensation: On or Off")
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW,
-                             r'',
+                             r'WFIT_LOW\s(\S*)',
                              lambda match: float(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1230,7 +1196,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_HIGH,
-                             r'',
+                             r'WFIT_HGH\s(\S*)',
                              lambda match: float(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1241,7 +1207,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH,
-                             r'',
+                             r'thereisnothingtomatchforthis',
                              lambda match: str(match.group(1)),
                              str,
                              type=ParameterDictType.STRING,
@@ -1253,7 +1219,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.CONCENTRATIONS_IN_FIT,
-                             r'',
+                             r'FITCONCS\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1264,7 +1230,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Concentrations to Fit")
 
         self._param_dict.add(Parameter.BASELINE_ORDER,
-                             r'',
+                             r'BL_ORDER\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1275,7 +1241,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Baseline Order")
 
         self._param_dict.add(Parameter.DARK_CORRECTION_METHOD,
-                             r'',
+                             r'DRKCORMT\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1286,7 +1252,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Dark Correction Method")
 
         self._param_dict.add(Parameter.SALINITY_FITTING,
-                             r'',
+                             r'SALINFIT\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1297,7 +1263,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Salinity Fitting")
 
         self._param_dict.add(Parameter.BROMIDE_TRACING,
-                             r'',
+                             r'BRMTRACE\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1308,7 +1274,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Bromide Tracing")
 
         self._param_dict.add(Parameter.ABSORBANCE_CUTOFF,
-                             r'',
+                             r'A_CUTOFF\s(\S*)',
                              lambda match: float(match.group(1)),
                              str,
                              type=ParameterDictType.FLOAT,
@@ -1319,7 +1285,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Absorbance Cutoff")
 
         self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT,
-                             r'',
+                             r'INTPRADJ\s(\S*)',
                              lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
@@ -1330,7 +1296,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Integration Time Adjustment")
 
         self._param_dict.add(Parameter.INTEG_TIME_FACTOR,
-                             r'',
+                             r'INTPRFAC\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1342,7 +1308,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.INTEG_TIME_STEP,
-                             r'',
+                             r'INTADSTP\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1354,7 +1320,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.SECOND)
 
         self._param_dict.add(Parameter.INTEG_TIME_MAX,
-                             r'',
+                             r'INTADMAX\s(\S*)',
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
@@ -1534,33 +1500,41 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = {}
 
-
         log.debug("GET FOR: %s", params)
 
         if params == Parameter.ALL:
             params = self._param_dict.get_keys()
         elif not params or not isinstance(params, list):
             raise InstrumentParameterException("Params must be a list")
-        else:
-            for param in params:
-                if not Parameter.has(param):
-                    raise InstrumentParameterException("%s is not a parameter" % param)
 
-                # handle driver parameters
-                if param == Parameter.NUM_LIGHT_SAMPLES:
-                    result[param] = self.num_samples
-                elif param == Parameter.TIME_LIGHT_SAMPLE:
-                    result[param] = self.time_samples
-                # handle instrument parameters
+        old_config = self._param_dict.get_config()
+
+        for param in params:
+            if not Parameter.has(param):
+                raise InstrumentParameterException("%s is not a parameter" % param)
+
+            # handle driver parameters
+            if param == Parameter.NUM_LIGHT_SAMPLES:
+                result[param] = self.num_samples
+            elif param == Parameter.TIME_LIGHT_SAMPLE:
+                result[param] = self.time_samples
+            # handle instrument parameters
+            else:
+                #wfitboth is a set only param and cannot be read from the instrument
+                if param == Parameter.FIT_WAVELENGTH_BOTH:
+                    result[param] = self._param_dict.get(Parameter.FIT_WAVELENGTH_BOTH)
                 else:
-                    #wfitboth is a set only param and cannot be read from the instrument
-                    if param == Parameter.FIT_WAVELENGTH_BOTH:
-                        result[param] = self._param_dict.get(Parameter.FIT_WAVELENGTH_BOTH)
-                    else:
-                        type_func = PARAM_TYPE_FUNC.get(param)
-                        result[param] = type_func(self._get_from_instrument(param))  # always get str type from instrument
+                    type_func = PARAM_TYPE_FUNC.get(param)
+                    value = type_func(self._get_from_instrument(param))  # always get str type from instrument
+                    result[param] = value
+                    #TODO = update the parameter dictionary??? need to send config change....
+                    self._param_dict.set_value(param, value)
 
-        log.debug("Get finished, next: %s, result: %s,", next_state, result)
+        new_config = self._param_dict.get_config()
+
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
         return next_state, result
 
     def _handler_command_set(self, params, *args):
@@ -1608,9 +1582,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                     except KeyError:
                         raise InstrumentParameterException()
 
-                    self._do_cmd_resp(InstrumentCommand.SET, key, str_val,
-                              timeout=100,
-                              response_regex=re.compile(Prompt.SET_OK))
+                    # noinspection PyPep8
+                    self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=100,
+                                                response_regex=re.compile(Prompt.SET_OK))
                     self._param_dict.set_value(key, params[key])
 
         new_config = self._param_dict.get_config()
@@ -1860,8 +1834,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         for search_prompt in (Prompt.POLLED, Prompt.COMMAND):
             start = response.find(search_prompt)
             if start != -1:
-                log.debug("_parse_cmd_line_response: response=%r", response[start:start+len(search_prompt)])
-                return response[start:start+len(search_prompt)]
+                log.debug("_parse_cmd_line_response: response=%r", response[start:start + len(search_prompt)])
+                return response[start:start + len(search_prompt)]
 
         return None
 
@@ -1882,12 +1856,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                                         timeout=100,
                                         response_regex=re.compile(Prompt.OK))
                 return val
-            except InstrumentProtocolException as ex:
+            except InstrumentProtocolException:
                 pass   # GET failed, so retry again
         else:
             log.debug('FAILED TO GET PARAM: %s', param)
             # retries exhausted, so raise exception
-            raise ex
+            raise InstrumentProtocolException('Unable to GET parameter %s from instrument') % param
 
     def _send_wakeup(self):
         """
@@ -1900,9 +1874,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Send a blind $ command to the device
         """
-        log.debug("Sending $ char")
-
         ret_prompt = self._do_cmd_resp(InstrumentCommand.CMD_LINE, timeout=timeout,
-                             expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
+                                       expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
 
         return ret_prompt
