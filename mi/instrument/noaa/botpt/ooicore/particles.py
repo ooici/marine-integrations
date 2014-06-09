@@ -385,15 +385,18 @@ class IrisStatusParticle1(BotptDataParticle):
         IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
         IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
         IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
+        HEAT,2013/06/12 18:04:02,-001,0001,0024
         IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
         IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
         IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-
+        IRIS,2013/06/12 18:03:44,*01:*9900XY-DUMP-SETTINGS
         """
         return r'''
             (?x)                                # verbose
             (?P<name>       IRIS)(,)
             (?P<date_time>  %(date_time)s)(,)
-            (?P<status>     \*APPLIED.*?FV-)
+            (?P<status>     \*APPLIED.*)
+            (IRIS,%(date_time)s,\*9900XY-DUMP-SETTINGS)
             ''' % common_regex_items
 
 
@@ -442,7 +445,8 @@ class IrisStatusParticle2(BotptDataParticle):
             (?x)                                # verbose
             (?P<name>       IRIS)(,)
             (?P<date_time>  %(date_time)s)(,)
-            (?P<status>     \*01:\ TBias.*?\(arcseconds/bit\))
+            (?P<status>     \*01:\ TBias.*?)
+            (IRIS,%(date_time)s,\*9900XY-DUMP2)
             ''' % common_regex_items
 
 
@@ -457,25 +461,27 @@ class LilyStatusParticle1(BotptDataParticle):
         @return: regex string
 
         Sample Data:
-        LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01
-        LILY,2013/06/24 23:35:41,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
-        LILY,2013/06/24 23:35:41,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
-        LILY,2013/06/24 23:35:41,*01: Vmin:  -2.50  -2.50   2.50   2.50
-        LILY,2013/06/24 23:35:41,*01: Vmax:   2.50   2.50   2.50   2.50
-        LILY,2013/06/24 23:35:41,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
-        LILY,2013/06/24 23:35:41,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
-        LILY,2013/06/24 23:35:41,*01: N_SAMP= 360 Xzero=  0.00 Yzero=  0.00
-        LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-
+        LILY,2014/06/09 18:13:50,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9651 ID01
+        LILY,2014/06/09 18:13:50,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
+        LILY,2014/06/09 18:13:50,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
+        LILY,2014/06/09 18:13:50,*01: Vmin:  -2.50  -2.50   2.50   2.50
+        LILY,2014/06/09 18:13:50,*01: Vmax:   2.50   2.50   2.50   2.50
+        LILY,2014/06/09 18:13:50,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2014/06/09 18:13:50,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2014/06/09 18:13:50,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2014/06/09 18:13:50,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2014/06/09 18:13:50,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
+        LILY,2014/06/09 18:13:51,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
+        LILY,2014/06/09 18:13:51,*01: N_SAMP=  28 Xzero=  0.00 Yzero=  0.00
+        LILY,2014/06/09 18:13:51,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-
+        LILY,2014/06/09 18:13:51,*9900XY-DUMP-SETTINGS
         """
         return r'''
             (?x)                                # verbose
             (?P<name>       LILY)(,)
             (?P<date_time>  %(date_time)s)(,)
-            (?P<status>     \*APPLIED.*?FV-)
+            (?P<status>     \*APPLIED.*?)
+            (LILY,%(date_time)s,\*9900XY-DUMP-SETTINGS)
             ''' % common_regex_items
 
 
@@ -490,42 +496,43 @@ class LilyStatusParticle2(BotptDataParticle):
         @return: regex string
 
         Sample Data:
-        LILY,2013/06/24 23:36:05,*01: TBias: 5.00
-        LILY,2013/06/24 23:36:05,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
-        LILY,2013/06/24 23:36:05,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
-        LILY,2013/06/24 23:36:05,*01: ADCDelay:  310
-        LILY,2013/06/24 23:36:05,*01: PCA Model: 84833-14
-        LILY,2013/06/24 23:36:05,*01: Firmware Version: 2.1 Rev D
-        LILY,2013/06/24 23:36:05,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
-        LILY,2013/06/24 23:36:05,*01: Calibrated in uRadian, Current Output Mode: uRadian
-        LILY,2013/06/24 23:36:05,*01: Using RS232
-        LILY,2013/06/24 23:36:05,*01: Real Time Clock: Installed
-        LILY,2013/06/24 23:36:05,*01: Use RTC for Timing: Yes
-        LILY,2013/06/24 23:36:05,*01: External Flash: 2162688 Bytes Installed
-        LILY,2013/06/24 23:36:05,*01: Flash Status (in Samples) (Used/Total): (-1/55424)
-        LILY,2013/06/24 23:36:05,*01: Low Power Logger Data Rate: -1 Seconds per Sample
-        LILY,2013/06/24 23:36:05,*01: Calibration method: Dynamic 
-        LILY,2013/06/24 23:36:05,*01: Positive Limit=330.00   Negative Limit=-330.00 
-        IRIS,2013/06/24 23:36:05, -0.0680, -0.3284,28.07,N3616
-        LILY,2013/06/24 23:36:05,*01: Calibration Points:023  X: Enabled  Y: Enabled
-        LILY,2013/06/24 23:36:05,*01: Uniaxial (x2) Sensor Type (1)
-        LILY,2013/06/24 23:36:05,*01: ADC: 16-bit(external)
-        LILY,2013/06/24 23:36:05,*01: Compass: Installed   Magnetic Declination: 0.000000
-        LILY,2013/06/24 23:36:05,*01: Compass: Xoffset:   12, Yoffset:  210, Xrange: 1371, Yrange: 1307
-        LILY,2013/06/24 23:36:05,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0
-        LILY,2013/06/24 23:36:05,*01: Motor I_limit: 90.0mA
-        LILY,2013/06/24 23:36:05,*01: Current Time: 01/11/00 02:12:32
-        LILY,2013/06/24 23:36:06,*01: Supply Voltage: 11.96 Volts
-        LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off
-        LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes
-        LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off
-        LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No
+        LILY,2014/06/09 18:04:32,*01: TBias: 3.00
+        LILY,2014/06/09 18:04:32,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
+        LILY,2014/06/09 18:04:32,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
+        LILY,2014/06/09 18:04:32,*01: ADCDelay:  310
+        LILY,2014/06/09 18:04:32,*01: PCA Model: 84833-14
+        LILY,2014/06/09 18:04:32,*01: Firmware Version: 2.1 Rev D
+        LILY,2014/06/09 18:04:32,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
+        LILY,2014/06/09 18:04:32,*01: Calibrated in uRadian, Current Output Mode: uRadian
+        LILY,2014/06/09 18:04:32,*01: Using RS232
+        LILY,2014/06/09 18:04:32,*01: Real Time Clock: Installed
+        LILY,2014/06/09 18:04:32,*01: Use RTC for Timing: Yes
+        LILY,2014/06/09 18:04:32,*01: External Flash: 2162688 Bytes Installed
+        LILY,2014/06/09 18:04:32,*01: Flash Status (in Samples) (Used/Total): (107/55424)
+        LILY,2014/06/09 18:04:32,*01: Low Power Logger Data Rate: -1 Seconds per Sample
+        LILY,2014/06/09 18:04:32,*01: Calibration method: Dynamic
+        LILY,2014/06/09 18:04:32,*01: Positive Limit=330.00   Negative Limit=-330.00
+        LILY,2014/06/09 18:04:32,*01: Calibration Points:023  X: Enabled  Y: Enabled
+        LILY,2014/06/09 18:04:32,*01: Uniaxial (x2) Sensor Type (1)
+        LILY,2014/06/09 18:04:32,*01: ADC: 16-bit(external)
+        LILY,2014/06/09 18:04:32,*01: Compass: Installed   Magnetic Declination: 0.000000
+        LILY,2014/06/09 18:04:32,*01: Compass: Xoffset:  124, Yoffset:  196, Xrange: 1349, Yrange: 1364
+        LILY,2014/06/09 18:04:32,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0
+        LILY,2014/06/09 18:04:32,*01: Motor I_limit: 90.0mA
+        LILY,2014/06/09 18:04:33,*01: Current Time: 12/12/00 00:32:30
+        LILY,2014/06/09 18:04:33,*01: Supply Voltage: 11.87 Volts
+        LILY,2014/06/09 18:04:33,*01: Memory Save Mode: Off
+        LILY,2014/06/09 18:04:33,*01: Outputting Data: No
+        LILY,2014/06/09 18:04:33,*01: Auto Power-Off Recovery Mode: On
+        LILY,2014/06/09 18:04:33,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No
+        LILY,2014/06/09 18:04:33,*9900XY-DUMP2
         """
         return r'''
             (?x)                                # verbose
             (?P<name>       LILY)(,)
             (?P<date_time>  %(date_time)s)(,)
-            (?P<status>     \*01:\ TBias.*?XY-MEMD:\ \S+)
+            (?P<status>     \*01:\ TBias.*?)(\n)
+            (LILY,%(date_time)s,\*9900XY-DUMP2)
             ''' % common_regex_items
 
 

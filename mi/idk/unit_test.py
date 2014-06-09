@@ -1948,7 +1948,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):  # Must inh
                 return
 
             log.error("Only found %d samples, looking for %d", len(samples), particle_count)
-            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
+            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample %s" % particle_type)
             time.sleep(.3)
 
     def assert_scheduled_event(self, job_name, assert_callback=None, autosample_command=None, delay=5):

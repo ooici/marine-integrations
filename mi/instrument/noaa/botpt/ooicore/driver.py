@@ -61,6 +61,9 @@ MAX_BUFFER_SIZE = 2 ** 16
 
 
 class ScheduledJob(BaseEnum):
+    """
+    Instrument scheduled jobs
+    """
     LEVELING_TIMEOUT = 'botpt_leveling_timeout'
     NANO_TIME_SYNC = 'botpt_nano_time_sync'
     ACQUIRE_STATUS = 'botpt_acquire_status'
@@ -94,6 +97,8 @@ class ProtocolEvent(BaseEnum):
     START_LEVELING = 'PROTOCOL_EVENT_START_LEVELING'
     STOP_LEVELING = 'PROTOCOL_EVENT_STOP_LEVELING'
     NANO_TIME_SYNC = 'PROTOCOL_EVENT_NANO_TIME_SYNC'
+    START_HEATER = 'PROTOCOL_EVENT_START_HEATER'
+    STOP_HEATER = 'PROTOCOL_EVENT_STOP_HEATER'
 
 
 class Capability(BaseEnum):
@@ -107,20 +112,24 @@ class Capability(BaseEnum):
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     START_LEVELING = ProtocolEvent.START_LEVELING
     STOP_LEVELING = ProtocolEvent.STOP_LEVELING
+    START_HEATER = ProtocolEvent.START_HEATER
+    STOP_HEATER = ProtocolEvent.STOP_HEATER
 
 
 class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
-    AUTO_RELEVEL = "auto_relevel"  # Auto-relevel mode
-    XTILT_TRIGGER = "xtilt_relevel_trigger"
-    YTILT_TRIGGER = "ytilt_relevel_trigger"
-    LEVELING_TIMEOUT = "relevel_timeout"
-    LEVELING_FAILED = "leveling_failed"
+    AUTO_RELEVEL = 'auto_relevel'  # Auto-relevel mode
+    XTILT_TRIGGER = 'xtilt_relevel_trigger'
+    YTILT_TRIGGER = 'ytilt_relevel_trigger'
+    LEVELING_TIMEOUT = 'relevel_timeout'
+    LEVELING_FAILED = 'leveling_failed'
     OUTPUT_RATE = 'output_rate_hz'
     SYNC_INTERVAL = 'time_sync_interval'
-    HEAT_DURATION = "heat_duration"
+    HEAT_DURATION = 'heat_duration'
+    HEATER_ON = 'heater_on'
+    LILY_LEVELING = 'lily_leveling'
 
     @classmethod
     def reverse_dict(cls):
@@ -141,6 +150,9 @@ class ParameterConstraint(BaseEnum):
 
 
 class InstrumentCommand(BaseEnum):
+    """
+    Instrument Commands
+    """
     LILY_ON = LILY_STRING + LILY_COMMAND + 'C2'  # turns on continuous data
     LILY_OFF = LILY_STRING + LILY_COMMAND + 'C-OFF'  # turns off continuous data
     LILY_DUMP1 = LILY_STRING + LILY_COMMAND + '-DUMP-SETTINGS'  # outputs current settings
@@ -161,12 +173,22 @@ class InstrumentCommand(BaseEnum):
 
 
 class Prompt(BaseEnum):
+    """
+    Instrument responses (basic)
+    """
     LILY_ON = LILY_COMMAND + 'C2'
     LILY_OFF = LILY_COMMAND + 'C-OFF'
     IRIS_ON = IRIS_COMMAND + 'C2'
     IRIS_OFF = IRIS_COMMAND + 'C-OFF'
     LILY_START_LEVELING = LILY_COMMAND + '-LEVEL,1'
     LILY_STOP_LEVELING = LILY_COMMAND + '-LEVEL,0'
+
+
+class RegexResponse(BaseEnum):
+    """
+    Instrument responses (regex)
+    """
+    HEAT = re.compile(r'(HEAT,.{19},\*\d)\n')
 
 
 ###############################################################################
@@ -195,6 +217,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     def get_resource_params(self):
         """
         Return list of device parameters available.
+        @return List of parameters
         """
         return Parameter.list()
 
@@ -246,6 +269,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
                 (ProtocolEvent.STOP_LEVELING, self._handler_stop_leveling),
                 (ProtocolEvent.NANO_TIME_SYNC, self._handler_time_sync),
+                (ProtocolEvent.START_HEATER, self._handler_start_heater),
+                (ProtocolEvent.STOP_HEATER, self._handler_stop_heater),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -258,6 +283,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.STOP_LEVELING, self._handler_stop_leveling),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.NANO_TIME_SYNC, self._handler_time_sync),
+                (ProtocolEvent.START_HEATER, self._handler_start_heater),
+                (ProtocolEvent.STOP_HEATER, self._handler_stop_heater),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
@@ -279,8 +306,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         for command in InstrumentCommand.list():
-            if command == InstrumentCommand.NANO_SET_RATE:
-                self._add_build_handler(command, self._build_nano_output_rate_command)
+            if command in [InstrumentCommand.NANO_SET_RATE, InstrumentCommand.HEAT]:
+                self._add_build_handler(command, self._build_command_with_value)
             else:
                 self._add_build_handler(command, self._build_simple_command)
 
@@ -298,7 +325,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self.initialize_scheduler()
         self._last_data_timestamp = 0
-        self.leveling = False
         self.has_pps = True
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.NANO_TIME_SYNC, ProtocolEvent.NANO_TIME_SYNC)
@@ -307,6 +333,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def sieve_function(raw_data):
         """
         Sort data in the chunker...
+        @param raw_data: Data to be searched for samples
         """
         matchers = []
         return_list = []
@@ -324,6 +351,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         return return_list
 
     def _got_chunk(self, chunk, ts):
+        """
+        Process chunk output by the chunker.  Generate samples and (possibly) react
+        @param chunk: data
+        @param ts: ntp timestamp
+        @throws InstrumentProtocolException
+        """
         possible_particles = [
             (particles.LilySampleParticle, self._check_for_autolevel),
             (particles.LilyLevelingParticle, self._check_completed_leveling),
@@ -344,6 +377,12 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
         """
         Overridden to set the quality flag for LILY particles that are out of range.
+        @param particle_class: Class type for particle
+        @param regex: regular expression to verify data
+        @param line: data
+        @param timestamp: ntp timestamp
+        @param publish: boolean to indicate if sample should be published
+        @return: extracted sample
         """
         sample = None
         if regex.match(line):
@@ -361,6 +400,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         return sample
 
     def _filter_capabilities(self, events):
+        """
+        Filter a list of events to only include valid capabilities
+        @param events: list of events to be filtered
+        @return: list of filtered events
+        """
         return [x for x in events if Capability.has(x)]
 
     def _build_command_dict(self):
@@ -372,6 +416,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="Acquire instrument status")
         self._cmd_dict.add(Capability.START_LEVELING, display_name="Start the LILY leveling sequence")
         self._cmd_dict.add(Capability.STOP_LEVELING, display_name="Stop the LILY leveling sequence")
+        self._cmd_dict.add(Capability.START_HEATER, display_name="Start the heater")
+        self._cmd_dict.add(Capability.STOP_HEATER, display_name="Stop the heater")
 
     def _build_param_dict(self):
         """
@@ -410,12 +456,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 'visibility': rw,
                 'startup_param': True,
             },
-            Parameter.LEVELING_FAILED: {
-                'type': _bool,
-                'display_name': 'LILY Leveling Failed',
-                'value': False,
-                'visibility': ro,
-            },
             Parameter.HEAT_DURATION: {
                 'type': _int,
                 'display_name': 'Heater Run Time Duration',
@@ -437,6 +477,24 @@ class Protocol(CommandResponseInstrumentProtocol):
                 'visibility': rw,
                 'startup_param': True,
             },
+            Parameter.HEATER_ON: {
+                'type': _bool,
+                'display_name': 'Heater Running',
+                'value': False,
+                'visibility': ro,
+            },
+            Parameter.LILY_LEVELING: {
+                'type': _bool,
+                'display_name': 'Lily Leveling',
+                'value': False,
+                'visibility': ro,
+            },
+            Parameter.LEVELING_FAILED: {
+                'type': _bool,
+                'display_name': 'LILY Leveling Failed',
+                'value': False,
+                'visibility': ro,
+            },
         }
         for param in parameters:
             self._param_dict.add(param, my_regex, None, None, **parameters[param])
@@ -447,12 +505,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, False)
 
-    def _build_nano_output_rate_command(self, cmd, rate):
-        return '{0:s}{1:d}{2:s}'.format(cmd, rate, NEWLINE)
+    def _build_command_with_value(self, cmd, value):
+        """
+        Build a simple command with one value specified
+        @param cmd: instrument command
+        @param value: value to be sent
+        @return: command string
+        """
+        return '{0:s}{1:d}{2:s}'.format(cmd, value, NEWLINE)
 
     def _verify_set_values(self, params):
         """
         Verify supplied values are in range, if applicable
+        @param params: Dictionary of Parameter:value to be verified
+        @throws InstrumentParameterException
         """
         constraints = ParameterConstraint.dict()
         parameters = Parameter.reverse_dict()
@@ -478,6 +544,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _set_params(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters
+        @param args: arglist, should contain a dictionary of parameters/values to be set
+        @throws InstrumentParameterException
         """
         try:
             params = args[0]
@@ -508,6 +576,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _update_params(self, *args, **kwargs):
+        """
+        Update a parameter in the instrument, modify the param dictionary from the instrument response
+        """
         result, _ = self._do_cmd_resp(InstrumentCommand.NANO_DUMP1,
                                       response_regex=particles.NanoStatusParticle.regex_compiled())
         rate = int(re.search(r'NANO,\*TH:(\d+)', result).group(1))
@@ -521,6 +592,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def add_to_buffer(self, data):
         """
         Overriding base class to reduce logging due to NANO high data rate
+        @param data: data to be added to buffers
         """
         # Update the line and prompt buffers.
         self._linebuf += data
@@ -541,6 +613,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _max_buffer_size(self):
         """
         Overriding base class to increase max buffer size
+        @return int max_buffer_size
         """
         return MAX_BUFFER_SIZE
 
@@ -577,6 +650,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.STOP_LEVELING)
 
     def _stop_autosample(self):
+        """
+        Stop autosample, leveling if in progress.
+        """
         self.leveling = False
         self._do_cmd_no_resp(InstrumentCommand.NANO_OFF)
         self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, expected_prompt=Prompt.LILY_STOP_LEVELING)
@@ -584,9 +660,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(InstrumentCommand.IRIS_OFF, expected_prompt=Prompt.IRIS_OFF)
 
     def _generic_response_handler(self, resp, prompt):
+        """
+        Pass through response handler
+        @param resp: response
+        @param prompt: prompt
+        @return: (response, prompt)
+        """
         return resp, prompt
 
     def _particle_to_dict(self, sample):
+        """
+        Convert a particle to a dictionary of value_id:value
+        @param sample: particle to be parsed
+        @return: dictionary representing the particle
+        """
         sample_dict = {}
         values = sample.get(DataParticleKey.VALUES, [])
         for each in values:
@@ -594,6 +681,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         return sample_dict
 
     def _check_for_autolevel(self, sample):
+        """
+        Check this sample, kick off a leveling event if out of range
+        @param sample: sample to be checked
+        """
         if self._param_dict.get(Parameter.AUTO_RELEVEL) and self.get_current_state() == ProtocolState.AUTOSAMPLE:
             # Find the current X and Y tilt values
             # If they exceed the trigger parameters, begin autolevel
@@ -606,6 +697,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                 self._async_raise_fsm_event(ProtocolEvent.START_LEVELING)
 
     def _failed_leveling(self, axis):
+        """
+        Handle a failed leveling event.  Set the failed flag, disable auto relevel and notify the operator
+        @param axis: Axis which failed leveling
+        """
         log.error('Detected leveling error in %s axis!', axis)
         # Read only parameter, must be set outside of handler
         self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
@@ -614,6 +709,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         raise InstrumentDataException('LILY Leveling (%s) Failed.  Disabling auto relevel' % axis)
 
     def _check_completed_leveling(self, sample):
+        """
+        Check this sample if leveling is complete or failed
+        @param sample: Sample to be checked
+        """
         sample = self._particle_to_dict(sample)
         status = sample[particles.LilyLevelingParticleKey.STATUS]
         if status is not None:
@@ -636,6 +735,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                 self._failed_leveling('Y')
 
     def _check_pps_sync(self, sample):
+        """
+        Check if PPS sync status has changed.  Update driver flag and, if appropriate, trigger a time sync
+        @param sample: sample to be checked
+        """
         sample = self._particle_to_dict(sample)
         pps_sync = sample[particles.NanoSampleParticleKey.PPS_SYNC] == 'P'
         if pps_sync and not self.has_pps:
@@ -649,6 +752,10 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
 
     def _handler_unknown_discover(self, *args, **kwargs):
+        """
+        Process discover event
+        @return next_state, next_agent_state
+        """
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
@@ -663,6 +770,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        Stop autosample
+        @return next_state, (next_agent_state, result)
+        """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
@@ -678,15 +789,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, *args, **kwargs):
+        """
+        Process GET event
+        @return next_state, result
+        """
         return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
         @param args[0] parameter : value dict.
-        @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
-        not a dict, or if parameter can't be properly formatted.
+        @return (next_state, result)
+        @throws InstrumentParameterException
         """
         next_state = None
         result = None
@@ -709,10 +823,15 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_direct(self):
         """
         Start direct access
+        @return next_state, (next_agent_state, result)
         """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_autosample(self):
+        """
+        Start autosample
+        @return next_state, (next_agent_state, result)
+        """
         self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
         self._do_cmd_no_resp(InstrumentCommand.NANO_ON)
         self._do_cmd_resp(InstrumentCommand.IRIS_ON, expected_prompt=Prompt.IRIS_ON)
@@ -733,6 +852,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        Execute direct access command
+        @return next_state, (next_agent_state, result)
         """
         self._do_cmd_direct(data)
         self._sent_cmds.append(data)
@@ -740,6 +861,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_stop_direct(self):
         """
+        Stop direct access
+        @return next_state, (next_agent_state, result)
         """
         next_state, next_agent_state = self._handler_unknown_discover()
         if next_state == DriverProtocolState.COMMAND:
@@ -764,26 +887,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         Generic exit state handler
         """
 
-    def _handler_start_leveling(self):
-        if not self.leveling:
-            self._schedule_leveling_timeout()
-            self._do_cmd_resp(InstrumentCommand.LILY_START_LEVELING, expected_prompt=Prompt.LILY_START_LEVELING)
-            self.leveling = True
-        return None, (None, None)
-
-    def _handler_stop_leveling(self):
-        if self.leveling:
-            self._remove_leveling_timeout()
-            self.leveling = False
-            self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, expected_prompt=Prompt.LILY_STOP_LEVELING)
-            if self.get_current_state() == ProtocolState.AUTOSAMPLE:
-                self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
-        return None, (None, None)
-
     def _handler_acquire_status(self, *args, **kwargs):
         """
         We generate these particles here to avoid the chunker.  This allows us to process status
         messages with embedded messages from the other parts of the instrument.
+        @return next_state, (next_agent_state, result)
         """
         ts = ntplib.system_to_ntp_time(time.time())
 
@@ -796,14 +904,67 @@ class Protocol(CommandResponseInstrumentProtocol):
             (InstrumentCommand.NANO_DUMP1, particles.NanoStatusParticle),
         ]:
             result, _ = self._do_cmd_resp(command, response_regex=particle_class.regex_compiled())
-            self._extract_sample(particle_class, particle_class.regex_compiled(), result, ts)
-
+            sample = self._extract_sample(particle_class, particle_class.regex_compiled(), result, ts)
+            if not sample:
+                raise InstrumentProtocolException('Failed to generate status particle: %s' % particle_class)
         return None, (None, None)
 
-    def _handler_time_sync(self):
+    def _handler_time_sync(self, *args, **kwargs):
         """
         Syncing time starts autosample...
+        @return next_state, (next_agent_state, result)
         """
         self._do_cmd_resp(InstrumentCommand.NANO_SET_TIME)
         if self.get_current_state() == ProtocolState.COMMAND:
             self._do_cmd_no_resp(InstrumentCommand.NANO_OFF)
+        return None, (None, None)
+
+    def _handler_start_leveling(self):
+        """
+        Send the start leveling command
+        @return next_state, (next_agent_state, result)
+        """
+        if not self._param_dict.get(Parameter.LILY_LEVELING):
+            self._schedule_leveling_timeout()
+            self._do_cmd_resp(InstrumentCommand.LILY_START_LEVELING, expected_prompt=Prompt.LILY_START_LEVELING)
+            self._param_dict.set_value(Parameter.LILY_LEVELING, True)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        return None, (None, None)
+
+    def _handler_stop_leveling(self):
+        """
+        Send the stop leveling command
+        @return next_state, (next_agent_state, result)
+        """
+        if self._param_dict.get(Parameter.LILY_LEVELING):
+            self._schedule_leveling_timeout()
+            self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, expected_prompt=Prompt.LILY_STOP_LEVELING)
+            self._param_dict.set_value(Parameter.LILY_LEVELING, False)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        return None, (None, None)
+
+    def _handler_start_heater(self, *args, **kwargs):
+        """
+        Turn the heater on for Parameter.HEAT_DURATION hours
+        @return next_state, (next_agent_state, result)
+        """
+        if not self._param_dict.get(Parameter.HEATER_ON):
+            self._do_cmd_resp(InstrumentCommand.HEAT,
+                              self._param_dict.get(Parameter.HEAT_DURATION),
+                              response_regex=RegexResponse.HEAT)
+            self._param_dict.set_value(Parameter.HEATER_ON, True)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        return None, (None, None)
+
+    def _handler_stop_heater(self, *args, **kwargs):
+        """
+        Turn the heater on for Parameter.HEAT_DURATION hours
+        @return next_state, (next_agent_state, result)
+        """
+        if self._param_dict.get(Parameter.HEATER_ON):
+            self._do_cmd_resp(InstrumentCommand.HEAT,
+                              0,
+                              response_regex=RegexResponse.HEAT)
+            self._param_dict.set_value(Parameter.HEATER_ON, False)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        return None, (None, None)
