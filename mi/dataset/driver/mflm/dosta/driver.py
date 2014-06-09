@@ -14,10 +14,10 @@ __license__ = 'Apache 2.0'
 import string
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.dataset.driver.mflm.driver import SioMuleDataSetDriver
+from mi.dataset.driver.sio_mule.sio_mule_single_driver import SioMuleSingleDataSetDriver
 from mi.dataset.parser.dostad import DostadParser, DostadParserDataParticle
 
-class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
+class MflmDOSTADDataSetDriver(SioMuleSingleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
