@@ -12,7 +12,6 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.instrument.data_particle import RawDataParticle
 
 __author__ = 'Richard Han'
 __license__ = 'Apache 2.0'
@@ -25,7 +24,7 @@ from mock import Mock
 from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey, DriverStartupConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
@@ -34,15 +33,17 @@ from mi.idk.unit_test import AgentCapabilityType
 
 from interface.objects import AgentCommand
 
+from mi.core.exceptions import SampleException
 from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.data_particle import RawDataParticle
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
 
-from mi.instrument.um.thsph.ooicore.driver import InstrumentDriver, THSPHDataParticleKey
+from mi.instrument.um.thsph.ooicore.driver import InstrumentDriver, THSPHDataParticleKey, THSPHParticle
 from mi.instrument.um.thsph.ooicore.driver import DataParticleType
 from mi.instrument.um.thsph.ooicore.driver import Command
 from mi.instrument.um.thsph.ooicore.driver import ProtocolState
@@ -66,11 +67,17 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'um_thsph_ooicore',
     instrument_agent_packet_config = DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            Parameter.INTERVAL: 6,
+        }
+    }
+
 )
 
 GO_ACTIVE_TIMEOUT=180
 TEST_POLLED_INTERVAL = 12
+TEST_INVALID_POLLED_INTERVAL = 601
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -105,9 +112,9 @@ class THSPHMixinSub(DriverTestMixin):
 
     InstrumentDriver = InstrumentDriver
 
-    '''
+    """
     Mixin class used for storing data particle constants and common data assertion methods.
-    '''
+    """
     # Create some short names for the parameter test config
     TYPE      = ParameterTestConfigKey.TYPE
     READONLY  = ParameterTestConfigKey.READONLY
@@ -118,7 +125,8 @@ class THSPHMixinSub(DriverTestMixin):
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
 
-    INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
+    INVALID_SAMPLE_01  = "This is an invalid sample; it had better cause an exception."
+    INVALID_SAMPLE_02  = "GG200A200720DE20AA10883FFF2211225E?"
     VALID_SAMPLE_01 = "aH200A200720DE20AA10883FFF2211225E#"
     VALID_SAMPLE_02 = "aH200A200720E120AB108A3FFF21FF2420#"
 
@@ -127,7 +135,7 @@ class THSPHMixinSub(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+        Parameter.INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: True},
     }
 
     _driver_capabilities = {
@@ -163,28 +171,23 @@ class THSPHMixinSub(DriverTestMixin):
 
     }
 
-    _status_parameters = {
-        #THSPHStatusParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.5', REQUIRED: True },
-
-    }
-
     def assert_particle_sample(self, data_particle, verify_values = False):
-        '''
+        """
         Verify sample particle
         @param data_particle:  THSPHDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(THSPHDataParticleKey, self._sample_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.THSPH_PARSED, require_instrument_timestamp=False)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
 
     def assert_particle_sample2(self, data_particle, verify_values = False):
-        '''
+        """
         Verify sample particle
         @param data_particle:  THSPHDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(THSPHDataParticleKey, self._sample_parameters_2)
         self.assert_data_particle_header(data_particle, DataParticleType.THSPH_PARSED, require_instrument_timestamp=False)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_2, verify_values)
@@ -192,11 +195,11 @@ class THSPHMixinSub(DriverTestMixin):
 
 
     def assertSampleDataParticle(self, data_particle):
-        '''
+        """
         Verify a particle is a known particle to this driver and verify the particle is
         correct
         @param data_particle: Data particle of unkown type produced by the driver
-        '''
+        """
         if (isinstance(data_particle, RawDataParticle)):
             self.assert_particle_raw(data_particle)
         else:
@@ -260,6 +263,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_SAMPLE_02)
         self.assert_chunker_combined_sample(chunker, self.VALID_SAMPLE_02)
 
+    def test_corrupt_data_sample(self):
+        for particle in (THSPHParticle(self.INVALID_SAMPLE_01),
+                         THSPHParticle(self.INVALID_SAMPLE_02)):
+            with self.assertRaises(SampleException):
+                particle.generate()
+
 
     def test_got_data(self):
         """
@@ -284,8 +293,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
         """
         mock_callback = Mock()
         protocol = THSPHProtocol(Prompt, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
+        driver_capabilities = Capability.list()
+        test_capabilities = Capability.list()
 
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")
@@ -306,10 +315,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_DIRECT'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
-                                       'DRIVER_EVENT_START_AUTOSAMPLE',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                       'DRIVER_EVENT_DISCOVER'],
+                                       'DRIVER_EVENT_ACQUIRE_SAMPLE'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                           'EXECUTE_DIRECT'],
 
@@ -346,12 +353,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         Test all set commands. Verify all exception cases.
         """
         self.assert_initialize_driver()
-
         self.assert_set(Parameter.INTERVAL, TEST_POLLED_INTERVAL)
-        value = self.assert_get(Parameter.INTERVAL, TEST_POLLED_INTERVAL)
-        pass
-
-
+        self.assert_set_exception(Parameter.INTERVAL, TEST_INVALID_POLLED_INTERVAL)
 
     def test_data_on(self):
         """
@@ -385,11 +388,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
                                         DataParticleType.THSPH_PARSED,
                                         self.assert_particle_sample,
-                                        delay=7)
+                                        delay=9)
         self.assert_async_particle_generation(DataParticleType.THSPH_PARSED,
                                               self.assert_particle_sample,
                                               particle_count=10,
-                                              timeout=55)
+                                              timeout=80)
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
 
@@ -488,7 +491,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
         ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.START_AUTOSAMPLE,
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.GET,
             ProtocolEvent.ACQUIRE_SAMPLE,
