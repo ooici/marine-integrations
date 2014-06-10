@@ -32,6 +32,14 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
         self.driver_path = path
         self.driver_version = version
 
+    def get_base_name(self):
+        return 'platform_%s_%s' % (self.driver_path.replace('/', '_'),
+                                   self.driver_version.replace('.', '_'))
+
+    def get_metadata(self):
+        self.metadata = mi.idk.platform.metadata.Metadata(self.driver_path)
+        return self.metadata
+
     def fetch_metadata(self):
         """
         @brief collect metadata from the user
@@ -39,33 +47,14 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
         if not (self.driver_path):
             self.driver_path = prompt.text( 'Driver Path' )
 
-        self.metadata = mi.idk.platform.metadata.Metadata(self.driver_path)
+        self.get_metadata()
         self.driver_version = prompt.text('Driver Version', self.metadata.version)
 
     def fetch_comm_config(self):
         """
-        @brief No comm config for platform
+        @brief No comm config for dsa
         """
         pass
-
-    def checkout_version(self):
-        """
-        @brief Checkout the driver version from the repository
-        """
-        base_name = 'dsd_%s_%s' % (self.driver_path.replace('/', '_'),
-                                   self.driver_version.replace('.', '_'))
-        cmd = 'git tag -l ' + 'release_' + base_name
-        output = subprocess.check_output(cmd, shell=True)
-        if len(output) > 0:
-            # this tag exists, check out the branch
-            #(tag is the branch name with 'release_' in front)
-            # checkout the branch so changes can be saved
-            cmd = 'git checkout ' + base_name
-            output = subprocess.check_output(cmd, shell=True)
-            # re-read metadata file since it has changed
-            self.metadata = mi.idk.platform.metadata.Metadata(self.driver_path)
-        else:
-            raise DriverDoesNotExist("Driver version %s does not exist", self.driver_version)
 
     @staticmethod
     def list_drivers():
@@ -108,7 +97,7 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
         @param path - the driver path 
         """
         # get all tags that start with this instrument
-        cmd = 'git tag -l ' + 'release_dsd_' + path.replace('/', '_') + '*'
+        cmd = 'git tag -l ' + 'release_platform_' + path.replace('/', '_') + '*'
         log.debug("git cmd: %s", cmd)
         output = subprocess.check_output(cmd, shell=True)
         version_list = ['master']
