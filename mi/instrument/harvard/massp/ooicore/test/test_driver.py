@@ -114,7 +114,7 @@ class DriverTestMixinSub(DriverTestMixin):
     def send_port_agent_packet(protocol, data):
         """
         Send a port agent packet via got_data
-        @param driver Instrument Driver instance
+        @param protocol Instrument Protocol instance
         @param data data to send
         """
         ts = ntplib.system_to_ntp_time(time.time())

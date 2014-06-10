@@ -13,9 +13,10 @@ import functools
 
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentTimeoutException
 from mi.core.instrument.driver_dict import DriverDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 from mi.core.log import get_logger
 from mi.core.log import get_logging_metaclass
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -63,8 +64,7 @@ class ProtocolState(BaseEnum):
     WAITING_RGA = 'PROTOCOL_STATE_WAITING_RGA'
     SAMPLE = 'PROTOCOL_STATE_SAMPLE'
     STOPPING = 'PROTOCOL_STATE_STOPPING'
-    NAFREG = 'PROTOCOL_STATE_NAFREG'
-    IONREG = 'PROTOCOL_STATE_IONREG'
+    REGEN = 'PROTOCOL_STATE_REGEN'
     ERROR = MASSP_STATE_ERROR
 
 
@@ -87,9 +87,7 @@ class ProtocolEvent(BaseEnum):
     SAMPLE = 'PROTOCOL_EVENT_SAMPLE'
     SAMPLE_COMPLETE = 'PROTOCOL_EVENT_SAMPLE_COMPLETE'
     NAFREG = 'PROTOCOL_EVENT_NAFREG'
-    NAFREG_COMPLETE = 'PROTOCOL_EVENT_NAFREG_COMPLETE'
     IONREG = 'PROTOCOL_EVENT_IONREG'
-    IONREG_COMPLETE = 'PROTOCOL_EVENT_IONREG_COMPLETE'
     CALIBRATE = DriverEvent.CALIBRATE
     CALIBRATE_COMPLETE = 'PROTOCOL_EVENT_CALIBRATE_COMPLETE'
     ERROR = 'PROTOCOL_EVENT_ERROR'
@@ -117,6 +115,19 @@ class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
+    TELEGRAM_INTERVAL = 'mcu_telegram_interval'
+
+    @classmethod
+    def reverse_dict(cls):
+        return dict((v, k) for k, v in cls.dict().iteritems())
+
+
+class ParameterConstraint(BaseEnum):
+    """
+    Constraints for parameters
+    (type, min, max)
+    """
+    TELEGRAM_INTERVAL = (int, 1, 30)
 
 
 class Prompt(BaseEnum):
@@ -156,6 +167,7 @@ class InstrumentCommand(BaseEnum):
     IONREG = 'U AIONREG3'
     ABORT = 'U AABORT'
     RESETP = 'U SETRESETP'
+    SET_TELEGRAM_INTERVAL = 'U SETRATEDLR'
 
 
 ###############################################################################
@@ -293,6 +305,10 @@ class McuDataParticle(DataParticle):
 
             powers, pressures, internals, externals, external_statuses, power_statuses, \
                 solenoid_statuses, calibration_statuses, heater_statuses = segments
+
+            for index, value in enumerate(calibration_statuses):
+                if value == '':
+                    calibration_statuses[index] = 0
 
             result = [
                 self._encode_value(McuStatusParticleKey.RGA_CURRENT, powers[0], int),
@@ -498,16 +514,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
-            ProtocolState.NAFREG: [
+            ProtocolState.REGEN: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.NAFREG_COMPLETE, self._handler_stop),
-                (ProtocolEvent.ERROR, self._handler_error),
-            ],
-            ProtocolState.IONREG: [
-                (ProtocolEvent.ENTER, self._handler_generic_enter),
-                (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.IONREG_COMPLETE, self._handler_stop),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.DIRECT_ACCESS: [
@@ -539,7 +549,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         for command in InstrumentCommand.list():
-            self._add_build_handler(command, self._build_simple_command)
+            if command == InstrumentCommand.SET_TELEGRAM_INTERVAL:
+                self._add_build_handler(command, self._build_telegram_interval_command)
+            else:
+                self._add_build_handler(command, self._build_simple_command)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -569,8 +582,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _build_param_dict(self):
         """
-        This driver has no parameters
+        Build the parameter dictionary
         """
+        self._param_dict.add(Parameter.TELEGRAM_INTERVAL,
+                             '',
+                             None,
+                             None,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             display_name='Data Telegram Interval in Sample',
+                             units=Units.SECOND,
+                             description='The interval in seconds between successive MCU data telegrams' +
+                                         'while in the SAMPLE/CAL state')
 
     def _build_command_dict(self):
         """
@@ -590,6 +614,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         Populate the driver dictionary with options
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, False)
+
+    def _build_telegram_interval_command(self, *args, **kwargs):
+        """
+        Build the telegram interval command using the TELEGRAM_INTERVAL parameter
+        """
+        return '%s%08d' % (InstrumentCommand.SET_TELEGRAM_INTERVAL,
+                           int(self._param_dict.get(Parameter.TELEGRAM_INTERVAL)) * 1000)
 
     def _got_chunk(self, chunk, ts):
         """
@@ -626,9 +657,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif chunk == Prompt.CAL_FINISHED:
             event = ProtocolEvent.CALIBRATE_COMPLETE
         elif chunk == Prompt.IONREG_FINISHED:
-            event = ProtocolEvent.IONREG_COMPLETE
+            event = ProtocolEvent.STANDBY
         elif chunk == Prompt.NAFREG_FINISHED:
-            event = ProtocolEvent.NAFREG_COMPLETE
+            event = ProtocolEvent.STANDBY
         elif chunk == Prompt.ERROR:
             event = ProtocolEvent.ERROR
         else:
@@ -665,9 +696,42 @@ class Protocol(CommandResponseInstrumentProtocol):
         This instrument has no params
         @throws InstrumentParameterException
         """
-        params = args[0]
-        if params:
-            raise InstrumentParameterException('Attempted to set unknown parameters: %r' % params)
+        self._verify_not_readonly(*args, **kwargs)
+        params_to_set = args[0]
+        old_config = self._param_dict.get_all()
+
+        # check if in range
+        constraints = ParameterConstraint.dict()
+        parameters = Parameter.reverse_dict()
+
+        # step through the list of parameters
+        for key, val in params_to_set.iteritems():
+            # if constraint exists, verify we have not violated it
+            constraint_key = parameters.get(key)
+            if constraint_key in constraints:
+                var_type, minimum, maximum = constraints[constraint_key]
+                try:
+                    value = var_type(val)
+                except ValueError:
+                    raise InstrumentParameterException(
+                        'Unable to verify type - parameter: %s value: %s' % (key, val))
+                if val < minimum or val > maximum:
+                    raise InstrumentParameterException(
+                        'Value out of range - parameter: %s value: %s min: %s max: %s' %
+                        (key, val, minimum, maximum))
+
+        # all constraints met or no constraints exist, set the values
+        for key, val in params_to_set.iteritems():
+            if key in old_config:
+                self._param_dict.set_value(key, val)
+            else:
+                raise InstrumentParameterException(
+                    'Attempted to set unknown parameter: %s value: %s' % (key, val))
+        new_config = self._param_dict.get_all()
+
+        # If we changed anything, raise a CONFIG_CHANGE event
+        if old_config != new_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     ########################################################################
     # Unknown handlers.
@@ -688,13 +752,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.  Break out of any currently running sequence and return the MCU to STANDBY
         """
+        self._init_params()
         self._do_cmd_resp(InstrumentCommand.BEAT)
 
         try:
-            result = self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE])
+            result = self._do_cmd_resp(InstrumentCommand.STANDBY,
+                                       expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE],
+                                       timeout=30)
             if result == Prompt.IN_SEQUENCE:
                 self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
-                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY)
+                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
         except InstrumentTimeoutException:
             # something else is wrong, pass the buck to the operator
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
@@ -707,7 +774,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         This driver has no parameters, return an empty dict.
         """
-        return None, {}
+        return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -735,14 +802,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         Send the nafreg command and move to the nafreg state
         @return next_state, (next_agent_state, result)
         """
-        return ProtocolState.NAFREG, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.NAFREG))
+        return ProtocolState.REGEN, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.NAFREG))
 
     def _handler_command_ionreg(self):
         """
         Send the ionreg command and move to the ionreg state
         @return next_state, (next_agent_state, result)
         """
-        return ProtocolState.IONREG, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.IONREG))
+        return ProtocolState.REGEN, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.IONREG))
 
     def _handler_command_poweroff(self):
         """
@@ -793,14 +860,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         RGA configuration/startup complete, send start sample and move to sample state
         @return next_state, (next_agent_state, result)
         """
-        return ProtocolState.SAMPLE, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.SAMPLE))
+        result = self._do_cmd_resp(InstrumentCommand.SAMPLE)
+        self._do_cmd_resp(InstrumentCommand.SET_TELEGRAM_INTERVAL)
+        return ProtocolState.SAMPLE, (ResourceAgentState.BUSY, result)
 
     def _handler_waiting_rga_cal(self):
         """
         RGA configuration/startup complete, send start cal and move to cal state
         @return next_state, (next_agent_state, result)
         """
-        return ProtocolState.CALIBRATE, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.CAL))
+        result = self._do_cmd_resp(InstrumentCommand.CAL)
+        self._do_cmd_resp(InstrumentCommand.SET_TELEGRAM_INTERVAL)
+        return ProtocolState.CALIBRATE, (ResourceAgentState.BUSY, result)
 
     ########################################################################
     # SAMPLE handlers.

@@ -45,7 +45,7 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-startup_config = {DriverConfigKey.PARAMETERS: {}}
+startup_config = {DriverConfigKey.PARAMETERS: {Parameter.TELEGRAM_INTERVAL: 10}}
 
 ###
 #   Driver parameters for the tests
@@ -55,8 +55,8 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
     instrument_agent_resource_id='IN2N03',
     instrument_agent_name='harvard_massp_mcu',
-    instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config={}
+    instrument_agent_packet_config=DataParticleType,
+    driver_startup_config=startup_config
 )
 
 #################################### RULES ####################################
@@ -217,17 +217,23 @@ class DriverTestMixinSub(DriverTestMixin):
         InstrumentCommand.SAMPLE: Prompt.SAMPLE_START,
         InstrumentCommand.CAL: Prompt.OK,
         InstrumentCommand.STANDBY: Prompt.OK + NEWLINE + Prompt.STANDBY,
-        InstrumentCommand.BEAT: Prompt.BEAT
+        InstrumentCommand.BEAT: Prompt.BEAT,
+        InstrumentCommand.NAFREG: Prompt.OK,
+        InstrumentCommand.IONREG: Prompt.OK,
+        InstrumentCommand.SET_TELEGRAM_INTERVAL + '00010000': Prompt.OK,
     }
 
-    _driver_parameters = {}
+    _driver_parameters = {
+        Parameter.TELEGRAM_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
+    }
 
     _driver_capabilities = {
         # capabilities defined in the IOS
         Capability.START1: {STATES: [ProtocolState.COMMAND]},
         Capability.START2: {STATES: [ProtocolState.START1]},
         Capability.SAMPLE: {STATES: [ProtocolState.START2]},
-        Capability.STANDBY: {STATES: [ProtocolState.WAITING_TURBO, ProtocolState.WAITING_RGA, ProtocolState.SAMPLE]},
+        Capability.STANDBY: {STATES: [ProtocolState.WAITING_TURBO, ProtocolState.WAITING_RGA,
+                                      ProtocolState.SAMPLE, ProtocolState.REGEN]},
         Capability.CLEAR: {STATES: [ProtocolState.ERROR]},
         Capability.IONREG: {STATES: [ProtocolState.COMMAND]},
         Capability.NAFREG: {STATES: [ProtocolState.COMMAND]},
@@ -236,7 +242,6 @@ class DriverTestMixinSub(DriverTestMixin):
 
     _capabilities = {
         ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER',
-                                'DRIVER_EVENT_START_DIRECT',
                                 'PROTOCOL_EVENT_ERROR'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
@@ -254,9 +259,7 @@ class DriverTestMixinSub(DriverTestMixin):
                                'PROTOCOL_EVENT_ERROR'],
         ProtocolState.CALIBRATE: ['PROTOCOL_EVENT_CALIBRATE_COMPLETE',
                                   'PROTOCOL_EVENT_ERROR'],
-        ProtocolState.IONREG: ['PROTOCOL_EVENT_IONREG_COMPLETE',
-                               'PROTOCOL_EVENT_ERROR'],
-        ProtocolState.NAFREG: ['PROTOCOL_EVENT_NAFREG_COMPLETE',
+        ProtocolState.REGEN: ['PROTOCOL_EVENT_STANDBY',
                                'PROTOCOL_EVENT_ERROR'],
         ProtocolState.STOPPING: ['PROTOCOL_EVENT_STANDBY',
                                  'PROTOCOL_EVENT_ERROR'],
@@ -382,6 +385,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
         driver._connection.send.side_effect = self.my_send(driver)
+        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol._init_params()
         return driver
 
     def test_driver_enums(self):
@@ -508,6 +513,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
         driver._connection.send.side_effect = lambda x: sent.append(x)
+        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol._init_params()
+
         driver._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
         driver._protocol._async_raise_fsm_event(ProtocolEvent.DISCOVER)
         wait(InstrumentCommand.BEAT + NEWLINE)
@@ -519,6 +527,37 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         wait(InstrumentCommand.STANDBY + NEWLINE)
         self._send_port_agent_packet(driver, Prompt.STANDBY + NEWLINE)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
+
+    def test_regen(self):
+        """
+        Verify we can start/stop the regen states
+        """
+        driver = self.test_connect()
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.NAFREG)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.REGEN)
+        self._send_port_agent_packet(driver, Prompt.NAFREG_FINISHED + NEWLINE)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
+
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.IONREG)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.REGEN)
+        self._send_port_agent_packet(driver, Prompt.IONREG_FINISHED + NEWLINE)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
+
+    def test_regen_stop(self):
+        """
+        Verify we can abort the regen states
+        """
+        driver = self.test_connect()
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.NAFREG)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.REGEN)
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.STANDBY)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
+
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.IONREG)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.REGEN)
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.STANDBY)
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -537,6 +576,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         Stand up the driver, transition to COMMAND
         """
         self.assert_initialize_driver()
+
+    def test_get(self):
+        self.assert_initialize_driver()
+        self.assert_get(Parameter.TELEGRAM_INTERVAL, self._driver_parameters[Parameter.TELEGRAM_INTERVAL][self.VALUE])
+
+    def test_set(self):
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.TELEGRAM_INTERVAL,
+                        int(self._driver_parameters[Parameter.TELEGRAM_INTERVAL][self.VALUE])+1)
+        self.assert_set_exception(Parameter.TELEGRAM_INTERVAL, -10)
 
     def test_start1(self):
         """
@@ -567,6 +616,26 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         """
         self.assert_initialize_driver()
         self.assert_driver_command_exception('BAD_COMMAND', exception_class=InstrumentCommandException)
+
+    def test_ion_regen(self):
+        """
+        Test the ion chamber regen command
+        """
+        self.assert_initialize_driver()
+        self.assert_driver_command(Capability.IONREG)
+        self.assert_state_change(ProtocolState.REGEN, 5)
+        self.assert_driver_command(Capability.STANDBY)
+        self.assert_state_change(ProtocolState.COMMAND, 20)
+
+    def test_nafion_regen(self):
+        """
+        Test the ion chamber regen command
+        """
+        self.assert_initialize_driver()
+        self.assert_driver_command(Capability.NAFREG)
+        self.assert_state_change(ProtocolState.REGEN, 5)
+        self.assert_driver_command(Capability.STANDBY)
+        self.assert_state_change(ProtocolState.COMMAND, 20)
 
 
 ###############################################################################

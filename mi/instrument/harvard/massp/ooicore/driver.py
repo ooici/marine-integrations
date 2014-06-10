@@ -71,8 +71,7 @@ class ProtocolState(BaseEnum):
     POLL = DriverProtocolState.POLL
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     CALIBRATE = DriverProtocolState.CALIBRATE
-    NAFION_REGEN = 'PROTOCOL_STATE_NAFION_REGEN'
-    ION_REGEN = 'PROTOCOL_STATE_ION_REGEN'
+    REGEN = 'PROTOCOL_STATE_REGEN'
     ERROR = MASSP_STATE_ERROR
 
 
@@ -97,6 +96,8 @@ class ProtocolEvent(BaseEnum):
     START_ION = 'PROTOCOL_EVENT_START_ION_REGEN'
     ERROR = 'PROTOCOL_EVENT_ERROR'
     CLEAR = MASSP_CLEAR_ERROR
+    POWEROFF = 'PROTOCOL_EVENT_POWEROFF'
+    STOP_REGEN = 'PROTOCOL_EVENT_STOP_REGEN'
 
 
 class Capability(BaseEnum):
@@ -110,6 +111,8 @@ class Capability(BaseEnum):
     START_NAFION = ProtocolEvent.START_NAFION
     START_ION = ProtocolEvent.START_ION
     CLEAR = ProtocolEvent.CLEAR
+    POWEROFF = ProtocolEvent.POWEROFF
+    STOP_REGEN = ProtocolEvent.STOP_REGEN
 
 
 class Parameter(DriverParameter):
@@ -322,6 +325,7 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.START_NAFION, self._handler_command_start_nafion_regen),
                 (ProtocolEvent.START_ION, self._handler_command_start_ion_regen),
                 (ProtocolEvent.ERROR, self._handler_error),
+                (ProtocolEvent.POWEROFF, self._handler_command_poweroff),
             ],
             ProtocolState.AUTOSAMPLE: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
@@ -348,16 +352,10 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.STOP, self._handler_stop_generic),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
-            ProtocolState.NAFION_REGEN: [
+            ProtocolState.REGEN: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.STOP, self._handler_stop_generic),
-                (ProtocolEvent.ERROR, self._handler_error),
-            ],
-            ProtocolState.ION_REGEN: [
-                (ProtocolEvent.ENTER, self._handler_generic_enter),
-                (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.STOP, self._handler_stop_generic),
+                (ProtocolEvent.STOP_REGEN, self._handler_stop_regen),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.DIRECT_ACCESS: [
@@ -435,7 +433,9 @@ class Protocol(InstrumentProtocol):
         self._cmd_dict.add(Capability.CALIBRATE, display_name="Acquire calibration samples")
         self._cmd_dict.add(Capability.START_ION, display_name="Start the ion chamber regeneration sequence")
         self._cmd_dict.add(Capability.START_NAFION, display_name="Start the nafion regeneration sequence")
+        self._cmd_dict.add(Capability.STOP_REGEN, display_name="Stop the current regeneration sequence")
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="Stop autosample")
+        self._cmd_dict.add(Capability.POWEROFF, display_name='Issue the "Power Off" command to the instrument')
 
     def _build_driver_dict(self):
         """
@@ -866,7 +866,7 @@ class Protocol(InstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.NAFREG)
-        return ProtocolState.NAFION_REGEN, (ResourceAgentState.BUSY, None)
+        return ProtocolState.REGEN, (ResourceAgentState.BUSY, None)
 
     def _handler_command_start_ion_regen(self):
         """
@@ -874,7 +874,15 @@ class Protocol(InstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.IONREG)
-        return ProtocolState.ION_REGEN, (ResourceAgentState.BUSY, None)
+        return ProtocolState.REGEN, (ResourceAgentState.BUSY, None)
+
+    def _handler_command_poweroff(self):
+        """
+        Send POWEROFF to the MCU
+        @return next_state, (next_agent_state, result)
+        """
+        self._send_event_to_slave(MCU, mcu.Capability.POWEROFF)
+        return None, (None, None)
 
     ########################################################################
     # Error handlers.
@@ -966,4 +974,16 @@ class Protocol(InstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._send_event_to_all(ProtocolEvent.STOP_DIRECT)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    ########################################################################
+    # Regen handlers.
+    ########################################################################
+
+    def _handler_stop_regen(self):
+        """
+        Abort the current regeneration sequence, return to COMMAND
+        @return next_state, (next_agent_state, result)
+        """
+        self._send_event_to_slave(MCU, mcu.Capability.STANDBY)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
