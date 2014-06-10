@@ -12,6 +12,8 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+import re
+from mi.core.common import BaseEnum
 
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
@@ -47,7 +49,8 @@ from mi.instrument.satlantic.suna_deep.ooicore.driver import Prompt
 from mi.instrument.satlantic.suna_deep.ooicore.driver import NEWLINE
 from mi.instrument.satlantic.suna_deep.ooicore.driver import SUNASampleDataParticle
 
-from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException
+from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException, \
+    InstrumentProtocolException
 
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -65,7 +68,7 @@ InstrumentDriverTestCase.initialize(
 
     driver_startup_config={DriverConfigKey.PARAMETERS: {
             Parameter.OPERATION_MODE: InstrumentCommandArgs.POLLED,
-            Parameter.OPERATION_CONTROL: "Operation Control",
+            Parameter.OPERATION_CONTROL: "Samples",
             Parameter.LIGHT_SAMPLES: 5,
             Parameter.DARK_SAMPLES: 1,
             Parameter.LIGHT_DURATION: 10,
@@ -134,6 +137,28 @@ SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
                   "Spec Dark av sd mi ma ,   471 (+/-     9) [  444:  494]\r\n" \
                   "Spec Lght av sd mi ma , 22308 (+/- 12009) [  455:52004]\r\n" \
                   "$Ok"
+
+
+class ParameterConstraints(BaseEnum):
+    OPERATION_MODE = (Parameter.OPERATION_MODE, str, InstrumentCommandArgs.CONTINUOUS, InstrumentCommandArgs.POLLED)
+    OPERATION_CONTROL = (Parameter.OPERATION_CONTROL, str, 'Samples', 'Duration')
+    LIGHT_SAMPLES = (Parameter.LIGHT_SAMPLES, int, 1, 65535)
+    DARK_SAMPLES = (Parameter.DARK_SAMPLES, int, 1, 65535)
+    LIGHT_DURATION = (Parameter.LIGHT_DURATION, int, 1, 65535)
+    DARK_DURATION = (Parameter.DARK_DURATION, int, 1, 65535)
+    COUNTDOWN = (Parameter.COUNTDOWN, int, 0, 3600)
+    TEMP_COMPENSATION = (Parameter.TEMP_COMPENSATION, str, InstrumentCommandArgs.ON, InstrumentCommandArgs.OFF)
+    FIT_WAVELENGTH_BOTH = (Parameter.FIT_WAVELENGTH_BOTH, str, '210,210', '350,350')
+    CONCENTRATIONS_IN_FIT = (Parameter.CONCENTRATIONS_IN_FIT, int, 1, 3)
+    BASELINE_ORDER = (Parameter.BASELINE_ORDER, int, 1, 1)
+    DARK_CORRECTION_METHOD = (Parameter.DARK_CORRECTION_METHOD, str, 'SpecAverage', 'SWAverage')
+    SALINITY_FITTING = (Parameter.SALINITY_FITTING, str, InstrumentCommandArgs.ON, InstrumentCommandArgs.OFF)
+    BROMIDE_TRACING = (Parameter.BROMIDE_TRACING, str, InstrumentCommandArgs.ON, InstrumentCommandArgs.OFF)
+    ABSORBANCE_CUTOFF = (Parameter.ABSORBANCE_CUTOFF, float, 0.01, 10.0)
+    INTEG_TIME_ADJUSTMENT = (Parameter.INTEG_TIME_ADJUSTMENT, str, InstrumentCommandArgs.ON, InstrumentCommandArgs.OFF)
+    INTEG_TIME_FACTOR = (Parameter.INTEG_TIME_FACTOR, int, 1, 20)
+    INTEG_TIME_STEP = (Parameter.INTEG_TIME_STEP, int, 1, 20)
+    INTEG_TIME_MAX = (Parameter.INTEG_TIME_MAX, int, 1, 20)
 
 
 ###############################################################################
@@ -486,13 +511,35 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def test_out_of_range(self):
+        """
+        Verify when the instrument receives a set param with value out of range or invalid string,
+        the instrument throws an exception
+        """
+        self.assert_initialize_driver()
+
+        constraints = ParameterConstraints.dict()
+        for param in constraints:
+            param_name, type_class, minimum, maximum = constraints[param]
+
+            if type_class is int:
+                self.assert_set_exception(param_name, minimum - 1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, maximum + 1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, 'badString', exception_class=InstrumentProtocolException)
+            elif type_class is str:
+                self.assert_set_exception(param_name, 'invalidvalue', exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, 1, exception_class=InstrumentProtocolException)
+            elif type_class is float:
+                self.assert_set_exception(param_name, minimum - 0.1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, maximum + 0.1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, 'badString', exception_class=InstrumentProtocolException)
+
     def test_get_set(self):
         """
         Verify device parameter access.
         """
         self.assert_initialize_driver()
 
-        #todo - do all params, need to do boundary checking?
         #set read/write params
         self.assert_set(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
         self.assert_set(Parameter.OPERATION_CONTROL, "Duration")
@@ -500,8 +547,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_set(Parameter.DARK_SAMPLES, 3)
         self.assert_set(Parameter.LIGHT_DURATION, 11)
         self.assert_set(Parameter.DARK_DURATION, 6)
-        self.assert_set(Parameter.DARK_SAMPLES, 3)
-        self.assert_set(Parameter.DARK_SAMPLES, 3)
         self.assert_set(Parameter.COUNTDOWN, 16)
         self.assert_set(Parameter.TEMP_COMPENSATION, InstrumentCommandArgs.ON)
         self.assert_set(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
@@ -538,56 +583,52 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
 
-    def test_single_sample(self):
+    def test_acquire_sample(self):
         """
-        Verify instrument can acquire a sample in polled mode
+        Verify instrument can acquire a sample in command mode
         """
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=20)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
-    def test_status(self):
+    def test_acquire_status(self):
         """
         Verify instrument can acquire status (in command mode)
         """
-
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.SUNA_STATUS,
-                                        self.assert_data_particle_status, delay=30)
+                                        self.assert_data_particle_status, delay=TIMEOUT)
 
-    def test_test(self):
+    def test_selftest(self):
         """
         Verify instrument can perform a self test
         """
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.TEST, DataParticleType.SUNA_TEST,
-                                        self.assert_data_particle, delay=15)
+                                        self.assert_data_particle, delay=TIMEOUT)
 
-    def test_polled_sample(self):
+    def test_start_stop_polled(self):
         """
         Verify polled acquisition of samples in auto-sample mode
         """
         self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.POLL, delay=1)
 
-        self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.COMMAND, delay=1)
-
-        # noinspection PyPep8
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
-                                         self.assert_data_particle_sample, delay=20)
+                                         self.assert_data_particle_sample, delay=TIMEOUT)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_N, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=20)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
         self.assert_particle_generation(ProtocolEvent.TIMED_N, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=20)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
-        # Return to command mode.
-        self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=10)
 
-    def test_auto_sample(self):
+    def test_start_stop_auto_sample(self):
         """
         Verify continuous acquisition of samples in auto-sample mode
         """
@@ -596,12 +637,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=5)
 
-        # Return to command mode. Catch timeouts and retry if necessary.
+        #Stop autosample
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
 
         # transition back to auto to test countdown logic
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,

@@ -7,6 +7,7 @@ Release notes:
 
 initial_rev
 """
+import functools
 
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
@@ -353,13 +354,16 @@ class Prompt(BaseEnum):
     """
     COMMAND = "SUNA>"
     POLLED = "CMD?"
-
-    SET_OK = r'.*\r\n(\$Ok)\s+'
-    OK = r'.*\r\n\$Ok ([\w.]+)\s+'
-    ERROR = r'.*\r\n\$Error: (\d+)\s+'
+    OK = '$Ok'
+    #SET_OK = r'.*\r\n(\$Ok)\s+'
+    #OK_GET =
+    ERROR = '$Error:'#r'.*\r\n\$Error: (\d+)\s+'
     WAKEUP = "Charging power loss protector."
-
     SAMPLING = 'SAT'
+
+OK_GET = r'.*\r\n\$Ok ([\w.]+)\s+'
+OK_GET_REGEX = re.compile(OK_GET, re.DOTALL)
+
 
 
 class InstrumentCommand(BaseEnum):
@@ -368,28 +372,28 @@ class InstrumentCommand(BaseEnum):
     """
     #Status and Maintenance
     CMD_LINE = "$"
-    GET_CLOCK = "get clock"
+    #GET_CLOCK = "get clock"
     SET_CLOCK = "set clock"
-    UPGRADE = "upgrade"
-    REBOOT = "reboot"
+    #UPGRADE = "upgrade"
+    #REBOOT = "reboot"
     EXIT = "exit"
-    GET_LAMPTIME = "get lamptime"
-    GET_ACTIVECALFILE = "get activecalfile"
+    #GET_LAMPTIME = "get lamptime"
+    #GET_ACTIVECALFILE = "get activecalfile"
     SELFTEST = "selftest"
     STATUS = "get cfg"
 
     #File Commands
-    LIST = "List"
-    OUTPUT = "Output"
-    SEND = "Send"
-    DELETE = "Delete"
-    RECEIVE = "Receive"
+    #LIST = "List"
+    #OUTPUT = "Output"
+    #SEND = "Send"
+    #DELETE = "Delete"
+    #RECEIVE = "Receive"
 
     # Polled Mode
     START = "Start"
     MEASURE = "Measure"     # takes param n indicating amount of light frames
     TIMED = "Timed"         # takes param n indicating duration in seconds to take light frames for
-    CTD = "CTD"
+    #CTD = "CTD"
     SLEEP = "Sleep"
 
     # Command Line Commands
@@ -404,9 +408,9 @@ class InstrumentCommandArgs(BaseEnum):
     OFF = 'Off'
 
 
-class LastSampleState(BaseEnum):
-    POLL = "poll"
-    AUTO = "auto"
+# class LastSampleState(BaseEnum):
+#     POLL = "poll"
+#     AUTO = "auto"
 
 
 class SUNASampleDataParticleKey(BaseEnum):
@@ -895,12 +899,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.TIMED, self._build_timed_command)
         self._add_build_handler(InstrumentCommand.SELFTEST, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.REBOOT, self._build_simple_command)
+        #self._add_build_handler(InstrumentCommand.REBOOT, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.SET_CLOCK, self._build_clock_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.GET, self._parse_generic_response)
         self._add_response_handler(InstrumentCommand.SET, self._parse_generic_response)
+        self._add_response_handler(InstrumentCommand.SET_CLOCK, self._parse_generic_response)
         self._add_response_handler(InstrumentCommand.CMD_LINE, self._parse_cmd_line_response)
 
         # Construct the parameter dictionary containing device parameters,
@@ -912,6 +917,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._sent_cmds = []
 
         self._chunker = StringChunker(Protocol.sieve_function)
+        self._wakeup = functools.partial(self._wakeup, delay=.1)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -977,7 +983,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              startup_param=True,
                              direct_access=True,
-                             default_value="Samples",
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Operation Control",
                              description='Operation control: Samples or Duration')
@@ -1352,39 +1357,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return [x for x in events if Capability.has(x)]
 
-    # def _do_cmd_no_resp(self, cmd, *args, **kwargs):
-    #     """
-    #     Issue a command to the instrument after clearing of
-    #     buffers. No response is handled as a result of the command.
-    #
-    #     @param cmd The command to execute.
-    #     @param args positional arguments to pass to the build handler.
-    #     @param timeout=timeout optional wakeup timeout.
-    #     @raises InstrumentTimeoutException if the response did not occur in time.
-    #     @raises InstrumentProtocolException if command could not be built.
-    #     """
-    #     timeout = kwargs.get('timeout', 15)
-    #     write_delay = kwargs.get('write_delay', 0)
-    #
-    #     build_handler = self._build_handlers.get(cmd, None)
-    #     if not build_handler:
-    #         raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
-    #     cmd_line = build_handler(cmd, *args)
-    #     log.debug("AK DEBUG SENDING CMD LINE %s", cmd_line)
-    #
-    #     # Clear line and prompt buffers for result.
-    #     #self._linebuf = ''
-    #     #self._promptbuf = ''
-    #
-    #     # Send command.
-    #     log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
-    #     if write_delay == 0:
-    #         self._connection.send(cmd_line)
-    #     else:
-    #         for char in cmd_line:
-    #             self._connection.send(char)
-    #             time.sleep(write_delay)
-
     def _handler_generic_exit(self, *args, **kwargs):
         """
         Generic exit handler, do nothing
@@ -1399,7 +1371,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
     def _handler_unknown_discover(self):
         """
         Discover current state
@@ -1421,7 +1392,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
     def _handler_command_enter(self):
         """
         Enter command state.
@@ -1471,7 +1441,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Start polling
         """
         next_state = ProtocolState.POLL
-        next_agent_state = None
+        next_agent_state = ResourceAgentState.BUSY
         result = None
 
         self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)
@@ -1503,37 +1473,35 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("GET FOR: %s", params)
 
         if params == Parameter.ALL:
-            params = self._param_dict.get_keys()
+            result = self._param_dict.get_all()
         elif not params or not isinstance(params, list):
             raise InstrumentParameterException("Params must be a list")
+        else:
+            old_config = self._param_dict.get_config()
 
-        old_config = self._param_dict.get_config()
+            for param in params:
+                if not Parameter.has(param):
+                    raise InstrumentParameterException("%s is not a parameter" % param)
 
-        for param in params:
-            if not Parameter.has(param):
-                raise InstrumentParameterException("%s is not a parameter" % param)
-
-            # handle driver parameters
-            if param == Parameter.NUM_LIGHT_SAMPLES:
-                result[param] = self.num_samples
-            elif param == Parameter.TIME_LIGHT_SAMPLE:
-                result[param] = self.time_samples
-            # handle instrument parameters
-            else:
-                #wfitboth is a set only param and cannot be read from the instrument
-                if param == Parameter.FIT_WAVELENGTH_BOTH:
+                # handle driver parameters
+                if param == Parameter.NUM_LIGHT_SAMPLES:
+                    result[param] = self.num_samples
+                elif param == Parameter.TIME_LIGHT_SAMPLE:
+                    result[param] = self.time_samples
+                    # handle instrument parameters
+                elif param == Parameter.FIT_WAVELENGTH_BOTH:
+                     #wfitboth is a set only param and cannot be read from the instrument
                     result[param] = self._param_dict.get(Parameter.FIT_WAVELENGTH_BOTH)
                 else:
                     type_func = PARAM_TYPE_FUNC.get(param)
                     value = type_func(self._get_from_instrument(param))  # always get str type from instrument
                     result[param] = value
-                    #TODO = update the parameter dictionary??? need to send config change....
                     self._param_dict.set_value(param, value)
 
-        new_config = self._param_dict.get_config()
+            new_config = self._param_dict.get_config()
 
-        if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            if new_config != old_config:
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         return next_state, result
 
@@ -1582,9 +1550,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                     except KeyError:
                         raise InstrumentParameterException()
 
-                    # noinspection PyPep8
-                    self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=100,
-                                                response_regex=re.compile(Prompt.SET_OK))
+                    self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT,
+                                      expected_prompt=[Prompt.OK, Prompt.ERROR])
+                                                #response_regex=re.compile(Prompt.SET_OK))
                     self._param_dict.set_value(key, params[key])
 
         new_config = self._param_dict.get_config()
@@ -1619,11 +1587,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         Sync clock close to a second edge
         set clock YYYY/MM/DD hh:mm:ss
         """
-        str_time = get_timestamp_delayed("%Y/%m/%d %H:%M:%s")
+        str_time = get_timestamp_delayed("%Y/%m/%d %H:%M:%S")
         log.debug('syncing clock to: %s', str_time)
 
-        #TODO - WHAT IS THE RESPONSE FROM THE INSTRUMENT???
-        self._do_cmd_no_resp(InstrumentCommand.SET_CLOCK, str_time)
+        self._do_cmd_resp(InstrumentCommand.SET_CLOCK, str_time, timeout=TIMEOUT,
+                          expected_prompt=[Prompt.OK, Prompt.ERROR])
 
         return None, (None, None)
 
@@ -1762,7 +1730,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param value string containing the date/time to set
         @retval Returns string ready for sending to instrument
         """
-        return "%s %s" % (InstrumentCommand.SET_CLOCK, value)
+        return "%s %s%s" % (InstrumentCommand.SET_CLOCK, value, NEWLINE)
 
     def _build_get_command(self, cmd, param):
         """
@@ -1787,6 +1755,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if not Parameter.has(param):
             raise InstrumentParameterException("%s is not a parameter" % param)
+
         return "%s %s %s%s" % (InstrumentCommand.SET, param, value, NEWLINE)
 
     def _build_measure_command(self, cmd, samples):
@@ -1797,10 +1766,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param samples The number of light samples to take
         @retval Returns string ready for sending to instrument
         """
-        if samples > 0:
-            raise InstrumentParameterException("Sample count cannot be less than 0: " % samples)
-        assert samples >= 0  # negative samples is not valid
-        return "%s %s%s" % (InstrumentCommand.MEASURE, samples, NEWLINE)
+        if samples < 0:
+            raise InstrumentParameterException("Sample count cannot be less than 0: (%s)" % samples)
+
+        string_temp = "%s %s%s" % (InstrumentCommand.MEASURE, samples, NEWLINE)
+
+        return string_temp
 
     def _build_timed_command(self, cmd, time_amount):
         """
@@ -1810,7 +1781,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param time_amount The amount of time to sample for
         @retval Returns string ready for sending to instrument
         """
-        if time_amount > 0:
+        if time_amount < 0:
             raise InstrumentParameterException("Time to sample cannot be less than 0: " % time_amount)
         return "%s %s%s" % (InstrumentCommand.TIMED, time_amount, NEWLINE)
 
@@ -1818,7 +1789,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Response handlers
     ########################################################################
     def _parse_generic_response(self, response, prompt):
-        if re.match(Prompt.ERROR, response):
+        if prompt == Prompt.ERROR:
             raise InstrumentProtocolException("Error occurred for command: (%r)" % response)
 
         return response
@@ -1853,13 +1824,12 @@ class Protocol(CommandResponseInstrumentProtocol):
             # retry up to RETRY times
             try:
                 val = self._do_cmd_resp(InstrumentCommand.GET, param,
-                                        timeout=100,
-                                        response_regex=re.compile(Prompt.OK))
+                                        timeout=TIMEOUT,
+                                        response_regex=OK_GET_REGEX)
                 return val
             except InstrumentProtocolException:
                 pass   # GET failed, so retry again
         else:
-            log.debug('FAILED TO GET PARAM: %s', param)
             # retries exhausted, so raise exception
             raise InstrumentProtocolException('Unable to GET parameter %s from instrument') % param
 
@@ -1876,5 +1846,4 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         ret_prompt = self._do_cmd_resp(InstrumentCommand.CMD_LINE, timeout=timeout,
                                        expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
-
         return ret_prompt
