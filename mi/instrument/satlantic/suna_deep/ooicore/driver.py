@@ -47,6 +47,7 @@ NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 15
+POLL_TIMEOUT = 100
 
 # default number of retries for a command
 RETRY = 3
@@ -355,15 +356,13 @@ class Prompt(BaseEnum):
     COMMAND = "SUNA>"
     POLLED = "CMD?"
     OK = '$Ok'
-    #SET_OK = r'.*\r\n(\$Ok)\s+'
-    #OK_GET =
-    ERROR = '$Error:'#r'.*\r\n\$Error: (\d+)\s+'
+    ERROR = '$Error:'
     WAKEUP = "Charging power loss protector."
     SAMPLING = 'SAT'
 
+
 OK_GET = r'.*\r\n\$Ok ([\w.]+)\s+'
 OK_GET_REGEX = re.compile(OK_GET, re.DOTALL)
-
 
 
 class InstrumentCommand(BaseEnum):
@@ -372,28 +371,14 @@ class InstrumentCommand(BaseEnum):
     """
     #Status and Maintenance
     CMD_LINE = "$"
-    #GET_CLOCK = "get clock"
     SET_CLOCK = "set clock"
-    #UPGRADE = "upgrade"
-    #REBOOT = "reboot"
     EXIT = "exit"
-    #GET_LAMPTIME = "get lamptime"
-    #GET_ACTIVECALFILE = "get activecalfile"
     SELFTEST = "selftest"
     STATUS = "get cfg"
 
-    #File Commands
-    #LIST = "List"
-    #OUTPUT = "Output"
-    #SEND = "Send"
-    #DELETE = "Delete"
-    #RECEIVE = "Receive"
-
     # Polled Mode
-    START = "Start"
     MEASURE = "Measure"     # takes param n indicating amount of light frames
     TIMED = "Timed"         # takes param n indicating duration in seconds to take light frames for
-    #CTD = "CTD"
     SLEEP = "Sleep"
 
     # Command Line Commands
@@ -406,11 +391,6 @@ class InstrumentCommandArgs(BaseEnum):
     CONTINUOUS = 'Continuous'
     ON = 'On'
     OFF = 'Off'
-
-
-# class LastSampleState(BaseEnum):
-#     POLL = "poll"
-#     AUTO = "auto"
 
 
 class SUNASampleDataParticleKey(BaseEnum):
@@ -454,8 +434,7 @@ class SUNASampleDataParticle(DataParticle):
         matched = SUNA_SAMPLE_REGEX.match(self.raw_data)
 
         if not matched:
-            raise SampleException("No regex match for sample [%s]" %
-                                  self.raw_data)
+            raise SampleException("No regex match for sample [%s]" % self.raw_data)
 
         try:
             parsed_data_list = [
@@ -489,8 +468,7 @@ class SUNASampleDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.CHECKSUM, DataParticleKey.VALUE: int(matched.group(28))}]
 
         except ValueError:
-            raise SampleException("ValueError while parsing data [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
         log.debug('SUNASampleDataParticle raw data: %r', self.raw_data)
         log.debug('SUNASampleDataParticle parsed data: %r', parsed_data_list)
@@ -742,8 +720,7 @@ class SUNATestDataParticle(DataParticle):
         matched = SUNA_TEST_REGEX.match(self.raw_data)
 
         if not matched:
-            raise SampleException("No regex match for test [%s]" %
-                                  self.raw_data)
+            raise SampleException("No regex match for test [%s]" % self.raw_data)
         try:
             parsed_data_list = [
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(1))},
@@ -771,8 +748,7 @@ class SUNATestDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEST_RESULT, DataParticleKey.VALUE: str(matched.group(23))}]
 
         except ValueError:
-            raise SampleException("ValueError while parsing data [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
         log.debug('SUNATestDataParticle raw data: %r', self.raw_data)
         log.debug('SUNATestDataParticle parsed data: %r', parsed_data_list)
@@ -808,7 +784,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
-
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -819,7 +794,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
@@ -835,7 +809,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-        # Construct protocol superclass.
+
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Set attributes
@@ -843,11 +817,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.time_samples = 5  # seconds of light samples
         self._newline = NEWLINE
 
-        # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        # UNKNOWN State
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_generic_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
@@ -898,8 +870,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.MEASURE, self._build_measure_command)
         self._add_build_handler(InstrumentCommand.TIMED, self._build_timed_command)
         self._add_build_handler(InstrumentCommand.SELFTEST, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
-        #self._add_build_handler(InstrumentCommand.REBOOT, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.SET_CLOCK, self._build_clock_command)
 
         # Add response handlers for device commands.
@@ -1378,14 +1348,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result)
         """
         self._wakeup(20)
-        log.debug('SENT WAKEUP')
         ret_prompt = self._send_dollar()
-        log.debug('SENT DOLLAR prompt = %r', ret_prompt)
 
         #came from autosampling/polling, need to resend '$' one more time to get it into command mode
         if ret_prompt == Prompt.POLLED:
-            ret_prompt = self._send_dollar()
-            log.debug('SENT DOLLAR prompt = %r', ret_prompt)
+             self._send_dollar()
 
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
@@ -1403,76 +1370,51 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Start acquire sample
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
         self._send_dollar()
 
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_command_acquire_status(self):
         """
         Start acquire status
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.STATUS)
-
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return next_state, (next_agent_state, result)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_poll(self):
         """
         Start polling
         """
-        next_state = ProtocolState.POLL
-        next_agent_state = ResourceAgentState.BUSY
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.POLL, (ResourceAgentState.BUSY, None)
 
     def _handler_command_start_autosample(self):
         """
         Start autosampling
         """
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     def _handler_command_get(self, params=None):
         """
         Get parameter(s)
         @param params List of parameters to get
         """
-        next_state = None
         result = {}
 
-        log.debug("GET FOR: %s", params)
-
-        if params == Parameter.ALL:
+        if params == Parameter.ALL or params == [Parameter.ALL]:
             result = self._param_dict.get_all()
         elif not params or not isinstance(params, list):
             raise InstrumentParameterException("Params must be a list")
@@ -1488,13 +1430,13 @@ class Protocol(CommandResponseInstrumentProtocol):
                     result[param] = self.num_samples
                 elif param == Parameter.TIME_LIGHT_SAMPLE:
                     result[param] = self.time_samples
-                    # handle instrument parameters
                 elif param == Parameter.FIT_WAVELENGTH_BOTH:
                      #wfitboth is a set only param and cannot be read from the instrument
                     result[param] = self._param_dict.get(Parameter.FIT_WAVELENGTH_BOTH)
                 else:
+                    # always get str type from instrument
                     type_func = PARAM_TYPE_FUNC.get(param)
-                    value = type_func(self._get_from_instrument(param))  # always get str type from instrument
+                    value = type_func(self._get_from_instrument(param))
                     result[param] = value
                     self._param_dict.set_value(param, value)
 
@@ -1503,17 +1445,14 @@ class Protocol(CommandResponseInstrumentProtocol):
             if new_config != old_config:
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-        return next_state, result
+        return None, result
 
     def _handler_command_set(self, params, *args):
         """
         Set parameter
         """
-        next_state = None
-
         self._set_params(params, *args)
-
-        return next_state, None
+        return None, None
 
     def _set_params(self, *args, **kwargs):
         """
@@ -1544,16 +1483,14 @@ class Protocol(CommandResponseInstrumentProtocol):
                 if not Parameter.has(key):
                     raise InstrumentParameterException("%s is not a parameter" % key)
 
-                if self._param_dict.get(key) != params[key]:    # if already set to "new" value we are done
-                    try:
-                        str_val = self._param_dict.format(key, params[key])
-                    except KeyError:
-                        raise InstrumentParameterException()
+                try:
+                    str_val = self._param_dict.format(key, params[key])
+                except KeyError:
+                    raise InstrumentParameterException()
 
-                    self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT,
+                self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT,
                                       expected_prompt=[Prompt.OK, Prompt.ERROR])
-                                                #response_regex=re.compile(Prompt.SET_OK))
-                    self._param_dict.set_value(key, params[key])
+                self._param_dict.set_value(key, params[key])
 
         new_config = self._param_dict.get_config()
         log.debug("NEW CONFIG: %s", self._param_dict.get_config())
@@ -1565,13 +1502,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Test the instrument state
         """
-        next_state = None
-        next_state_agent = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.SELFTEST)
-
-        return next_state, (next_state_agent, result)
+        return None, (None, None)
 
     def _handler_command_exit(self):
         """
@@ -1602,7 +1534,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
@@ -1610,29 +1541,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Send commands from operator directly to the instrument
         """
-        next_state = None
-        result = None
-        next_agent_state = None
-
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
-        @throw InstrumentProtocolException on invalid command
+        Stoping DA, restore the DA parameters to their previous value
         """
-        result = None
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        #restore DA params
         self._init_params()
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Poll handlers.
@@ -1641,66 +1562,42 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Get a sample from the SUNA
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
-
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_poll_measure_n(self):
         """
         Measure N Light Samples
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self.num_samples, timeout=100)
-
-        return next_state, (next_agent_state, result)
+        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self.num_samples, timeout=POLL_TIMEOUT)
+        return None, (None, None)
 
     def _handler_poll_measure_0(self):
         """
         Measure 0 Dark Sample
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 0)
-
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_poll_timed_n(self):
         """
         Timed Sampling for N time
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.TIMED, self.time_samples, timeout=100)
-
-        return next_state, (next_agent_state, result)
+        self._do_cmd_no_resp(InstrumentCommand.TIMED, self.time_samples, timeout=POLL_TIMEOUT)
+        return None, (None, None)
 
     def _handler_poll_stop_poll(self):
         """
         Exit the poll state
         """
-        result = None
-
         try:
             self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
             self._send_dollar()     # send a "$" to get the device back to command mode
-            next_state = ProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Could not interrupt hardware!")
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Autosample handlers.
@@ -1709,15 +1606,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit the autosample state
         """
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
         self._wakeup(20)
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Build handlers
@@ -1840,10 +1733,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._connection.send(NEWLINE)
 
-    def _send_dollar(self, timeout=15):
+    def _send_dollar(self, timeout=TIMEOUT):
         """
         Send a blind $ command to the device
         """
-        ret_prompt = self._do_cmd_resp(InstrumentCommand.CMD_LINE, timeout=timeout,
+        ret_prompt = self._do_cmd_resp(InstrumentCommand.CMD_LINE, timeout=TIMEOUT,
                                        expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
         return ret_prompt

@@ -12,7 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-import re
+
 from mi.core.common import BaseEnum
 
 __author__ = 'Rachel Manoni'
@@ -33,8 +33,8 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey
-from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey, DriverEvent, \
+    DriverProtocolState
 
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, TIMEOUT, \
     SUNATestDataParticle, InstrumentCommandArgs
@@ -52,12 +52,9 @@ from mi.instrument.satlantic.suna_deep.ooicore.driver import SUNASampleDataParti
 from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException, \
     InstrumentProtocolException
 
-from pyon.agent.agent import ResourceAgentEvent
-
 ###
 #   Driver parameters for the tests
 ###
-# noinspection PyPep8,PyPep8,PyPep8,PyPep8,PyPep8,PyPep8
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.suna_deep.ooicore.driver',
     driver_class="InstrumentDriver",
@@ -219,125 +216,125 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _reference_status_parameters = {
-        "nutnr_sensor_type" : {'type': unicode, 'value': "SUNA"},
-        "nutnr_sensor_version" : {'type': unicode, 'value': "V2"},
-        "serial_number" : {'type': int, 'value': 344} ,
-        "nutnr_integrated_wiper" : {'type': unicode, 'value': "Available"},
-        "nutnr_ext_power_port" : {'type': unicode, 'value': "Missing"},
-        "nutnr_lamp_shutter" : {'type': unicode, 'value': "Missing"},
-        "nutnr_reference_detector" : {'type': unicode, 'value': "Missing"},
-        "protectr" : {'type': unicode, 'value': "Available"},
-        "nutnr_super_capacitors" : {'type': unicode, 'value': "Available"},
-        "nutnr_psb_supervisor" : {'type': unicode, 'value': "Available"},
-        "nutnr_usb_communication" : {'type': unicode, 'value': "Available"},
-        "nutnr_relay_module" : {'type': unicode, 'value': "Available"},
-        "nutnr_sdi12_interface" : {'type': unicode, 'value': "Available"},
-        "nutnr_analog_output" : {'type': unicode, 'value': "Available"},
-        "nutnr_int_data_logging" : {'type': unicode, 'value': "Available"},
-        "nutnr_apf_interface" : {'type': unicode, 'value': "Available"},
-        "nutnr_scheduling" : {'type': unicode, 'value': "Available"},
-        "nutnr_lamp_fan" : {'type': unicode, 'value': "Available"},
-        "nutnr_sensor_address_lamp_temp" : {'type': unicode, 'value': '10d0fda4020800eb'},
-        "nutnr_sensor_address_spec_temp" : {'type': unicode, 'value': '1086818d020800d8'},
-        "nutnr_sensor_address_hous_temp" : {'type': unicode, 'value': '10707b6a020800cc'},
-        "nutnr_serial_number_spec" : {'type': int, 'value': 86746},
-        "nutnr_serial_number_lamp" : {'type': unicode, 'value': "C3.D01.1590"},
-        "stupstus" : {'type': unicode, 'value': "Done"},
-        "brnhours" : {'type': int, 'value': 0},
-        "brnnumbr" : {'type': int, 'value': 0},
-        "drkhours" : {'type': int, 'value': 0},
-        "drknumbr" : {'type': int, 'value': 0},
-        "chrldura" : {'type': int, 'value': 600},
-        "chrddura" : {'type': int, 'value': 0},
-        "baud_rate" : {'type': int, 'value': 57600},
-        "nutnr_msg_level" : {'type': unicode, 'value': "Info"},
-        "nutnr_msg_file_size" : {'type': int, 'value': 2},
-        "nutnr_data_file_size" : {'type': int, 'value': 5},
-        "nutnr_output_frame_type" : {'type': unicode, 'value': "Full_ASCII"},
-        "nutnr_logging_frame_type" : {'type': unicode, 'value': "Full_ASCII"},
-        "nutnr_output_dark_frame" : {'type': unicode, 'value': "Output"},
-        "nutnr_logging_dark_frame" : {'type': unicode, 'value': "Output"},
-        "timeresl" : {'type': unicode, 'value': "Fractsec"},
-        "nutnr_log_file_type" : {'type': unicode, 'value': "Acquisition"},
-        "acqcount" : {'type': int, 'value': 10},
-        "cntcount" : {'type': int, 'value': 130},
-        "nutnr_dac_nitrate_min" : {'type': float, 'value': -5.000},
-        "nutnr_dac_nitrate_max" : {'type': float, 'value': 100.000},
-        "nutnr_data_wavelength_low" : {'type': float, 'value': 217.00},
-        "nutnr_data_wavelength_high" : {'type': float, 'value': 250.00},
-        "nutnr_sdi12_address" : {'type': int, 'value': 48},
-        "datamode" : {'type': unicode, 'value': "Real"},
-        "operating_mode" : {'type': unicode, 'value': "Polled"},
-        "nutnr_operation_ctrl" : {'type': unicode, 'value': "Duration"},
-        "nutnr_extl_dev" : {'type': unicode, 'value': "None"},
-        "nutnr_ext_dev_prerun_time" : {'type': int, 'value': 0},
-        "nutnr_ext_dev_during_acq" : {'type': unicode, 'value': "Off"},
-        "nutnr_watchdog_timer" : {'type': unicode, 'value': "On"},
-        "nutnr_countdown" : {'type': int, 'value': 15},
-        "nutnr_fixed_time_duration" : {'type': int, 'value': 60},
-        "nutnr_periodic_interval" : {'type': unicode, 'value': "1m"},
-        "nutnr_periodic_offset" : {'type': int, 'value': 0},
-        "nutnr_periodic_duration" : {'type': int, 'value': 5},
-        "nutnr_periodic_samples" : {'type': int, 'value': 5},
-        "nutnr_polled_timeout" : {'type': int, 'value': 15},
-        "nutnr_apf_timeout" : {'type': float, 'value': 10.0000},
-        "nutnr_stability_time" : {'type': int, 'value': 5},
-        "nutnr_ref_min_lamp_on" : {'type': int, 'value': 0},
-        "nutnr_skip_sleep" : {'type': unicode, 'value': "Off"},
-        "nutnr_lamp_switchoff_temp" : {'type': int, 'value': 35},
-        "nutnr_spec_integration_period" : {'type': int, 'value': 450},
-        "drkavers" : {'type': int, 'value': 1},
-        "lgtavers" : {'type': int, 'value': 1},
-        "refsmpls" : {'type': int, 'value': 20},
-        "nutnr_dark_samples" : {'type': int, 'value': 2},
-        "nutnr_light_samples" : {'type': int, 'value': 58},
-        "nutnr_dark_duration" : {'type': int, 'value': 2},
-        "nutnr_light_duration" : {'type': int, 'value': 58},
-        "nutnr_temp_comp" : {'type': unicode, 'value': "Off"},
-        "nutnr_salinity_fit" : {'type': unicode, 'value': "On"},
-        "nutnr_bromide_tracing" : {'type': unicode, 'value': "Off"},
-        "nutnr_baseline_order" : {'type': int, 'value': 1},
-        "nutnr_concentrations_fit" : {'type': int, 'value': 3},
-        "nutnr_dark_corr_method" : {'type': unicode, 'value': "SpecAverage"},
-        "drkcoefs" : {'type': unicode, 'value': "Missing"},
-        "davgprm0" : {'type': float, 'value': 500.000},
-        "davgprm1" : {'type': float, 'value': 0.00000},
-        "davgprm2" : {'type': float, 'value': 0.00000},
-        "davgprm3" : {'type': float, 'value': 0.000000},
-        "nutnr_absorbance_cutoff" : {'type': float, 'value': 1.3000},
-        "nutnr_int_time_adj" : {'type': unicode, 'value': "On"},
-        "nutnr_int_time_factor" : {'type': int, 'value': 1},
-        "nutnr_int_time_step" : {'type': int, 'value': 20},
-        "nutnr_int_time_max" : {'type': int, 'value': 20},
-        "nutnr_fit_wavelength_low" : {'type': float, 'value': 217.00},
-        "nutnr_fit_wavelength_high" : {'type': float, 'value': 240.00},
-        "lamp_time" : {'type': int, 'value': 172577}
+        "nutnr_sensor_type": {'type': unicode, 'value': "SUNA"},
+        "nutnr_sensor_version": {'type': unicode, 'value': "V2"},
+        "serial_number": {'type': int, 'value': 344},
+        "nutnr_integrated_wiper": {'type': unicode, 'value': "Available"},
+        "nutnr_ext_power_port": {'type': unicode, 'value': "Missing"},
+        "nutnr_lamp_shutter": {'type': unicode, 'value': "Missing"},
+        "nutnr_reference_detector": {'type': unicode, 'value': "Missing"},
+        "protectr": {'type': unicode, 'value': "Available"},
+        "nutnr_super_capacitors": {'type': unicode, 'value': "Available"},
+        "nutnr_psb_supervisor": {'type': unicode, 'value': "Available"},
+        "nutnr_usb_communication": {'type': unicode, 'value': "Available"},
+        "nutnr_relay_module": {'type': unicode, 'value': "Available"},
+        "nutnr_sdi12_interface": {'type': unicode, 'value': "Available"},
+        "nutnr_analog_output": {'type': unicode, 'value': "Available"},
+        "nutnr_int_data_logging": {'type': unicode, 'value': "Available"},
+        "nutnr_apf_interface": {'type': unicode, 'value': "Available"},
+        "nutnr_scheduling": {'type': unicode, 'value': "Available"},
+        "nutnr_lamp_fan": {'type': unicode, 'value': "Available"},
+        "nutnr_sensor_address_lamp_temp": {'type': unicode, 'value': '10d0fda4020800eb'},
+        "nutnr_sensor_address_spec_temp": {'type': unicode, 'value': '1086818d020800d8'},
+        "nutnr_sensor_address_hous_temp": {'type': unicode, 'value': '10707b6a020800cc'},
+        "nutnr_serial_number_spec": {'type': int, 'value': 86746},
+        "nutnr_serial_number_lamp": {'type': unicode, 'value': "C3.D01.1590"},
+        "stupstus": {'type': unicode, 'value': "Done"},
+        "brnhours": {'type': int, 'value': 0},
+        "brnnumbr": {'type': int, 'value': 0},
+        "drkhours": {'type': int, 'value': 0},
+        "drknumbr": {'type': int, 'value': 0},
+        "chrldura": {'type': int, 'value': 600},
+        "chrddura": {'type': int, 'value': 0},
+        "baud_rate": {'type': int, 'value': 57600},
+        "nutnr_msg_level": {'type': unicode, 'value': "Info"},
+        "nutnr_msg_file_size": {'type': int, 'value': 2},
+        "nutnr_data_file_size": {'type': int, 'value': 5},
+        "nutnr_output_frame_type": {'type': unicode, 'value': "Full_ASCII"},
+        "nutnr_logging_frame_type": {'type': unicode, 'value': "Full_ASCII"},
+        "nutnr_output_dark_frame": {'type': unicode, 'value': "Output"},
+        "nutnr_logging_dark_frame": {'type': unicode, 'value': "Output"},
+        "timeresl": {'type': unicode, 'value': "Fractsec"},
+        "nutnr_log_file_type": {'type': unicode, 'value': "Acquisition"},
+        "acqcount": {'type': int, 'value': 10},
+        "cntcount": {'type': int, 'value': 130},
+        "nutnr_dac_nitrate_min": {'type': float, 'value': -5.000},
+        "nutnr_dac_nitrate_max": {'type': float, 'value': 100.000},
+        "nutnr_data_wavelength_low": {'type': float, 'value': 217.00},
+        "nutnr_data_wavelength_high": {'type': float, 'value': 250.00},
+        "nutnr_sdi12_address": {'type': int, 'value': 48},
+        "datamode": {'type': unicode, 'value': "Real"},
+        "operating_mode": {'type': unicode, 'value': "Polled"},
+        "nutnr_operation_ctrl": {'type': unicode, 'value': "Duration"},
+        "nutnr_extl_dev": {'type': unicode, 'value': "None"},
+        "nutnr_ext_dev_prerun_time": {'type': int, 'value': 0},
+        "nutnr_ext_dev_during_acq": {'type': unicode, 'value': "Off"},
+        "nutnr_watchdog_timer": {'type': unicode, 'value': "On"},
+        "nutnr_countdown": {'type': int, 'value': 15},
+        "nutnr_fixed_time_duration": {'type': int, 'value': 60},
+        "nutnr_periodic_interval": {'type': unicode, 'value': "1m"},
+        "nutnr_periodic_offset": {'type': int, 'value': 0},
+        "nutnr_periodic_duration": {'type': int, 'value': 5},
+        "nutnr_periodic_samples": {'type': int, 'value': 5},
+        "nutnr_polled_timeout": {'type': int, 'value': 15},
+        "nutnr_apf_timeout": {'type': float, 'value': 10.0000},
+        "nutnr_stability_time": {'type': int, 'value': 5},
+        "nutnr_ref_min_lamp_on": {'type': int, 'value': 0},
+        "nutnr_skip_sleep": {'type': unicode, 'value': "Off"},
+        "nutnr_lamp_switchoff_temp": {'type': int, 'value': 35},
+        "nutnr_spec_integration_period": {'type': int, 'value': 450},
+        "drkavers": {'type': int, 'value': 1},
+        "lgtavers": {'type': int, 'value': 1},
+        "refsmpls": {'type': int, 'value': 20},
+        "nutnr_dark_samples": {'type': int, 'value': 2},
+        "nutnr_light_samples": {'type': int, 'value': 58},
+        "nutnr_dark_duration": {'type': int, 'value': 2},
+        "nutnr_light_duration": {'type': int, 'value': 58},
+        "nutnr_temp_comp": {'type': unicode, 'value': "Off"},
+        "nutnr_salinity_fit": {'type': unicode, 'value': "On"},
+        "nutnr_bromide_tracing": {'type': unicode, 'value': "Off"},
+        "nutnr_baseline_order": {'type': int, 'value': 1},
+        "nutnr_concentrations_fit": {'type': int, 'value': 3},
+        "nutnr_dark_corr_method": {'type': unicode, 'value': "SpecAverage"},
+        "drkcoefs": {'type': unicode, 'value': "Missing"},
+        "davgprm0": {'type': float, 'value': 500.000},
+        "davgprm1": {'type': float, 'value': 0.00000},
+        "davgprm2": {'type': float, 'value': 0.00000},
+        "davgprm3": {'type': float, 'value': 0.000000},
+        "nutnr_absorbance_cutoff": {'type': float, 'value': 1.3000},
+        "nutnr_int_time_adj": {'type': unicode, 'value': "On"},
+        "nutnr_int_time_factor": {'type': int, 'value': 1},
+        "nutnr_int_time_step": {'type': int, 'value': 20},
+        "nutnr_int_time_max": {'type': int, 'value': 20},
+        "nutnr_fit_wavelength_low": {'type': float, 'value': 217.00},
+        "nutnr_fit_wavelength_high": {'type': float, 'value': 240.00},
+        "lamp_time": {'type': int, 'value': 172577}
     }
 
     _reference_test_parameters = {
-        "nutnr_external_disk_size" : {'type': int, 'value': 1960968192},
-        "nutnr_external_disk_free" : {'type': int, 'value': 1956216832},
-        "nutnr_internal_disk_size" : {'type': int, 'value': 2043904},
-        "nutnr_internal_disk_free" : {'type': int, 'value': 1956864},
-        "nutnr_fiberlite_odometer" : {'type': unicode, 'value': "0048:10:05"},
-        "nutnr_temperatures_hs" : {'type': float, 'value': 22.3},
-        "nutnr_temperatures_sp" : {'type': float, 'value': 21.7},
-        "nutnr_temperatures_lm" : {'type': float, 'value': 21.6},
-        "nutnr_humidity" : {'type': float, 'value': 5.8},
-        "nutnr_electrical_mn" : {'type': float, 'value': 12.0},
-        "nutnr_electrical_bd" : {'type': float, 'value': 12.0},
-        "nutnr_electrical_pr" : {'type': float, 'value': 5.0},
-        "nutnr_electrical_c" : {'type': float, 'value': 25.8},
-        "nutnr_lamp_power" : {'type': int, 'value': 5505},
-        "nutnr_spec_dark_av" : {'type': int, 'value': 471},
-        "nutnr_spec_dark_sd" : {'type': int, 'value': 9},
-        "nutnr_spec_dark_mi" : {'type': int, 'value': 444},
-        "nutnr_spec_dark_ma" : {'type': int, 'value': 494},
-        "nutnr_spec_lght_av" : {'type': int, 'value': 22308},
-        "nutnr_spec_lght_sd" : {'type': int, 'value': 12009},
-        "nutnr_spec_lght_mi" : {'type': int, 'value': 455},
-        "nutnr_spec_lght_ma" : {'type': int, 'value': 52004},
-        "nutnr_test_result" : {'type': unicode, 'value': "Ok"}
+        "nutnr_external_disk_size": {'type': int, 'value': 1960968192},
+        "nutnr_external_disk_free": {'type': int, 'value': 1956216832},
+        "nutnr_internal_disk_size": {'type': int, 'value': 2043904},
+        "nutnr_internal_disk_free": {'type': int, 'value': 1956864},
+        "nutnr_fiberlite_odometer": {'type': unicode, 'value': "0048:10:05"},
+        "nutnr_temperatures_hs": {'type': float, 'value': 22.3},
+        "nutnr_temperatures_sp": {'type': float, 'value': 21.7},
+        "nutnr_temperatures_lm": {'type': float, 'value': 21.6},
+        "nutnr_humidity": {'type': float, 'value': 5.8},
+        "nutnr_electrical_mn": {'type': float, 'value': 12.0},
+        "nutnr_electrical_bd": {'type': float, 'value': 12.0},
+        "nutnr_electrical_pr": {'type': float, 'value': 5.0},
+        "nutnr_electrical_c": {'type': float, 'value': 25.8},
+        "nutnr_lamp_power": {'type': int, 'value': 5505},
+        "nutnr_spec_dark_av": {'type': int, 'value': 471},
+        "nutnr_spec_dark_sd": {'type': int, 'value': 9},
+        "nutnr_spec_dark_mi": {'type': int, 'value': 444},
+        "nutnr_spec_dark_ma": {'type': int, 'value': 494},
+        "nutnr_spec_lght_av": {'type': int, 'value': 22308},
+        "nutnr_spec_lght_sd": {'type': int, 'value': 12009},
+        "nutnr_spec_lght_mi": {'type': int, 'value': 455},
+        "nutnr_spec_lght_ma": {'type': int, 'value': 52004},
+        "nutnr_test_result": {'type': unicode, 'value': "Ok"}
     }
 
     def assert_data_particle_sample(self, data_particle, verify_values=False):
@@ -703,9 +700,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         Verify when the instrument is either in autosample or command state, the instrument will always discover
         to COMMAND state
         """
-        # Verify the agent is in command mode
-        self.assert_enter_command_mode()
 
+        self.assert_enter_command_mode()
         # Now reset and try to discover.  This will stop the driver which holds the current
         # instrument state.
         self.assert_reset()
@@ -729,7 +725,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assertTrue(self.tcp_client)
 
         ###
-        #   Add instrument specific code here.
+        # In DA mode, set the DA parameters to different values
         ###
         self.tcp_client.send_data("set opermode Continuous" + NEWLINE)
         self.tcp_client.expect("SUNA>")
@@ -753,8 +749,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.tcp_client.expect("SUNA>")
 
         self.assert_direct_access_stop_telnet()
-
-        self.assert_enter_command_mode()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, TIMEOUT)
 
         #DA param should change back to pre-DA val
         self.assert_get_parameter(Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)
@@ -786,20 +781,24 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         Verify the driver can command an acquire status from the instrument
         """
         self.assert_enter_command_mode()
-        self.assert_resource_command(Capability.ACQUIRE_STATUS, self.assert_data_particle_status)
+        self.assert_particle_polled(DriverEvent.ACQUIRE_STATUS, self.assert_data_particle_status,
+                                    DataParticleType.SUNA_STATUS, timeout=TIMEOUT, sample_count=1)
 
     def test_execute_test(self):
         """
         Verify the instrument can perform a self test
         """
         self.assert_enter_command_mode()
-        self.assert_resource_command(Capability.TEST, self.assert_data_particle)
+        self.assert_particle_polled(DriverEvent.TEST, self.assert_data_particle, DataParticleType.SUNA_TEST,
+                                    timeout=TIMEOUT, sample_count=1)
 
     def test_poll(self):
         """
         Verify the driver can collect a sample from the COMMAND state
         """
-        self.assert_sample_polled(self.assert_data_particle_sample, DataParticleType.SUNA_SAMPLE)
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_data_particle_sample,
+                                    DataParticleType.SUNA_SAMPLE, timeout=TIMEOUT, sample_count=1)
 
     def test_autosample(self):
         """
@@ -858,46 +857,42 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         """
         Verify that the correct capabilities are returned from get_capabilities at various driver/agent states.
         """
-        self.assert_enter_command_mode()
-
         ##################
         #  Command Mode
         ##################
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
-            AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.SET,
-                ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.GET,
-                ProtocolEvent.ACQUIRE_STATUS,
-                ProtocolEvent.START_POLL,
-                ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.TEST
-            ],
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.SET,
+                                                ProtocolEvent.ACQUIRE_SAMPLE,
+                                                ProtocolEvent.GET,
+                                                ProtocolEvent.ACQUIRE_STATUS,
+                                                ProtocolEvent.START_POLL,
+                                                ProtocolEvent.START_AUTOSAMPLE,
+                                                ProtocolEvent.TEST,
+                                                ProtocolEvent.CLOCK_SYNC],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
-        }
+            AgentCapabilityType.RESOURCE_PARAMETER: ['a_cutoff', 'bl_order', 'brmtrace', 'countdwn', 'datfsize',
+                                                     'drkcormt', 'drkdurat', 'drksmpls', 'fitconcs', 'intadmax',
+                                                     'intadstp', 'intpradj', 'intprfac', 'lamptoff', 'lgtdurat',
+                                                     'lgtsmpls', 'msgfsize', 'msglevel', 'operctrl', 'opermode',
+                                                     'outdrkfr', 'outfrtyp', 'polltout', 'reflimit', 'salinfit',
+                                                     'skpsleep', 'spintper', 'stbltime', 'tempcomp', 'wfit_hgh',
+                                                     'wfit_low', 'wfitboth']}
 
+        self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
 
         ##################
         #  Polled Mode
         ##################
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
-            ResourceAgentEvent.CLEAR,
-            ResourceAgentEvent.RESET,
-            ResourceAgentEvent.GO_DIRECT_ACCESS,
-            ResourceAgentEvent.GO_INACTIVE,
-            ResourceAgentEvent.PAUSE,
-        ]
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = []
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.ACQUIRE_SAMPLE,
             ProtocolEvent.STOP_POLL,
             ProtocolEvent.MEASURE_N,
             ProtocolEvent.MEASURE_0,
-            ProtocolEvent.TIMED_N
-        ]
+            ProtocolEvent.TIMED_N]
 
         self.assert_switch_driver_state(ProtocolEvent.START_POLL, DriverProtocolState.POLL)
         self.assert_capabilities(capabilities)
@@ -913,11 +908,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
-        # ##################
-        # #  DA Mode
-        # ##################
+        ##################
+        #  DA Mode
+        ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
