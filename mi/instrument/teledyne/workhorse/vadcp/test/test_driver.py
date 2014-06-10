@@ -6,11 +6,13 @@
 Release notes:
 
 """
+import gevent
+
 
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
-
+import copy
 import datetime as dt
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -28,6 +30,8 @@ from mi.instrument.teledyne.workhorse.test.test_driver import DataParticleType
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_CALIBRATION_RAW_DATA
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_PS0_RAW_DATA
+from mi.instrument.teledyne.workhorse.test.test_data import PT2_RAW_DATA
+from mi.instrument.teledyne.workhorse.test.test_data import PT4_RAW_DATA
 
 from mi.idk.unit_test import DriverTestMixin
 
@@ -71,6 +75,8 @@ from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.common import BaseEnum
 
+from pyon.core.exception import ResourceError
+
 ###
 #   Driver parameters for tests
 ###
@@ -107,16 +113,16 @@ InstrumentDriverTestCase.initialize(
             Parameter.BLANK_AFTER_TRANSMIT: 88,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 22,
             Parameter.PINGS_PER_ENSEMBLE: 1,
-            Parameter.DEPTH_CELL_SIZE: 800,
+            Parameter.DEPTH_CELL_SIZE: 100,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
             Parameter.LATENCY_TRIGGER: 0,
             Parameter.HEADING_ALIGNMENT: '+00000',
             Parameter.HEADING_BIAS: '+00000',
-            Parameter.TRANSDUCER_DEPTH: 8000,
+            Parameter.TRANSDUCER_DEPTH: 2000,
             Parameter.DATA_STREAM_SELECTION: 0,
             Parameter.ENSEMBLE_PER_BURST: 0,
             Parameter.SAMPLE_AMBIENT_SOUND: 0,
@@ -125,6 +131,48 @@ InstrumentDriverTestCase.initialize(
             Parameter.SYNC_PING_ENSEMBLE: '001',
             Parameter.RDS3_MODE_SEL: 1,
             Parameter.SYNCH_DELAY: 100,
+
+            #Slave
+            Parameter2.SERIAL_FLOW_CONTROL: '11110',
+            Parameter2.BANNER: False,
+            Parameter2.INSTRUMENT_ID: 0,
+            Parameter2.SLEEP_ENABLE: 0,
+            Parameter2.SAVE_NVRAM_TO_RECORDER: True,
+            Parameter2.POLLED_MODE: False,
+            Parameter2.XMIT_POWER: 255,
+            Parameter2.SPEED_OF_SOUND: 1485,
+            Parameter2.PITCH: 0,
+            Parameter2.ROLL: 0,
+            Parameter2.SALINITY: 35,
+            Parameter2.COORDINATE_TRANSFORMATION: '00111',
+            Parameter2.TIME_PER_ENSEMBLE: '00:00:00.00',
+            #Parameter2.TIME_PER_PING: '00:01.00',
+            Parameter2.FALSE_TARGET_THRESHOLD: '050,001',
+            Parameter2.BANDWIDTH_CONTROL: 0,
+            Parameter2.CORRELATION_THRESHOLD: 64,
+            Parameter2.SERIAL_OUT_FW_SWITCHES: '111100000',
+            Parameter2.ERROR_VELOCITY_THRESHOLD: 2000,
+            Parameter2.BLANK_AFTER_TRANSMIT: 83,
+            Parameter2.CLIP_DATA_PAST_BOTTOM: 0,
+            Parameter2.RECEIVER_GAIN_SELECT: 1,
+            Parameter2.NUMBER_OF_DEPTH_CELLS: 22,
+            Parameter2.PINGS_PER_ENSEMBLE: 1,
+            Parameter2.DEPTH_CELL_SIZE: 94,
+            Parameter2.TRANSMIT_LENGTH: 0,
+            Parameter2.PING_WEIGHT: 0,
+            Parameter2.AMBIGUITY_VELOCITY: 175,
+            Parameter2.LATENCY_TRIGGER: 0,
+            Parameter2.HEADING_ALIGNMENT: '+00000',
+            Parameter2.HEADING_BIAS: '+00000',
+            Parameter2.TRANSDUCER_DEPTH: 2000,
+            Parameter2.DATA_STREAM_SELECTION: 0,
+            Parameter2.ENSEMBLE_PER_BURST: 0,
+            Parameter2.SAMPLE_AMBIENT_SOUND: 0,
+            Parameter2.BUFFERED_OUTPUT_PERIOD: '00:00:00',
+
+            Parameter2.SYNC_PING_ENSEMBLE: '001',
+            Parameter2.RDS3_MODE_SEL: 2,
+            Parameter2.SYNCH_DELAY: 0,
 
             Parameter.CLOCK_SYNCH_INTERVAL: '00:00:00',
             Parameter.GET_STATUS_INTERVAL: '00:00:00',
@@ -213,7 +261,6 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
-
         Parameter.LATENCY_TRIGGER: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.HEADING_ALIGNMENT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000', VALUE:'+00000'},
         Parameter.HEADING_BIAS: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000', VALUE:'+00000'},
@@ -222,7 +269,6 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.BUFFERED_OUTPUT_PERIOD: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00:00:00', VALUE:'00:00:00'},
         Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0},
-
         Parameter.SYNC_PING_ENSEMBLE: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '001', VALUE: '001'},
         Parameter.RDS3_MODE_SEL: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.SYNCH_DELAY: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
@@ -249,8 +295,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00111', VALUE: '00111'},
         Parameter2.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: "1111101", VALUE: "1111101"},
         Parameter2.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter2.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
-        #Parameter2.TIME_PER_PING: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '00:01.00', VALUE: '00:01.00'},
+        Parameter2.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
         Parameter2.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '050,001', VALUE: '050,001'},
         Parameter2.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter2.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 64, VALUE: 64},
@@ -264,7 +309,6 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter2.PING_WEIGHT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter2.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
-
         Parameter2.LATENCY_TRIGGER: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter2.HEADING_ALIGNMENT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000', VALUE:'+00000'},
         Parameter2.HEADING_BIAS: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000', VALUE:'+00000'},
@@ -273,11 +317,10 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter2.BUFFERED_OUTPUT_PERIOD: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00:00:00', VALUE:'00:00:00'},
         Parameter2.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0},
-
         Parameter2.SYNC_PING_ENSEMBLE: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '001', VALUE: '001'},
-        Parameter2.RDS3_MODE_SEL: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        Parameter2.RDS3_MODE_SEL: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 2, VALUE: 2},
         Parameter2.SLAVE_TIMEOUT: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter2.SYNCH_DELAY: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
+        Parameter2.SYNCH_DELAY: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
     }
 
     _driver_capabilities = {
@@ -512,7 +555,11 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: should we verify values against definition?
         """
         log.debug("assert_driver_parameters current_parameters = " + str(current_parameters))
-        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+        log.error("Sung assert_driver_parameters current_parameters = " + str(current_parameters))
+        log.error("Sung assert_driver_parameters driver parameters = " + str(self._driver_parameters))
+        temp_parameters = copy.deepcopy(self._driver_parameters)
+        temp_parameters.update(self._driver_parameters_slave)
+        self.assert_parameters(current_parameters, temp_parameters, verify_values)
 
     ###
     # Data Particle Parameters Methods
@@ -615,24 +662,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
-        # add a send side effect for each port agent
-        #for slave in SlaveProtocol.list():
-        #    protocol = driver._slave_protocols[slave]
-        #    if slave == 'mcu':
-        #        protocol.set_init_params(mcu.startup_config)
-        #        self.responses[slave] = mcu.DriverTestMixinSub.responses
-        #    elif slave == 'rga':
-        #        protocol.set_init_params(rga.startup_config)
-        #        self.responses[slave] = rga.DriverTestMixinSub.responses
-        #    elif slave == 'turbo':
-        #        protocol.set_init_params(turbo.startup_config)
-        #        self.responses[slave] = turbo.DriverTestMixinSub.responses
-        #    protocol._connection.send.side_effect = self.send_side_effect(protocol, slave)
-        #   protocol._init_params()
-
-        #driver._protocol._param_dict.set_value(Parameter.SAMPLE_INTERVAL,
-        #                                       startup_config['parameters'][Parameter.SAMPLE_INTERVAL])
-
         # Force the instrument into a known state
         self.assert_force_state(driver, initial_protocol_state)
         #self.assert_force_all_slave_states(driver, ProtocolState.COMMAND)
@@ -641,8 +670,10 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         """
         get the driver schema and verify it is configured properly
         """
+        temp_parameters = copy.deepcopy(self._driver_parameters)
+        temp_parameters.update(self._driver_parameters_slave)
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+        self.assert_driver_schema(driver, temp_parameters, self._driver_capabilities)
 
     def test_got_data(self):
         """
@@ -762,6 +793,16 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_chunker_sample_with_noise(chunker, RSN_CALIBRATION_RAW_DATA)
         self.assert_chunker_fragmented_sample(chunker, RSN_CALIBRATION_RAW_DATA, 32)
         self.assert_chunker_combined_sample(chunker, RSN_CALIBRATION_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, PT2_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PT2_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PT2_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PT2_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, PT4_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PT4_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PT4_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PT4_RAW_DATA)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -938,6 +979,49 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                 'cmd_port': cmd_port
             }
         return config
+
+    # Overwriiten method
+    def test_driver_process(self):
+        """
+        Test for correct launch of driver process and communications, including asynchronous driver events.
+        Overridden to support multiple port agents.
+        """
+        log.info("Ensuring driver process was started properly ...")
+
+        # Verify processes exist.
+        self.assertNotEqual(self.driver_process, None)
+        drv_pid = self.driver_process.getpid()
+        self.assertTrue(isinstance(drv_pid, int))
+
+        self.assertNotEqual(self.port_agents, None)
+        for port_agent in self.port_agents.values():
+            pagent_pid = port_agent.get_pid()
+            self.assertTrue(isinstance(pagent_pid, int))
+
+        # Send a test message to the process interface, confirm result.
+        log.debug("before 'process_echo'")
+        reply = self.driver_client.cmd_dvr('process_echo')
+        log.debug("after 'process_echo'")
+        self.assert_(reply.startswith('ping from resource ppid:'))
+
+        reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
+        self.assert_(reply.startswith('driver_ping: foo'))
+
+        # Test the event thread publishes and client side picks up events.
+        events = [
+            'I am important event #1!',
+            'And I am important event #2!'
+        ]
+        self.driver_client.cmd_dvr('test_events', events=events)
+        gevent.sleep(1)
+
+        # Confirm the events received are as expected.
+        self.assertEqual(self.events, events)
+
+        # Test the exception mechanism.
+        with self.assertRaises(ResourceError):
+            exception_str = 'Oh no, something bad happened!'
+            self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
     def _test_autosample_particle_generation(self):
         """
@@ -1141,13 +1225,13 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         Overwritten
         """
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_calibration, timeout=60)
         self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_VADCP_ANCILLARY_data, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data, timeout=60)
 
         self.assert_async_particle_generation(DataParticleType.VADCP_COMPASS_CALIBRATION, self.assert_VADCP_Calibration, timeout=60)
         self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_VADCP_ANCILLARY_data, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data, timeout=60)
 
 
     def test_acquire_status(self):
@@ -1185,7 +1269,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         log.debug("IN assert_Calibration")
         self.assert_data_particle_header(data_particle, DataParticleType.VADCP_COMPASS_CALIBRATION)
 
-
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -1195,11 +1278,12 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         # First test in command mode
         ####
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
-
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=10)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
+        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
         self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
@@ -1209,13 +1293,16 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
         self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
         self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
-        #self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
-        #self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS, regex='^4 beam status outputs')
 
-        ####
-        # Test in streaming mode
-        ####
-        # Put us in streaming
+        # TODO : Factory setting doesn't work in VADCP. Skip the test below
+        # The factory setting doesn't work sometimes, this is a vendor issue, reported to Dana M..
+        #self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
+        #
+
+        # ####
+        # # Test in streaming mode
+        # ####
+        # # Put us in streaming
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
         self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
@@ -1223,17 +1310,13 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
         self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS, exception_class=InstrumentCommandException)
-        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
-
-        ####
-        # Test a bad command
-        ####
-        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
     def _test_set_xmit_power_slave(self):
         ###
