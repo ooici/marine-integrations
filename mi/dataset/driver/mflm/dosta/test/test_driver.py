@@ -273,6 +273,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(DostadParserDataParticle, 'test_data_1-4.txt.result.yml',
                          count=6, timeout=40)
 
+    def test_all_good(self):
+        """
+        Test that a set of data with no bad data, where there is no remaining
+        unprocessed data in between
+        """
+        self.driver.start_sampling()
+
+        self.create_sample_data("node59p1_all_good1.dat", "node59p1.dat")
+        self.assert_data(DostadParserDataParticle, 'test_data_1-2.txt.result.yml',
+                         count=2)
+
+        self.create_sample_data("node59p1_all_good.dat", "node59p1.dat")
+        self.assert_data(DostadParserDataParticle, 'test_data_all_good.txt.result.yml',
+                         count=1)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
