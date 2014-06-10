@@ -29,6 +29,16 @@ class SwitchDriver():
         self.driver_name = name
         self.driver_version = version
 
+    def get_base_name(self):
+        return '%s_%s_%s_%s' % (self.driver_make,
+                                self.driver_model,
+                                self.driver_name,
+                                self.driver_version.replace('.', '_'))
+
+    def get_metadata(self):
+        self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
+        return self.metadata
+
     def fetch_metadata(self):
         """
         @brief collect metadata from the user
@@ -38,7 +48,7 @@ class SwitchDriver():
             self.driver_model = prompt.text( 'Driver Model', self.driver_model )
             self.driver_name = prompt.text( 'Driver Name', self.driver_name )
 
-        self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
+        self.get_metadata()
         self.driver_version = prompt.text('Driver Version', self.metadata.version)
 
     def fetch_comm_config(self):
@@ -53,10 +63,7 @@ class SwitchDriver():
         """
         @brief Check out this driver version from the repository if it exists
         """
-        base_name = '%s_%s_%s_%s' % (self.driver_make,
-                                            self.driver_model,
-                                            self.driver_name,
-                                            self.driver_version.replace('.', '_'))
+        base_name = self.get_base_name()
         cmd = 'git tag -l ' + 'release_' + base_name
         output = subprocess.check_output(cmd, shell=True)
         if len(output) > 0:
@@ -66,7 +73,7 @@ class SwitchDriver():
             cmd = 'git checkout ' + base_name
             output = subprocess.check_output(cmd, shell=True)
             # re-read metadata file since it has changed
-            self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
+            self.get_metadata()
         else:
             raise DriverDoesNotExist("Driver version %s does not exist", self.driver_version)
 
