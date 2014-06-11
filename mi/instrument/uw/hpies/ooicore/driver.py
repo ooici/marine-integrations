@@ -8,6 +8,7 @@ Release notes:
 initial_rev
 """
 import re
+import tempfile
 
 from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException, \
     InstrumentTimeoutException
@@ -26,7 +27,7 @@ from mi.core.log import \
 
 log = get_logger()
 
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -35,7 +36,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import CommonDataParticleType, DataParticleKey, DataParticle
+from mi.core.instrument.data_particle import CommonDataParticleType, DataParticleKey, DataParticle, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
 
 
@@ -52,33 +53,53 @@ common_matches = {
     'fn': r'\S+',
     'rest': r'.*',
     'tod': r'\d{8}T\d{6}',
-    'data': r'[^\*]+',
+    'data': r'#\d[^\*]+',
     'crc': r'[0-9a-fA-F]{4}'
 }
 
 
 def build_command(address, command, *args):
     s = '#' + address + '_' + command
-    s += " ".join([str(x) for x in args])
+    new_freaking_list = []
+    for x in args:
+        if type(x) is bool:
+            new_freaking_list.append(int(x))
+        else:
+            new_freaking_list.append(x)
+
+    if new_freaking_list:
+        s += ' ' + ' '.join([str(x) for x in new_freaking_list])
     s = s + str.format('*{0:04x}', crc3kerm(s)) + NEWLINE
     return s
 
 
-def valid_response(resp):
+def calc_crc(line):
     """
-    @brief Check response for valid checksum.
-    @param resp response line
-    @return - whether or not checksum matches data
+    Check response for valid checksum.
+    @param line data line which may contain extra characters at beginning or end
+    @retval
+        - computed value of the CRC for the data
+        - regex match for the crc value provided with the data
     """
     pattern = re.compile(
         r'(?P<resp>%(data)s)\*(?P<crc>%(crc)s)' % common_matches)
-    matches = re.match(pattern, resp)
+    matches = re.search(pattern, line)
     if not matches:  # skip any lines that do not have a checksum match
-        return True
+        return 0, 0
     resp_crc = int(matches.group('crc'), 16)
     data = matches.group('resp')
-    calc_crc = crc3kerm(data)
-    return calc_crc == resp_crc
+    crc = crc3kerm(data)
+    return crc, resp_crc
+
+
+def valid_response(resp):
+    """
+    Check response for valid checksum.
+    @param resp response line
+    @return - whether or not checksum matches data
+    """
+    crc, resp_crc = calc_crc(resp)
+    return crc == resp_crc
 
 
 def stm_command(s, *args):
@@ -132,7 +153,6 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
@@ -142,7 +162,6 @@ class Capability(BaseEnum):
     """
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
@@ -154,7 +173,7 @@ class Parameter(DriverParameter):
     SERIAL = 'serno'
     DEBUG_LEVEL = 'debug'
     WSRUN_PINCH = 'wsrun pinch secs'  # half cycle interval between water switch tube pinch
-    # EF_SKIP = 'ef skip secs'  # time in seconds to wait fbefore using EF data after moving motors
+    # EF_SKIP = 'ef skip secs'  # time in seconds to wait before using EF data after moving motors
     NFC_CALIBRATE = 'nfc calibrate'  # number of cycles of water switch between applying 'cal'
     CAL_HOLD = 'cal hold secs'  # hold time of calibration voltage
     CAL_SKIP = 'cal skip'  # time in seconds to wait before using data after changing the calibration signal state
@@ -222,8 +241,15 @@ class Parameter(DriverParameter):
     BLILEY_2 = 'bliley B2'  # -0.013084390
     BLILEY_3 = 'bliley B3'  # 0.00004622697
 
+    @classmethod
+    def reverse_dict(cls):
+        return dict((v, k) for k, v in cls.dict().iteritems())
+
 
 class ParameterConstraints(BaseEnum):
+    """
+    type, minimum, maximum values for each settable parameter
+    """
     DEBUG_LEVEL = (int, 0, 3)
     WSRUN_PINCH = (int, 1, 3600)
     NFC_CALIBRATE = (int, 1, 3600)
@@ -237,14 +263,6 @@ class ParameterConstraints(BaseEnum):
     MOTOR_TIMEOUTS_1B = (int, 10, 1000)
     MOTOR_TIMEOUTS_2A = (int, 10, 1000)
     MOTOR_TIMEOUTS_2B = (int, 10, 1000)
-
-
-class Prompt(BaseEnum):
-    """
-    Device I/O prompts
-    """
-    DEFAULT = 'STM>'
-    HEF_PARAMS = '#3_params'
 
 
 class Command(BaseEnum):
@@ -272,6 +290,32 @@ class Command(BaseEnum):
     MISSION_START = 'mission start'
     MISSION_STOP = 'mission stop'
 
+    # Commands which set parameters
+    DEBUG_LEVEL = Parameter.DEBUG_LEVEL
+    WSRUN_PINCH = Parameter.WSRUN_PINCH
+    NFC_CALIBRATE = Parameter.NFC_CALIBRATE
+    CAL_HOLD = Parameter.CAL_HOLD
+    NHC_COMPASS = Parameter.NHC_COMPASS
+    COMPASS_SAMPLES = Parameter.COMPASS_SAMPLES
+    COMPASS_DELAY = Parameter.COMPASS_DELAY
+    MOTOR_SAMPLES = Parameter.MOTOR_SAMPLES
+    EF_SAMPLES = Parameter.EF_SAMPLES
+    CAL_SAMPLES = Parameter.CAL_SAMPLES
+    CONSOLE_TIMEOUT = Parameter.CONSOLE_TIMEOUT
+    WSRUN_DELAY = Parameter.WSRUN_DELAY
+    MOTOR_DIR_NHOLD = Parameter.MOTOR_DIR_NHOLD
+    MOTOR_DIR_INIT = Parameter.MOTOR_DIR_INIT
+    POWER_COMPASS_W_MOTOR = Parameter.POWER_COMPASS_W_MOTOR
+    KEEP_AWAKE_W_MOTOR = Parameter.KEEP_AWAKE_W_MOTOR
+    MOTOR_TIMEOUTS_1A = Parameter.MOTOR_TIMEOUTS_1A
+    MOTOR_TIMEOUTS_1B = Parameter.MOTOR_TIMEOUTS_1B
+    MOTOR_TIMEOUTS_2A = Parameter.MOTOR_TIMEOUTS_2A
+    MOTOR_TIMEOUTS_2B = Parameter.MOTOR_TIMEOUTS_2B
+    RSN_CONFIG = Parameter.RSN_CONFIG
+    INVERT_LED_DRIVERS = Parameter.INVERT_LED_DRIVERS
+    M1A_LED = Parameter.M1A_LED
+    M2A_LED = Parameter.M2A_LED
+
     # The following are not implemented commands
     # 'term hef'  # change HEF parameters interactively
     # 'term ies'  # change IES parameters interactively
@@ -287,25 +331,36 @@ class Timeout(BaseEnum):
     """
     # STM commands
     DEFAULT = 3
-    REBOOT = 3
-    ACQUISITION_START = 3
-    ACQUISITION_STOP = 1
-    IES_PORT_ON = 1
-    IES_PORT_OFF = 1
-    IES_POWER_ON = 1
-    IES_POWER_OFF = 1
-    HEF_PORT_ON = 1
-    HEF_PORT_OFF = 1
-    HEF_POWER_ON = 1
-    HEF_POWER_OFF = 1
-    HEF_WAKE = 1
-    HEF_PARAMS = 3
-    SYNC_CLOCK = 1
+    REBOOT = 5
+    ACQUISITION_START = DEFAULT
+    ACQUISITION_STOP = DEFAULT
+    IES_PORT_ON = DEFAULT
+    IES_PORT_OFF = DEFAULT
+    IES_POWER_ON = 30  # observations from 8-24 seconds
+    IES_POWER_OFF = DEFAULT
+    HEF_PORT_ON = DEFAULT
+    HEF_PORT_OFF = DEFAULT
+    HEF_POWER_ON = 6
+    HEF_POWER_OFF = DEFAULT
+    HEF_WAKE = DEFAULT
+    HEF_PARAMS = 6
+    SYNC_CLOCK = DEFAULT
 
     # HEF specific commands
-    PREFIX = 'prefix'
-    MISSION_START = 'mission start'
-    MISSION_STOP = 'mission stop'
+    PREFIX = DEFAULT
+    MISSION_START = DEFAULT
+    MISSION_STOP = DEFAULT
+
+
+class Prompt(BaseEnum):
+    """
+    Device I/O prompts
+    """
+    DEFAULT = 'STM>'
+    HEF_PARAMS = '#3_params'
+    HEF_PROMPT = '#3_HEF C>'
+    HEF_PORT_ON = DEFAULT  # not sure why the port on command doesn't return the HEF prompt
+    # HEF_PORT_ON = '#3_\r\n*98b3'  # not sure why the port on command doesn't return the HEF prompt
 
 
 class Response(BaseEnum):
@@ -314,39 +369,154 @@ class Response(BaseEnum):
     """
     TIMESTAMP = re.compile(r'^(?P<tod>%(tod)s)' % common_matches)
     UNKNOWN_COMMAND = re.compile(r'.*?unknown command: .*?')
-    # Expected responses from HPIES
-    # PROMPT = re.compile(r'^%(tod)s STM> .*?' % common_matches)
-    PROMPT = re.compile(r'^STM> .*?' % common_matches)
-    REBOOT = re.compile(r'.*?File system mounted')
-    ACQUISITION_START = re.compile(r'.*?opened ofile.*?')
-    HEF_OPTO_ON = PROMPT
-    HEF_POWER_ON = PROMPT
-    IES_POWER_ON = PROMPT  # about 15 seconds response time
+    PROMPT = re.compile(r'^STM> .*?')
+    #IES_POWER_ON = re.compile(r'.*?X -+ RESET.*?')  # last line of the menu options
+    HEF_POWER_ON = re.compile(r'#3_Use <BREAK> to enter command mode')  # last line of HEF power on prompt
+    IES_POWER_ON = re.compile(r'#4_\s+Next scheduled 1 minute warning at:')  # last line of IES power on prompt
     ERROR = re.compile(r'.*?port.*?not open')
-    HEF_PARAMS = re.compile(r'^#3_ serno.*')
+    OPENED_FILE = re.compile(r'#3_Opened raw output file, (\S+)\\r')
+    SET_PARAMETER = re.compile(r'.+\s=\s(%(int)s)' % common_matches)
 
 
-###
-# Data Particle Definitions
-###
+###############################################################################
+# Data Particles
+###############################################################################
+
 
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver.
     """
     RAW = CommonDataParticleType.RAW
-    HORIZONTAL_FIELD = 'horizontal_electric_field'
-    MOTOR_CURRENT = 'motor_current'
-    ECHO_SOUNDING = 'echo_sounding'
-    CALIBRATION_STATUS = 'calibration_status'
-    HPIES_STATUS = 'hpies_status'
+    HPIES_DATA_HEADER = 'hpies_data_header'  # DataHeaderParticle
+    HORIZONTAL_FIELD = 'horizontal_electric_field'  # HEFDataParticle
+    MOTOR_CURRENT = 'motor_current'  # HEFMotorCurrentParticle
+    CALIBRATION_STATUS = 'calibration_status'  # CalStatusParticle
+    HPIES_STATUS = 'hpies_status'  # HEFStatusParticle
+    ECHO_SOUNDING = 'echo_sounding'  # IESDataParticle
+    ECHO_STATUS = 'ies_status'  # IESStatusParticle
+    TIMESTAMP = 'stm_timestamp'  # TimestampParticle
+
+
+class DataHeaderParticleKey(BaseEnum):
+    """
+    Horizontal Electrical Field data field header stream
+
+    Precedes each series of HEF data particles
+    """
+    VERSION = 'hpies_ver'
+    TYPE = 'hpies_type'
+    DESTINATION = 'hpies_dest'
+    INDEX_START = 'hpies_ibeg'
+    INDEX_STOP = 'hpies_iend'
+    HCNO = 'hpies_hcno'
+    TIME = 'hpies_secs'
+    TICKS = 'hpies_tics'
+    MOTOR_SAMPLES = 'hpies_navg_mot'
+    EF_SAMPLES = 'hpies_navg_ef'
+    CAL_SAMPLES = 'hpies_navg_cal'
+    STM_TIME = 'hpies_stm_timestamp'
+
+
+class HPIESDataParticle(DataParticle):
+    _compiled_regex = None
+    __metaclass__ = get_logging_metaclass(log_level='info')
+
+    def __init__(self, *args, **kwargs):
+        super(HPIESDataParticle, self).__init__(*args, **kwargs)
+
+        self.match = self.regex_compiled().match(self.raw_data)
+        if not self.match:
+            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
+
+        self.check_crc()
+
+    def check_crc(self):
+        crc_compute, crc = calc_crc(self.raw_data)
+        data_valid = crc_compute == crc
+        if not data_valid:
+            self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
+            log.warning("Corrupt data detected: [%r] - CRC %s != %s" % (self.raw_data, hex(crc_compute), hex(crc)))
+
+    @staticmethod
+    def regex():
+        raise NotImplemented()
+
+    def _encode_all(self):
+        raise NotImplemented()
+
+    @classmethod
+    def regex_compiled(cls):
+        if cls._compiled_regex is None:
+            cls._compiled_regex = re.compile(cls.regex())
+        return cls._compiled_regex
+
+    def _build_parsed_values(self):
+        """
+        @throws SampleException If there is a problem with sample creation
+        """
+        try:
+            result = self._encode_all()
+        except Exception as e:
+            raise SampleException("Exception [%s] while converting data: [%s]" % (e, self.raw_data))
+        return result
+
+
+class DataHeaderParticle(HPIESDataParticle):
+    _data_particle_type = DataParticleType.HPIES_DATA_HEADER
+
+    @staticmethod
+    def regex():
+        """
+        @return regex string for matching HPIES data header particle
+
+        Sample Data:
+        #3__HE04 E a 0 983 130 3546345513 13126 3 3 3 1398912144*f7a9
+        #3__HE04 f a 0 382 0 3546329882 17917 3 3 3 1398896422*d6fd
+        #3__HE04 C a 0 978 22 3546332553 34259 3 3 3 1398899184*3e0d
+        """
+        pattern = r"""
+            (?x)
+            \#3__HE
+            (?P<version>  \d{2})    \s  (?# 04)
+            (?P<type>     ([ECfr])) \s  (?# E)
+            (?P<dest>     ([ab]))   \s  (?# a)
+            (?P<ibegin>   %(int)s)  \s  (?# 0)
+            (?P<iend>     %(int)s)  \s  (?# 983)
+            (?P<hcno>     %(int)s)  \s  (?# 130)
+            (?P<secs>     %(int)s)  \s  (?# 3546345513)
+            (?P<tics>     %(int)s)  \s  (?# 13126)
+            (?P<navg_mot> %(int)s)  \s  (?# 3)
+            (?P<navg_ef>  %(int)s)  \s  (?# 3)
+            (?P<navg_cal> %(int)s)  \s  (?# 3)
+            (?P<stm_time> %(int)s)      (?# 1398912144)
+                           \*
+            (?P<crc>       %(crc)s)    (?# f7a9)
+            """ % common_matches
+
+        return pattern
+
+    def _encode_all(self):
+        return [
+            self._encode_value(DataHeaderParticleKey.VERSION, self.match.group('version'), int),
+            self._encode_value(DataHeaderParticleKey.TYPE, self.match.group('type'), str),
+            self._encode_value(DataHeaderParticleKey.DESTINATION, self.match.group('dest'), str),
+            self._encode_value(DataHeaderParticleKey.INDEX_START, self.match.group('ibegin'), int),
+            self._encode_value(DataHeaderParticleKey.INDEX_STOP, self.match.group('iend'), int),
+            self._encode_value(DataHeaderParticleKey.HCNO, self.match.group('hcno'), int),
+            self._encode_value(DataHeaderParticleKey.TIME, self.match.group('secs'), int),
+            self._encode_value(DataHeaderParticleKey.TICKS, self.match.group('tics'), int),
+            self._encode_value(DataHeaderParticleKey.MOTOR_SAMPLES, self.match.group('navg_mot'), int),
+            self._encode_value(DataHeaderParticleKey.EF_SAMPLES, self.match.group('navg_ef'), int),
+            self._encode_value(DataHeaderParticleKey.CAL_SAMPLES, self.match.group('navg_cal'), int),
+            self._encode_value(DataHeaderParticleKey.STM_TIME, self.match.group('stm_time'), int)
+        ]
 
 
 class HEFDataParticleKey(BaseEnum):
     """
     Horizontal Electrical Field data stream
     """
-    TIMESTAMP = 'date_time_string'
     INDEX = 'index'
     CHANNEL_1 = 'e1a'
     CHANNEL_2 = 'e1b'
@@ -354,16 +524,19 @@ class HEFDataParticleKey(BaseEnum):
     CHANNEL_4 = 'e2b'
 
 
-class HEFDataParticle(DataParticle):
+class HEFDataParticle(HPIESDataParticle):
     _data_particle_type = DataParticleType.HORIZONTAL_FIELD
-
-    # 20140501T173921 #3__DE 797 79380 192799 192803 192930*56a8
 
     @staticmethod
     def regex():
+        """
+        @return regex string for matching HPIES horizontal electric field data particle
+
+        Sample Data:
+        #3__DE 797 79380 192799 192803 192930*56a8
+        """
         pattern = r"""
             (?x)
-            (?P<tod>       %(tod)s) \s
                            \#3__DE  \s
             (?P<index>     %(int)s) \s
             (?P<channel_1> %(int)s) \s
@@ -376,72 +549,44 @@ class HEFDataParticle(DataParticle):
 
         return pattern
 
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        return re.compile(HEFDataParticle.regex(), re.VERBOSE)
+    def _encode_all(self):
+        crc_compute, crc = calc_crc(self.raw_data)
+        data_valid = crc_compute == crc
+        if not data_valid:
+            self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
+            log.warning("Corrupt data detected: [%r] - CRC %s != %s" % (self.raw_data, hex(crc_compute), hex(crc)))
 
-    def _build_parsed_values(self):
-        """
-        Parse data sample for individual values (statistics)
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = HEFDataParticle.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
-
-        try:
-            tod = match.group('tod')
-            index = int(match.group('index'))
-            channel_1 = int(match.group('channel_1'))
-            channel_2 = int(match.group('channel_2'))
-            channel_3 = int(match.group('channel_3'))
-            channel_4 = int(match.group('channel_4'))
-            crc = int(match.group('crc'), 16)
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%r]" % self.raw_data)
-
-        crc_compute = crc3kerm(self.raw_data)
-        if not crc_compute == crc:
-            raise SampleException("Corrupt data detected: [%r] - CRC %s != %s" %
-                                  (self.raw_data, hex(crc_compute), hex(crc)))
-
-        result = [
-            {DataParticleKey.VALUE_ID: HEFDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: tod},
-            {DataParticleKey.VALUE_ID: HEFDataParticleKey.INDEX, DataParticleKey.VALUE: index},
-            {DataParticleKey.VALUE_ID: HEFDataParticleKey.CHANNEL_1, DataParticleKey.VALUE: channel_1},
-            {DataParticleKey.VALUE_ID: HEFDataParticleKey.CHANNEL_2, DataParticleKey.VALUE: channel_2},
-            {DataParticleKey.VALUE_ID: HEFDataParticleKey.CHANNEL_3, DataParticleKey.VALUE: channel_3},
-            {DataParticleKey.VALUE_ID: HEFDataParticleKey.CHANNEL_4, DataParticleKey.VALUE: channel_4},
+        return [
+            self._encode_value(HEFDataParticleKey.INDEX, self.match.group('index'), int),
+            self._encode_value(HEFDataParticleKey.CHANNEL_1, self.match.group('channel_1'), int),
+            self._encode_value(HEFDataParticleKey.CHANNEL_2, self.match.group('channel_2'), int),
+            self._encode_value(HEFDataParticleKey.CHANNEL_3, self.match.group('channel_3'), int),
+            self._encode_value(HEFDataParticleKey.CHANNEL_4, self.match.group('channel_4'), int),
         ]
 
-        return result
 
-
-class HEFMotorCurrentDataParticleKey(BaseEnum):
+class HEFMotorCurrentParticleKey(BaseEnum):
     """
     HEF Motor Current data stream
     """
-    TIMESTAMP = 'date_time_string'
     INDEX = 'hpies_mindex'
     CURRENT = 'hpies_motor_current'
 
 
-class HEFMotorCurrentDataParticle(DataParticle):
+class HEFMotorCurrentParticle(HPIESDataParticle):
     _data_particle_type = DataParticleType.MOTOR_CURRENT
-
-    # 20140501T173728 #3__DM 11 24425*396b
 
     @staticmethod
     def regex():
+        """
+        @return regex string for matching HPIES motor current particle
+
+        Sample Data:
+        #3__DM 11 24425*396b
+        """
+
         pattern = r"""
             (?x)
-            (?P<tod>           %(tod)s) \s
                                \#3__DM  \s
             (?P<index>         %(int)s) \s
             (?P<motor_current> %(int)s)
@@ -451,42 +596,199 @@ class HEFMotorCurrentDataParticle(DataParticle):
 
         return pattern
 
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        return re.compile(HEFMotorCurrentDataParticle.regex())
-
-    def _build_parsed_values(self):
+    def _encode_all(self):
         """
         Parse data sample for individual values (statistics)
         @throws SampleException If there is a problem with sample creation
         """
-        match = HEFMotorCurrentDataParticle.regex_compiled().match(self.raw_data)
+        return [
+            self._encode_value(HEFMotorCurrentParticleKey.INDEX, self.match.group('index'), int),
+            self._encode_value(HEFMotorCurrentParticleKey.CURRENT, self.match.group('motor_current'), int),
+        ]
 
-        if not match:
-            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
 
-        try:
-            tod = match.group('tod')
-            index = int(match.group('index'))
-            motor_current = int(match.group('motor_current'))
-            crc = int(match.group('crc'), 16)
+class CalStatusParticleKey(BaseEnum):
+    """
+    Calibration status data particle
 
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%r]" % self.raw_data)
+    Calibration data is sent every two minutes during autosample
+    """
+    INDEX = 'hpies_cindex'
+    E1C = 'hpies_e1c'
+    E1A = 'hpies_e1a'
+    E1B = 'hpies_e1b'
+    E2C = 'hpies_e2c'
+    E2A = 'hpies_e2a'
+    E2B = 'hpies_e2b'
 
-        crc_compute = crc3kerm(self.raw_data)
-        if not crc_compute == crc:
-            raise SampleException("Corrupt data detected: [%r] - CRC %s != %s" %
-                                  (self.raw_data, hex(crc_compute), hex(crc)))
+
+class CalStatusParticle(HPIESDataParticle):
+    _data_particle_type = DataParticleType.CALIBRATION_STATUS
+
+    @staticmethod
+    def regex():
+        """
+        @return regex string for matching HPIES calibration status particle
+
+        Sample Data:
+        #3__DC 2 192655 192637 135611 80036 192554 192644*5c28
+        """
+        pattern = r"""
+            (?x)
+                       \#3__DC  \s
+            (?P<index> %(int)s) \s
+            (?P<e1c>   %(int)s) \s
+            (?P<e1a>   %(int)s) \s
+            (?P<e1b>   %(int)s) \s
+            (?P<e2c>   %(int)s) \s
+            (?P<e2a>   %(int)s) \s
+            (?P<e2b>   %(int)s)
+                       \*
+            (?P<crc>   %(crc)s)
+            """ % common_matches
+
+        return pattern
+
+    def _encode_all(self):
+        """
+        Parse data sample for individual values (statistics)
+        @throws SampleException If there is a problem with sample creation
+        """
+        return [
+            self._encode_value(CalStatusParticleKey.INDEX, self.match.group('index'), int),
+            self._encode_value(CalStatusParticleKey.E1C, self.match.group('e1c'), int),
+            self._encode_value(CalStatusParticleKey.E1A, self.match.group('e1a'), int),
+            self._encode_value(CalStatusParticleKey.E1B, self.match.group('e1b'), int),
+            self._encode_value(CalStatusParticleKey.E2C, self.match.group('e2c'), int),
+            self._encode_value(CalStatusParticleKey.E2A, self.match.group('e2a'), int),
+            self._encode_value(CalStatusParticleKey.E2B, self.match.group('e2b'), int),
+        ]
+
+
+class HEFStatusParticleKey(BaseEnum):
+    """
+    HPIES status data particle
+
+    HPIES status is sent every X minutes during autosample
+    """
+    UNIX_TIME = 'hpies_secs'  # elapsed time since unix epoch
+    HCNO = 'hpies_hcno'  # Half cycle number (int)
+    HCNO_LAST_CAL = 'hpies_hcno_last_cal'  # Half cycle number of last calibration (int)
+    HCNO_LAST_COMP = 'hpies_hcno_last_comp'  # Half cycle number of last compass value	 1	 int
+    OFILE = 'hpies_ofile'  # Current output filename	1	str	remove?
+    IFOK = 'hpies_ifok'  # File write status	1	str	"NG" on error, "OK" if still appending  remove?
+    N_COMPASS_WRITES = 'hpies_compass_fwrite_attempted'  # Number of compass records written to <ofile>	1	int
+    # Number of attempts to write compass data when <ofile> is corrupt	1	int
+    N_COMPASS_FAIL_WRITES = 'hpies_compass_fwrite_ofp_null'
+    MOTOR_POWER_UPS = 'hpies_mot_pwr_count'  # Up/down counter of motor power on/off.  Should be zero.	 1	 int
+    # Number of main service loops while motor  current is being sampled.  1	 int
+    N_SERVICE_LOOPS = 'hpies_start_motor_count'
+    SERIAL_PORT_ERRORS = 'hpies_compass_port_open_errs'  # Number of failures to open the compass  serial port.  1	 int
+    COMPASS_PORT_ERRORS = 'hpies_compass_port_nerr'  # int	Always zero (never changed in code).  Remove?
+    # Number of times compass port is  found closed when trying to read it.
+    COMPASS_PORT_CLOSED_COUNT = 'hpies_tuport_compass_null_count'
+    IRQ2_COUNT = 'hpies_irq2_count'  # Number of interrupt requests on IRQ2 line of 68332.	 1	 int	 Should be zero.
+    SPURIOUS_COUNT = 'hpies_spurious_count'  # Number of spurious interrupts to the 68332.	 1	 int	 Should be zero.
+    # Number of times the SPSR register bits 5 and 6 are set.	 1	 int	 Should be zero.
+    SPSR_BITS56_COUNT = 'hpies_spsr_unknown_count'
+    # Number of times the programable interval timer (PIT) is zero.	 1	 int	 Should be zero.
+    PIT_ZERO_COUNT = 'hpies_pitperiod_zero_count'
+    # Number of times the analog to digital converter circular buffer overflows.	 1	 int	 Should be zero.
+    ADC_BUFFER_OVERFLOWS = 'hpies_adc_raw_overflow_count'
+    # Number of times the max7317 queue overflows.	 1	 int	 Should be zero.
+    MAX7317_QUEUE_OVERFLOWS = 'hpies_max7317_add_queue_errs'
+    # Number of times water switch pinch timing is incorrect.	 1	 int	 Should be zero.
+    PINCH_TIMING_ERRORS = 'hpies_wsrun_rtc_pinch_end_nerr'
+
+
+class HEFStatusParticle(HPIESDataParticle):
+    _data_particle_type = DataParticleType.HPIES_STATUS
+
+    @staticmethod
+    def regex():
+        """
+        @return regex string for matching HPIES horizontal electric field status particle
+
+        Sample Data:
+        #3__s1 -748633661 31 23 0 C:\DATA\12345.000 OK*3e90
+        #3__s2 10 0 0 984001 0 0 0*ac87
+        #3__s3 0 0 0 0 0 0 1*35b7
+        """
+        pattern = r"""
+            (?x)
+                                    \#3__s1  \s+
+            (?P<secs>               %(int)s) \s+
+            (?P<hcno>               %(int)s) \s+
+            (?P<hcno_last_cal>      %(int)s) \s+
+            (?P<hcno_last_comp>     %(int)s) \s+
+            (?P<ofile>              %(fn)s)  \s+
+            (?P<ifok>               %(str)s)
+                                    \*
+            (?P<crc1>               %(crc)s) \s+
+                                    \#3__s2  \s+
+            (?P<compass_writes>     %(int)s) \s+
+            (?P<compass_fails>      %(int)s) \s+
+            (?P<motor_power_cycles> %(int)s) \s+
+            (?P<service_loops>      %(int)s) \s+
+            (?P<serial_failures>    %(int)s) \s+
+            (?P<port_failures>      %(int)s) \s+
+            (?P<port_closures>      %(int)s)
+                                    \*
+            (?P<crc2>               %(crc)s) \s+
+                                    \#3__s3  \s+
+            (?P<irq2_count>         %(int)s) \s+
+            (?P<spurious_count>     %(int)s) \s+
+            (?P<spsr_count>         %(int)s) \s+
+            (?P<zero_count>         %(int)s) \s+
+            (?P<adc_overflows>      %(int)s) \s+
+            (?P<queue_overflows>    %(int)s) \s+
+            (?P<pinch_errors>       %(int)s)
+                                    \*
+            (?P<crc3>               %(crc)s)
+            """ % common_matches
+
+        return pattern
+
+    def check_crc(self):
+        """
+        Overridden because HEF Status has multiple lines with CRC
+        """
+        for line in self.raw_data.split(NEWLINE):
+            crc_compute, crc_parse = calc_crc(line)
+            data_valid = crc_compute == crc_parse
+            if not data_valid:
+                self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
+                log.warning("Corrupt data detected: [%r] - CRC %s != %s" % (line, hex(crc_compute), hex(crc_parse)))
+
+    def _encode_all(self):
+        """
+        Parse data sample for individual values (statistics)
+        @throws SampleException If there is a problem with sample creation
+        """
 
         result = [
-            {DataParticleKey.VALUE_ID: HEFMotorCurrentDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: tod},
-            {DataParticleKey.VALUE_ID: HEFMotorCurrentDataParticleKey.INDEX, DataParticleKey.VALUE: index},
-            {DataParticleKey.VALUE_ID: HEFMotorCurrentDataParticleKey.CURRENT, DataParticleKey.VALUE: motor_current},
+            self._encode_value(HEFStatusParticleKey.UNIX_TIME, self.match.group('secs'), int),
+            self._encode_value(HEFStatusParticleKey.HCNO, self.match.group('hcno'), int),
+            self._encode_value(HEFStatusParticleKey.HCNO_LAST_CAL, self.match.group('hcno_last_cal'), int),
+            self._encode_value(HEFStatusParticleKey.HCNO_LAST_COMP, self.match.group('hcno_last_comp'), int),
+            self._encode_value(HEFStatusParticleKey.OFILE, self.match.group('ofile'), str),
+            self._encode_value(HEFStatusParticleKey.IFOK, self.match.group('ifok'), str),
+
+            self._encode_value(HEFStatusParticleKey.N_COMPASS_WRITES, self.match.group('compass_writes'), int),
+            self._encode_value(HEFStatusParticleKey.N_COMPASS_FAIL_WRITES, self.match.group('compass_fails'), int),
+            self._encode_value(HEFStatusParticleKey.MOTOR_POWER_UPS, self.match.group('motor_power_cycles'), int),
+            self._encode_value(HEFStatusParticleKey.N_SERVICE_LOOPS, self.match.group('service_loops'), int),
+            self._encode_value(HEFStatusParticleKey.SERIAL_PORT_ERRORS, self.match.group('serial_failures'), int),
+            self._encode_value(HEFStatusParticleKey.COMPASS_PORT_CLOSED_COUNT, self.match.group('port_failures'), int),
+            self._encode_value(HEFStatusParticleKey.COMPASS_PORT_ERRORS, self.match.group('port_closures'), int),
+
+            self._encode_value(HEFStatusParticleKey.IRQ2_COUNT, self.match.group('irq2_count'), int),
+            self._encode_value(HEFStatusParticleKey.SPURIOUS_COUNT, self.match.group('spurious_count'), int),
+            self._encode_value(HEFStatusParticleKey.SPSR_BITS56_COUNT, self.match.group('spsr_count'), int),
+            self._encode_value(HEFStatusParticleKey.PIT_ZERO_COUNT, self.match.group('zero_count'), int),
+            self._encode_value(HEFStatusParticleKey.ADC_BUFFER_OVERFLOWS, self.match.group('adc_overflows'), int),
+            self._encode_value(HEFStatusParticleKey.MAX7317_QUEUE_OVERFLOWS, self.match.group('queue_overflows'), int),
+            self._encode_value(HEFStatusParticleKey.PINCH_TIMING_ERRORS, self.match.group('pinch_errors'), int),
         ]
 
         return result
@@ -496,7 +798,6 @@ class IESDataParticleKey(BaseEnum):
     """
     Inverted Echo-Sounder data stream
     """
-    TIMESTAMP = 'date_time_string'
     IES_TIMESTAMP = 'hpies_ies_timestamp'
     TRAVEL_TIMES = 'hpies_n_travel_times'
     TRAVEL_TIME_1 = 'hpies_travel_time1'
@@ -510,16 +811,19 @@ class IESDataParticleKey(BaseEnum):
     STM_TIMESTAMP = 'hpies_stm_timestamp'
 
 
-class IESDataParticle(DataParticle):
+class IESDataParticle(HPIESDataParticle):
     _data_particle_type = DataParticleType.ECHO_SOUNDING
-
-    # 20140501T175203 #5_AUX,1398880200,04,999999,999999,999999,999999,0010848,021697,022030,04000005.252,1B05,1398966715*c69e
 
     @staticmethod
     def regex():
+        """
+        @return regex string for matching HPIES echo sounding data particle
+
+        Sample Data:
+        #5_AUX,1398880200,04,999999,999999,999999,999999,0010848,021697,022030,04000005.252,1B05,1398966715*c69e
+        """
         pattern = r"""
             (?x)
-            (?P<tod>            %(tod)s)   \s
                                 \#5_AUX    ,
             (?P<ies_timestamp>  %(int)s)   ,
             (?P<n_travel_times> %(int)s)   ,
@@ -539,331 +843,182 @@ class IESDataParticle(DataParticle):
 
         return pattern
 
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        return re.compile(IESDataParticle.regex())
-
-    def _build_parsed_values(self):
+    def _encode_all(self):
         """
         Parse data sample for individual values (statistics)
         @throws SampleException If there is a problem with sample creation
         """
-        match = IESDataParticle.regex_compiled().match(self.raw_data)
 
-        if not match:
-            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
-
-        try:
-            tod = match.group('tod')
-            ies_timestamp = int(match.group('ies_timestamp'))
-            travel_times = int(match.group('n_travel_times'))
-            travel_1 = int(match.group('travel_1'))
-            travel_2 = int(match.group('travel_2'))
-            travel_3 = int(match.group('travel_3'))
-            travel_4 = int(match.group('travel_4'))
-            pressure = int(match.group('pressure'))
-            temp = int(match.group('temp'))
-            bliley_temp = int(match.group('bliley_temp'))
-            bliley_freq = int(match.group('bliley_freq'))
-            stm_timestamp = int(match.group('stm_timestamp'))
-            crc = int(match.group('crc'), 16)
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%r]" % self.raw_data)
-
-        crc_compute = crc3kerm(self.raw_data)
-        if not crc_compute == crc:
-            raise SampleException("Corrupt data detected: [%r] - CRC %s != %s" %
-                                  (self.raw_data, hex(crc_compute), hex(crc)))
-
-        result = [
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: tod},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.IES_TIMESTAMP, DataParticleKey.VALUE: ies_timestamp},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TRAVEL_TIMES, DataParticleKey.VALUE: travel_times},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TRAVEL_TIME_1, DataParticleKey.VALUE: travel_1},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TRAVEL_TIME_2, DataParticleKey.VALUE: travel_2},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TRAVEL_TIME_3, DataParticleKey.VALUE: travel_3},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TRAVEL_TIME_4, DataParticleKey.VALUE: travel_4},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.PRESSURE, DataParticleKey.VALUE: pressure},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.TEMPERATURE, DataParticleKey.VALUE: temp},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.BLILEY_TEMPERATURE, DataParticleKey.VALUE: bliley_temp},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.BLILEY_FREQUENCY, DataParticleKey.VALUE: bliley_freq},
-            {DataParticleKey.VALUE_ID: IESDataParticleKey.STM_TIMESTAMP, DataParticleKey.VALUE: stm_timestamp},
+        return [
+            self._encode_value(IESDataParticleKey.IES_TIMESTAMP, self.match.group('ies_timestamp'), int),
+            self._encode_value(IESDataParticleKey.TRAVEL_TIMES, self.match.group('n_travel_times'), int),
+            self._encode_value(IESDataParticleKey.TRAVEL_TIME_1, self.match.group('travel_1'), int),
+            self._encode_value(IESDataParticleKey.TRAVEL_TIME_2, self.match.group('travel_2'), int),
+            self._encode_value(IESDataParticleKey.TRAVEL_TIME_3, self.match.group('travel_3'), int),
+            self._encode_value(IESDataParticleKey.TRAVEL_TIME_4, self.match.group('travel_4'), int),
+            self._encode_value(IESDataParticleKey.PRESSURE, self.match.group('pressure'), int),
+            self._encode_value(IESDataParticleKey.TEMPERATURE, self.match.group('temp'), int),
+            self._encode_value(IESDataParticleKey.BLILEY_TEMPERATURE, self.match.group('bliley_temp'), int),
+            self._encode_value(IESDataParticleKey.BLILEY_FREQUENCY, self.match.group('bliley_freq'), float),
+            self._encode_value(IESDataParticleKey.STM_TIMESTAMP, self.match.group('stm_timestamp'), int),
         ]
 
-        return result
 
-
-class CalDataParticleKey(BaseEnum):
+class IESStatusParticleKey(BaseEnum):
     """
-    @brief Calibration status data particle
-
-    Calibration data is sent every two minutes during autosample
+    HEF Motor Current data stream
     """
-    TIMESTAMP = 'date_time_string'
-    INDEX = 'hpies_cindex'
-    E1C = 'hpies_e1c'
-    E1A = 'hpies_e1a'
-    E1B = 'hpies_e1b'
-    E2C = 'hpies_e2c'
-    E2A = 'hpies_e2a'
-    E2B = 'hpies_e2b'
+    IES_TIME = 'hpies_ies_timestamp'
+    TRAVEL_TIMES = 'hpies_status_travel_times'
+    PRESSURES = 'hpies_status_pressures'
+    TEMPERATURES = 'hpies_status_temperatures'
+    PFREQUENCIES = 'hpies_status_pressure_frequencies'
+    TFREQUENCIES = 'hpies_status_temperature_frequencies'
+    BACKUP_BATTERY = 'hpies_backup_battery_voltage'
+    RELEASE_DRAIN = 'hpies_release_drain'
+    SYSTEM_DRAIN = 'hpies_system_drain'
+    RELEASE_BATTERY = 'hpies_release_battery_voltage'
+    SYSTEM_BATTERY = 'hpies_system_battery_voltage'
+    RELEASE_SYSTEM = 'hpies_release_system_voltage'
+    INTERNAL_TEMP = 'hpies_internal_temperature'
+    MEAN_TRAVEL = 'hpies_average_travel_time'
+    MEAN_PRESSURE = 'hpies_average_pressure'
+    MEAN_TEMPERATURE = 'hpies_average_temperature'
+    IES_OFFSET = 'hpies_ies_clock_error'
 
 
-class CalDataParticle(DataParticle):
-    _data_particle_type = DataParticleType.CALIBRATION_STATUS
-
-    # 20140430T230632 #3__DC 2 192655 192637 135611 80036 192554 192644*5c28
+class IESStatusParticle(HPIESDataParticle):
+    _data_particle_type = DataParticleType.ECHO_STATUS
 
     @staticmethod
     def regex():
+        """
+        @return regex string for matching HPIES IES status particle
+
+        Sample Data:
+        #5_T:388559 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 \r\n*cb7a
+        #5_P:388559 10932 23370  10935 23397  10934 23422  10934 23446  10933 23472  10932 23492  \r\n*9c3e
+        #5_F:388559 33228500 172170704  33228496 172170928  33228492 172171120  33228488 172171312  33228484 172171504  33228480 172171664  \r\n*e505
+        #5_E:388559 2.29 0.01 0.00 14.00 6.93 5.05 23.83 0.0000 10935 1623 33228.480 172171.656 0.109 \r\n*1605
+        """
         pattern = r"""
             (?x)
-            (?P<tod>   %(tod)s) \s
-                       \#3__DC  \s
-            (?P<index> %(int)s) \s
-            (?P<e1c>   %(int)s) \s
-            (?P<e1a>   %(int)s) \s
-            (?P<e1b>   %(int)s) \s
-            (?P<e2c>   %(int)s) \s
-            (?P<e2a>   %(int)s) \s
-            (?P<e2b>   %(int)s)
-                       \*
-            (?P<crc>   %(crc)s)
+                                 \#5_T:
+            (?P<ies_time>        %(int)s) \s
+            (?P<travel_times>    (%(int)s \s){24})
+                                 \\r\\n\*
+            (?P<crc>             %(crc)s) \s+
+                                 \#5_P:
+            (?P<ies_time2>       %(int)s) \s
+            (?P<pt>              (%(int)s \s+){12}) \s+
+                                 \\r\\n\*
+            (?P<crc2>            %(crc)s) \s+
+                                 \#5_F:
+            (?P<ies_time3>       %(int)s) \s
+            (?P<ptf>             (%(int)s \s+){12}) \s+
+                                 \\r\\n\*
+            (?P<crc3>            %(crc)s) \s+
+                                 \#5_E:
+            (?P<ies_time4>       %(int)s)   \s
+            (?P<backup_battery>  %(float)s) \s
+            (?P<release_drain>   %(float)s) \s
+            (?P<system_drain>    %(float)s) \s
+            (?P<release_battery> %(float)s) \s
+            (?P<system_battery>  %(float)s) \s
+            (?P<release_system>  %(float)s) \s
+            (?P<internal_temp>   %(float)s) \s
+            (?P<mean_travel>     %(float)s) \s
+            (?P<mean_pressure>   %(int)s)   \s
+            (?P<mean_temp>       %(int)s)   \s
+            (?P<ies_offset>      %(float)s) \s
+            (?P<last_temp>       %(float)s) \s
+            (?P<clock_offset>    %(float)s) \s
+                                 \\r\\n\*
+            (?P<crc4>             %(crc)s)
             """ % common_matches
 
         return pattern
 
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        return re.compile(CalDataParticle.regex())
-
-    def _build_parsed_values(self):
-        """
-        Parse data sample for individual values (statistics)
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = CalDataParticle.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
-
-        try:
-            tod = match.group('tod')
-            index = int(match.group('index'))
-            e1c = int(match.group('e1c'))
-            e1a = int(match.group('e1a'))
-            e1b = int(match.group('e1b'))
-            e2c = int(match.group('e2c'))
-            e2a = int(match.group('e2a'))
-            e2b = int(match.group('e2b'))
-            crc = int(match.group('crc'), 16)
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%r]" % self.raw_data)
-
-        crc_compute = crc3kerm(self.raw_data)
-        if not crc_compute == crc:
-            raise SampleException("Corrupt data detected: [%r] - CRC %s != %s" %
-                                  (self.raw_data, hex(crc_compute), hex(crc)))
-
-        result = [
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: tod},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.INDEX, DataParticleKey.VALUE: index},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.E1C, DataParticleKey.VALUE: e1c},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.E1A, DataParticleKey.VALUE: e1a},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.E1B, DataParticleKey.VALUE: e1b},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.E2C, DataParticleKey.VALUE: e2c},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.E2A, DataParticleKey.VALUE: e2a},
-            {DataParticleKey.VALUE_ID: CalDataParticleKey.E2B, DataParticleKey.VALUE: e2b},
-        ]
-
-        return result
-
-
-class StatusDataParticleKey(BaseEnum):
-    """
-    @brief HPIES status data particle
-
-    HPIES status is sent every X minutes during autosample
-    """
-    TIMESTAMP = 'date_time_string'
-    UNIX_TIME = 'hpies_secs'  # elapsed time since unix epoch
-    HCNO = 'hpies_hcno'  # Half cycle number (int)
-    HCNO_LAST_CAL = 'hpies_hcno_last_cal'  # Half cycle number of last calibration (int)
-    HCNO_LAST_COMP = 'hpies_hcno_last_comp'  # Half cycle number of last compass value	 1	 int
-    OFILE = 'hpies_ofile'  # Current output filename	1	str	remove?
-    IFOK = 'hpies_ifok'  # File write status	1	str	"NG" on error, "OK" if still appending  remove?
-    N_COMPASS_WRITES = 'hpies_compass_fwrite_attempted'  # Number of compass records written to <ofile>	1	int	remove?
-    N_COMPASS_FAIL_WRITES = 'hpies_compass_fwrite_ofp_null'  # Number of attempts to write compass data when <ofile> is corrupt	1	int	remove?
-    MOTOR_POWER_UPS = 'hpies_mot_pwr_count'  # Up/down counter of motor power on/off.  Should be zero.	 1	 int
-    N_SERVICE_LOOPS = 'hpies_start_motor_count'  # Number of main service loops while motor  current is being sampled.  1	 int
-    SERIAL_PORT_ERRORS = 'hpies_compass_port_open_errs'  # Number of failures to open the compass  serial port.  1	 int
-    COMPASS_PORT_ERRORS = 'hpies_compass_port_nerr'  # int	Always zero (never changed in code).  Remove?
-    COMPASS_PORT_CLOSED_COUNT = 'hpies_tuport_compass_null_count'  # Number of times compass port is  found closed when trying to read it.
-    IRQ2_COUNT = 'hpies_irq2_count'  # Number of interrupt requests on IRQ2 line of 68332.	 1	 int	 Should be zero.
-    SPURIOUS_COUNT = 'hpies_spurious_count'  # Number of spurious interrupts to the 68332.	 1	 int	 Should be zero.
-    SPSR_BITS56_COUNT = 'hpies_spsr_unknown_count'  # Number of times the SPSR register bits 5 and 6 are set.	 1	 int	 Should be zero.
-    PIT_ZERO_COUNT = 'hpies_pitperiod_zero_count'  # Number of times the programable interval timer (PIT) is zero.	 1	 int	 Should be zero.
-    ADC_BUFFER_OVERFLOWS = 'hpies_adc_raw_overflow_count'  # Number of times the analog to digital converter circular buffer overflows.	 1	 int	 Should be zero.
-    MAX7317_QUEUE_OVERFLOWS = 'hpies_max7317_add_queue_errs'  # Number of times the max7317 queue overflows.	 1	 int	 Should be zero.
-    PINCH_TIMING_ERRORS = 'hpies_wsrun_rtc_pinch_end_nerr'  # Number of times water switch pinch timing is incorrect.	 1	 int	 Should be zero.
-
-
-class StatusDataParticle(DataParticle):
-    _data_particle_type = DataParticleType.HPIES_STATUS
-
-    # 20140430T232254 #3__s1 -748633661 31 23 0 C:\\DATA\\12345.000 OK*3e90
-    # 20140430T232254 #3__s2 10 0 0 984001 0 0 0*ac87
-    # 20140430T232254 #3__s3 0 0 0 0 0 0 1*35b7
-
-    @staticmethod
-    def regex():
-        pattern = r"""
-            (?x)
-            (?P<tod>                %(tod)s) \s
-                                    \#3__s1  \s
-            (?P<secs>               %(int)s) \s
-            (?P<hcno>               %(int)s) \s
-            (?P<hcno_last_cal>      %(int)s) \s
-            (?P<hcno_last_comp>     %(int)s) \s
-            (?P<ofile>              %(fn)s)  \s
-            (?P<ifok>               %(str)s)
-                                    \*
-            (?P<crc1>               %(crc)s) \s
-            (?P<time2>              %(tod)s) \s
-                                    \#3__s2  \s
-            (?P<compass_writes>     %(int)s) \s
-            (?P<compass_fails>      %(int)s) \s
-            (?P<motor_power_cycles> %(int)s) \s
-            (?P<service_loops>      %(int)s) \s
-            (?P<serial_failures>    %(int)s) \s
-            (?P<port_failures>      %(int)s) \s
-            (?P<port_closures>      %(int)s)
-                                    \*
-            (?P<crc2>               %(crc)s) \s
-            (?P<time3>              %(tod)s) \s
-                                    \#3__s3  \s
-            (?P<irq2_count>         %(int)s) \s
-            (?P<spurious_count>     %(int)s) \s
-            (?P<spsr_count>         %(int)s) \s
-            (?P<zero_count>         %(int)s) \s
-            (?P<adc_overflows>      %(int)s) \s
-            (?P<queue_overflows>    %(int)s) \s
-            (?P<pinch_errors>       %(int)s)
-                                    \*
-            (?P<crc3>               %(crc)s)
-            """ % common_matches
-
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        return re.compile(StatusDataParticle.regex())
-
-    def _build_parsed_values(self):
-        """
-        Parse data sample for individual values (statistics)
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = StatusDataParticle.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("No regex match of parsed sample data: [%r]" % self.raw_data)
-
-        try:
-            time1 = match.group('tod')
-            unix_time = int(match.group('secs'))
-            hcno = int(match.group('hcno'))
-            hcno_last_cal = int(match.group('hcno_last_cal'))
-            hcno_last_comp = int(match.group('hcno_last_comp'))
-            ofile = match.group('ofile')
-            ifok = match.group('ifok')
-            crc1 = int(match.group('crc1'), 16)
-
-            # time2 = match.group('time2')  # ignored
-            compass_writes = int(match.group('compass_writes'))
-            compass_fails = int(match.group('compass_fails'))
-            motor_power_cycles = int(match.group('motor_power_cycles'))
-            service_loops = int(match.group('service_loops'))
-            serial_failures = int(match.group('serial_failures'))
-            port_failures = int(match.group('port_failures'))
-            port_closures = int(match.group('port_closures'))
-            crc2 = int(match.group('crc2'), 16)
-
-            # time3 = match.group('time3')  # ignored
-            irq2_count = int(match.group('irq2_count'))
-            spurious_count = int(match.group('spurious_count'))
-            spsr_count = int(match.group('spsr_count'))
-            zero_count = int(match.group('zero_count'))
-            adc_overflows = int(match.group('adc_overflows'))
-            queue_overflows = int(match.group('queue_overflows'))
-            pinch_errors = int(match.group('pinch_errors'))
-            crc3 = int(match.group('crc3'), 16)
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%r]" % self.raw_data)
-
-        crc = [crc1, crc2, crc3]
-        i = 0
+    def check_crc(self):
         for line in self.raw_data.split(NEWLINE):
-            if i > 2:
-                break
-            crc_compute = crc3kerm(line)
-            if not crc_compute == crc[i]:
-                raise SampleException("Corrupt data detected: [%r] - CRC %s != %s" %
-                                      (line, hex(crc_compute), hex(crc[i])))
-            i += 1
+            crc_compute, crc_parse = calc_crc(line)
+            data_valid = crc_compute == crc_parse
+            if not data_valid:
+                self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
+                log.warning("Corrupt data detected: [%r] - CRC %s != %s" % (line, hex(crc_compute), hex(crc_parse)))
 
-        result = [
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: time1},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.UNIX_TIME, DataParticleKey.VALUE: unix_time},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.HCNO, DataParticleKey.VALUE: hcno},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.HCNO_LAST_CAL, DataParticleKey.VALUE: hcno_last_cal},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.HCNO_LAST_COMP, DataParticleKey.VALUE: hcno_last_comp},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.OFILE, DataParticleKey.VALUE: ofile},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.IFOK, DataParticleKey.VALUE: ifok},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.N_COMPASS_WRITES, DataParticleKey.VALUE: compass_writes},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.N_COMPASS_FAIL_WRITES,
-             DataParticleKey.VALUE: compass_fails},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.MOTOR_POWER_UPS,
-             DataParticleKey.VALUE: motor_power_cycles},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.N_SERVICE_LOOPS, DataParticleKey.VALUE: service_loops},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.SERIAL_PORT_ERRORS,
-             DataParticleKey.VALUE: serial_failures},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.COMPASS_PORT_CLOSED_COUNT,
-             DataParticleKey.VALUE: port_closures},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.COMPASS_PORT_ERRORS, DataParticleKey.VALUE: port_failures},
+    def _encode_all(self):
+        travel_times = [int(x) for x in self.match.group('travel_times').split()]
 
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.IRQ2_COUNT, DataParticleKey.VALUE: irq2_count},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.SPURIOUS_COUNT, DataParticleKey.VALUE: spurious_count},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.SPSR_BITS56_COUNT, DataParticleKey.VALUE: spsr_count},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.PIT_ZERO_COUNT, DataParticleKey.VALUE: zero_count},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.ADC_BUFFER_OVERFLOWS,
-             DataParticleKey.VALUE: adc_overflows},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.MAX7317_QUEUE_OVERFLOWS,
-             DataParticleKey.VALUE: queue_overflows},
-            {DataParticleKey.VALUE_ID: StatusDataParticleKey.PINCH_TIMING_ERRORS, DataParticleKey.VALUE: pinch_errors},
+        temp = [int(x) for x in self.match.group('pt').split()]
+        pressures = temp[::2]
+        temperatures = temp[1::2]
+
+        temp = [int(x) for x in self.match.group('ptf').split()]
+        pfrequencies = temp[::2]
+        tfrequencies = temp[1::2]
+
+        return [
+            self._encode_value(IESStatusParticleKey.IES_TIME, self.match.group('ies_time'), int),
+            self._encode_value(IESStatusParticleKey.TRAVEL_TIMES, travel_times, int),
+
+            self._encode_value(IESStatusParticleKey.PRESSURES, pressures, int),
+            self._encode_value(IESStatusParticleKey.TEMPERATURES, temperatures, int),
+            self._encode_value(IESStatusParticleKey.PFREQUENCIES, pfrequencies, int),
+            self._encode_value(IESStatusParticleKey.TFREQUENCIES, tfrequencies, int),
+            self._encode_value(IESStatusParticleKey.BACKUP_BATTERY, self.match.group('backup_battery'), float),
+            self._encode_value(IESStatusParticleKey.RELEASE_DRAIN, self.match.group('release_drain'), float),
+            self._encode_value(IESStatusParticleKey.SYSTEM_DRAIN, self.match.group('system_drain'), float),
+            self._encode_value(IESStatusParticleKey.RELEASE_BATTERY, self.match.group('release_battery'), float),
+            self._encode_value(IESStatusParticleKey.SYSTEM_BATTERY, self.match.group('system_battery'), float),
+            self._encode_value(IESStatusParticleKey.RELEASE_SYSTEM, self.match.group('release_system'), float),
+            self._encode_value(IESStatusParticleKey.INTERNAL_TEMP, self.match.group('internal_temp'), float),
+            self._encode_value(IESStatusParticleKey.MEAN_TRAVEL, self.match.group('mean_travel'), float),
+            self._encode_value(IESStatusParticleKey.MEAN_PRESSURE, self.match.group('mean_pressure'), int),
+            self._encode_value(IESStatusParticleKey.MEAN_TEMPERATURE, self.match.group('mean_temp'), int),
+            self._encode_value(IESStatusParticleKey.IES_OFFSET, self.match.group('ies_offset'), float),
         ]
 
-        return result
+
+class TimestampParticleKey(BaseEnum):
+    """
+    HEF Motor Current data stream
+    """
+    RSN_TIME = 'hpies_rsn_timestamp'
+    STM_TIME = 'hpies_stm_timestamp'
 
 
-###############################################################################
-# Data Particles
-###############################################################################
+class TimestampParticle(HPIESDataParticle):
+    _data_particle_type = DataParticleType.TIMESTAMP
+
+    @staticmethod
+    def regex():
+        """
+        @return regex string for matching HPIES STM timestamp particle
+
+        Sample Data:
+        #2_TOD,1398883295,1398883288*0059
+        """
+        pattern = r"""
+            (?x)
+                          \#2_TOD  ,
+            (?P<rsn_time> %(int)s) ,
+            (?P<stm_time> %(int)s)
+                                   \*
+            (?P<crc>      %(crc)s)
+            """ % common_matches
+
+        return pattern
+
+    def _build_parsed_values(self):
+        """
+        Parse data sample for individual values (statistics)
+        @throws SampleException If there is a problem with sample creation
+        """
+        return [
+            self._encode_value(TimestampParticleKey.RSN_TIME, self.match.group('rsn_time'), int),
+            self._encode_value(TimestampParticleKey.STM_TIME, self.match.group('stm_time'), int),
+        ]
 
 
 ###############################################################################
@@ -906,6 +1061,18 @@ class Protocol(CommandResponseInstrumentProtocol):
     Subclasses CommandResponseInstrumentProtocol
     """
     __metaclass__ = get_logging_metaclass(log_level='info')
+
+    particles = [
+        DataHeaderParticle,  # HPIES_DATA_HEADER
+        HEFDataParticle,  # HORIZONTAL_FIELD
+        HEFMotorCurrentParticle,  # MOTOR_CURRENT
+        CalStatusParticle,  # CALIBRATION_STATUS
+        HEFStatusParticle,  # HPIES_STATUS
+        IESDataParticle,  # ECHO_SOUNDING
+        IESStatusParticle,  # ECHO_STATUS
+        TimestampParticle,  # TIMESTAMP
+
+    ]
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -963,6 +1130,21 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._add_build_handler(cmd, self._build_command)
             self._add_response_handler(cmd, self._check_command)
         self._add_response_handler(Command.HEF_PARAMS, self._parse_hef_params_response)
+        self._add_response_handler(Command.PREFIX, self._parse_prefix_response)
+        for cmd in (Command.DEBUG_LEVEL,
+                    Command.WSRUN_PINCH,
+                    Command.NFC_CALIBRATE,
+                    Command.NHC_COMPASS,
+                    Command.COMPASS_SAMPLES,
+                    Command.COMPASS_DELAY,
+                    Command.MOTOR_SAMPLES,
+                    Command.EF_SAMPLES,
+                    Command.CAL_SAMPLES,
+                    Command.MOTOR_TIMEOUTS_1A,
+                    Command.MOTOR_TIMEOUTS_1B,
+                    Command.MOTOR_TIMEOUTS_2A,
+                    Command.MOTOR_TIMEOUTS_2B):
+            self._add_response_handler(cmd, self._parse_set_param_response)
 
         # Add sample handlers.
 
@@ -978,8 +1160,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
         self._chunker = StringChunker(Protocol.sieve_function)
 
-        self._prefix = 1
-
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -988,11 +1168,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
-        matchers.append(CalDataParticle.regex_compiled())
-        matchers.append(HEFDataParticle.regex_compiled())
-        matchers.append(HEFMotorCurrentDataParticle.regex_compiled())
-        matchers.append(IESDataParticle.regex_compiled())
-        matchers.append(StatusDataParticle.regex_compiled())
+        for particle in Protocol.particles:
+            matchers.append(particle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -1008,326 +1185,363 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Add parameter handlers to parameter dict.
         self._param_dict.add(Parameter.SERIAL,
-                             r'serno\s+= %(int)s' % common_matches,
+                             r'#3_ serno\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.STRING,
                              display_name='Serial Number',
+                             description='Instrument serial number',
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False)
         self._param_dict.add(Parameter.DEBUG_LEVEL,
-                             r'debug\s+= %(int)s' % common_matches,
+                             r'#3_ debug\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Debug Level',
+                             description='Debug logging control value (0 means no output).',
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.WSRUN_PINCH,
-                             r'wsrun pinch secs\s+= %(int)s s -- half cycle duration' % common_matches,
+                             r'#3_ wsrun pinch secs\s+= (%(int)s) s -- half cycle duration' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='WS Run Pinch',
+                             description='Half cycle interval between water switch tube pinch',
                              visibility=ParameterDictVisibility.READ_WRITE,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.NFC_CALIBRATE,
-                             r'nfc calibrate\s+= %(int)s full cycles -- calibrate every 2880 s' % common_matches,
+                             r'#3_ nfc calibrate\s+= (%(int)s) full cycles -- calibrate every 2880 s' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              units='cycles',
                              display_name='Calibration Periodicity',
+                             description='Number of cycles of water switch between applying cal',
                              visibility=ParameterDictVisibility.READ_WRITE,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.CAL_HOLD,
-                             r'cal hold secs\s+= %(float)s s' % common_matches,
+                             r'#3_ cal hold secs\s+= (%(float)s) s' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
-                             units='secs',
+                             units=Units.SECOND,
                              display_name='Calibrate Hold',
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             description='hold time of calibration voltage',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.CAL_SKIP,
-                             r'cal skip secs\s+= %(int)s s' % common_matches,
+                             r'#3_ cal skip secs\s+= (%(int)s) s' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
+                             units=Units.SECOND,
                              display_name='Calibrate Skip',
+                             description='Time to wait before using data after changing the calibration signal state',
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False)
         self._param_dict.add(Parameter.NHC_COMPASS,
-                             r'nhc compass\s+= %(int)s half cycles' % common_matches,
+                             r'#3_ nhc compass\s+= (%(int)s) half cycles' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              units='half cycles',
                              display_name='Compass Measurement Periodicity',
+                             description='Number of half cycles between compass measurements',
                              direct_access=True,
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.COMPASS_SAMPLES,
-                             r'compass nget\s+= %(int)s' % common_matches,
+                             r'#3_ compass nget\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Compass Samples',
+                             description='Number of compass samples to acquire in a burst',
                              direct_access=True,
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         # time between measurements in a burst
         self._param_dict.add(Parameter.COMPASS_DELAY,
-                             r'compass dsecs\s+= %(int)s s' % common_matches,
+                             r'#3_ compass dsecs\s+= (%(int)s) s' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='s',
+                             units=Units.SECOND,
                              display_name='Compass Samples',
+                             description='Time between measurements in a burst',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         # initial compass measurement (in seconds)
         self._param_dict.add(Parameter.INITIAL_COMPASS,
-                             r'icompass run secs\s+= %(int)s s' % common_matches,
+                             r'#3_ icompass run secs\s+= (%(int)s) s' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='s',
+                             units=Units.SECOND,
                              display_name='Initial Compass Run',
-                             startup_param=True,
-                             direct_access=True,
+                             description='Initial compass measurement',
+                             startup_param=False,
+                             direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         # INITIAL_COMPASS_DELAY = 'icompass dsecs'  #
         self._param_dict.add(Parameter.INITIAL_COMPASS_DELAY,
-                             r'icompass dsecs\s+= %(float)s s' % common_matches,
+                             r'#3_ icompass dsecs\s+= (%(float)s) s' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Compass Samples',
-                             startup_param=True,
+                             description='Initial compass delay',
+                             startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         # FILE_LENGTH = 'secs per ofile'  # seconds per file (default 86400 - one day)
         self._param_dict.add(Parameter.MOTOR_SAMPLES,
-                             r'navg mot\s+= %(int)s --' % common_matches,
+                             r'#3_ navg mot\s+= (%(int)s) --' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Number of Motor Samples',
+                             description='Number of samples to average (motor is sampled every 25 ms)',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.EF_SAMPLES,
-                             r'navg ef\s+= %(int)s --' % common_matches,
+                             r'#3_ navg ef\s+= (%(int)s) --' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Number of HEF Samples',
+                             description='Number of samples to average (EF is sampled every 0.1024 s)',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.CAL_SAMPLES,
-                             r'navg cal\s+= %(int)s --' % common_matches,
+                             r'#3_ navg cal\s+= (%(int)s) --' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Number of Calibration Samples',
+                             description='Number of samples to average (ef is sampled every 0.1024 s during cal)',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
-        self._param_dict.add(Parameter.CONSOLE_TIMEOUT,
-                             r'console off timeout\s+= %(int)s s' % common_matches,
-                             lambda match: int(match.group(1)),
-                             None,
-                             type=ParameterDictType.INT,
-                             display_name='Console Timeout',
-                             startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+        self._param_dict.add(
+            Parameter.CONSOLE_TIMEOUT,
+            r'#3_ console off timeout\s+= (%(int)s) s' % common_matches,
+            lambda match: int(match.group(1)),
+            None,
+            type=ParameterDictType.INT,
+            display_name='Console Timeout',
+            description='UART drivers turns off for console port (will come on temporarily for data out).',
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.WSRUN_DELAY,
-                             r'wsrun delay secs\s+= %(int)s s' % common_matches,
+                             r'#3_ wsrun delay secs\s+= (%(int)s) s' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='WS Run Delay (secs)',
+                             description='',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.MOTOR_DIR_NHOLD,
-                             r'motor dir nhold\s+= %(int)s' % common_matches,
+                             r'#3_ motor dir nhold\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             display_name='Motor TODO',
+                             display_name='Motor Direction',
+                             description='',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.MOTOR_DIR_INIT,
-                             r'motor dir init\s+= (\w+)',
+                             r'#3_ motor dir init\s+= (\w+)',
                              lambda match: match.group(1),
                              None,
                              type=ParameterDictType.STRING,
-                             display_name='',
+                             display_name='Motor Direction (Initial)',
+                             description='',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
-
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.POWER_COMPASS_W_MOTOR,
-                             r'do_compass_pwr_with_motor\s+= %(int)s',
+                             r'#3_ do_compass_pwr_with_motor\s+= (%(int)s)',
                              lambda match: bool(match.group(1)),
                              None,
                              type=ParameterDictType.BOOL,
                              display_name='Power Compass with Motor',
+                             description='Apply power to compass when motor is on',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.KEEP_AWAKE_W_MOTOR,
-                             r'do_keep_awake_with_motor\s+= %(int)s',
+                             r'#3_ do_keep_awake_with_motor\s+= (%(int)s)',
                              lambda match: bool(match.group(1)),
                              None,
                              type=ParameterDictType.BOOL,
                              display_name='Keep Awake with Motor',
+                             description='Keep instrument awake while motor is running',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_1A,
-                             r'm1a_tmoc\s+= %(int)s' % common_matches,
+                             r'#3_ m1a_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='25 ms',
+                             units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 1A',
+                             description='Timeout counts for motor 1A',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_1B,
-                             r'm1b_tmoc\s+= %(int)s' % common_matches,
+                             r'#3_ m1b_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='25 ms',
+                             units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 1B',
+                             description='Timeout counts for motor 1B',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_2A,
-                             r'm2a_tmoc\s+= %(int)s' % common_matches,
+                             r'#3_ m2a_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='25 ms',
+                             units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 2A',
+                             description='Timeout counts for motor 2A',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_2B,
-                             r'm2b_tmoc\s+= %(int)s' % common_matches,
+                             r'#3_ m2b_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='25 ms',
+                             units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 2B',
+                             description='Timeout counts for motor 2B',
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.RSN_CONFIG,
-                             r'do_rsn\s+=%(int)s' % common_matches,
+                             r'#3_ do_rsn\s+= (%(int)s)' % common_matches,
                              lambda match: bool(match.group(1)),
                              None,
                              type=ParameterDictType.BOOL,
                              display_name='Configured for RSN',
+                             description='Use RSN configuration',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.INVERT_LED_DRIVERS,
-                             r'led_drivers_invert\s+= %(int)s',
+                             r'#3_ led_drivers_invert\s+= (%(int)s)',
                              lambda match: bool(match.group(1)),
                              None,
                              type=ParameterDictType.BOOL,
                              display_name='Invert LED Drivers',
+                             description='Whether or not LED drivers have been inverted',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.M1A_LED,
-                             r'm1a_led\s+= %(int)s' % common_matches,
+                             r'#3_ m1a_led\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='M1A LED',
+                             description='',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.M2A_LED,
-                             r'm2a_led\s+= %(int)s' % common_matches,
+                             r'#3_ m2a_led\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='M2A LED',
+                             description='',
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         # IES Parameters
         self._param_dict.add(Parameter.IES_TIME,
-                             r'',
+                             r'TODO',  # TODO
                              lambda match: match.group(1),
                              None,
                              type=ParameterDictType.STRING,
                              display_name='IES Clock',
+                             description='IES clock time',
+                             units='YYMMDDTHHMMSS',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ECHO_SAMPLES,
-                             r'Travel Time Measurements: %(int)s pings every 10 minutes' % common_matches,
+                             r'Travel Time Measurements: (%(int)s) pings every 10 minutes' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='1/600 Hz',
+                             units='1/600 ' + Units.HERTZ,
                              display_name='Echo Samples',
+                             description='Number of travel time measurements',
+                             value_description='number of pings every 10 minutes',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WATER_DEPTH,
-                             r'Estimated Water Depth: %(int)s meters' % common_matches,
+                             r'Estimated Water Depth: (%(int)s) meters' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Estimated Water Depth',
+                             description='Estimate of water depth at instrument location',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ACOUSTIC_LOCKOUT,
-                             r'Acoustic Lockout: %(float)s seconds' % common_matches,
+                             r'Acoustic Lockout: (%(float)s) seconds' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
-                             units='secs',
+                             units=Units.SECOND,
                              display_name='Acoustic Lockout',
+                             description='',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ACOUSTIC_OUTPUT,
-                             r'Acoustic Output: %(int)s dB' % common_matches,
+                             r'Acoustic Output: (%(int)s) dB' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
-                             units='dB',
+                             units=Units.DECIBEL,
                              display_name='Acoustic Output',
+                             description='',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.RELEASE_TIME,
-                             r'Release Time: %(rest)s' % common_matches,
+                             r'Release Time: (%(rest)s)' % common_matches,
                              lambda match: match.group(1),
                              None,
                              type=ParameterDictType.STRING,
                              display_name='Release Time',
+                             description='',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
@@ -1337,57 +1551,63 @@ class Protocol(CommandResponseInstrumentProtocol):
                              None,
                              type=ParameterDictType.STRING,
                              display_name='Telemetry Data File',
+                             description='',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MISSION_STATEMENT,
-                             r'Mission Statement: %(rest)s' % common_matches,
+                             r'Mission Statement: (%(rest)s)' % common_matches,
                              lambda match: match.group(1),
                              None,
                              type=ParameterDictType.STRING,
                              display_name='Mission Statement',
+                             description='Descriptive statement of the mission purpose',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PT_SAMPLES,
-                             r'Pressure and Temperature measured every %(int)s minutes' % common_matches,
+                             r'Pressure and Temperature measured every (%(int)s) minutes' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='1/600 Hz',
+                             units='1/600 ' + Units.HERTZ,
                              display_name='Pressure/Temperature Samples',
+                             description='Periodicity of pressure and temperature sampling',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TEMP_COEFF_U0,
-                             r'U0 = %(float)s' % common_matches,
+                             r'U0 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-U0',
+                             description='Temperature coefficient U0',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TEMP_COEFF_Y1,
-                             r'Y1 = %(float)s' % common_matches,
+                             r'Y1 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-Y1',
+                             description='Temperature coefficient Y1',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TEMP_COEFF_Y2,
-                             r'Y2 = %(float)s' % common_matches,
+                             r'Y2 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-Y2',
+                             description='Temperature coefficient Y2',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TEMP_COEFF_Y3,
-                             r'Y3 = %(float)s' % common_matches,
+                             r'Y3 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
@@ -1396,130 +1616,144 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_C1,
-                             r'C1 = %(float)s' % common_matches,
+                             r'C1 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-C1',
+                             description='Temperature coefficient C1',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_C2,
-                             r'C2 = %(float)s' % common_matches,
+                             r'C2 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-C2',
+                             description='Temperature coefficient C2',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_C3,
-                             r'C3 = %(float)s' % common_matches,
+                             r'C3 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-C3',
+                             description='Temperature coefficient C3',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_D1,
-                             r'D1 = %(float)s' % common_matches,
+                             r'D1 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-D1',
+                             description='Temperature coefficient D1',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_D2,
-                             r'D2 = %(float)s' % common_matches,
+                             r'D2 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-D2',
+                             description='Temperature coefficient D2',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_T1,
-                             r'T1 = %(float)s' % common_matches,
+                             r'T1 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-T1',
+                             description='Temperature coefficient T1',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_T2,
-                             r'T2 = %(float)s' % common_matches,
+                             r'T2 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-T2',
+                             description='Temperature coefficient T2',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_T3,
-                             r'T3 = %(float)s' % common_matches,
+                             r'T3 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-T3',
+                             description='Temperature coefficient T3',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_T4,
-                             r'T4 = %(float)s' % common_matches,
+                             r'T4 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-T4',
+                             description='Temperature coefficient T4',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PRES_COEFF_T5,
-                             r'T5 = %(float)s' % common_matches,
+                             r'T5 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Pressure Coeff-T5',
+                             description='Temperature coefficient T5',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         # TODO - missing Temperature offset - -0.51 deg C
         # TODO - missing Pressure offset - 0.96 psi
         self._param_dict.add(Parameter.BLILEY_0,
-                             r'B0 = %(float)s' % common_matches,
+                             r'B0 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-B0',
+                             description='Bliley temperature coefficient B0',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLILEY_1,
-                             r'B1 = %(float)s' % common_matches,
+                             r'B1 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-B1',
+                             description='Bliley temperature coefficient B1',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLILEY_2,
-                             r'B2 = %(float)s' % common_matches,
+                             r'B2 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-B2',
+                             description='Bliley temperature coefficient B2',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLILEY_3,
-                             r'B3 = %(float)s' % common_matches,
+                             r'B3 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
                              type=ParameterDictType.FLOAT,
                              display_name='Temp Coeff-B3',
+                             description='Bliley temperature coefficient B3',
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
@@ -1529,12 +1763,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        self._extract_sample(CalDataParticle, CalDataParticle.regex_compiled(), chunk, timestamp)
-        self._extract_sample(HEFDataParticle, HEFDataParticle.regex_compiled(), chunk, timestamp)
-        self._extract_sample(IESDataParticle, IESDataParticle.regex_compiled(), chunk, timestamp)
-        self._extract_sample(StatusDataParticle, StatusDataParticle.regex_compiled(), chunk, timestamp)
-        self._extract_sample(HEFMotorCurrentDataParticle,
-                             HEFMotorCurrentDataParticle.regex_compiled(), chunk, timestamp)
+        for particle in Protocol.particles:
+            self._extract_sample(particle, particle.regex_compiled(), chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """
@@ -1551,7 +1781,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _hef_wakeup(self):
         """
-        @ brief wakeup the instrument
+        wakeup the instrument
         The only current deterministic way to know if the instrument is awake is to see if it responds to a
         parameter request. If it does not, it must be restarted.
 
@@ -1561,19 +1791,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # if we are able to get the parameters from the HEF, it is already awake
         try:
-            self._do_cmd_no_resp(Command.HEF_WAKE)
-            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PARAMS, timeout=Timeout.DEFAULT)
+            self._do_cmd_resp(Command.HEF_WAKE, expected_prompt=Prompt.DEFAULT)
+            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PROMPT, timeout=Timeout.HEF_PARAMS)
+            log.debug('HPIES is awake')
 
         # otherwise, we need to restart
         except InstrumentTimeoutException:
-            self._do_cmd_resp(Command.REBOOT, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-            self._do_cmd_resp(Command.ACQUISITION_START, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-            self._do_cmd_resp(Command.HEF_PORT_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-            self._do_cmd_resp(Command.HEF_POWER_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-            self._do_cmd_no_resp(Command.HEF_WAKE)
-            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PARAMS, timeout=Timeout.DEFAULT)
-
-            log.critical('unable to establish communication with instrument')
+            self._do_cmd_resp(Command.REBOOT, expected_prompt=Prompt.DEFAULT, timeout=Timeout.REBOOT)
+            self._do_cmd_resp(Command.ACQUISITION_START, expected_prompt=Prompt.DEFAULT,
+                              timeout=Timeout.ACQUISITION_START)
+            self._do_cmd_hef_on()
+            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PROMPT, timeout=Timeout.HEF_PARAMS)
+            log.debug('HPIES is awake')
 
     def _build_command(self, cmd, *args):
         """
@@ -1598,20 +1827,44 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif cmd in (Command.PREFIX,
                      Command.HEF_PARAMS,
                      Command.MISSION_START,
-                     Command.MISSION_STOP):
+                     Command.MISSION_STOP,
+                     Command.DEBUG_LEVEL,
+                     Command.WSRUN_PINCH,
+                     Command.NFC_CALIBRATE,
+                     Command.CAL_HOLD,
+                     Command.NHC_COMPASS,
+                     Command.COMPASS_SAMPLES,
+                     Command.COMPASS_DELAY,
+                     Command.MOTOR_SAMPLES,
+                     Command.EF_SAMPLES,
+                     Command.CAL_SAMPLES,
+                     Command.CONSOLE_TIMEOUT,
+                     Command.WSRUN_DELAY,
+                     Command.MOTOR_DIR_NHOLD,
+                     Command.MOTOR_DIR_INIT,
+                     Command.POWER_COMPASS_W_MOTOR,
+                     Command.KEEP_AWAKE_W_MOTOR,
+                     Command.MOTOR_TIMEOUTS_1A,
+                     Command.MOTOR_TIMEOUTS_1B,
+                     Command.MOTOR_TIMEOUTS_2A,
+                     Command.MOTOR_TIMEOUTS_2B,
+                     Command.RSN_CONFIG,
+                     Command.INVERT_LED_DRIVERS,
+                     Command.M1A_LED,
+                     Command.M2A_LED):
             return hef_command(cmd, *args)
-        raise InstrumentProtocolException('attempt to process unknown command: %r', cmd)
+        raise InstrumentProtocolException('attempt to process unknown command: %r' % cmd)
 
     def _check_command(self, resp, prompt):
         for line in resp.split(NEWLINE):
             if not valid_response(line):
-                raise InstrumentProtocolException('checksum failed (%r)', line)
+                raise InstrumentProtocolException('checksum failed (%r)' % line)
 
     def _build_driver_dict(self):
         """
         @brief Populate the driver dictionary with options
         """
-        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, False)
 
     def _build_command_dict(self):
         """
@@ -1624,74 +1877,122 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         @brief process the response for request to get HEF parameters
         @param response command string
+        @retval True if able to update parameters, False otherwise
         """
         log.debug('parameter dictionary:\r%s' % self._param_dict)
         if re.match(Response.ERROR, response):
             raise InstrumentParameterException('unable to get parameters - data acquisition has not been started')
 
-        if re.match(Response.HEF_PARAMS, response):
+        param_lines = []
+        for line in response.split(NEWLINE):
+            log.trace('checking line for parameter: %r' % line)
+            if ' = ' in line:
+                if valid_response(line):
+                    log.trace('checksum valid, setting value')
+                    param_lines.append(line)
+        found = self._param_dict.update(format(NEWLINE.join(param_lines)))
+
+        if not found:
+            log.debug('unable to match parameters')
+
+        log.debug('parameter update complete: \n%r' % self._param_dict.get_all())
+
+        if Parameter.SERIAL in response:  # first parameter
             log.debug('received parameter listing, updating parameters')
+            # dict = self._param_dict.update_many(response)
             self._param_dict.update_many(response)
             return True
 
         return False
 
+    def _do_cmd_prefix(self):
+        """
+        Establish a valid filename to store data.
+        """
+        prefix_bad = True
+        prefix_file = ''
+        while prefix_bad:
+            prefix_root = tempfile.mktemp(prefix='', dir='')
+            prefix_file = self._do_cmd_resp(Command.PREFIX, prefix_root,
+                                            expected_prompt=Prompt.HEF_PROMPT,
+                                            timeout=Timeout.PREFIX)
+            if prefix_file is not None:
+                prefix_bad = False
+                log.debug('opened file with prefix: %s', prefix_file)
+            # TODO - remove
+            else:
+                log.debug('unable to open file: %s', prefix_root)
+        return prefix_file
+
+    def _do_cmd_ies_on(self):
+        """
+        Turn on the IES
+        """
+        try:
+            self._do_cmd_resp(Command.IES_PORT_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.IES_PORT_ON)
+            self._do_cmd_resp(Command.IES_POWER_ON, response_regex=Response.IES_POWER_ON, timeout=Timeout.IES_POWER_ON)
+            self._do_cmd_resp(Command.IES_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.IES_PORT_OFF)
+        except InstrumentTimeoutException:
+            raise InstrumentTimeoutException('IES did not respond to power on sequence')
+
+    def _do_cmd_hef_on(self):
+        """
+        Turn on the HEF
+        """
+        try:
+            self._do_cmd_resp(Command.HEF_PORT_ON, expected_prompt=Prompt.HEF_PORT_ON, timeout=Timeout.HEF_PORT_ON)
+            self._do_cmd_resp(Command.HEF_POWER_ON, response_regex=Response.HEF_POWER_ON, timeout=Timeout.HEF_POWER_ON)
+            self._do_cmd_resp(Command.HEF_WAKE, expected_prompt=Prompt.DEFAULT)
+        except InstrumentTimeoutException:
+            raise InstrumentTimeoutException('HEF did not respond to power on sequence')
+
+    def _parse_prefix_response(self, response, prompt):
+        """
+        Check @a response from request to set prefix filename.
+        @param response response from instrument
+        @param prompt - ??
+        @retval filename to be used or None if requested prefix is already in use
+        """
+        filename = None
+        matches = re.search(Response.OPENED_FILE, response)
+        if matches:
+            filename = matches.group(1)
+
+        return filename
+
+    def _parse_set_param_response(self, response, prompt):
+        """
+        Check @a response from request to set HEF parameter
+        @param response response from instrument
+        @param prompt - ??
+        @retval value from set or None if there was an error setting value
+        """
+        value = None
+        try:
+            self._check_command(response, prompt)
+            matches = re.search(Response.SET_PARAMETER, response)
+            if matches:
+                value = matches.group(1)
+        except InstrumentProtocolException:
+            pass
+
+        return value
+
     ########################################################################
-    # Unknown handlers.
+    # Unknown handlers
     ########################################################################
 
     def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
         pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
-        """
-        Discover current state
-        @retval (next_state, result)
-        """
-        return ProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
+        # any existing mission needs to be stopped. If one is not already running, no harm in sending the stop.
+        self._do_cmd_no_resp(Command.MISSION_STOP)
 
-    ########################################################################
-    # Autosample handlers.
-    ########################################################################
-    def _handler_autosample_enter(self, *args, **kwargs):
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._hef_wakeup()
-        self._do_cmd_resp(Command.IES_PORT_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.IES_POWER_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.IES_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.PREFIX, str(self._prefix), expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.MISSION_START, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-
-    def _handler_autosample_stop_autosample(self, *args, **kwargs):
-        """
-        Process command to stop autosampling. Return to command state.
-        """
-        self._hef_wakeup()
-        self._do_cmd_resp(Command.MISSION_STOP, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.ACQUISITION_STOP, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.IES_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.IES_POWER_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.HEF_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._do_cmd_resp(Command.HEF_POWER_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
-        self._prefix += 1
-
-        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
-
-    def _handler_autosample_exit(self, *args, **kwargs):
-        # no special cleanup required
-        pass
+        return ProtocolState.COMMAND, ResourceAgentState.COMMAND
 
     ########################################################################
     # Command handlers.
@@ -1700,11 +2001,29 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
+
+        Startup HPIES and get it into a state where we can get/set parameters.
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
+        self._init_params()
+
+        try:
+            self._do_cmd_resp(Command.REBOOT, expected_prompt=Prompt.DEFAULT, timeout=Timeout.REBOOT)
+            self._do_cmd_resp(Command.ACQUISITION_START, expected_prompt=Prompt.DEFAULT,
+                              timeout=Timeout.ACQUISITION_START)
+            self._do_cmd_ies_on()
+            self._do_cmd_hef_on()
+
+            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PROMPT, timeout=Timeout.HEF_PARAMS)
+
+        except InstrumentTimeoutException as e:
+            log.error('Unable to initialize HPIES: %r', e.message)
+            self._async_raise_fsm_event(ProtocolEvent.EXIT)
+            raise e
+
         # Command device to update parameters and send a config change event.
-        #self._update_params()
+        self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1712,7 +2031,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_get(self, *args, **kwargs):
         """
-        @ brief Get device parameters from the parameter dict
+        Get device parameters from the parameter dict
         First we set a baseline timestamp that all data expirations will be calculated against.
         Then we try to get parameter value.  If we catch an expired parameter then we will update
         all parameters and get values using the original baseline time that we set at the beginning of this method.
@@ -1727,7 +2046,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_set(self, *args, **kwargs):
         """
-        @ brief perform a set command
+        perform a set command
         @param args[0] parameter : value dict.
         @param args[1] parameter : startup parameters?
         @retval (next_state, result) tuple, (None, None).
@@ -1758,28 +2077,54 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return None, None
 
-    def _handler_command_start_autosample(self, *args, **kwargs):
-        """
-        """
+    def _handler_command_start_autosample(self):
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_exit(self, *args, **kwargs):
+        pass
+
+    ########################################################################
+    # Autosample handlers
+    ########################################################################
+    def _handler_autosample_enter(self, *args, **kwargs):
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        try:
+            self._do_cmd_prefix()
+            self._do_cmd_resp(Command.MISSION_START, expected_prompt=Prompt.HEF_PROMPT, timeout=Timeout.MISSION_START)
+            log.debug('mission start completed')
+
+        except InstrumentTimeoutException as e:
+            log.error('Unable to start autosample: %r', e.message)
+            self._async_raise_fsm_event(ProtocolEvent.STOP_AUTOSAMPLE)
+            raise e
+
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
-        Exit command state.
+        Process command to stop auto-sampling. Return to command state.
         """
+        try:
+            self._do_cmd_resp(Command.MISSION_STOP, expected_prompt=Prompt.DEFAULT, timeout=Timeout.MISSION_STOP)
+            self._do_cmd_resp(Command.ACQUISITION_STOP, expected_prompt=Prompt.DEFAULT,
+                              timeout=Timeout.ACQUISITION_STOP)
+
+        except InstrumentTimeoutException as e:
+            log.warning('Unable to terminate mission cleanly: %r', e.message)
+
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        # no special cleanup required
         pass
 
     ########################################################################
     # Direct access handlers.
     ########################################################################
 
-    def _handler_direct_access_enter(self, *args, **kwargs):
+    def _handler_direct_access_enter(self):
         """
         Enter direct access state.
         """
@@ -1804,7 +2149,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
-    def _handler_direct_access_exit(self, *args, **kwargs):
+    def _handler_direct_access_exit(self):
         """
         Exit direct access state. Restore direct access parameters.
         """
@@ -1849,8 +2194,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("sbe apply_startup_params now")
             self._apply_params()
 
-        # Catch all error so we can put ourself back into
-        # streaming.  Then rethrow the error
+        # Catch all errors so we can put driver back into streaming. Then rethrow the error.
         except Exception as e:
             error = e
 
@@ -1892,7 +2236,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Get old param dict config.
         old_config = self._param_dict.get_config()
 
-        # wakeup will update parameters
+        # wakeup will get the latest parameters from the instrument
         self._hef_wakeup()
 
         # Get new param dict config. If it differs from the old config,
@@ -1908,48 +2252,60 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _another_function(self):
         pass
 
+    def _verify_set_values(self, params):
+        """
+        Verify supplied values are in range, if applicable
+        @param params: Dictionary of Parameter:value to be verified
+        @throws InstrumentParameterException
+        """
+        constraints = ParameterConstraints.dict()
+        parameters = Parameter.reverse_dict()
+
+        # step through the list of parameters
+        for key, val in params.iteritems():
+            # if constraint exists, verify we have not violated it
+            constraint_key = parameters.get(key)
+            if constraint_key in constraints:
+                var_type, minimum, maximum = constraints[constraint_key]
+                constraint_string = 'Parameter: %s Value: %s Type: %s Minimum: %s Maximum: %s' % \
+                                    (key, val, var_type, minimum, maximum)
+                log.debug('SET CONSTRAINT: %s', constraint_string)
+                # check bool values are actual booleans
+                if var_type == bool:
+                    if val not in [True, False]:
+                        raise InstrumentParameterException('Non-boolean value!: %s' % constraint_string)
+                # else, check if we can cast to the correct type
+                else:
+                    try:
+                        var_type(val)
+                    except ValueError:
+                        raise InstrumentParameterException('Type mismatch: %s' % constraint_string)
+                    # now, verify we are within min/max
+                    if val < minimum or val > maximum:
+                        raise InstrumentParameterException('Out of range: %s' % constraint_string)
+
     def _set_params(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters
         """
-        startup = False
         try:
             params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
-        try:
-            startup = args[1]
-        except IndexError:
-            pass
-
         old_config = self._param_dict.get_all()
-        # Only check for readonly parameters if we are not setting them from startup
-        if not startup:
-            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
 
-            log.debug("set param, but check visibility first")
-            log.debug("Read only keys: %s", readonly)
+        self._verify_set_values(params)
+        self._verify_not_readonly(*args, **kwargs)
 
-            for (key, val) in params.iteritems():
-                if key in readonly:
-                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
-
-        constraints = ParameterConstraints.dict()
         for key, val in params.iteritems():
-            if key in constraints:
-                var_type, min, max = constraints[key]
-                try:
-                    value = var_type(val)
-                except ValueError:
-                    raise InstrumentParameterException('type mismatch - %s is not of type %s' % (key, val))
-                if val < min or val > max:
-                    raise InstrumentParameterException('value out of range - parameter: %s value: %s [%s %s]' %
-                                                       (key, val, min, max))
             if key in old_config:
-                self._param_dict.set_value(key, val)
+                value = self._do_cmd_resp(key, val, expected_prompt=Prompt.HEF_PROMPT)
+                if value is not None:
+                    self._param_dict.set_value(key, value)
             else:
                 raise InstrumentParameterException('attempted to set unknown parameter: %s to %s' % (key, val))
+
         new_config = self._param_dict.get_all()
 
         if new_config != old_config:
@@ -1963,4 +2319,3 @@ class Protocol(CommandResponseInstrumentProtocol):
         config = self.get_startup_config()
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
-
