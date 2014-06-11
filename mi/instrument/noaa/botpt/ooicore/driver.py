@@ -147,6 +147,7 @@ class ParameterConstraint(BaseEnum):
     OUTPUT_RATE = (int, 1, 40)
     SYNC_INTERVAL = (int, 600, 86400)
     HEAT_DURATION = (int, 1, 8)
+    AUTO_RELEVEL = (bool, None, None)
 
 
 class InstrumentCommand(BaseEnum):
@@ -264,6 +265,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ProtocolState.AUTOSAMPLE: [
                 (ProtocolEvent.ENTER, self._handler_autosample_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_start_leveling),
@@ -529,17 +531,22 @@ class Protocol(CommandResponseInstrumentProtocol):
             constraint_key = parameters.get(key)
             if constraint_key in constraints:
                 var_type, minimum, maximum = constraints[constraint_key]
-                log.debug('SET CONSTRAINT: %s %r', key, constraints[constraint_key])
-                try:
-                    value = var_type(val)
-                except ValueError:
-                    raise InstrumentParameterException(
-                        'Unable to verify type - parameter: %s value: %s expected: %s' % (key, val, var_type))
-                if minimum is not None and maximum is not None:
+                constraint_string = 'Parameter: %s Value: %s Type: %s Minimum: %s Maximum: %s' % \
+                                    (key, val, var_type, minimum, maximum)
+                log.debug('SET CONSTRAINT: %s', constraint_string)
+                # check bool values are actual booleans
+                if var_type == bool:
+                    if val not in [True, False]:
+                        raise InstrumentParameterException('Non-boolean value!: %s' % constraint_string)
+                # else, check if we can cast to the correct type
+                else:
+                    try:
+                        value = var_type(val)
+                    except ValueError:
+                        raise InstrumentParameterException('Type mismatch: %s' % constraint_string)
+                    # now, verify we are within min/max
                     if val < minimum or val > maximum:
-                        raise InstrumentParameterException(
-                            'Value out of range - parameter: %s value: %s min: %s max: %s'
-                            % (key, val, minimum, maximum))
+                        raise InstrumentParameterException('Out of range: %s' % constraint_string)
 
     def _set_params(self, *args, **kwargs):
         """
@@ -554,6 +561,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._verify_set_values(params)
         self._verify_not_readonly(*args, **kwargs)
+
+        # if setting the output rate, get the current rate from the instrument first...
         if Parameter.OUTPUT_RATE in params:
             self._update_params()
 
@@ -624,8 +633,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         try:
             self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+            return True
         except KeyError:
             log.debug('Unable to remove LEVELING_TIMEOUT scheduled job, job does not exist.')
+            return False
 
     def _schedule_leveling_timeout(self):
         """
@@ -721,7 +732,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             if 'Leveled' in status:
                 if self._param_dict.get(Parameter.LEVELING_FAILED):
                     self._handler_command_set({Parameter.LEVELING_FAILED: False})
-                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
                 self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
             # Leveling X failed!  Set the flag and raise an exception to notify the operator
             # and disable auto leveling. Let the instrument attempt to level
@@ -894,6 +904,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         ts = ntplib.system_to_ntp_time(time.time())
+        parts = []
 
         for command, particle_class in [
             (InstrumentCommand.SYST_DUMP1, particles.SystStatusParticle),
@@ -904,10 +915,13 @@ class Protocol(CommandResponseInstrumentProtocol):
             (InstrumentCommand.NANO_DUMP1, particles.NanoStatusParticle),
         ]:
             result, _ = self._do_cmd_resp(command, response_regex=particle_class.regex_compiled())
-            sample = self._extract_sample(particle_class, particle_class.regex_compiled(), result, ts)
-            if not sample:
-                raise InstrumentProtocolException('Failed to generate status particle: %s' % particle_class)
-        return None, (None, None)
+            parts.append(result)
+        sample = self._extract_sample(particles.BotptStatusParticle,
+                                      particles.BotptStatusParticle.regex_compiled(),
+                                      NEWLINE.join(parts), ts)
+        if not sample:
+            raise InstrumentProtocolException('Failed to generate status particle')
+        return None, (None, sample)
 
     def _handler_time_sync(self, *args, **kwargs):
         """
@@ -937,10 +951,24 @@ class Protocol(CommandResponseInstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         if self._param_dict.get(Parameter.LILY_LEVELING):
-            self._schedule_leveling_timeout()
+            failed = self._remove_leveling_timeout()
+
             self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, expected_prompt=Prompt.LILY_STOP_LEVELING)
             self._param_dict.set_value(Parameter.LILY_LEVELING, False)
+
+            if self.get_current_state() == ProtocolState.AUTOSAMPLE:
+                self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
+
+            if failed:
+                # leveling failed! disable autorelevel
+                self._param_dict.set_value(Parameter.AUTO_RELEVEL, False)
+                self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                raise InstrumentProtocolException('Leveling failed to complete within timeout, disabling auto-relevel')
+
+            # leveling successful
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
         return None, (None, None)
 
     def _handler_start_heater(self, *args, **kwargs):

@@ -42,13 +42,14 @@ class DataParticleType(BaseEnum):
     IRIS_SAMPLE = 'botpt_iris_sample'
     NANO_SAMPLE = 'botpt_nano_sample'
     HEAT_SAMPLE = 'botpt_heat_sample'
+    BOTPT_STATUS = 'botpt_status'
 
-    IRIS_STATUS1 = 'botpt_iris_status1'
-    IRIS_STATUS2 = 'botpt_iris_status2'
-    LILY_STATUS1 = 'botpt_lily_status1'
-    LILY_STATUS2 = 'botpt_lily_status2'
-    NANO_STATUS = 'botpt_nano_status'
-    SYST_STATUS = 'botpt_syst_status'
+    # IRIS_STATUS1 = 'botpt_iris_status1'
+    # IRIS_STATUS2 = 'botpt_iris_status2'
+    # LILY_STATUS1 = 'botpt_lily_status1'
+    # LILY_STATUS2 = 'botpt_lily_status2'
+    # NANO_STATUS = 'botpt_nano_status'
+    # SYST_STATUS = 'botpt_syst_status'
 
 
 class IrisSampleParticleKey(BaseEnum):
@@ -101,15 +102,18 @@ class NanoSampleParticleKey(BaseEnum):
 
 
 class BotptStatusParticleKey(BaseEnum):
-    SENSOR_ID = 'sensor_id'
-    TIME = 'date_time_string'
-    STATUS = 'status_string'
+    IRIS1 = 'botpt_iris_status_01'
+    IRIS2 = 'botpt_iris_status_02'
+    LILY1 = 'botpt_lily_status_01'
+    LILY2 = 'botpt_lily_status_02'
+    NANO = 'botpt_nano_status'
+    SYST = 'botpt_syst_status'
 
 
 class BotptDataParticle(DataParticle):
     _compiled_regex = None
-    __metaclass__ = METALOGGER
     _compile_flags = None
+    __metaclass__ = METALOGGER
 
     def __init__(self, *args, **kwargs):
         super(BotptDataParticle, self).__init__(*args, **kwargs)
@@ -162,10 +166,15 @@ class BotptDataParticle(DataParticle):
         except IndexError:
             ts = None
         return [
-            self._encode_value(BotptStatusParticleKey.SENSOR_ID, name, str),
+            self._encode_value('sensor_id', name, str),
             self._encode_value(BotptStatusParticleKey.TIME, ts, str),
-            self._encode_value(BotptStatusParticleKey.STATUS, status, str)
+            self._encode_value('status', status, str)
         ]
+
+    def _filter(self, filter_string):
+        def inner(data):
+            return NEWLINE.join(line for line in data.split(NEWLINE) if line.startswith(filter_string))
+        return inner
 
 
 class IrisSampleParticle(BotptDataParticle):
@@ -359,13 +368,52 @@ class LilyLevelingParticle(BotptDataParticle):
         ]
 
 
-# ##############################################################################
-# Status Particles
 ###############################################################################
+# Status Particle
+###############################################################################
+
+class BotptStatusParticle(BotptDataParticle):
+    _data_particle_type = DataParticleType.BOTPT_STATUS
+    _compile_flags = re.DOTALL
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        return r'''
+            (?x)
+            (SYST,)
+            (?P<date_time>  %(date_time)s)(,)
+            (?P<syst_status>    \*BOTPT.*?root/bin)\n
+            (?P<lily_status1>   LILY,%(date_time)s,\*APPLIED.*?,\*9900XY-DUMP-SETTINGS)\n
+            (?P<lily_status2>   LILY,%(date_time)s,\*01:\ TBias.*?,\*9900XY-DUMP2)\n
+            (?P<iris_status1>   IRIS,%(date_time)s,\*APPLIED.*?,\*9900XY-DUMP-SETTINGS)\n
+            (?P<iris_status2>   IRIS,%(date_time)s,\*01:\ TBias.*?,\*9900XY-DUMP2)\n
+            (?P<nano_status>    NANO,\*_____.*?ZV:\S+)
+            ''' % common_regex_items
+
+    def _to_dict(self, sample):
+        result = {}
+        for each in sample:
+            result[each[DataParticleKey.VALUE_ID]] = each[DataParticleKey.VALUE]
+        return result
+
+    def _encode_all(self):
+        syst_status = 'SYST,%s,%s' % (self.match.group('date_time'), self.match.group('syst_status'))
+        return [
+            self._encode_value(BotptStatusParticleKey.IRIS1, self.match.group('iris_status1'), self._filter('IRIS')),
+            self._encode_value(BotptStatusParticleKey.IRIS2, self.match.group('iris_status2'), self._filter('IRIS')),
+            self._encode_value(BotptStatusParticleKey.LILY1, self.match.group('lily_status1'), self._filter('LILY')),
+            self._encode_value(BotptStatusParticleKey.LILY2, self.match.group('lily_status2'), self._filter('LILY')),
+            self._encode_value(BotptStatusParticleKey.NANO, self.match.group('nano_status'), self._filter('NANO')),
+            self._encode_value(BotptStatusParticleKey.SYST, syst_status, self._filter('SYST')),
+        ]
+
 
 
 class IrisStatusParticle1(BotptDataParticle):
-    _data_particle_type = DataParticleType.IRIS_STATUS1
     _compile_flags = re.DOTALL
 
     @staticmethod
@@ -401,7 +449,6 @@ class IrisStatusParticle1(BotptDataParticle):
 
 
 class IrisStatusParticle2(BotptDataParticle):
-    _data_particle_type = DataParticleType.IRIS_STATUS2
     _compile_flags = re.DOTALL
 
     @staticmethod
@@ -451,7 +498,6 @@ class IrisStatusParticle2(BotptDataParticle):
 
 
 class LilyStatusParticle1(BotptDataParticle):
-    _data_particle_type = DataParticleType.LILY_STATUS1
     _compile_flags = re.DOTALL
 
     @staticmethod
@@ -486,7 +532,6 @@ class LilyStatusParticle1(BotptDataParticle):
 
 
 class LilyStatusParticle2(BotptDataParticle):
-    _data_particle_type = DataParticleType.LILY_STATUS2
     _compile_flags = re.DOTALL
 
     @staticmethod
@@ -537,7 +582,6 @@ class LilyStatusParticle2(BotptDataParticle):
 
 
 class NanoStatusParticle(BotptDataParticle):
-    _data_particle_type = DataParticleType.NANO_STATUS
     _compile_flags = re.DOTALL
 
     @staticmethod
@@ -601,7 +645,6 @@ class NanoStatusParticle(BotptDataParticle):
 
 
 class SystStatusParticle(BotptDataParticle):
-    _data_particle_type = DataParticleType.SYST_STATUS
     _compile_flags = re.DOTALL
 
     @staticmethod
