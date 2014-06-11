@@ -13,13 +13,14 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 from mi.core.exceptions import SampleException, InstrumentCommandException
-from mi.core.instrument.data_particle import RawDataParticle
-from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.instrument_driver import DriverProtocolState, ResourceAgentState, DriverConfigKey
 
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
 
-# import unittest
+import time
+import unittest
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -29,7 +30,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey, AgentCapabilityType
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
@@ -47,7 +48,9 @@ from mi.core.instrument.chunker import StringChunker
 # from ion.agents.instrument.instrument_agent import InstrumentAgentState
 # from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.uw.hpies.ooicore.driver import InstrumentDriver, HEFDataParticle, ParameterConstraints
+from mi.instrument.uw.hpies.ooicore.driver import InstrumentDriver, HEFDataParticle, ParameterConstraints, \
+    HEFMotorCurrentParticleKey, HEFDataParticleKey, CalStatusParticleKey, HEFStatusParticleKey, IESDataParticleKey, \
+    DataHeaderParticleKey
 from mi.instrument.uw.hpies.ooicore.driver import DataParticleType
 from mi.instrument.uw.hpies.ooicore.driver import Command
 from mi.instrument.uw.hpies.ooicore.driver import ProtocolState
@@ -69,7 +72,33 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='uw_hpies_ooicore',
     instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config={}
+    driver_startup_config={DriverConfigKey.PARAMETERS: {
+        Parameter.DEBUG_LEVEL: 0,
+        Parameter.WSRUN_PINCH: 120,
+        Parameter.NFC_CALIBRATE: 60,
+        Parameter.CAL_HOLD: 20,
+        Parameter.NHC_COMPASS: 122,
+        Parameter.COMPASS_SAMPLES: 1,
+        Parameter.COMPASS_DELAY: 10,
+        Parameter.MOTOR_SAMPLES: 10,
+        Parameter.EF_SAMPLES: 10,
+        Parameter.CAL_SAMPLES: 10,
+        Parameter.CONSOLE_TIMEOUT: 300,
+        Parameter.WSRUN_DELAY: 0,
+        Parameter.MOTOR_DIR_NHOLD: 0,
+        Parameter.MOTOR_DIR_INIT: 'f',
+        Parameter.POWER_COMPASS_W_MOTOR: True,
+        Parameter.KEEP_AWAKE_W_MOTOR: True,
+        Parameter.MOTOR_TIMEOUTS_1A: 200,
+        Parameter.MOTOR_TIMEOUTS_1B: 200,
+        Parameter.MOTOR_TIMEOUTS_2A: 200,
+        Parameter.MOTOR_TIMEOUTS_2B: 200,
+        Parameter.RSN_CONFIG: True,
+        Parameter.INVERT_LED_DRIVERS: False,
+        Parameter.M1A_LED: 1,
+        Parameter.M2A_LED: 3,
+    }
+    }
 )
 
 
@@ -102,6 +131,8 @@ InstrumentDriverTestCase.initialize(
 #  methods for validating data particles.									  #
 ###############################################################################
 class UtilMixin(DriverTestMixin):
+    # __metaclass__ = get_logging_metaclass(log_level='info')
+
     """
     Mixin class used for storing data particle constants and common data assertion methods.
     """
@@ -115,18 +146,51 @@ class UtilMixin(DriverTestMixin):
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
 
-    # SAMPLE_HEADER = "20140430T222632 #3__HE04 E a 0 985 2 3546330153 3113 3 3 3 1398896784*1bbb"
-    SAMPLE_HEF = "20140501T173921 #3__DE 797 79380 192799 192803 192930*56a8"
-    SAMPLE_MOTOR = "20140501T173728 #3__DM 11 24425*396b"
-    SAMPLE_CAL = "20140430T230632 #3__DC 2 192655 192637 135611 80036 192554 192644*5c28"
-    SAMPLE_IES = "20140501T175203 #5_AUX,1398880200,04,999999,999999,999999,999999,0010848,021697,022030,04000005.252,1B05,1398966715*c69e"
-    # SAMPLE_HEADING = "20140430T195148 #3_hdg=  65.48 pitch=  -3.23 roll=  -2.68 temp=  30.20\r\n*1049"
-    # SAMPLE_TIME = "20140430T195224 #2_TOD,1398887544,1398887537*01f5"
-    # SAMPLE_SM = "20140430T222451 #3__SM 0 172 7*c5b2"
-    # SAMPLE_Sm = "20140430T222451 #3__Sm 0 32*df9f"
+    # Sample raw data particles
+    SAMPLE_HEF_HEADER = "#3__HE04 E a 0 985 2 3546330153 3113 3 3 3 1398896784*1bbb"
+    SAMPLE_HEF = '#3__DE 797 79380 192799 192803 192930*56a8'
+    SAMPLE_MOTOR_HEADER = '#3__HE04 f a 0 382 0 3546329882 17917 3 3 3 1398896422*d6fd'
+    SAMPLE_MOTOR = '#3__DM 11 24425*396b'
+    SAMPLE_CAL_HEADER = '#3__HE04 E a 0 983 130 3546345513 13126 3 3 3 1398912144*f7a9'
+    SAMPLE_CAL = '#3__DC 2 192655 192637 135611 80036 192554 192644*5c28'
+    SAMPLE_HPIES_STATUS = \
+        '#3__s1 -748633661 31 23 0 C:\\DATA\\12345.000 OK*3e90' + NEWLINE + \
+        '#3__s2 10 0 0 984001 0 0 0*ac87' + NEWLINE + \
+        '#3__s3 0 0 0 0 0 0 1*35b7'
+    SAMPLE_IES = '#5_AUX,1398880200,04,999999,999999,999999,999999,0010848,021697,022030,' + \
+                 '04000005.252,1B05,1398966715*c69e'
+    # SAMPLE_HEADING = "#3_hdg=  65.48 pitch=  -3.23 roll=  -2.68 temp=  30.20\r\n*1049"
+    # SAMPLE_SM = "#3__SM 0 172 7*c5b2"
+    # SAMPLE_Sm = "#3__Sm 0 32*df9f"
+    SAMPLE_IES_STATUS = \
+        '#5_T:388559 999999 999999 999999 999999 999999 999999 999999 999999 ' + \
+        '999999 999999 999999 999999 999999 999999 999999 999999 999999 999999 ' + \
+        r'999999 999999 999999 999999 999999 999999 \r\n*cb7a' + NEWLINE + \
+        '#5_P:388559 10932 23370  10935 23397  10934 23422  10934 23446  10933 ' + \
+        r'23472  10932 23492  \r\n*9c3e' + NEWLINE + \
+        '#5_F:388559 33228500 172170704  33228496 172170928  33228492 172171120  ' + \
+        r'33228488 172171312  33228484 172171504  33228480 172171664  \r\n*e505' + NEWLINE + \
+        r'#5_E:388559 2.29 0.01 0.00 14.00 6.93 5.05 23.83 0.0000 10935 1623 33228.480 172171.656 0.109 \r\n*1605'
+    SAMPLE_TIMESTAMP = \
+        '#2_TOD,1398883295,1398883288*0059'
+
+    valid_samples = [
+        SAMPLE_HEF_HEADER,
+        SAMPLE_HEF,
+        SAMPLE_MOTOR_HEADER,
+        SAMPLE_MOTOR,
+        SAMPLE_CAL_HEADER,
+        SAMPLE_CAL,
+        SAMPLE_HPIES_STATUS,
+        SAMPLE_IES,
+        SAMPLE_IES_STATUS,
+        SAMPLE_TIMESTAMP
+    ]
+
+    # Sample raw data particles - invalid
     SAMPLE_HEF_INVALID = SAMPLE_HEF.replace('DE', 'DQ')
     SAMPLE_HEF_MISSING_CHECKSUM = SAMPLE_HEF[:-4]
-    SAMPLE_HEF_WRONG_CHECKSUM = "{0}dead".format(SAMPLE_HEF_MISSING_CHECKSUM)
+    SAMPLE_HEF_WRONG_CHECKSUM = '{0}dead'.format(SAMPLE_HEF_MISSING_CHECKSUM)
 
     _driver_capabilities = {
 
@@ -139,7 +203,7 @@ class UtilMixin(DriverTestMixin):
         Parameter.DEBUG_LEVEL:
             {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 0, REQUIRED: False},
         Parameter.WSRUN_PINCH:
-            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 120, REQUIRED: False},
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 120, REQUIRED: False},
         Parameter.NFC_CALIBRATE:
             {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 60, REQUIRED: False},
         Parameter.CAL_HOLD:
@@ -248,16 +312,110 @@ class UtilMixin(DriverTestMixin):
             {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.00004622697, REQUIRED: False},
     }
 
-    def assert_sample_data_particle(self, data_particle):
-        """
-        Verify a particle is known to this driver and is correct
-        @param data_particle: Data particle of unknown type produced by the driver
-        """
-        if isinstance(data_particle, RawDataParticle):
-            self.assert_particle_raw(data_particle)
-        else:
-            log.error("Unknown particle detected: %s" % data_particle)
-            self.assertFalse(True)
+    _hef_sample = {
+        HEFDataParticleKey.INDEX: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFDataParticleKey.CHANNEL_1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFDataParticleKey.CHANNEL_2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFDataParticleKey.CHANNEL_3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFDataParticleKey.CHANNEL_4: {TYPE: int, VALUE: 0, REQUIRED: True},
+    }
+
+    def assert_hef_particle(self, particle, verify_values=False):
+        self.assert_data_particle_keys(HEFDataParticleKey, self._hef_sample)
+        self.assert_data_particle_header(particle, DataParticleType.HORIZONTAL_FIELD)
+        self.assert_data_particle_parameters(particle, self._hef_sample, verify_values)
+
+    _header_sample = {
+        DataHeaderParticleKey.VERSION: {TYPE: int, VALUE: 0, REQUIRED: True},
+        DataHeaderParticleKey.TYPE: {TYPE: unicode, VALUE: 'f', REQUIRED: True},
+        DataHeaderParticleKey.DESTINATION: {TYPE: unicode, VALUE: 'a', REQUIRED: True},
+        DataHeaderParticleKey.INDEX_START: {TYPE: int, VALUE: 0, REQUIRED: True},
+        DataHeaderParticleKey.INDEX_STOP: {TYPE: int, VALUE: 382, REQUIRED: True},
+        DataHeaderParticleKey.HCNO: {TYPE: int, VALUE: 0, REQUIRED: True},
+        DataHeaderParticleKey.TIME: {TYPE: int, VALUE: 3546329882, REQUIRED: True},
+        DataHeaderParticleKey.TICKS: {TYPE: int, VALUE: 17917, REQUIRED: True},
+        DataHeaderParticleKey.MOTOR_SAMPLES: {TYPE: int, VALUE: 3, REQUIRED: True},
+        DataHeaderParticleKey.EF_SAMPLES: {TYPE: int, VALUE: 3, REQUIRED: True},
+        DataHeaderParticleKey.CAL_SAMPLES: {TYPE: int, VALUE: 3, REQUIRED: True},
+        DataHeaderParticleKey.STM_TIME: {TYPE: int, VALUE: 1398899184, REQUIRED: True},
+    }
+
+    def assert_data_header_particle(self, particle, verify_values=False):
+        self.assert_data_particle_keys(DataHeaderParticleKey, self._header_sample)
+        self.assert_data_particle_header(particle, DataParticleType.HPIES_DATA_HEADER)
+        self.assert_data_particle_parameters(particle, self._header_sample, verify_values)
+
+    _motor_current_sample = {
+        HEFMotorCurrentParticleKey.INDEX: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFMotorCurrentParticleKey.CURRENT: {TYPE: int, VALUE: 0, REQUIRED: True},
+    }
+
+    def assert_motor_current_particle(self, particle, verify_values=False):
+        self.assert_data_particle_keys(HEFMotorCurrentParticleKey, self._motor_current_sample)
+        self.assert_data_particle_header(particle, DataParticleType.MOTOR_CURRENT)
+        self.assert_data_particle_parameters(particle, self._motor_current_sample, verify_values)
+
+    _calibration_sample = {
+        CalStatusParticleKey.INDEX: {TYPE: int, VALUE: 0, REQUIRED: True},
+        CalStatusParticleKey.E1C: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        CalStatusParticleKey.E1A: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        CalStatusParticleKey.E1B: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        CalStatusParticleKey.E2C: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        CalStatusParticleKey.E2A: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        CalStatusParticleKey.E2B: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+    }
+
+    def assert_cal_particle(self, particle, verify_values=False):
+        self.assert_data_particle_keys(CalStatusParticleKey, self._calibration_sample)
+        self.assert_data_particle_header(particle, DataParticleType.CALIBRATION_STATUS)
+        self.assert_data_particle_parameters(particle, self._calibration_sample, verify_values)
+
+    _status_sample = {
+        HEFStatusParticleKey.UNIX_TIME: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.HCNO: {TYPE: int, VALUE: 1, REQUIRED: True},
+        HEFStatusParticleKey.HCNO_LAST_CAL: {TYPE: int, VALUE: 1, REQUIRED: True},
+        HEFStatusParticleKey.HCNO_LAST_COMP: {TYPE: int, VALUE: 1, REQUIRED: True},
+        HEFStatusParticleKey.OFILE: {TYPE: unicode, VALUE: 'C:\\filename.0', REQUIRED: True},
+        HEFStatusParticleKey.IFOK: {TYPE: unicode, VALUE: 'OK', REQUIRED: True},
+        HEFStatusParticleKey.N_COMPASS_WRITES: {TYPE: int, VALUE: 1, REQUIRED: True},
+        HEFStatusParticleKey.N_COMPASS_FAIL_WRITES: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.MOTOR_POWER_UPS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.N_SERVICE_LOOPS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        HEFStatusParticleKey.SERIAL_PORT_ERRORS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.COMPASS_PORT_ERRORS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.COMPASS_PORT_CLOSED_COUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.IRQ2_COUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.SPURIOUS_COUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.SPSR_BITS56_COUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.PIT_ZERO_COUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.ADC_BUFFER_OVERFLOWS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.MAX7317_QUEUE_OVERFLOWS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        HEFStatusParticleKey.PINCH_TIMING_ERRORS: {TYPE: int, VALUE: 0, REQUIRED: True},
+    }
+
+    def assert_status_particle(self, particle, verify_values=False):
+        self.assert_data_particle_keys(HEFStatusParticleKey, self._status_sample)
+        self.assert_data_particle_header(particle, DataParticleType.HPIES_STATUS)
+        self.assert_data_particle_parameters(particle, self._status_sample, verify_values)
+
+    _echo_sample = {
+        IESDataParticleKey.IES_TIMESTAMP: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.TRAVEL_TIMES: {TYPE: int, VALUE: 4, REQUIRED: True},
+        IESDataParticleKey.TRAVEL_TIME_1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.TRAVEL_TIME_2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.TRAVEL_TIME_3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.TRAVEL_TIME_4: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.PRESSURE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.TEMPERATURE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.BLILEY_TEMPERATURE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        IESDataParticleKey.BLILEY_FREQUENCY: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        IESDataParticleKey.STM_TIMESTAMP: {TYPE: int, VALUE: 0, REQUIRED: True},
+    }
+
+    def assert_echo_particle(self, particle, verify_values=False):
+        self.assert_data_particle_keys(IESDataParticleKey, self._echo_sample)
+        self.assert_data_particle_header(particle, DataParticleType.ECHO_SOUNDING)
+        self.assert_data_particle_parameters(particle, self._echo_sample, verify_values)
 
 
 ###############################################################################
@@ -299,20 +457,27 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, self.SAMPLE_HEF)
-        self.assert_chunker_sample(chunker, self.SAMPLE_CAL)
-        self.assert_chunker_sample(chunker, self.SAMPLE_IES)
-        self.assert_chunker_sample(chunker, self.SAMPLE_MOTOR)
-        self.assert_chunker_sample_with_noise(chunker, self.SAMPLE_HEF)
-        self.assert_chunker_fragmented_sample(chunker, self.SAMPLE_HEF)
-        self.assert_chunker_combined_sample(chunker, self.SAMPLE_HEF)
+        for sample in self.valid_samples:
+            self.assert_chunker_sample(chunker, sample)
+            self.assert_chunker_sample_with_noise(chunker, sample)
+            self.assert_chunker_fragmented_sample(chunker, sample)
+            self.assert_chunker_combined_sample(chunker, sample)
 
     def test_corrupt_data_sample(self):
-        for particle in (HEFDataParticle(self.SAMPLE_HEF_INVALID),
-                         HEFDataParticle(self.SAMPLE_HEF_MISSING_CHECKSUM),
-                         HEFDataParticle(self.SAMPLE_HEF_WRONG_CHECKSUM)):
+        for sample in [self.SAMPLE_HEF_INVALID, self.SAMPLE_HEF_MISSING_CHECKSUM]:
             with self.assertRaises(SampleException):
-                particle.generate()
+                HEFDataParticle(sample).generate()
+
+    def test_wrong_checksum(self):
+        good_particle = HEFDataParticle(self.SAMPLE_HEF)
+        bad_particle = HEFDataParticle(self.SAMPLE_HEF_WRONG_CHECKSUM)
+        good_particle.generate_dict()
+        bad_particle.generate_dict()
+
+        if good_particle.contents[DataParticleKey.QUALITY_FLAG] is DataParticleValue.CHECKSUM_FAILED:
+            self.fail('HEF data particle validity flag set incorrectly - should be set to true')
+        if bad_particle.contents[DataParticleKey.QUALITY_FLAG] is not DataParticleValue.CHECKSUM_FAILED:
+            self.fail('HEF data particle validity flag set incorrectly - should be set to false')
 
     def test_got_data(self):
         """
@@ -372,6 +537,16 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
+    def assert_async_particle_not_generated(self, particle_list, timeout=10):
+        end_time = time.time() + timeout
+
+        while end_time > time.time():
+            for particle_type in particle_list:
+                if len(self.get_sample_events(particle_type)) > 0:
+                    self.fail(
+                        "assert_async_particle_not_generated: a particle of type %s was published" % particle_type)
+            time.sleep(1.0)
+
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample.
@@ -380,19 +555,17 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
         # put driver into autosample mode
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
-        self.assert_async_particle_generation(DataParticleType.MOTOR_CURRENT, self.assert_sample_data_particle,
-                                              timeout=20)
-        self.assert_async_particle_generation(DataParticleType.HPIES_STATUS, self.assert_sample_data_particle,
-                                              timeout=30)
-        self.assert_async_particle_generation(DataParticleType.ECHO_SOUNDING, self.assert_sample_data_particle,
-                                              timeout=100)
-        self.assert_async_particle_generation(DataParticleType.HORIZONTAL_FIELD, self.assert_sample_data_particle,
-                                              timeout=110)
-        # it can take 46 minutes for the first calibration status to occur - need to test in qual
-        # self.assert_async_particle_generation(DataParticleType.CALIBRATION_STATUS, self.assert_data_particle_sample,
-        #                                       timeout=30)
-        # self.assert_async_particle_generation(DataParticleType.HPIES_STATUS, self.assert_data_particle_sample,
-        #                                       timeout=30)
+        self.assert_async_particle_generation(
+            DataParticleType.HPIES_DATA_HEADER, self.assert_data_header_particle, timeout=20)
+        self.assert_async_particle_generation(
+            DataParticleType.MOTOR_CURRENT, self.assert_motor_current_particle, timeout=5)
+        self.assert_async_particle_generation(
+            DataParticleType.HPIES_STATUS, self.assert_status_particle, timeout=120)
+        self.assert_async_particle_generation(
+            DataParticleType.HORIZONTAL_FIELD, self.assert_hef_particle, timeout=140)
+
+        self.assert_async_particle_generation(
+            DataParticleType.ECHO_SOUNDING, self.assert_echo_particle, timeout=600)
 
         # take driver out of autosample mode
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
@@ -400,18 +573,52 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
         # test that sample particle is not generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for no instrument data")
         self.clear_events()
-        self.assert_async_particle_not_generated(DataParticleType.MOTOR_CURRENT, timeout=60)
-        self.assert_async_particle_not_generated(DataParticleType.HPIES_STATUS, timeout=60)
-        self.assert_async_particle_not_generated(DataParticleType.ECHO_SOUNDING, timeout=60)
-        self.assert_async_particle_not_generated(DataParticleType.HORIZONTAL_FIELD, timeout=60)
+        particle_list = (
+            DataParticleType.CALIBRATION_STATUS,
+            DataParticleType.ECHO_SOUNDING,
+            DataParticleType.HORIZONTAL_FIELD,
+            DataParticleType.HPIES_DATA_HEADER,
+            DataParticleType.HPIES_STATUS,
+            DataParticleType.TIMESTAMP,
+            DataParticleType.MOTOR_CURRENT,
+        )
+        self.assert_async_particle_not_generated(particle_list, timeout=60)
 
         # put driver back in autosample mode
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
         # test that sample particle is generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.MOTOR_CURRENT, self.assert_data_particle_sample,
-                                              timeout=20)
+        self.assert_async_particle_generation(
+            DataParticleType.HPIES_DATA_HEADER, self.assert_data_header_particle, timeout=60)
+
+    @unittest.skip('run just before XX:X0 UTC')
+    def test_autosample_echo_particle_generation(self):
+        """
+        Test echo sounding particle generation - occurs once every 10 minutes, on the 10th minute
+        """
+        # TODO - set clock to just before 10 minute interval so calibration will occur quickly
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+
+        self.assert_async_particle_generation(
+            DataParticleType.ECHO_SOUNDING, self.assert_echo_particle, timeout=60)
+        self.assert_async_particle_generation(
+            DataParticleType.HPIES_STATUS, self.assert_data_particle_sample, timeout=30)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+    @unittest.skip('run just before 23:52 UTC')
+    def test_autosample_cal_status_particle_generation(self):
+        """
+        Test calibration status particle generation - occurs daily at 23:52
+        """
+        # TODO - set clock to just before 23:52 so cal status particle will be generated quickly
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+
+        self.assert_async_particle_not_generated(DataParticleType.CALIBRATION_STATUS, timeout=60)
+        self.assert_async_particle_not_generated(DataParticleType.HPIES_STATUS, timeout=5)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
     def test_parameters(self):
         """
@@ -423,63 +630,19 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
 
-        # verify we cannot set readonly parameters
-        read_only_params = [
-            Parameter.SERIAL,
-            Parameter.DEBUG_LEVEL,
-            Parameter.CAL_HOLD,
-            Parameter.CAL_SKIP,
-            Parameter.INITIAL_COMPASS,
-            Parameter.INITIAL_COMPASS_DELAY,
-            Parameter.CONSOLE_TIMEOUT,
-            Parameter.WSRUN_DELAY,
-            Parameter.MOTOR_DIR_NHOLD,
-            Parameter.MOTOR_DIR_INIT,
-            Parameter.POWER_COMPASS_W_MOTOR,
-            Parameter.KEEP_AWAKE_W_MOTOR,
-            Parameter.RSN_CONFIG,
-            Parameter.INVERT_LED_DRIVERS,
-            Parameter.M1A_LED,
-            Parameter.M2A_LED,
-            Parameter.IES_TIME,
-            Parameter.ECHO_SAMPLES,
-            Parameter.WATER_DEPTH,
-            Parameter.ACOUSTIC_LOCKOUT,
-            Parameter.ACOUSTIC_OUTPUT,
-            Parameter.RELEASE_TIME,
-            Parameter.COLLECT_TELEMETRY,
-            Parameter.MISSION_STATEMENT,
-            Parameter.PT_SAMPLES,
-            Parameter.TEMP_COEFF_U0,
-            Parameter.TEMP_COEFF_Y1,
-            Parameter.TEMP_COEFF_Y2,
-            Parameter.TEMP_COEFF_Y3,
-            Parameter.PRES_COEFF_C1,
-            Parameter.PRES_COEFF_C2,
-            Parameter.PRES_COEFF_C3,
-            Parameter.PRES_COEFF_D1,
-            Parameter.PRES_COEFF_D2,
-            Parameter.PRES_COEFF_T1,
-            Parameter.PRES_COEFF_T2,
-            Parameter.PRES_COEFF_T3,
-            Parameter.PRES_COEFF_T4,
-            Parameter.PRES_COEFF_T5,
-            Parameter.BLILEY_0,
-            Parameter.BLILEY_1,
-            Parameter.BLILEY_2,
-            Parameter.BLILEY_3
-        ]
-        for param in read_only_params:
-            self.assert_set_exception(param)
+        for key in self._driver_parameters:
+            if self._driver_parameters[key][self.READONLY]:
+                self.assert_set_exception(key)
 
     def test_out_of_range(self):
         self.assert_initialize_driver()
         constraints = ParameterConstraints.dict()
-        for parameter in constraints:
-            _, minimum, maximum = constraints[parameter]
-            self.assert_set_exception(parameter, minimum - 1)
-            self.assert_set_exception(parameter, maximum + 1)
-            self.assert_set_exception(parameter, 'expects int, not string!!')
+        parameters = Parameter.dict()
+        for key in constraints:
+            _, minimum, maximum = constraints[key]
+            self.assert_set_exception(parameters[key], minimum - 1)
+            self.assert_set_exception(parameters[key], maximum + 1)
+            self.assert_set_exception(parameters[key], 'expects int, not string!!')
 
     def test_invalid_parameter(self):
         self.assert_initialize_driver()
@@ -513,7 +676,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
@@ -526,15 +689,27 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.tcp_client)
 
         ###
-        #   Add instrument specific code here.
+        #   TODO - Add instrument specific code here.
         ###
 
         self.assert_direct_access_stop_telnet()
+
+        # verify that all direct access parameters are restored
+        parameters = Parameter.dict()
+        for key in self._driver_parameters.keys():
+            # verify access of parameters - default values
+            if self._driver_parameters[key][self.DA]:
+                # verify we cannot set readonly parameters
+                self.assert_get_parameter(key, self._driver_parameters[key][self.VALUE])
 
     def test_autosample(self):
         """
         start and stop autosample and verify data particle
         """
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+        # TODO - verify data particle
+        self.assert_stop_autosample()
 
     def test_get_set_parameters(self):
         """
@@ -543,9 +718,63 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         """
         self.assert_enter_command_mode()
 
+        # verify we can set read/write parameters
+        constraints = ParameterConstraints.dict()
+        parameters = Parameter.dict()
+        for key in constraints:
+            log.debug('djm - setting parameter: %s', key)
+            _, _, maximum = constraints[key]
+            self.assert_set_parameter(parameters[key], maximum)
+
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
         self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.STOP_AUTOSAMPLE,
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
