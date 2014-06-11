@@ -28,25 +28,30 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.driver.sio_eng.sio_mule.driver import sioEngSioMuleDataSetDriver
+from mi.dataset.driver.sio_eng.sio_mule.driver import SioEngSioMuleDataSetDriver, DataSourceKey 
 from mi.dataset.parser.sio_eng_sio_mule import SioEngSioMuleParserDataParticle
+
+TELEM_DIR = '/tmp/sio_eng_test'
 
 # Fill in driver details
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.sio_eng.sio_mule.driver',
-    driver_class='sioEngSioMuleDataSetDriver',
+    driver_class='SioEngSioMuleDataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = sioEngSioMuleDataSetDriver.stream_config(),
+    agent_packet_config = SioEngSioMuleDataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'sio_eng_sio_mule',
-        DataSourceConfigKey.HARVESTER:
-        {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: '',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+        DataSourceConfigKey.HARVESTER: {
+            DataSourceKey.SIO_ENG_SIO_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: TELEM_DIR,
+                DataSetDriverConfigKeys.PATTERN: 'STA15908.DAT',#'node59p1.dat',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+                DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 5,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataSourceKey.SIO_ENG_SIO_TELEMETERED: {}
+        }
     }
 )
 
@@ -69,7 +74,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-        pass
+        self.driver.start_sampling()
+        self.clear_async_data()
+        #self.create_sample_data_set_dir("node59p1.dat", TELEM_DIR, "node59p1_test_get.dat",
+        #                                copy_metadata=False)
+        self.create_sample_data_set_dir("STA15908.DAT", TELEM_DIR, "STA15908.DAT",
+                                        copy_metadata=False)
+
+        self.assert_data((SioEngSioMuleParserDataParticle),
+            'test_data_1.txt.result.yml', count=2, timeout=10)
+
+        # there is only one file we read from, this example 'appends' data to
+        # the end of the node59p1.dat file, and the data from the new append
+        # is returned (not including the original data from _step1)
+        
 
     def test_stop_resume(self):
         """

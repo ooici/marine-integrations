@@ -123,11 +123,67 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	self.particle_12 = SioEngSioMuleParserDataParticle(
 	    '\x01CS1236501_0018u51ED10ED_67_EDD2\x02\n18.93 14.0 1947 418 -3\n\x03',
 	    internal_timestamp = self._timestamp12)
+	
+	posix_time = int('51EF04CE', 16)
+	self._timestampAA = ntplib.system_to_ntp_time(float(posix_time))
+	self.particle_AA = SioEngSioMuleParserDataParticle(
+	    '\x01CS1237101_0012u51EF04CE_04_C3AF\x02\n18.72 17.4 2 1 1\n\x03',
+	    internal_timestamp = self._timestampAA)
+	
+	posix_time = int('51EF1B95', 16)
+	self._timestampBB = ntplib.system_to_ntp_time(float(posix_time))
+	self.particle_BB = SioEngSioMuleParserDataParticle(
+	    '\x01CS1237101_0014u51EF1B95_14_C795\x02\n18.88 18.5 206 6 0\n\x03',
+	    internal_timestamp = self._timestampBB)
+	
+	posix_time = int('51EF0DA6', 16)
+	self._timestampCC = ntplib.system_to_ntp_time(float(posix_time))
+	self.particle_CC = SioEngSioMuleParserDataParticle(
+	    '\x01CS1236501_0012u51EF0DA6_04_C5D1\x02\n18.58 15.3 2 1 0\n\x03',
+	    internal_timestamp = self._timestampCC)
+	
+	posix_time = int('51EF1B95', 16)
+	self._timestampDD = ntplib.system_to_ntp_time(float(posix_time))
+	self.particle_DD = SioEngSioMuleParserDataParticle(
+	    '\x01CS1236501_0014u51EF1B95_0D_B13D\x02\n18.93 14.2 71 11 0\n\x03',
+	    internal_timestamp = self._timestampDD)
+	#self.particle_to_yml(self.particle_a)
+	#self.particle_to_yml(self.particle_b)
+	#self.particle_to_yml(self.particle_c)
+	#self.particle_to_yml(self.particle_d)
+	#self.particle_to_yml(self.particle_e)
+	#self.particle_to_yml(self.particle_f)
+	#self.particle_to_yml(self.particle_11)
+	#self.particle_to_yml(self.particle_12)
+	#self.particle_to_yml(self.particle_AA)
+	#self.particle_to_yml(self.particle_BB)
+	#self.particle_to_yml(self.particle_CC)
+	#self.particle_to_yml(self.particle_DD)
 
 	
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
+	
+    def particle_to_yml(self, particle):
+        """
+        This is added as a testing helper, not actually as part of the parser tests. Since the same particles
+        will be used for the driver test it is helpful to write them to .yml in the same form they need in the
+        results.yml files here.
+        """
+        particle_dict = particle.generate_dict()
+        # open write append, if you want to start from scratch manually delete this file
+        fid = open('particle.yml', 'a')
+        fid.write('  - _index: 0\n')
+        fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
+        fid.write('    particle_object: %s\n' % particle.__class__.__name__)
+        fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
+        for val in particle_dict.get('values'):
+            if isinstance(val.get('value'), float):
+                fid.write('    %s: %16.20f\n' % (val.get('value_id'), val.get('value')))
+            else:
+                fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
+        fid.close()
 
     def test_simple(self):
         """
@@ -162,6 +218,43 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 			   [],
 			   [[174, 200]],
 			   self.particle_c)
+	
+	self.stream_handle.close()
+	
+    def test_simple2(self):
+        """
+	Read test data and pull out data particles one at a time.
+	Assert that the results are those we expected.
+	"""
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
+					       'node59p1.dat'))
+	# NOTE: using the unprocessed data state of 0,1000 limits the file to reading
+	# just 1000 bytes, so even though the file is longer it only reads the first
+	# 1000
+	
+	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000],[7800, 8800]],
+	    StateKey.IN_PROCESS_DATA:[]}
+	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
+				  self.state_callback, self.pub_callback,self.exception_callback)
+
+	result = self.parser.get_records(1)
+	self.assert_result(result,
+			   [[4190, 4244, 1, 0]],
+			   [[4190, 4244], [4336, 4394], [4853, 5000],[7800, 8800]],
+			   self.particle_AA )
+	
+	
+	result = self.parser.get_records(1)
+	self.assert_result(result,
+			   [],
+			   [[4336, 4394], [4853, 5000], [7800, 8800]],
+			   self.particle_BB)
+
+	result = self.parser.get_records(1)
+	self.assert_result(result,
+			   [],
+			   [[4336, 4394], [4853, 5000], [7800, 8664], [8792, 8800]],
+			   self.particle_CC)
 	
 	self.stream_handle.close()
 	
@@ -313,7 +406,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	#log.debug('raw data in result:::::: %s',result[1].raw_data)
 	#log.debug('raw data in self.particle_f::::::: %s',self.particle_f.raw_data)
 	
-	self.assert_state([],[[348,600]])
+	self.assert_state([[290, 348, 1, 0]],[[290,600]])
 	
 
 	self.stream_handle.close()	
