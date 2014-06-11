@@ -751,3 +751,4 @@ class Protocol(NortekInstrumentProtocol):
                                    description='Stage match filter constants.',
                                    startup_param=True,
                                    direct_access=True)
+
