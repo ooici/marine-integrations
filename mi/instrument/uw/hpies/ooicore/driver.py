@@ -7,26 +7,25 @@ Release notes:
 
 initial_rev
 """
+
+__author__ = 'Dan Mergens'
+__license__ = 'Apache 2.0'
+
 import re
 import tempfile
 
-from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException, \
+from mi.core.exceptions import \
+    SampleException, \
+    InstrumentProtocolException, \
+    InstrumentParameterException, \
     InstrumentTimeoutException
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 from mi.core.util import dict_equal
 from mi.instrument.uw.hpies.crclib import crc3kerm
-
-
-__author__ = 'Dan Mergens'
-__license__ = 'Apache 2.0'
-
 from mi.core.log import \
     get_logger, \
     get_logging_metaclass
-
-log = get_logger()
-
 from mi.core.common import BaseEnum, Units
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -40,8 +39,10 @@ from mi.core.instrument.data_particle import CommonDataParticleType, DataParticl
 from mi.core.instrument.chunker import StringChunker
 
 
+
 # newline.
 NEWLINE = '\r\n'
+log = get_logger()
 
 # default timeout.
 TIMEOUT = 10
@@ -1778,6 +1779,25 @@ class Protocol(CommandResponseInstrumentProtocol):
         to sending commands to the instrument.
         """
         pass
+
+    def _do_cmd_resp(self, cmd, *args, **kwargs):
+        """
+        Calls parent _do_cmd_resp and auto-retries if a timeout occurs.
+
+        @param cmd      instrument command
+        @param retries  (optional) number of retries (default = 3)
+        """
+        attempts = 0
+        retries = kwargs.get('retries', 3)
+
+        while True:
+            try:
+                return super(Protocol, self)._do_cmd_resp(cmd, *args, **kwargs)
+            except InstrumentTimeoutException as e:
+                attempts += 1
+                if attempts == retries:
+                    raise e
+                log.warn('timeout for command (%s): retrying...' % cmd)
 
     def _hef_wakeup(self):
         """
