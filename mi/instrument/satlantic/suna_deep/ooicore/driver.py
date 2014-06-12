@@ -18,7 +18,6 @@ log = get_logger()
 import re
 
 from mi.core.common import BaseEnum, Units
-from mi.core.common import InstErrorCode
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -68,27 +67,27 @@ SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 11. Dark value used for fit (int)
 SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 12. Integration time factor (int)
 SUNA_SAMPLE_PATTERN += r'('                 # 13. Spectrum channels (open group)
 for i in range(255):
-    SUNA_SAMPLE_PATTERN += r'[+-]?\d*,'     # 13. Spectrum channels (255 x int)
-SUNA_SAMPLE_PATTERN += r'[+-]?\d*),'        # 13. Spectrum channels (close group, last int = 256th)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 14. Internal temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 15. Spectrometer temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 16. Lamp temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 17. Cumulative lamp on-time [s] (int)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 18. Relative Humidity [%] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 19. Main Voltage [V] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 20. Lamp Voltage [V] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 21. Internal Voltage [V] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 22. Main Current [mA] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 23. Fit Aux 1 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 24. Fit Aux 2 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 25. Fit Base 1 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 26. Fit Base 2 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 27. Fit RMSE (float)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*),'       # 28. CTD Time [seconds since 1970] (int)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*.\d*),'   # 29. CTD Salinity [PSU] (float)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*.\d*),'   # 30. CTD Temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*.\d*),'   # 31. CTD Pressure [dBar] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*)'        # 32. Check Sum (int)
+    SUNA_SAMPLE_PATTERN += r'[+-]?\d*,'     # 14. Spectrum channels (255 x int)
+SUNA_SAMPLE_PATTERN += r'[+-]?\d*),'        # 15. Spectrum channels (close group, last int = 256th)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 16. Internal temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 17. Spectrometer temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 18. Lamp temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 19. Cumulative lamp on-time [s] (int)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 20. Relative Humidity [%] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 21. Main Voltage [V] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 22. Lamp Voltage [V] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 23. Internal Voltage [V] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 24. Main Current [mA] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 25. Fit Aux 1 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 26. Fit Aux 2 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 27. Fit Base 1 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 28. Fit Base 2 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 29. Fit RMSE (float)
+SUNA_SAMPLE_PATTERN += r','                 # 30. CTD Time [seconds since 1970] (int)
+SUNA_SAMPLE_PATTERN += r','                 # 31. CTD Salinity [PSU] (float)
+SUNA_SAMPLE_PATTERN += r','                 # 32. CTD Temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r','                 # 33. CTD Pressure [dBar] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*)'        # 34. Check Sum (int)
 SUNA_SAMPLE_PATTERN += r'\r\n'              # <Carriage Return> <Line Feed>
 
 SUNA_SAMPLE_REGEX = re.compile(SUNA_SAMPLE_PATTERN)
@@ -248,13 +247,11 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
     START_POLL = "DRIVER_EVENT_START_POLL"
     STOP_POLL = "DRIVER_EVENT_STOP_POLL"
     MEASURE_N = "DRIVER_EVENT_MEASURE_N"
     MEASURE_0 = "DRIVER_EVENT_MEASURE_0"
     TIMED_N = "DRIVER_EVENT_TIMED_N"
-
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
@@ -322,17 +319,17 @@ class Parameter(DriverParameter):
     SPECTROMETER_INTEG_PERIOD = "spintper"  # read only
 
     #Data Acquisition
-    POLLED_TIMEOUT = "polltout"  # startup
-    SKIP_SLEEP_AT_START = "skpsleep"  # startup
-    LAMP_STABIL_TIME = "stbltime"  # startup
-    LAMP_SWITCH_OFF_TEMPERATURE = "lamptoff"  # startup
+    POLLED_TIMEOUT = "polltout"
+    SKIP_SLEEP_AT_START = "skpsleep"
+    LAMP_STABIL_TIME = "stbltime"
+    LAMP_SWITCH_OFF_TEMPERATURE = "lamptoff"
 
     #I/O
-    MESSAGE_LEVEL = "msglevel"  # startup
-    MESSAGE_FILE_SIZE = "msgfsize"  # startup
-    DATA_FILE_SIZE = "datfsize"  # startup
-    OUTPUT_FRAME_TYPE = "outfrtyp"  # startup
-    OUTPUT_DARK_FRAME = "outdrkfr"  # startup
+    MESSAGE_LEVEL = "msglevel"
+    MESSAGE_FILE_SIZE = "msgfsize"
+    DATA_FILE_SIZE = "datfsize"
+    OUTPUT_FRAME_TYPE = "outfrtyp"
+    OUTPUT_DARK_FRAME = "outdrkfr"
 
 PARAM_TYPE_FUNC = {Parameter.OPERATION_MODE: str, Parameter.OPERATION_CONTROL: str, Parameter.LIGHT_SAMPLES: int,
                    Parameter.DARK_SAMPLES: int, Parameter.LIGHT_DURATION: int, Parameter.DARK_DURATION: int,
@@ -351,7 +348,7 @@ PARAM_TYPE_FUNC = {Parameter.OPERATION_MODE: str, Parameter.OPERATION_CONTROL: s
 
 class Prompt(BaseEnum):
     """
-    Device i/o prompts..
+    Device I/O prompts..
     """
     COMMAND = "SUNA>"
     POLLED = "CMD?"
@@ -377,8 +374,8 @@ class InstrumentCommand(BaseEnum):
     STATUS = "get cfg"
 
     # Polled Mode
-    MEASURE = "Measure"     # takes param n indicating amount of light frames
-    TIMED = "Timed"         # takes param n indicating duration in seconds to take light frames for
+    MEASURE = "Measure"  # takes param n indicating amount of light frames
+    TIMED = "Timed"      # takes param n indicating duration in seconds to take light frames for
     SLEEP = "Sleep"
 
     # Command Line Commands
@@ -589,9 +586,7 @@ class SUNAStatusDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXT_POWER_PORT, DataParticleKey.VALUE: str(matched.group(5))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_SHUTTER, DataParticleKey.VALUE: str(matched.group(6))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.REF_DETECTOR, DataParticleKey.VALUE: str(matched.group(7))},
-
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PROTECTR, DataParticleKey.VALUE: str(matched.group(8))},
-
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SUPER_CAPACITORS, DataParticleKey.VALUE: str(matched.group(9))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PSB_SUPERVISOR, DataParticleKey.VALUE: str(matched.group(10))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.USB_COMM, DataParticleKey.VALUE: str(matched.group(11))},
@@ -1352,7 +1347,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         #came from autosampling/polling, need to resend '$' one more time to get it into command mode
         if ret_prompt == Prompt.POLLED:
-             self._send_dollar()
+            self._send_dollar()
 
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
@@ -1462,7 +1457,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             params = args[0]
 
             if params is None or not isinstance(params, dict):
-                raise InstrumentParameterException()
+                raise InstrumentParameterException('Params is empty or is not a dictionary')
 
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
@@ -1486,7 +1481,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 try:
                     str_val = self._param_dict.format(key, params[key])
                 except KeyError:
-                    raise InstrumentParameterException()
+                    raise InstrumentParameterException('Could not format param %s' % key)
 
                 self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT,
                                       expected_prompt=[Prompt.OK, Prompt.ERROR])
@@ -1594,8 +1589,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
             self._send_dollar()     # send a "$" to get the device back to command mode
         except InstrumentException:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Could not interrupt hardware!")
+            raise InstrumentProtocolException("Could not interrupt hardware!")
 
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
@@ -1648,7 +1642,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if not Parameter.has(param):
             raise InstrumentParameterException("%s is not a parameter" % param)
-
         return "%s %s %s%s" % (InstrumentCommand.SET, param, value, NEWLINE)
 
     def _build_measure_command(self, cmd, samples):
@@ -1661,10 +1654,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if samples < 0:
             raise InstrumentParameterException("Sample count cannot be less than 0: (%s)" % samples)
-
-        string_temp = "%s %s%s" % (InstrumentCommand.MEASURE, samples, NEWLINE)
-
-        return string_temp
+        return "%s %s%s" % (InstrumentCommand.MEASURE, samples, NEWLINE)
 
     def _build_timed_command(self, cmd, time_amount):
         """
@@ -1684,7 +1674,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _parse_generic_response(self, response, prompt):
         if prompt == Prompt.ERROR:
             raise InstrumentProtocolException("Error occurred for command: (%r)" % response)
-
         return response
 
     def _parse_cmd_line_response(self, response, prompt):
@@ -1700,7 +1689,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             if start != -1:
                 log.debug("_parse_cmd_line_response: response=%r", response[start:start + len(search_prompt)])
                 return response[start:start + len(search_prompt)]
-
         return None
 
     ########################################################################
