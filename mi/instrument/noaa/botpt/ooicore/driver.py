@@ -458,14 +458,14 @@ class Protocol(CommandResponseInstrumentProtocol):
             Parameter.LEVELING_TIMEOUT: {
                 'type': _int,
                 'display_name': 'LILY Leveling Timeout',
-                'units': Prefixes.MICRO + Units.RADIAN,
+                'units': Units.SECOND,
                 'visibility': rw,
                 'startup_param': True,
             },
             Parameter.HEAT_DURATION: {
                 'type': _int,
                 'display_name': 'Heater Run Time Duration',
-                'units': Units.SECOND,
+                'units': Units.HOUR,
                 'visibility': rw,
                 'startup_param': True,
             },
