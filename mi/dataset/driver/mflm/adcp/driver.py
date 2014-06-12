@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
-from mi.dataset.dataset_driver import HarvesterType
+from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.adcps import AdcpsParser, AdcpsParserDataParticle
 
@@ -45,7 +45,6 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
         Build the requested parser based on the data key
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
-        @param file_in Filename string to pass to parser
         @param data_key Key to determine which parser type is built
         """
         parser = None
@@ -57,12 +56,14 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
 
     def _build_telemetered_parser(self, parser_state, infile):
         """
-        Build and return the parser
+        Build and return the telemetered parser
+        @param parser_state starting parser state to pass to parser
+        @param infile Handle of open file to pass to parser
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.adcps',
-            'particle_class': 'AdcpsParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcps',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpsParserDataParticle'
         })
         log.debug("MYCONFIG: %s", config)
         parser = AdcpsParser(
@@ -79,6 +80,8 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
         """
         Build and return the recovered parser
         No recovered parser yet, needs to be defined
+        @param parser_state starting parser state to pass to parser
+        @param infile Handle of open file to pass to parser
         """
         parser = None
         return parser
