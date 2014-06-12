@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 import re
 import time
 
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
@@ -38,6 +38,17 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, Parame
 from mi.core.log import get_logger
 from mi.core.log import get_logging_metaclass
 
+common_matches = {
+    'float': r'-?\d*\.?\d+',
+    'int': r'-?\d+',
+    'str': r'\w+',
+    'fn': r'\S+',
+    'rest': r'.*\r\n',
+    'tod': r'\d{8}T\d{6}',
+    'data': r'[^\*]+',
+    'crc': r'[0-9a-fA-F]{4}'
+}
+
 log = get_logger()
 
 Directions = MenuInstrumentProtocol.MenuTree.Directions
@@ -45,15 +56,24 @@ Directions = MenuInstrumentProtocol.MenuTree.Directions
 SAMPLE_PATTERN = r'(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\r\n'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
+STATUS_PATTERN = 'r(\d+)'
+STATUS_REGEX = re.compile(STATUS_PATTERN)
+
 # newline.
 NEWLINE = '\r'
 
 # default timeout.
 TIMEOUT = 10
 
+
+class ScheduledJob(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
+
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'trhph_sample'
+    TRHPH_PARSED = 'trhph_sample'
+    TRHPH_STATUS = 'trhph_status'
 
 
 class Command(BaseEnum):
@@ -64,6 +84,7 @@ class Command(BaseEnum):
     START_AUTOSAMPLE = "START_AUTOSAMPLE"
     CHANGE_PARAM = "CHANGE_PARAM"
     SHOW_PARAM = "SHOW_PARAM"
+    SHOW_STATUS = "SHOW_STATUS"
     SENSOR_POWER = "SENSOR_POWER"
     CHANGE_CYCLE_TIME = "CHANGE_CYCLE_TIME"
     CHANGE_VERBOSE = "CHANGE_VERBOSE"
@@ -78,28 +99,31 @@ class Command(BaseEnum):
 
 # Strings should line up with Command class
 COMMAND_CHAR = {
-    'BACK_MENU' : '9',
-    'BLANK' : '\r',
-    'BREAK' : chr(0x13), # Ctrl-S
-    'START_AUTOSAMPLE' : '1',
-    'CHANGE_PARAM' : '2',
-    'SHOW_PARAM' : '6',
-    'SENSOR_POWER' : '4',
+    'BACK_MENU': '9',
+    'BLANK': '\r',
+    'BREAK': chr(0x13),  # Ctrl-S
+    'START_AUTOSAMPLE': '1',
+    'CHANGE_PARAM': '2',
+    'SHOW_PARAM': '6',
+    'SHOW_STATUS': '5',
+    'SENSOR_POWER': '4',
     'CHANGE_CYCLE_TIME': '1',
-    'CHANGE_VERBOSE' : '2',
-    'CHANGE_METADATA_POWERUP' : '3',
-    'CHANGE_METADATA_RESTART' : '4',
-    'CHANGE_RES_SENSOR_POWER' : '1',
-    'CHANGE_INST_AMP_POWER' : '2',
-    'CHANGE_EH_ISOLATION_AMP_POWER' : '3',
-    'CHANGE_HYDROGEN_POWER' : '4',
-    'CHANGE_REFERENCE_TEMP_POWER' : '5',
+    'CHANGE_VERBOSE': '2',
+    'CHANGE_METADATA_POWERUP': '3',
+    'CHANGE_METADATA_RESTART': '4',
+    'CHANGE_RES_SENSOR_POWER': '1',
+    'CHANGE_INST_AMP_POWER': '2',
+    'CHANGE_EH_ISOLATION_AMP_POWER': '3',
+    'CHANGE_HYDROGEN_POWER': '4',
+    'CHANGE_REFERENCE_TEMP_POWER': '5',
 }
-    
+
+
 class SubMenu(BaseEnum):
     MAIN = "SUBMENU_MAIN"
     CHANGE_PARAM = "SUBMENU_CHANGE_PARAM"
     SHOW_PARAM = "SUBMENU_SHOW_PARAM"
+    SHOW_STATUS = "SUBMENU_SHOW_STATUS"
     SENSOR_POWER = "SUBMENU_SENSOR_POWER"
     CYCLE_TIME = "SUBMENU_CYCLE_TIME"
     VERBOSE = "SUBMENU_VERBOSE"
@@ -111,7 +135,7 @@ class SubMenu(BaseEnum):
     HYDROGEN_POWER = "SUBMENU_HYDROGEN_POWER"
     REFERENCE_TEMP_POWER = "SUBMENU_REFERENCE_TEMP_POWER"
 
-        
+
 class ProtocolState(BaseEnum):
     """
     Protocol states
@@ -137,7 +161,8 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    EXECUTE_ACQUIRE_STATUS = "BARS_GET_STATUS"
+    #ACQUIRE_STATUS = "BARS_GET_STATUS"
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
 class Capability(BaseEnum):
@@ -151,6 +176,7 @@ class Capability(BaseEnum):
     EXECUTE_DIRECT = ProtocolEvent.EXECUTE_DIRECT
     START_DIRECT = ProtocolEvent.START_DIRECT
     STOP_DIRECT = ProtocolEvent.STOP_DIRECT
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
 # Device specific parameters.
@@ -177,7 +203,7 @@ class Prompt(BaseEnum):
     CMD_PROMPT = "-->"
     BREAK_ACK = "\r\n"
     NONE = ""
-    
+
     DEAD_END_PROMPT = "Press Enter to return to the Main Menu. -->"
     CONTINUE_PROMPT = "Press ENTER to continue."
 
@@ -195,45 +221,164 @@ class Prompt(BaseEnum):
 MENU_PROMPTS = [Prompt.MAIN_MENU, Prompt.CHANGE_PARAM_MENU,
                 Prompt.SENSOR_POWER_MENU, Prompt.CYCLE_TIME_PROMPT,
                 Prompt.DEAD_END_PROMPT, Prompt.CONTINUE_PROMPT]
-    
+
 MENU = MenuInstrumentProtocol.MenuTree({
-    SubMenu.MAIN:[],
-    SubMenu.CHANGE_PARAM:[Directions(command=Command.CHANGE_PARAM,
-                                     response=Prompt.CHANGE_PARAM_MENU)],
-    SubMenu.SHOW_PARAM:[Directions(SubMenu.CHANGE_PARAM),
-                        Directions(command=Command.SHOW_PARAM,
-                                   response=Prompt.CONTINUE_PROMPT)],
-    SubMenu.SENSOR_POWER:[Directions(command=Command.SENSOR_POWER,
-                                     response=Prompt.SENSOR_POWER_MENU)],
-    SubMenu.CYCLE_TIME:[Directions(SubMenu.CHANGE_PARAM),
-                        Directions(command=Command.CHANGE_CYCLE_TIME,
-                                     response=Prompt.CYCLE_TIME_PROMPT)],
-    SubMenu.VERBOSE:[Directions(SubMenu.CHANGE_PARAM),
-                        Directions(command=Command.CHANGE_VERBOSE,
-                                     response=Prompt.VERBOSE_PROMPT)],
-    SubMenu.METADATA_POWERUP:[Directions(SubMenu.CHANGE_PARAM),
-                        Directions(command=Command.CHANGE_METADATA_POWERUP,
-                                     response=Prompt.METADATA_PROMPT)],
-    SubMenu.METADATA_RESTART:[Directions(SubMenu.CHANGE_PARAM),
-                        Directions(command=Command.CHANGE_METADATA_RESTART,
-                                     response=Prompt.METADATA_PROMPT)],
-    SubMenu.RES_SENSOR_POWER:[Directions(SubMenu.SENSOR_POWER),
-                        Directions(command=Command.CHANGE_RES_SENSOR_POWER,
-                                     response=Prompt.SENSOR_POWER_MENU)],
-    SubMenu.INST_AMP_POWER:[Directions(SubMenu.SENSOR_POWER),
-                        Directions(command=Command.CHANGE_INST_AMP_POWER,
-                                     response=Prompt.SENSOR_POWER_MENU)],
-    SubMenu.EH_ISOLATION_AMP_POWER:[Directions(SubMenu.SENSOR_POWER),
-                        Directions(command=Command.CHANGE_EH_ISOLATION_AMP_POWER,
-                                     response=Prompt.SENSOR_POWER_MENU)],
-    SubMenu.HYDROGEN_POWER:[Directions(SubMenu.SENSOR_POWER),
-                        Directions(command=Command.CHANGE_HYDROGEN_POWER,
-                                     response=Prompt.SENSOR_POWER_MENU)],
-    SubMenu.REFERENCE_TEMP_POWER:[Directions(SubMenu.SENSOR_POWER),
-                        Directions(command=Command.CHANGE_REFERENCE_TEMP_POWER,
-                                     response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.MAIN: [],
+    SubMenu.CHANGE_PARAM: [Directions(command=Command.CHANGE_PARAM,
+                                      response=Prompt.CHANGE_PARAM_MENU)],
+    SubMenu.SHOW_PARAM: [Directions(SubMenu.CHANGE_PARAM),
+                         Directions(command=Command.SHOW_PARAM,
+                                    response=Prompt.CONTINUE_PROMPT)],
+    SubMenu.SHOW_STATUS: [Directions(command=Command.SHOW_STATUS,
+                                     response=Prompt.DEAD_END_PROMPT)],
+    SubMenu.SENSOR_POWER: [Directions(command=Command.SENSOR_POWER,
+                                      response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.CYCLE_TIME: [Directions(SubMenu.CHANGE_PARAM),
+                         Directions(command=Command.CHANGE_CYCLE_TIME,
+                                    response=Prompt.CYCLE_TIME_PROMPT)],
+    SubMenu.VERBOSE: [Directions(SubMenu.CHANGE_PARAM),
+                      Directions(command=Command.CHANGE_VERBOSE,
+                                 response=Prompt.VERBOSE_PROMPT)],
+    SubMenu.METADATA_POWERUP: [Directions(SubMenu.CHANGE_PARAM),
+                               Directions(command=Command.CHANGE_METADATA_POWERUP,
+                                          response=Prompt.METADATA_PROMPT)],
+    SubMenu.METADATA_RESTART: [Directions(SubMenu.CHANGE_PARAM),
+                               Directions(command=Command.CHANGE_METADATA_RESTART,
+                                          response=Prompt.METADATA_PROMPT)],
+    SubMenu.RES_SENSOR_POWER: [Directions(SubMenu.SENSOR_POWER),
+                               Directions(command=Command.CHANGE_RES_SENSOR_POWER,
+                                          response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.INST_AMP_POWER: [Directions(SubMenu.SENSOR_POWER),
+                             Directions(command=Command.CHANGE_INST_AMP_POWER,
+                                        response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.EH_ISOLATION_AMP_POWER: [Directions(SubMenu.SENSOR_POWER),
+                                     Directions(command=Command.CHANGE_EH_ISOLATION_AMP_POWER,
+                                                response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.HYDROGEN_POWER: [Directions(SubMenu.SENSOR_POWER),
+                             Directions(command=Command.CHANGE_HYDROGEN_POWER,
+                                        response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.REFERENCE_TEMP_POWER: [Directions(SubMenu.SENSOR_POWER),
+                                   Directions(command=Command.CHANGE_REFERENCE_TEMP_POWER,
+                                              response=Prompt.SENSOR_POWER_MENU)],
 })
 
+
+class BarsStatusParticleKey(BaseEnum):
+    SYSTEM_INFO = "trhph_system_info"
+    EPROM_STATUS = "trhph_eprom_status"
+    CYCLE_TIME = "trhph_cycle_time"
+    CYCLE_TIME_UNIT = "trhph_cycle_time_units"
+    POWER_CONTROL_WORD = "trhph_power_control_word"
+    RES_POWER = "trhph_res_power_status"
+    THERMO_HYDRO_AMP_POWER = "trhph_thermo_hydro_amp_power_status"
+    EH_AMP_POWER = "trhph_eh_amp_power_status"
+    HYDRO_SENSOR_POWER = "trhph_hydro_sensor_power_status"
+    REF_TEMP_POWER = "trhph_ref_temp_power_status"
+    METADATA_ON_POWERUP = "trhph_metadata_on_powerup"
+    METADATA_ON_RESTART = "trhph_metadata_on_restart"
+
+
+class BarsStatusParticle(DataParticle):
+    """
+    Routines for parsing raw data into a status particle structure for the
+    Satlantic PAR sensor. Overrides the building of values, and the rest comes
+    along for free.
+    """
+    _data_particle_type = DataParticleType.TRHPH_STATUS
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        pattern = r"""
+            (?x)
+            (?P<system_info>       System \s Name: (%(rest)s){7})  %(rest)s  %(rest)s
+            (?P<eprom_status>      %(int)s)                        \s+ = \s+ Eprom .*\r\n
+            (?P<cycle_time>        %(int)s)                        \s+ = \s+ Cycle \s Time .*\r\n
+            (?P<unit>              %(int)s)                        \s+ = \s+ Minutes \s or \s Seconds .*\r\n
+            (?P<power_control>     %(int)s)                        \s+ = \s+ Power \s Control .*\r\n
+            (?P<res_power>         %(int)s)                        \s+ = \s+ Res \s Power .*\r\n
+            (?P<thermo_hydro_amp>  %(int)s)                        \s+ = \s+ Thermocouple \s \& \s Hydrogen .*\r\n
+            (?P<eh_amp_power>      %(int)s)                        \s+ = \s+ eh \s Amp .*\r\n
+            (?P<hydro_sensor_power>%(int)s)                        \s+ = \s+ Hydrogen \s Sensor .*\r\n
+            (?P<ref_temp_power>    %(int)s)                        \s+ = \s+ Reference \s Temperature .*\r\n
+            (?P<print_on_powerup>  %(int)s)                        \s+ = \s+ .* Power \s up.*\r\n
+            (?P<print_on_restart>  %(int)s)                        \s+ = \s+ .* Restart \s Data.*\r\n
+            """ % common_matches
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(BarsStatusParticle.regex())
+
+    def _build_parsed_values(self):
+        """
+        Take something in the status format and split it into
+        a PAR status values (with an appropriate tag)
+
+        @throw SampleException If there is a problem with status creation
+        """
+        log.debug("BarsStatusParticle _build_parsed_values")
+
+        match = BarsStatusParticle.regex_compiled().match(self.raw_data)
+
+        if not match:
+            log.debug("No regex match status data $$$$$$")
+            raise SampleException("No regex match of status data: [%s]" % self.raw_data)
+
+        # log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
+        #           match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
+        #           match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
+        #           match.group(11))
+        log.trace("Matching sample %r", match.groups())
+
+        system_info = match.group('system_info')
+        eprom_status = int(match.group('eprom_status'))
+        cycle_time = int(match.group('cycle_time'))
+        unit = int(match.group('unit'))
+        power_control = int(match.group('power_control'))
+        res_power = int(match.group('res_power'))
+        thermo_hydro_amp = int(match.group('thermo_hydro_amp'))
+        eh_amp_power = int(match.group('eh_amp_power'))
+        hydro_sensor_power = int(match.group('hydro_sensor_power'))
+        ref_temp_power = int(match.group('ref_temp_power'))
+        print_on_powerup = int(match.group('print_on_powerup'))
+        print_on_restart = int(match.group('print_on_powerup'))
+
+        log.debug("---- system_info = %s" % system_info)
+
+        result = [{DataParticleKey.VALUE_ID: BarsStatusParticleKey.SYSTEM_INFO,
+                   DataParticleKey.VALUE: system_info},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.EPROM_STATUS,
+                  DataParticleKey.VALUE: eprom_status},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.CYCLE_TIME,
+                  DataParticleKey.VALUE: cycle_time},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.CYCLE_TIME_UNIT,
+                  DataParticleKey.VALUE: unit},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.POWER_CONTROL_WORD,
+                  DataParticleKey.VALUE: power_control},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.RES_POWER,
+                  DataParticleKey.VALUE: res_power},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.THERMO_HYDRO_AMP_POWER,
+                  DataParticleKey.VALUE: thermo_hydro_amp},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.EH_AMP_POWER,
+                  DataParticleKey.VALUE: eh_amp_power},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.HYDRO_SENSOR_POWER,
+                  DataParticleKey.VALUE: hydro_sensor_power},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.REF_TEMP_POWER,
+                  DataParticleKey.VALUE: ref_temp_power},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.METADATA_ON_POWERUP,
+                  DataParticleKey.VALUE: print_on_powerup},
+                  {DataParticleKey.VALUE_ID: BarsStatusParticleKey.METADATA_ON_RESTART,
+                  DataParticleKey.VALUE: print_on_restart},
+        ]
+        return result
 
 
 class BarsDataParticleKey(BaseEnum):
@@ -250,13 +395,32 @@ class BarsDataParticleKey(BaseEnum):
     RESISTIVITY_TEMP_DEG_C = "resistivity_temp_degc"
     BATTERY_VOLTAGE = "battery_voltage"
 
+
 class BarsDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure for the
     Satlantic PAR sensor. Overrides the building of values, and the rest comes
     along for free.
     """
-    _data_particle_type = DataParticleType.PARSED
+    _data_particle_type = DataParticleType.TRHPH_PARSED
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        pattern = r'(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\r\n'
+
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(BarsDataParticle.regex())
 
     def _build_parsed_values(self):
         """
@@ -267,12 +431,12 @@ class BarsDataParticle(DataParticle):
         """
         #log.debug("_build_parsed_values")
 
-        match = SAMPLE_REGEX.match(self.raw_data)
-        
+        match = BarsDataParticle.regex_compiled().match(self.raw_data)
+
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.raw_data)
-            
+
         # log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
         #           match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
         #           match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
@@ -290,8 +454,7 @@ class BarsDataParticle(DataParticle):
         res_temp_v = float(match.group(10))
         res_temp_c = float(match.group(11))
         batt_v = float(match.group(12))
-        
-        
+
         result = [{DataParticleKey.VALUE_ID: BarsDataParticleKey.RESISTIVITY_5,
                    DataParticleKey.VALUE: res_5},
                   {DataParticleKey.VALUE_ID: BarsDataParticleKey.RESISTIVITY_X1,
@@ -316,10 +479,11 @@ class BarsDataParticle(DataParticle):
                    DataParticleKey.VALUE: res_temp_c},
                   {DataParticleKey.VALUE_ID: BarsDataParticleKey.BATTERY_VOLTAGE,
                    DataParticleKey.VALUE: batt_v}
-                  ]
-        
+        ]
+
         return result
-    
+
+
 ###############################################################################
 # Driver
 ###############################################################################
@@ -330,6 +494,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
+
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -338,7 +503,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
-    
+
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
@@ -383,7 +548,7 @@ class Protocol(MenuInstrumentProtocol):
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
@@ -392,15 +557,26 @@ class Protocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_command_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
+                                       self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
+                                       self._handler_command_acquire_status)
 
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,
+                                       self._handler_autosample_acquire_status)
+
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
+                                       self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,
+                                       self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,
+                                       self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,
+                                       self._handler_direct_access_execute_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -414,6 +590,7 @@ class Protocol(MenuInstrumentProtocol):
         self._add_build_handler(Command.START_AUTOSAMPLE, self._build_menu_command)
         self._add_build_handler(Command.CHANGE_PARAM, self._build_menu_command)
         self._add_build_handler(Command.SHOW_PARAM, self._build_menu_command)
+        self._add_build_handler(Command.SHOW_STATUS, self._build_menu_command)
         self._add_build_handler(Command.SENSOR_POWER, self._build_menu_command)
         self._add_build_handler(Command.DIRECT_SET, self._build_direct_command)
         self._add_build_handler(Command.CHANGE_CYCLE_TIME, self._build_menu_command)
@@ -432,6 +609,7 @@ class Protocol(MenuInstrumentProtocol):
         self._add_response_handler(Command.BACK_MENU, self._parse_menu_change_response)
         self._add_response_handler(Command.BLANK, self._parse_menu_change_response)
         self._add_response_handler(Command.SHOW_PARAM, self._parse_show_param_response)
+        self._add_response_handler(Command.SHOW_STATUS, self._parse_show_param_response)
         self._add_response_handler(Command.CHANGE_CYCLE_TIME, self._parse_menu_change_response)
         self._add_response_handler(Command.CHANGE_VERBOSE, self._parse_menu_change_response)
         self._add_response_handler(Command.CHANGE_METADATA_RESTART, self._parse_menu_change_response)
@@ -442,7 +620,9 @@ class Protocol(MenuInstrumentProtocol):
         self._add_response_handler(Command.CHANGE_HYDROGEN_POWER, self._parse_menu_change_response)
         self._add_response_handler(Command.CHANGE_REFERENCE_TEMP_POWER, self._parse_menu_change_response)
         self._add_response_handler(Command.DIRECT_SET, self._parse_menu_change_response)
-        
+
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+
         # Add sample handlers.
 
         # State state machine in UNKNOWN state.
@@ -459,10 +639,20 @@ class Protocol(MenuInstrumentProtocol):
         The method that splits samples
         """
         return_list = []
-        
-        for match in SAMPLE_REGEX.finditer(raw_data):
-            return_list.append((match.start(), match.end()))
+        matchers = []
 
+        log.debug("sieve_function enters")
+
+        matchers.append(BarsStatusParticle.regex_compiled())
+        matchers.append(BarsDataParticle.regex_compiled())
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                log.debug("match in matcher")
+                return_list.append((match.start(), match.end()))
+
+        #for match in SAMPLE_REGEX.finditer(raw_data):
+        #    return_list.append((match.start(), match.end()))
+        log.debug("return_list = %s" % return_list)
         return return_list
 
     def _go_to_root_menu(self):
@@ -482,7 +672,7 @@ class Protocol(MenuInstrumentProtocol):
                 time.sleep(1)
         except InstrumentTimeoutException:
             raise InstrumentProtocolException("Not able to get valid command prompt. Is instrument in command mode?")
-        
+
         # When you get a --> prompt, do 9's until you get back to the root
         response = self._do_cmd_resp(Command.BACK_MENU,
                                      expected_prompt=MENU_PROMPTS)
@@ -490,17 +680,17 @@ class Protocol(MenuInstrumentProtocol):
             response = self._do_cmd_resp(Command.BACK_MENU,
                                          expected_prompt=MENU_PROMPTS)
 
-            
+
     def _filter_capabilities(self, events):
         """
         Define a small filter of the capabilities
         @param A list of events to consider as capabilities
         @retval A list of events that are actually capabilities
-        """ 
+        """
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-        
+
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -516,23 +706,23 @@ class Protocol(MenuInstrumentProtocol):
 
     def _handler_discover(self, *args, **kwargs):
         """
-        Discover current state by going to the root menu 
+        Discover current state by going to the root menu
         @retval (next_state, result)
         """
 
         next_state = None
         next_agent_state = None
-        
+
         # Try to break in case we are in auto sample
-        self._send_break() 
+        self._send_break()
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.IDLE
 
         self._go_to_root_menu()
-      
+
         return (next_state, next_agent_state)
-                
+
     ########################################################################
     # Command handlers.
     ########################################################################
@@ -561,7 +751,6 @@ class Protocol(MenuInstrumentProtocol):
 
         if (params == None):
             raise InstrumentParameterException("GET parameter list empty!")
-            
 
         if Parameter.ALL in params:
             params = Parameter.list()
@@ -577,7 +766,7 @@ class Protocol(MenuInstrumentProtocol):
         for param in params:
             if not Parameter.has(param):
                 raise InstrumentParameterException("Invalid parameter!")
-            result_vals[param] = self._param_dict.get(param) 
+            result_vals[param] = self._param_dict.get(param)
         result = result_vals
 
         #log.debug("Get finished, next: %s, result: %s", next_state, result)
@@ -603,10 +792,10 @@ class Protocol(MenuInstrumentProtocol):
 
                 try:
                     result = self._do_cmd_resp(Command.DIRECT_SET, unit,
-                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
-                                                      Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
+                                               expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
+                                                                Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
                     result = self._do_cmd_resp(Command.DIRECT_SET, value,
-                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
 
                 except InstrumentParameterException:
                     log.debug("Could not set cycle time. InstrumentParameterException!")
@@ -617,7 +806,7 @@ class Protocol(MenuInstrumentProtocol):
 
             elif (key == Parameter.METADATA_POWERUP):
                 self._navigate(SubMenu.METADATA_POWERUP)
-                result = self._do_cmd_resp(Command.DIRECT_SET, (1+ int(self._param_dict.get_init_value(key))),
+                result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(key))),
                                            expected_prompt=Prompt.CHANGE_PARAM_MENU)
                 if not result:
                     raise InstrumentParameterException("Could not set param %s" % key)
@@ -644,32 +833,32 @@ class Protocol(MenuInstrumentProtocol):
 
                 self._go_to_root_menu()
 
-            # elif (key == Parameter.EH_ISOLATION_AMP_POWER):
-            #
-            #     result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-            #     while not result:
-            #         result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-            #
-            # elif (key == Parameter.HYDROGEN_POWER):
-            #
-            #     result = self._navigate(SubMenu.HYDROGEN_POWER)
-            #     while not result:
-            #         result = self._navigate(SubMenu.HYDROGEN_POWER)
-            #
-            # elif (key == Parameter.INST_AMP_POWER):
-            #     result = self._navigate(SubMenu.INST_AMP_POWER)
-            #     while not result:
-            #         result = self._navigate(SubMenu.INST_AMP_POWER)
-            #
-            # elif (key == Parameter.REFERENCE_TEMP_POWER):
-            #     result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-            #     while not result:
-            #         result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-            #
-            # elif (key == Parameter.RES_SENSOR_POWER):
-            #     result = self._navigate(SubMenu.RES_SENSOR_POWER)
-            #     while not result:
-            #         result = self._navigate(SubMenu.RES_SENSOR_POWER)
+                # elif (key == Parameter.EH_ISOLATION_AMP_POWER):
+                #
+                #     result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+                #     while not result:
+                #         result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+                #
+                # elif (key == Parameter.HYDROGEN_POWER):
+                #
+                #     result = self._navigate(SubMenu.HYDROGEN_POWER)
+                #     while not result:
+                #         result = self._navigate(SubMenu.HYDROGEN_POWER)
+                #
+                # elif (key == Parameter.INST_AMP_POWER):
+                #     result = self._navigate(SubMenu.INST_AMP_POWER)
+                #     while not result:
+                #         result = self._navigate(SubMenu.INST_AMP_POWER)
+                #
+                # elif (key == Parameter.REFERENCE_TEMP_POWER):
+                #     result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+                #     while not result:
+                #         result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+                #
+                # elif (key == Parameter.RES_SENSOR_POWER):
+                #     result = self._navigate(SubMenu.RES_SENSOR_POWER)
+                #     while not result:
+                #         result = self._navigate(SubMenu.RES_SENSOR_POWER)
 
 
     def _set_params(self, *args, **kwargs):
@@ -697,7 +886,6 @@ class Protocol(MenuInstrumentProtocol):
         # re-sync with param dict
         self._go_to_root_menu()
         self._update_params()
-
 
 
     def _handler_command_set(self, *args, **kwargs):
@@ -733,8 +921,6 @@ class Protocol(MenuInstrumentProtocol):
 
         return (next_state, result)
 
-
-
     def _handler_command_autosample(self, *args, **kwargs):
         """
         Start autosample mode
@@ -743,13 +929,27 @@ class Protocol(MenuInstrumentProtocol):
         next_state = None
         next_agent_state = None
         result = None
-        
+
         self._navigate(SubMenu.MAIN)
         self._do_cmd_no_resp(Command.START_AUTOSAMPLE)
-        
+
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
-        
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Acquire Instrument Status
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        self._navigate(SubMenu.MAIN)
+        self._do_cmd_no_resp(Command.SHOW_STATUS)
+
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self):
@@ -818,6 +1018,33 @@ class Protocol(MenuInstrumentProtocol):
         """
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # Break out of auto sample mode by sending control S to the instrument
+        self._send_break()
+
+        # Send the show parameter command to collect instrument's status
+        self._navigate(SubMenu.MAIN)
+        log.debug("_handler_autosample_acquire_status: send SHOW_STATUS")
+        self._do_cmd_no_resp(Command.SHOW_STATUS)
+
+        # is it necessary ???????????????
+        self._go_to_root_menu()
+
+        # Send the start autosample command to get back to autosample mode once
+        # the instrument's status has been collected.
+        self._navigate(SubMenu.MAIN)
+        log.debug("_handler_autosample_acquire_status: send START_AUTOSAMPLE")
+        self._do_cmd_no_resp(Command.START_AUTOSAMPLE)
+
+        log.debug("_handler_autosample_acquire_status: Before returning")
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_autosample_stop(self):
         """
         Stop autosample mode
@@ -826,10 +1053,10 @@ class Protocol(MenuInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        if (self._send_break()):        
+        if (self._send_break()):
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
-        
+
         return (next_state, (next_agent_state, result))
 
     ########################################################################
@@ -839,21 +1066,21 @@ class Protocol(MenuInstrumentProtocol):
         """ Issue a simple command that does NOT require a newline at the end to
         execute. Likely used for control characters or special characters """
         return COMMAND_CHAR[cmd]
-    
+
     def _build_menu_command(self, cmd):
         """ Pick the right character and add a newline """
         if COMMAND_CHAR[cmd]:
-            return COMMAND_CHAR[cmd]+self._newline
+            return COMMAND_CHAR[cmd] + self._newline
         else:
             raise InstrumentProtocolException("Unknown command character for %s" % cmd)
-            
+
     def _build_direct_command(self, cmd, arg):
         """ Build a command where we just send the argument to the instrument.
         Ignore the command part, we dont need it here as we are already in
         a submenu.
         """
         return "%s%s" % (arg, self._newline)
-    
+
     ########################################################################
     # Command parsers
     ########################################################################
@@ -871,7 +1098,7 @@ class Protocol(MenuInstrumentProtocol):
         """ Parse the show parameter response screen """
         log.trace("Parsing show parameter screen")
         self._param_dict.update_many(response)
-        
+
     ########################################################################
     # Utilities
     ########################################################################
@@ -879,15 +1106,17 @@ class Protocol(MenuInstrumentProtocol):
     def _wakeup(self, timeout):
         # Always awake for this instrument!
         pass
-    
+
     def _got_chunk(self, chunk, timestamp):
         """
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
         """
-        if not self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp):
-             raise InstrumentProtocolException("Unhandled chunk")
-        
+        log.debug("_got_chunk")
+        if not (self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp) or
+                self._extract_sample(BarsStatusParticle, BarsStatusParticle.regex_compiled(), chunk, timestamp)):
+            raise InstrumentProtocolException("Unhandled chunk")
+
     def _update_params(self):
         """
         Fetch the parameters from the device, and update the param dict.
@@ -897,10 +1126,10 @@ class Protocol(MenuInstrumentProtocol):
         #log.debug("Updating parameter dict")
         old_config = self._param_dict.get_config()
         self._get_config()
-        new_config = self._param_dict.get_config()            
+        new_config = self._param_dict.get_config()
         if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)  
-    
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     def _get_config(self, *args, **kwargs):
         """ Get the entire configuration for the instrument
         
@@ -913,7 +1142,7 @@ class Protocol(MenuInstrumentProtocol):
         self._go_to_root_menu()
         self._navigate(SubMenu.SHOW_PARAM)
         self._go_to_root_menu()
-            
+
     def _send_break(self, timeout=4):
         """
         Execute an attempts to break out of auto sample (a few if things get garbled).
@@ -928,26 +1157,25 @@ class Protocol(MenuInstrumentProtocol):
         # couple chars instead of command/respose. Could be done that way
         # though. Just more steps, logic, and delay for such a simple
         # exchange
-        
+
         for count in range(0, 3):
             self._promptbuf = ""
             try:
                 self._connection.send(COMMAND_CHAR[Command.BREAK])
                 (prompt, result) = self._get_raw_response(timeout, expected_prompt=[Prompt.BREAK_ACK,
-                                                                              Prompt.CMD_PROMPT])
+                                                                                    Prompt.CMD_PROMPT])
                 if (prompt == Prompt.BREAK_ACK):
                     self._connection.send(COMMAND_CHAR[Command.BREAK])
                     (prompt, result) = self._get_response(timeout, expected_prompt=Prompt.CMD_PROMPT)
                     return True
-                elif(prompt == Prompt.CMD_PROMPT):
+                elif (prompt == Prompt.CMD_PROMPT):
                     return True
-                
+
             except InstrumentTimeoutException:
                 continue
 
         log.trace("_send_break failing after several attempts")
-        return False   
-
+        return False
 
 
     def _build_driver_dict(self):
@@ -968,8 +1196,9 @@ class Protocol(MenuInstrumentProtocol):
         self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct")
         self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct")
         self._cmd_dict.add(Capability.EXECUTE_DIRECT, display_name="execute direct")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
 
-        
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -978,11 +1207,11 @@ class Protocol(MenuInstrumentProtocol):
         """
         # Add parameter handlers to parameter dict.
         self._param_dict = ProtocolParameterDict()
-        
+
         self._param_dict.add(Parameter.CYCLE_TIME,
                              r'(\d+)\s+= Cycle Time \(.*\)\r\n(0|1)\s+= Minutes or Seconds Cycle Time',
-                             lambda match : self._to_seconds(int(match.group(1)),
-                                                             int(match.group(2))),
+                             lambda match: self._to_seconds(int(match.group(1)),
+                                                            int(match.group(2))),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Cycle Time",
@@ -993,13 +1222,13 @@ class Protocol(MenuInstrumentProtocol):
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.CHANGE_PARAM,
-                             value_description= "Value over 59 will rounded down to the nearest minute ",
-                             units= Units.Seconds,
+                             value_description="Value over 59 will be rounded down to the nearest minute ",
+                             units=Units.SECOND,
                              submenu_write=[["1", Prompt.CYCLE_TIME_PROMPT]])
-        
+
         self._param_dict.add(Parameter.VERBOSE,
-                             r'', # Write-only, so does it really matter?
-                             lambda match : None,
+                             r'',  # Write-only, so does it really matter?
+                             lambda match: None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Verbose",
@@ -1009,10 +1238,10 @@ class Protocol(MenuInstrumentProtocol):
                              init_value=1,
                              menu_path_write=SubMenu.CHANGE_PARAM,
                              submenu_write=[["2", Prompt.VERBOSE_PROMPT]])
- 
+
         self._param_dict.add(Parameter.METADATA_POWERUP,
                              r'(0|1)\s+= Metadata Print Status on Power up',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Metadata Powerup",
@@ -1025,7 +1254,7 @@ class Protocol(MenuInstrumentProtocol):
 
         self._param_dict.add(Parameter.METADATA_RESTART,
                              r'(0|1)\s+= Metadata Print Status on Restart Data Collection',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Metadata Restart",
@@ -1035,10 +1264,10 @@ class Protocol(MenuInstrumentProtocol):
                              init_value=0,
                              menu_path_write=SubMenu.CHANGE_PARAM,
                              submenu_write=[["4", Prompt.METADATA_PROMPT]])
-        
+
         self._param_dict.add(Parameter.RES_SENSOR_POWER,
                              r'(0|1)\s+= Res Power Status',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Res Sensor Power",
@@ -1053,7 +1282,7 @@ class Protocol(MenuInstrumentProtocol):
 
         self._param_dict.add(Parameter.INST_AMP_POWER,
                              r'(0|1)\s+= Thermocouple & Hydrogen Amp Power Status',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Inst Amp Power",
@@ -1068,7 +1297,7 @@ class Protocol(MenuInstrumentProtocol):
 
         self._param_dict.add(Parameter.EH_ISOLATION_AMP_POWER,
                              r'(0|1)\s+= eh Amp Power Status',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Eh Iso Amp Power",
@@ -1080,10 +1309,10 @@ class Protocol(MenuInstrumentProtocol):
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
                              submenu_write=[["3"]])
-        
+
         self._param_dict.add(Parameter.HYDROGEN_POWER,
                              r'(0|1)\s+= Hydrogen Sensor Power Status',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Hydrogen Sensor Power Status",
@@ -1095,10 +1324,10 @@ class Protocol(MenuInstrumentProtocol):
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
                              submenu_write=[["4"]])
-        
+
         self._param_dict.add(Parameter.REFERENCE_TEMP_POWER,
                              r'(0|1)\s+= Reference Temperature Power Status',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ref Temp Power",
@@ -1110,7 +1339,7 @@ class Protocol(MenuInstrumentProtocol):
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
                              submenu_write=[["5"]])
-    
+
     @staticmethod
     def _to_seconds(value, unit):
         """
@@ -1122,14 +1351,14 @@ class Protocol(MenuInstrumentProtocol):
         """
         if (not isinstance(value, int)) or (not isinstance(unit, int)):
             raise InstrumentProtocolException("Invalid second arguments!")
-        
+
         if unit == 1:
             return value * 60
         elif unit == 0:
             return value
         else:
             raise InstrumentProtocolException("Invalid Units!")
-            
+
     @staticmethod
     def _from_seconds(value):
         """
@@ -1145,7 +1374,7 @@ class Protocol(MenuInstrumentProtocol):
         #log.debug('_from_seconds')
         if (value < 15) or (value > 3600):
             raise InstrumentParameterException("Invalid seconds value: %s" % value)
-        
+
         if (value < 60):
             return (1, value)
         else:
