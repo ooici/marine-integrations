@@ -37,7 +37,7 @@ __author__ = 'Pete Cable'
 __license__ = 'Apache 2.0'
 
 log = mi.core.log.get_logger()
-META_LOGGER = mi.core.log.get_logging_metaclass('debug')
+META_LOGGER = mi.core.log.get_logging_metaclass('trace')
 
 
 ###

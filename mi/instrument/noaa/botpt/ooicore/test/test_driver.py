@@ -14,7 +14,6 @@ USAGE:
 """
 
 import time
-
 import ntplib
 import mi.instrument.noaa.botpt.ooicore.particles as particles
 from mi.core.instrument.port_agent_client import PortAgentPacket

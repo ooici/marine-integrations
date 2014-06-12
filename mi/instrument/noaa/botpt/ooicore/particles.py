@@ -18,7 +18,7 @@ from mi.core.log import get_logging_metaclass
 __author__ = 'Pete Cable'
 __license__ = 'Apache 2.0'
 
-METALOGGER = get_logging_metaclass('debug')
+METALOGGER = get_logging_metaclass('trace')
 
 NEWLINE = '\n'
 IRIS = 'IRIS'
