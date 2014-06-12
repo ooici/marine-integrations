@@ -116,6 +116,11 @@ class BotptDataParticle(DataParticle):
     __metaclass__ = METALOGGER
 
     def __init__(self, *args, **kwargs):
+        """
+        Initialize the BotptDataParticle base class.
+        perform the regex match, raise exception if no match found
+        @throws SampleException
+        """
         super(BotptDataParticle, self).__init__(*args, **kwargs)
         self.match = self.regex_compiled().match(self.raw_data)
         if not self.match:
@@ -127,6 +132,10 @@ class BotptDataParticle(DataParticle):
 
     @classmethod
     def regex_compiled(cls):
+        """
+        Compile the regex, caching the result for future calls
+        @return: compiled regex
+        """
         if cls._compiled_regex is None:
             if cls._compile_flags is None:
                 cls._compiled_regex = re.compile(cls.regex())
@@ -135,6 +144,9 @@ class BotptDataParticle(DataParticle):
         return cls._compiled_regex
 
     def set_botpt_timestamp(self):
+        """
+        Set the internal timestamp based on the embedded timestamp in the sample
+        """
         ts = self.match.group('date_time')
         if '.' in ts:
             ts, right = ts.split('.', 1)
@@ -143,6 +155,13 @@ class BotptDataParticle(DataParticle):
             fraction = 0
         timestamp = time.strptime(ts, "%Y/%m/%d %H:%M:%S")
         self.set_internal_timestamp(unix_time=time.mktime(timestamp) + fraction)
+
+    def _encode_all(self):
+        """
+        Default implementation, return empty list
+        @return: list of encoded values
+        """
+        return []
 
     def _build_parsed_values(self):
         """
@@ -155,23 +174,13 @@ class BotptDataParticle(DataParticle):
             raise SampleException("Exception [%s] while converting data: [%s]" % (e, self.raw_data))
         return result
 
-    def _encode_all(self):
+    @staticmethod
+    def _filter(filter_string):
         """
-        Default encode all implementation.  Covers all status particles, should be overridden for samples.
+        Generate a filter function based on the supplied filter string
+        @param filter_string
+        @return: filter function
         """
-        name = self.match.group('name')
-        status = NEWLINE.join(line for line in self.raw_data.split(NEWLINE) if line.startswith(name))
-        try:
-            ts = self.match.group('date_time')
-        except IndexError:
-            ts = None
-        return [
-            self._encode_value('sensor_id', name, str),
-            self._encode_value(BotptStatusParticleKey.TIME, ts, str),
-            self._encode_value('status', status, str)
-        ]
-
-    def _filter(self, filter_string):
         def inner(data):
             return NEWLINE.join(line for line in data.split(NEWLINE) if line.startswith(filter_string))
         return inner
@@ -411,6 +420,11 @@ class BotptStatusParticle(BotptDataParticle):
             self._encode_value(BotptStatusParticleKey.SYST, syst_status, self._filter('SYST')),
         ]
 
+
+# ##############################################################################
+# Individual Status Particles
+# These exist only to contain the regular expressions for filtering in the driver
+###############################################################################
 
 
 class IrisStatusParticle1(BotptDataParticle):

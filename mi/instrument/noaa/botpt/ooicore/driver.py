@@ -9,6 +9,7 @@ import json
 import re
 import time
 import datetime
+
 import ntplib
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
@@ -16,7 +17,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, Para
 from mi.core.common import BaseEnum, Units, Prefixes
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, InitializationType
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -99,6 +100,7 @@ class ProtocolEvent(BaseEnum):
     NANO_TIME_SYNC = 'PROTOCOL_EVENT_NANO_TIME_SYNC'
     START_HEATER = 'PROTOCOL_EVENT_START_HEATER'
     STOP_HEATER = 'PROTOCOL_EVENT_STOP_HEATER'
+    LEVELING_TIMEOUT = 'PROTOCOL_EVENT_LEVELING_TIMEOUT'
 
 
 class Capability(BaseEnum):
@@ -126,7 +128,6 @@ class Parameter(DriverParameter):
     LEVELING_TIMEOUT = 'relevel_timeout'
     LEVELING_FAILED = 'leveling_failed'
     OUTPUT_RATE = 'output_rate_hz'
-    SYNC_INTERVAL = 'time_sync_interval'
     HEAT_DURATION = 'heat_duration'
     HEATER_ON = 'heater_on'
     LILY_LEVELING = 'lily_leveling'
@@ -145,7 +146,6 @@ class ParameterConstraint(BaseEnum):
     YTILT_TRIGGER = (float, 0, 330)
     LEVELING_TIMEOUT = (int, 60, 6000)
     OUTPUT_RATE = (int, 1, 40)
-    SYNC_INTERVAL = (int, 600, 86400)
     HEAT_DURATION = (int, 1, 8)
     AUTO_RELEVEL = (bool, None, None)
 
@@ -200,8 +200,7 @@ class RegexResponse(BaseEnum):
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
-    machine.
+    Subclasses SingleConnectionInstrumentDriver with connection state machine.
     """
 
     def __init__(self, evt_callback):
@@ -252,8 +251,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent,
-                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         handlers = {
@@ -273,6 +271,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.NANO_TIME_SYNC, self._handler_time_sync),
                 (ProtocolEvent.START_HEATER, self._handler_start_heater),
                 (ProtocolEvent.STOP_HEATER, self._handler_stop_heater),
+                (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -287,6 +286,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.NANO_TIME_SYNC, self._handler_time_sync),
                 (ProtocolEvent.START_HEATER, self._handler_start_heater),
                 (ProtocolEvent.STOP_HEATER, self._handler_stop_heater),
+                (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
@@ -300,8 +300,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             for event, handler in handlers[state]:
                 self._protocol_fsm.add_handler(state, event, handler)
 
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
+        # Construct the metadata dictionaries
         self._build_param_dict()
         self._build_command_dict()
         self._build_driver_dict()
@@ -317,17 +316,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         for command in InstrumentCommand.list():
             self._add_response_handler(command, self._generic_response_handler)
 
-        # State state machine in UNKNOWN state.
+        # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
+        # create chunker
         self._chunker = StringChunker(Protocol.sieve_function)
 
-        self.initialize_scheduler()
         self._last_data_timestamp = 0
         self.has_pps = True
+
+        # set up scheduled event handling
+        self.initialize_scheduler()
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.NANO_TIME_SYNC, ProtocolEvent.NANO_TIME_SYNC)
 
@@ -336,6 +338,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Sort data in the chunker...
         @param raw_data: Data to be searched for samples
+        @return: list of (start,end) tuples
         """
         matchers = []
         return_list = []
@@ -357,6 +360,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Process chunk output by the chunker.  Generate samples and (possibly) react
         @param chunk: data
         @param ts: ntp timestamp
+        @return sample
         @throws InstrumentProtocolException
         """
         possible_particles = [
@@ -472,13 +476,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 'visibility': rw,
                 'startup_param': True,
             },
-            Parameter.SYNC_INTERVAL: {
-                'type': _int,
-                'display_name': 'NANO Time Sync Interval',
-                'units': Units.SECOND,
-                'visibility': rw,
-                'startup_param': True,
-            },
             Parameter.HEATER_ON: {
                 'type': _bool,
                 'display_name': 'Heater Running',
@@ -514,12 +511,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param value: value to be sent
         @return: command string
         """
-        return '{0:s}{1:d}{2:s}'.format(cmd, value, NEWLINE)
+        return '%s%d%s' % (cmd, value, NEWLINE)
 
     def _verify_set_values(self, params):
         """
         Verify supplied values are in range, if applicable
-        @param params: Dictionary of Parameter:value to be verified
+        @param params: Dictionary of Parameter:value pairs to be verified
         @throws InstrumentParameterException
         """
         constraints = ParameterConstraint.dict()
@@ -527,6 +524,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # step through the list of parameters
         for key, val in params.iteritems():
+            # verify this parameter exists
+            if not Parameter.has(key):
+                raise InstrumentParameterException('Received invalid parameter in SET: %s' % key)
             # if constraint exists, verify we have not violated it
             constraint_key = parameters.get(key)
             if constraint_key in constraints:
@@ -541,7 +541,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 # else, check if we can cast to the correct type
                 else:
                     try:
-                        value = var_type(val)
+                        var_type(val)
                     except ValueError:
                         raise InstrumentParameterException('Type mismatch: %s' % constraint_string)
                     # now, verify we are within min/max
@@ -552,7 +552,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Issue commands to the instrument to set various parameters
         @param args: arglist, should contain a dictionary of parameters/values to be set
-        @throws InstrumentParameterException
         """
         try:
             params = args[0]
@@ -570,10 +569,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # all constraints met or no constraints exist, set the values
         for key, value in params.iteritems():
-            try:
-                self._param_dict.set_value(key, value)
-            except KeyError:
-                raise InstrumentParameterException('Received invalid parameter in SET: %s' % key)
+            self._param_dict.set_value(key, value)
 
         new_config = self._param_dict.get_config()
 
@@ -586,7 +582,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _update_params(self, *args, **kwargs):
         """
-        Update a parameter in the instrument, modify the param dictionary from the instrument response
+        Update the param dictionary based on instrument response
         """
         result, _ = self._do_cmd_resp(InstrumentCommand.NANO_DUMP1,
                                       response_regex=particles.NanoStatusParticle.regex_compiled())
@@ -628,20 +624,16 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _remove_leveling_timeout(self):
         """
-        Set up a leveling timer to make sure we don't stay in
-        leveling state forever if something goes wrong
+        Clean up the leveling timer
         """
         try:
             self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
-            return True
         except KeyError:
             log.debug('Unable to remove LEVELING_TIMEOUT scheduled job, job does not exist.')
-            return False
 
     def _schedule_leveling_timeout(self):
         """
-        Set up a leveling timer to make sure we don't stay in
-        leveling state forever if something goes wrong
+        Set up a leveling timer to make sure we don't stay in leveling state forever if something goes wrong
         """
         self._remove_leveling_timeout()
         dt = datetime.datetime.now() + datetime.timedelta(seconds=self._param_dict.get(Parameter.LEVELING_TIMEOUT))
@@ -658,7 +650,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         }
 
         self.set_init_params(config)
-        self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.STOP_LEVELING)
+        self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.LEVELING_TIMEOUT)
 
     def _stop_autosample(self):
         """
@@ -703,8 +695,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             sample = self._particle_to_dict(sample)
             x_tilt = abs(sample[particles.LilySampleParticleKey.X_TILT])
             y_tilt = abs(sample[particles.LilySampleParticleKey.Y_TILT])
-            if x_tilt > self._param_dict.get(Parameter.XTILT_TRIGGER) or \
-                    y_tilt > self._param_dict.get(Parameter.YTILT_TRIGGER):
+            x_trig = int(self._param_dict.get(Parameter.XTILT_TRIGGER))
+            y_trig = int(self._param_dict.get(Parameter.YTILT_TRIGGER))
+            if x_tilt > x_trig or y_tilt > y_trig:
                 self._async_raise_fsm_event(ProtocolEvent.START_LEVELING)
 
     def _failed_leveling(self, axis):
@@ -753,6 +746,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         pps_sync = sample[particles.NanoSampleParticleKey.PPS_SYNC] == 'P'
         if pps_sync and not self.has_pps:
             # pps sync regained, sync the time
+            self.has_pps = True
             self._async_raise_fsm_event(ProtocolEvent.NANO_TIME_SYNC)
         elif self.has_pps:
             self.has_pps = False
@@ -794,6 +788,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.
         """
+        # key off the initialization flag to determine if we should sync the time
+        if self._init_type == InitializationType.STARTUP:
+            self._handler_time_sync()
+
         self._init_params()
         self._stop_autosample()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -928,7 +926,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Syncing time starts autosample...
         @return next_state, (next_agent_state, result)
         """
-        self._do_cmd_resp(InstrumentCommand.NANO_SET_TIME)
+        self._do_cmd_resp(InstrumentCommand.NANO_SET_TIME, expected_prompt=NANO_STRING)
         if self.get_current_state() == ProtocolState.COMMAND:
             self._do_cmd_no_resp(InstrumentCommand.NANO_OFF)
         return None, (None, None)
@@ -951,7 +949,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         if self._param_dict.get(Parameter.LILY_LEVELING):
-            failed = self._remove_leveling_timeout()
+            self._remove_leveling_timeout()
 
             self._do_cmd_resp(InstrumentCommand.LILY_STOP_LEVELING, expected_prompt=Prompt.LILY_STOP_LEVELING)
             self._param_dict.set_value(Parameter.LILY_LEVELING, False)
@@ -959,17 +957,20 @@ class Protocol(CommandResponseInstrumentProtocol):
             if self.get_current_state() == ProtocolState.AUTOSAMPLE:
                 self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
 
-            if failed:
-                # leveling failed! disable autorelevel
-                self._param_dict.set_value(Parameter.AUTO_RELEVEL, False)
-                self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
-                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-                raise InstrumentProtocolException('Leveling failed to complete within timeout, disabling auto-relevel')
-
-            # leveling successful
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         return None, (None, None)
+
+    def _handler_leveling_timeout(self):
+        """
+        Leveling has timed out, disable auto-relevel and mark leveling as failed.
+        handler_stop_leveling will raise the config change event.
+        @throws InstrumentProtocolException
+        """
+        self._param_dict.set_value(Parameter.AUTO_RELEVEL, False)
+        self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
+        self._handler_stop_leveling()
+        raise InstrumentProtocolException('Leveling failed to complete within timeout, disabling auto-relevel')
 
     def _handler_start_heater(self, *args, **kwargs):
         """

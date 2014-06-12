@@ -12,9 +12,9 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-import pprint
 
 import time
+
 import ntplib
 import mi.instrument.noaa.botpt.ooicore.particles as particles
 from mi.core.instrument.port_agent_client import PortAgentPacket
@@ -31,7 +31,7 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.exceptions import InstrumentDataException, SampleException
+from mi.core.exceptions import InstrumentDataException, SampleException, InstrumentProtocolException
 from mi.instrument.noaa.botpt.ooicore.driver import Prompt, ScheduledJob
 from mi.instrument.noaa.botpt.ooicore.driver import Parameter
 from mi.instrument.noaa.botpt.ooicore.driver import ProtocolState
@@ -64,11 +64,10 @@ InstrumentDriverTestCase.initialize(
         DriverConfigKey.PARAMETERS: {
             Parameter.AUTO_RELEVEL: True,
             Parameter.LEVELING_TIMEOUT: 600,
-            Parameter.XTILT_TRIGGER: 300,
-            Parameter.YTILT_TRIGGER: 300,
+            Parameter.XTILT_TRIGGER: 300.0,
+            Parameter.YTILT_TRIGGER: 300.0,
             Parameter.HEAT_DURATION: 1,
-            Parameter.OUTPUT_RATE: 1,
-            Parameter.SYNC_INTERVAL: 86400,
+            Parameter.OUTPUT_RATE: 40,
         }
     }
 )
@@ -118,8 +117,7 @@ class BotptTestMixinSub(DriverTestMixin):
         Parameter.XTILT_TRIGGER: {TYPE: float, READONLY: False, DA: False, STARTUP: True, VALUE: 300},
         Parameter.YTILT_TRIGGER: {TYPE: float, READONLY: False, DA: False, STARTUP: True, VALUE: 300},
         Parameter.LEVELING_TIMEOUT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 600},
-        Parameter.OUTPUT_RATE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 1},
-        Parameter.SYNC_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 86400},
+        Parameter.OUTPUT_RATE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 40},
         Parameter.HEAT_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 1},
         # RO
         Parameter.LILY_LEVELING: {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: False},
@@ -152,13 +150,16 @@ class BotptTestMixinSub(DriverTestMixin):
                                 'DRIVER_EVENT_START_DIRECT',
                                 'PROTOCOL_EVENT_START_LEVELING',
                                 'PROTOCOL_EVENT_STOP_LEVELING',
+                                'PROTOCOL_EVENT_LEVELING_TIMEOUT',
                                 'PROTOCOL_EVENT_START_HEATER',
                                 'PROTOCOL_EVENT_STOP_HEATER',
                                 'PROTOCOL_EVENT_NANO_TIME_SYNC'],
-        ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+        ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
+                                   'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                    'PROTOCOL_EVENT_START_LEVELING',
                                    'PROTOCOL_EVENT_STOP_LEVELING',
+                                   'PROTOCOL_EVENT_LEVELING_TIMEOUT',
                                    'PROTOCOL_EVENT_START_HEATER',
                                    'PROTOCOL_EVENT_STOP_HEATER',
                                    'PROTOCOL_EVENT_NANO_TIME_SYNC'],
@@ -284,6 +285,14 @@ class BotptTestMixinSub(DriverTestMixin):
         particles.LilyLevelingParticleKey.SN: {TYPE: unicode, VALUE: u'N9651', REQUIRED: True},
         particles.LilyLevelingParticleKey.STATUS: {TYPE: unicode, VALUE: u'Switching to Y', REQUIRED: True}
     }
+
+    def assert_driver_parameters(self, current_parameters, verify_values=False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
     def assert_particle(self, data_particle, particle_type, particle_keys, sample_data, verify_values=False):
         """
@@ -541,25 +550,27 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BotptTestMixinSub):
         """
         driver = self.test_connect()
 
-        # set the leveling timeout to 1 to speed up timeout
-        driver._protocol._param_dict.set_value(Parameter.LEVELING_TIMEOUT, 1)
-        driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_LEVELING)
-        self.assertEqual(driver._protocol._param_dict.get(Parameter.LILY_LEVELING), True)
-
-        # sleep for longer than the length of timeout
-        time.sleep(driver._protocol._param_dict.get(Parameter.LEVELING_TIMEOUT) + 1)
-
         expected = [call(ProtocolEvent.GET, Parameter.ALL),  # startup get ALL
                     call(ProtocolEvent.START_LEVELING),      # start leveling
                     call(ProtocolEvent.GET, Parameter.ALL),  # config change get ALL
-                    call(ProtocolEvent.STOP_LEVELING),       # leveling timed out
+                    call(ProtocolEvent.LEVELING_TIMEOUT),  # leveling timed out
                     call(ProtocolEvent.GET, Parameter.ALL)]  # config change get ALL
 
-        # assert that we raised the expected events
-        self.assertEqual(driver._protocol._protocol_fsm.on_event.call_args_list, expected)
-        self.assertEqual(driver._protocol._param_dict.get(Parameter.LILY_LEVELING), False)
-        self.assertEqual(driver._protocol._param_dict.get(Parameter.AUTO_RELEVEL), False)
-        self.assertEqual(driver._protocol._param_dict.get(Parameter.LEVELING_FAILED), True)
+        try:
+            # set the leveling timeout to 1 to speed up timeout
+            driver._protocol._param_dict.set_value(Parameter.LEVELING_TIMEOUT, 1)
+            driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_LEVELING)
+            self.assertEqual(driver._protocol._param_dict.get(Parameter.LILY_LEVELING), True)
+
+            # sleep for longer than the length of timeout
+            time.sleep(driver._protocol._param_dict.get(Parameter.LEVELING_TIMEOUT) + 1)
+
+        except InstrumentProtocolException:
+            # assert that we raised the expected events
+            self.assertEqual(driver._protocol._protocol_fsm.on_event.call_args_list, expected)
+            self.assertEqual(driver._protocol._param_dict.get(Parameter.LILY_LEVELING), False)
+            self.assertEqual(driver._protocol._param_dict.get(Parameter.AUTO_RELEVEL), False)
+            self.assertEqual(driver._protocol._param_dict.get(Parameter.LEVELING_FAILED), True)
 
     def test_leveling_complete(self):
         """
@@ -702,13 +713,21 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def assert_acquire_status(self, clear_events=True):
+    def assert_acquire_status(self):
         """
         Verify all status particles generated
         """
         self.clear_events()
         self.assert_async_particle_generation(particles.DataParticleType.BOTPT_STATUS,
                                               self.assert_particle_botpt_status, timeout=20)
+
+    def assert_time_sync(self):
+        """
+        Verify all status particles generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(particles.DataParticleType.NANO_SAMPLE,
+                                              self.assert_particle_nano_sample_01, timeout=20)
 
     def test_connect(self):
         self.assert_initialize_driver()
@@ -751,6 +770,20 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         self.assert_initialize_driver()
         self.assert_set_exception('BOGUS', 'CHEESE')
 
+    def test_startup_parameters(self):
+        new_values = {
+            Parameter.AUTO_RELEVEL: True,
+            Parameter.LEVELING_TIMEOUT: 601,
+            Parameter.XTILT_TRIGGER: 301,
+            Parameter.YTILT_TRIGGER: 301,
+            Parameter.HEAT_DURATION: 2,
+            Parameter.OUTPUT_RATE: 1,
+        }
+
+        self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values,
+                                       self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS])
+
     def test_incomplete_config(self):
         """
         Break our startup config, then verify the driver raises an exception
@@ -790,31 +823,21 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         # leveling before the triggers have been reset to 300
         self.assert_set(Parameter.XTILT_TRIGGER, 0, no_get=True)
 
-        self.assert_driver_command(Capability.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_driver_command(Capability.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE)
         self.assert_async_particle_generation(particles.DataParticleType.LILY_LEVELING,
                                               self.assert_particle_lily_leveling_01)
+
         # verify the flag is set
         self.assert_get(Parameter.LILY_LEVELING, True)
-
-        # clear the events queue
-        self.events = []
-
-        # wait for a sample particle to indicate leveling is complete
-        self.assert_async_particle_generation(particles.DataParticleType.LILY_SAMPLE,
-                                              self.assert_particle_lily_sample_01,
-                                              timeout=90)
-
-        # verify the flag is unset
-        self.assert_get(Parameter.LILY_LEVELING, False)
-        self.assert_driver_command(Capability.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(Capability.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
 
     def test_autosample(self):
         """
         Test for turning data on
         """
         self.assert_initialize_driver()
-        self.assert_driver_command(Capability.START_AUTOSAMPLE)
-        rate = int(self.test_config.driver_startup_config['parameters'][Parameter.OUTPUT_RATE])
+        self.assert_driver_command(Capability.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE)
+        rate = int(self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.OUTPUT_RATE])
 
         # autosample for 10 seconds, then count the samples...
         # we can't test "inline" because the nano data rate is too high.
@@ -865,9 +888,22 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BotptTestMixinS
         self.assert_driver_command(Capability.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_scheduled_acquire_status(self):
+        """
+        Verify we can schedule an acquire status event
+        """
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=20)
 
+    def test_scheduled_time_sync(self):
+        """
+        Verify we can schedule a time sync event.
+        If we sync time in command mode, we will generate at least one NANO sample particle.
+        """
+        self.assert_scheduled_event(ScheduledJob.NANO_TIME_SYNC, self.assert_time_sync, delay=20)
+
     def test_heat_on(self):
+        """
+        Test turning the heater on and off.
+        """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_HEATER)
         self.assert_get(Parameter.HEATER_ON, True)
@@ -887,6 +923,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
         InstrumentDriverQualificationTestCase.setUp(self)
 
     def assert_cycle(self):
+        """
+        Assert we can enter autosample, acquire all particles, acquire status,
+        stop autosample, acquire heat particle, acquire_status.
+        """
         self.assert_start_autosample()
         # verify all particles in autosample
         self.assert_particle_async(particles.DataParticleType.LILY_SAMPLE, self.assert_particle_lily_sample_01)
@@ -903,8 +943,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
                                     particles.DataParticleType.BOTPT_STATUS)
 
     def test_cycle(self):
+        """
+        Verify we can run through the test cycle 4 times
+        """
         self.assert_enter_command_mode()
-        for x in range(4):
+        for x in xrange(4):
             log.debug('test_cycle -- PASS %d', x + 1)
             self.assert_cycle()
 
@@ -922,6 +965,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
 
     def test_leveling(self):
+        """
+        Verify we can stop/start leveling
+        """
         self.assert_enter_command_mode()
         self.assert_resource_command(Capability.START_LEVELING)
         self.assert_get_parameter(Parameter.LILY_LEVELING, True)
@@ -938,7 +984,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
         constraints = ParameterConstraint.dict()
         parameters = Parameter.dict()
         reverse_param = Parameter.reverse_dict()
-        startup_config = self.test_config.driver_startup_config['parameters']
+        startup_config = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
 
         for key in self._driver_parameters:
             if self._driver_parameters[key][self.READONLY]:
