@@ -932,8 +932,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, BotptTestMi
         self.assert_particle_async(particles.DataParticleType.IRIS_SAMPLE, self.assert_particle_iris_sample_01)
         self.assert_particle_async(particles.DataParticleType.NANO_SAMPLE, self.assert_particle_nano_sample_01)
         self.assert_particle_async(particles.DataParticleType.HEAT_SAMPLE, self.assert_particle_heat_sample_01)
+
         self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_particle_botpt_status,
                                     particles.DataParticleType.BOTPT_STATUS)
+
+        self.assert_particle_async(particles.DataParticleType.LILY_SAMPLE, self.assert_particle_lily_sample_01)
+        self.assert_particle_async(particles.DataParticleType.IRIS_SAMPLE, self.assert_particle_iris_sample_01)
+        self.assert_particle_async(particles.DataParticleType.NANO_SAMPLE, self.assert_particle_nano_sample_01)
+        self.assert_particle_async(particles.DataParticleType.HEAT_SAMPLE, self.assert_particle_heat_sample_01)
 
         self.assert_stop_autosample()
         # verify all particles in command

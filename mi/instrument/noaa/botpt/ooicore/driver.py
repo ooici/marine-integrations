@@ -841,7 +841,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
-        self._do_cmd_no_resp(InstrumentCommand.NANO_ON)
+        self._do_cmd_resp(InstrumentCommand.NANO_ON, expected_prompt=LILY_STRING)
         self._do_cmd_resp(InstrumentCommand.IRIS_ON, expected_prompt=Prompt.IRIS_ON)
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
@@ -917,6 +917,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         sample = self._extract_sample(particles.BotptStatusParticle,
                                       particles.BotptStatusParticle.regex_compiled(),
                                       NEWLINE.join(parts), ts)
+
+        if self.get_current_state() == ProtocolState.AUTOSAMPLE:
+            # acquiring status stops NANO output, restart it
+            self._do_cmd_resp(InstrumentCommand.NANO_ON, expected_prompt=NANO_STRING)
+
         if not sample:
             raise InstrumentProtocolException('Failed to generate status particle')
         return None, (None, sample)
