@@ -200,9 +200,13 @@ class PolledScheduler(Scheduler):
                 for job in tuple(jobstore.jobs):
                     log.debug("_process_jobs process job %s" % job)
                     if(isinstance(job, PolledIntervalJob)):
-                        next_polled_wakeup_time = self._process_polled_job(job, now, alias, jobstore)
+                        next_polled_wakeup_time_job = self._process_polled_job(job, now, alias, jobstore)
+                        if next_polled_wakeup_time is None: next_polled_wakeup_time = next_polled_wakeup_time_job
+                        next_polled_wakeup_time = min(next_polled_wakeup_time, next_polled_wakeup_time_job)
                     else:
-                        next_wakeup_time = self._process_original_job(job, now, alias, jobstore)
+                        next_wakeup_time_job = self._process_original_job(job, now, alias, jobstore)
+                        if next_wakeup_time is None: next_wakeup_time = next_wakeup_time_job
+                        next_wakeup_time = min(next_wakeup_time, next_wakeup_time_job)
 
             log.debug("_process_jobs loop complete")
             log.debug("_process_jobs next polled wakeup %s" % next_polled_wakeup_time)
@@ -218,6 +222,38 @@ class PolledScheduler(Scheduler):
             self._jobstores_lock.release()
             log.debug("_process_jobs lock released")
 
+    # def _process_jobs(self, now, polled=False):
+    #     """
+    #     Iterates through jobs in every jobstore, starts pending jobs
+    #     and figures out the next wakeup time.
+    #     """
+    #     log.debug("_process_jobs started")
+    #     next_wakeup_time = None
+    #     next_polled_wakeup_time = None
+    #     self._jobstores_lock.acquire()
+    #     try:
+    #         log.debug("_process_jobs lock acquired")
+    #         for (alias, jobstore) in self._jobstores.items():
+    #             for job in tuple(jobstore.jobs):
+    #                 log.debug("_process_jobs process job %s" % job)
+    #                 if(isinstance(job, PolledIntervalJob)):
+    #                     next_polled_wakeup_time = self._process_polled_job(job, now, alias, jobstore)
+    #                 else:
+    #                     next_wakeup_time = self._process_original_job(job, now, alias, jobstore)
+    #
+    #         log.debug("_process_jobs loop complete")
+    #         log.debug("_process_jobs next polled wakeup %s" % next_polled_wakeup_time)
+    #         log.debug("_process_jobs next wakeup %s" % next_wakeup_time)
+    #
+    #         if(next_polled_wakeup_time and next_wakeup_time):
+    #             return min(next_polled_wakeup_time, next_wakeup_time)
+    #         elif(next_wakeup_time == None):
+    #             return next_polled_wakeup_time
+    #         else:
+    #             return next_wakeup_time
+    #     finally:
+    #         self._jobstores_lock.release()
+    #         log.debug("_process_jobs lock released")
 
     def _process_original_job(self, job, now, alias, jobstore):
         """
