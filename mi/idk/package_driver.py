@@ -115,6 +115,30 @@ class PackageDriver(object):
         return os.path.join(os.path.expanduser("~"),self.archive_file())
 
 
+
+    def get_metadata(self):
+        # get which dataset agent is selected from the current metadata, use
+        # this to get metadata from the cloned repo
+        tmp_metadata = Metadata()
+
+        # read metadata from the cloned repo
+        self.metadata = Metadata(tmp_metadata.driver_make,
+                                 tmp_metadata.driver_model,
+                                 tmp_metadata.driver_name,
+                                 REPODIR + '/marine-integrations')
+
+        return self.metadata
+
+
+    def get_nose_test(self):
+        return NoseTest(self.metadata, log_file=self.log_path())
+
+    def get_driver_generator(self):
+        return DriverGenerator(self.metadata)
+
+    def get_egg_generator(self):
+        return EggGenerator(self.metadata)
+
     ###
     #   Public Methods
     ###
@@ -135,7 +159,7 @@ class PackageDriver(object):
         """
         log.info("-- Running qualification tests")
 
-        test = NoseTest(self.metadata, log_file=self.log_path())
+        test = self.get_nose_test(self.metadata, log_file=self.log_path())
         test.report_header()
 
         if(test.run_qualification()):
@@ -253,16 +277,8 @@ class PackageDriver(object):
 
         # first create a temporary clone of ooici to work with
         self.clone_repo()
-        
-        # get which dataset agent is selected from the current metadata, use
-        # this to get metadata from the cloned repo
-        tmp_metadata = Metadata()
-        # read metadata from the cloned repo
-        self.metadata = Metadata(tmp_metadata.driver_make,
-                                 tmp_metadata.driver_model,
-                                 tmp_metadata.driver_name,
-                                 REPODIR + '/marine-integrations')
-        
+        self.metadata = self.get_metadata()
+
         if "--repackage" in sys.argv:
             self.get_repackage_version(self.build_name())
         else:
@@ -334,13 +350,10 @@ class PackageDriver(object):
         @brief Store all files in zip archive and add them to the manifest file
         """
         # make sure metadata is up to date
-        self.metadata = Metadata(self.metadata.driver_make,
-                                 self.metadata.driver_model,
-                                 self.metadata.driver_name,
-                                 REPODIR + '/marine-integrations')
-        
-        self.generator = DriverGenerator(self.metadata)
-        egg_generator = EggGenerator(self.metadata)
+        self.metadata = self.get_metadata()
+
+        self.generator = self.get_driver_generator()
+        egg_generator = self.get_egg_generator()
         egg_file = egg_generator.save()
 
         # Add egg
