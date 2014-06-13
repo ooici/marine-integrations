@@ -19,11 +19,11 @@ __license__ = 'Apache 2.0'
 import json
 import struct
 import time
-import ntplib
 import unittest
+
+import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock, call
-
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -50,6 +50,7 @@ from mi.instrument.harvard.massp.rga.driver import Prompt
 from mi.instrument.harvard.massp.rga.driver import NEWLINE
 from mi.core.log import get_logger
 
+
 log = get_logger()
 
 rga_startup_config = {
@@ -57,7 +58,7 @@ rga_startup_config = {
         Parameter.EE: 70,
         Parameter.IE: 1,
         Parameter.VF: 90,
-        Parameter.NF: 4,
+        Parameter.NF: 3,
         Parameter.SA: 10,
         Parameter.MI: 1,
         Parameter.MF: 100,
@@ -141,7 +142,7 @@ class DriverTestMixinSub(DriverTestMixin):
         'IE?': 1,
         'VF90': 0,
         'VF?': 90,
-        'NF?': 4,
+        'NF?': 3,
         'SA?': 10,
         'MI?': 1,
         'MF?': 100,
