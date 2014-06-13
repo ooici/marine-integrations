@@ -162,7 +162,7 @@ class DriverTestMixinSub(SamiMixin):
                                                ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.AUTOSAMPLE,
                                               ProtocolState.COMMAND]},
-        Capability.SEAWATER_FLUSH_1375ML: {STATES: [ProtocolState.COMMAND]},
+        Capability.SEAWATER_FLUSH_2750ML: {STATES: [ProtocolState.COMMAND]},
         Capability.REAGENT_FLUSH_50ML: {STATES: [ProtocolState.COMMAND]},
         Capability.SEAWATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
         Capability.REAGENT_FLUSH: {STATES: [ProtocolState.COMMAND]}
@@ -241,8 +241,10 @@ class DriverTestMixinSub(SamiMixin):
                                    DEFAULT: 0x00, VALUE: 0x00},
         Parameter.AUTO_SAMPLE_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                          DEFAULT: 0x38, VALUE: 3600},
-        Parameter.FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
-                                   DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
+        Parameter.REAGENT_FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                           DEFAULT: 0x04, VALUE: 0x08, REQUIRED: True},
+        Parameter.SEAWATER_FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                            DEFAULT: 0x02, VALUE: 0x08, REQUIRED: True},
         Parameter.FLUSH_CYCLES: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                  DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
@@ -395,11 +397,11 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
                                 'DRIVER_EVENT_ACQUIRE_STATUS',
                                 'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
-                                'DRIVER_EVENT_SEAWATER_FLUSH_1375ML',
+                                'DRIVER_EVENT_SEAWATER_FLUSH_2750ML',
                                 'DRIVER_EVENT_REAGENT_FLUSH_50ML',
                                 'DRIVER_EVENT_SEAWATER_FLUSH',
                                 'DRIVER_EVENT_REAGENT_FLUSH'],
-        ProtocolState.SEAWATER_FLUSH_1375ML: ['PROTOCOL_EVENT_EXECUTE',
+        ProtocolState.SEAWATER_FLUSH_2750ML: ['PROTOCOL_EVENT_EXECUTE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
@@ -551,20 +553,20 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
             driver._protocol._param_dict.set_default(param)
 
         driver._protocol._param_dict.set_value(Parameter.FLUSH_CYCLES, 0x3)
-        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH_1375ML
-        driver._protocol._handler_seawater_flush_execute_1375ml()
-        call = mock.call('P01,01\r')
+        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH_2750ML
+        driver._protocol._handler_seawater_flush_execute_2750ml()
+        call = mock.call('P01,02\r')
         driver._protocol._connection.send.assert_has_calls(call)
         command_count = driver._protocol._connection.send.mock_calls.count(call)
-        log.debug('SEAWATER_FLUSH_1375ML command count = %s', command_count)
-        self.assertEqual(165, command_count, 'SEAWATER_FLUSH_1375ML command count %s != 165' % command_count)
+        log.debug('SEAWATER_FLUSH_2750ML command count = %s', command_count)
+        self.assertEqual(165, command_count, 'SEAWATER_FLUSH_2750ML command count %s != 165' % command_count)
         driver._protocol._connection.send.reset_mock()
 
         driver._protocol._param_dict.set_value(Parameter.FLUSH_CYCLES, 0x5)
         driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH_50ML
         driver._protocol._handler_reagent_flush_execute_50ml()
-        call1 = mock.call('P03,02\r')
-        call2 = mock.call('P01,02\r')
+        call1 = mock.call('P03,04\r')
+        call2 = mock.call('P02,04\r')
         driver._protocol._connection.send.assert_has_calls([call1, call2])
         command_count = driver._protocol._connection.send.mock_calls.count(call1)
         log.debug('REAGENT_FLUSH_50ML reagent flush command count = %s', command_count)
@@ -574,7 +576,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assertEqual(5, command_count, 'REAGENT_FLUSH_50ML seawater flush command count %s != 5' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-        driver._protocol._param_dict.set_value(Parameter.FLUSH_DURATION, 0x27)
+        driver._protocol._param_dict.set_value(Parameter.REAGENT_FLUSH_DURATION, 0x27)
         driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH
         driver._protocol._handler_seawater_flush_execute()
         call = mock.call('P01,27\r')
@@ -584,7 +586,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assertEqual(1, command_count, 'SEAWATER_FLUSH command count %s != 1' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-        driver._protocol._param_dict.set_value(Parameter.FLUSH_DURATION, 0x77)
+        driver._protocol._param_dict.set_value(Parameter.SEAWATER_FLUSH_DURATION, 0x77)
         driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH
         driver._protocol._handler_reagent_flush_execute()
         call = mock.call('P03,77\r')
@@ -603,13 +605,13 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
             log.debug('startup param = %s', param)
             driver._protocol._param_dict.set_default(param)
 
-        stats = PumpStatisticsContainer(self, ('P01', '01'))
+        stats = PumpStatisticsContainer(self, ('P01', '02'))
         driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
-        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH_1375ML
-        driver._protocol._handler_seawater_flush_execute_1375ml()
+        driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH_2750ML
+        driver._protocol._handler_seawater_flush_execute_2750ml()
         stats.assert_timing(2)
 
-        stats = PumpStatisticsContainer(self, ('P03', '02'))
+        stats = PumpStatisticsContainer(self, ('P03', '04'))
         driver._protocol._do_cmd_resp_no_wakeup = Mock(side_effect=stats.side_effect)
         driver._protocol._param_dict.set_value(Parameter.FLUSH_CYCLES, 0x5)
         driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH_50ML
@@ -653,7 +655,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
             Parameter.NUMBER_MEASUREMENTS: 0x17,
             Parameter.SALINITY_DELAY: 0x00,
             Parameter.AUTO_SAMPLE_INTERVAL: 3600,
-            Parameter.FLUSH_DURATION: 8,
+            Parameter.REAGENT_FLUSH_DURATION: 0x04,
+            Parameter.SEAWATER_FLUSH_DURATION: 0x02,
             Parameter.FLUSH_CYCLES: 1
         }
 
@@ -673,7 +676,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
             Parameter.NUMBER_MEASUREMENTS: 0x18,
             Parameter.SALINITY_DELAY: 0x01,
             Parameter.AUTO_SAMPLE_INTERVAL: 600,
-            Parameter.FLUSH_DURATION: 1,
+            Parameter.REAGENT_FLUSH_DURATION: 0x08,
+            Parameter.SEAWATER_FLUSH_DURATION: 0x07,
             Parameter.FLUSH_CYCLES: 14
         }
 
@@ -707,7 +711,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.MEASURE_TO_PUMP_ON, 0x07)
         self.assert_set(Parameter.NUMBER_MEASUREMENTS, 0xA0)
         self.assert_set(Parameter.SALINITY_DELAY, 0x05)
-        self.assert_set(Parameter.FLUSH_DURATION, 1)
+        self.assert_set(Parameter.REAGENT_FLUSH_DURATION, 1)
+        self.assert_set(Parameter.SEAWATER_FLUSH_DURATION, 1)
         self.assert_set(Parameter.FLUSH_CYCLES, 14)
 
         self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
@@ -734,7 +739,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
             Parameter.MEASURE_TO_PUMP_ON: 0x07,
             Parameter.NUMBER_MEASUREMENTS: 0xA0,
             Parameter.SALINITY_DELAY: 0x05,
-            Parameter.FLUSH_DURATION: 1,
+            Parameter.REAGENT_FLUSH_DURATION: 1,
+            Parameter.SEAWATER_FLUSH_DURATION: 1,
             Parameter.FLUSH_CYCLES: 14
         }
         self.assert_set_bulk(new_values)
@@ -859,7 +865,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
     def test_flush_pump(self):
         self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.SEAWATER_FLUSH_1375ML, delay=220.0)
+        self.assert_driver_command(ProtocolEvent.SEAWATER_FLUSH_2750ML, delay=220.0)
         self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH_50ML, delay=15.0)
         self.assert_driver_command(ProtocolEvent.SEAWATER_FLUSH, delay=15.0)
         self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=15.0)
@@ -947,7 +953,7 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage,
                                     DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
-        self.assert_resource_command(ProtocolEvent.SEAWATER_FLUSH_1375ML, delay=220,
+        self.assert_resource_command(ProtocolEvent.SEAWATER_FLUSH_2750ML, delay=220,
                                      agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
         self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH_50ML, delay=15, agent_state=ResourceAgentState.COMMAND,
                                      resource_state=ProtocolState.COMMAND)
@@ -1004,7 +1010,7 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.SEAWATER_FLUSH_1375ML,
+                ProtocolEvent.SEAWATER_FLUSH_2750ML,
                 ProtocolEvent.REAGENT_FLUSH_50ML,
                 ProtocolEvent.SEAWATER_FLUSH,
                 ProtocolEvent.REAGENT_FLUSH

@@ -101,6 +101,9 @@ SAMI_DISCOVERY_RETRY_COUNT = 6
 # Number of seconds to delay before retrying discovery in waiting state
 SAMI_DISCOVERY_RETRY_DELAY = 20.0
 
+# 1/8 second
+SAMI_PUMP_DURATION_UNITS = 0.125
+
 ###
 #    Driver RegEx Definitions
 ###
@@ -256,7 +259,7 @@ class SamiParameter(DriverParameter):
     PRESTART_PARAMS_POINTER = 'prestart_params_pointer'
     GLOBAL_CONFIGURATION = 'global_configuration'
     AUTO_SAMPLE_INTERVAL = 'auto_sample_interval'
-    FLUSH_DURATION = 'flush_duration'
+    REAGENT_FLUSH_DURATION = 'reagent_flush_duration'
 
     # make sure to extend these in the individual drivers with the
     # the portions of the configuration that is unique to each.

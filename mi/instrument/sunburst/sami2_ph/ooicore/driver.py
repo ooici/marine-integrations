@@ -58,6 +58,7 @@ from mi.instrument.sunburst.driver import SamiCapability
 from mi.instrument.sunburst.driver import SAMI_PUMP_TIMEOUT_OFFSET
 from mi.instrument.sunburst.driver import SAMI_NEW_LINE_REGEX_MATCHER
 from mi.instrument.sunburst.driver import SAMI_DEFAULT_TIMEOUT
+from mi.instrument.sunburst.driver import SAMI_PUMP_DURATION_UNITS
 
 ###
 #    Driver Constant Definitions
@@ -68,20 +69,20 @@ PHSEN_SAMPLE_TIMEOUT = 240
 
 # Pump on, valve on
 PHSEN_PUMP_REAGENT_PARAM = '03'
+# Pump off, value on
+PHSEN_PUMP_50ML_STAGE2_PARAM = '02'  # Stage 1 is pump reagent param
 # Pump on, valve off
 PHSEN_PUMP_SEAWATER_PARAM = '01'
-# 1/4 second
-PHSEN_PUMP_DURATION_UNITS = 0.250
-# Sleep time between seawater pumps for 1375ML
-PHSEN_PUMP_SLEEP_SEAWATER_1375ML = 2.0
-# Number of times to pump seawater for 1375ML
-PHSEN_PUMP_COMMANDS_SEAWATER_1375ML = 55
-# Duration parameter to pump seawater command for 1375ML
-PHSEN_PUMP_DURATION_SEAWATER_1375ML = 1
+# Sleep time between seawater pumps for 2750ML
+PHSEN_PUMP_SLEEP_SEAWATER_2750ML = 2.0
+# Number of times to pump seawater for 2750ML
+PHSEN_PUMP_COMMANDS_SEAWATER_2750ML = 55
+# Duration parameter to pump seawater command for 2750ML
+PHSEN_PUMP_DURATION_SEAWATER_2750ML = 2
 # Sleep time after pumping 50ML of reagent
 PHSEN_PUMP_SLEEP_REAGENT_50ML = 1.0
 # Duration parameter to pump 50ML of reagent
-PHSEN_PUMP_DURATION_REAGENT_50ML = 2
+PHSEN_PUMP_DURATION_REAGENT_50ML = 4
 
 ###
 #    Driver RegEx Definitions
@@ -160,7 +161,7 @@ class ProtocolState(SamiProtocolState):
     """
     Extend base class with instrument specific functionality.
     """
-    SEAWATER_FLUSH_1375ML = 'PROTOCOL_STATE_SEAWATER_FLUSH_1375ML'
+    SEAWATER_FLUSH_2750ML = 'PROTOCOL_STATE_SEAWATER_FLUSH_2750ML'
     REAGENT_FLUSH_50ML = 'PROTOCOL_STATE_REAGENT_FLUSH_50ML'
     SEAWATER_FLUSH = 'PROTOCOL_STATE_SEAWATER_FLUSH'
 
@@ -169,7 +170,7 @@ class ProtocolEvent(SamiProtocolEvent):
     """
     Extend base class with instrument specific functionality.
     """
-    SEAWATER_FLUSH_1375ML = 'DRIVER_EVENT_SEAWATER_FLUSH_1375ML'
+    SEAWATER_FLUSH_2750ML = 'DRIVER_EVENT_SEAWATER_FLUSH_2750ML'
     REAGENT_FLUSH_50ML = 'DRIVER_EVENT_REAGENT_FLUSH_50ML'
     SEAWATER_FLUSH = 'DRIVER_EVENT_SEAWATER_FLUSH'
 
@@ -178,7 +179,7 @@ class Capability(SamiCapability):
     """
     Extend base class with instrument specific functionality.
     """
-    SEAWATER_FLUSH_1375ML = ProtocolEvent.SEAWATER_FLUSH_1375ML
+    SEAWATER_FLUSH_2750ML = ProtocolEvent.SEAWATER_FLUSH_2750ML
     REAGENT_FLUSH_50ML = ProtocolEvent.REAGENT_FLUSH_50ML
     SEAWATER_FLUSH = ProtocolEvent.SEAWATER_FLUSH
 
@@ -211,6 +212,7 @@ class Parameter(SamiParameter):
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
     FLUSH_CYCLES = 'flush_cycles'
+    SEAWATER_FLUSH_DURATION = 'seawater_flush_duration'
 
 
 class InstrumentCommand(SamiInstrumentCommand):
@@ -220,7 +222,7 @@ class InstrumentCommand(SamiInstrumentCommand):
     """
     PHSEN_PUMP_SEAWATER = 'P' + PHSEN_PUMP_SEAWATER_PARAM
     PHSEN_PUMP_REAGENT = 'P' + PHSEN_PUMP_REAGENT_PARAM
-
+    PSHEN_PUMP_50ML_STAGE2 = 'P' + PHSEN_PUMP_50ML_STAGE2_PARAM
 
 ###############################################################################
 # Data Particles
@@ -503,8 +505,8 @@ class Protocol(SamiProtocol):
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
         self._protocol_fsm.add_handler(
-            ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH_1375ML,
-            self._handler_command_seawater_flush_1375ml)
+            ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH_2750ML,
+            self._handler_command_seawater_flush_2750ml)
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.REAGENT_FLUSH_50ML,
             self._handler_command_reagent_flush_50ml)
@@ -512,26 +514,26 @@ class Protocol(SamiProtocol):
             ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH,
             self._handler_command_seawater_flush)
 
-        # this state would be entered whenever a SEAWATER_FLUSH_1375ML event
+        # this state would be entered whenever a SEAWATER_FLUSH_2750ML event
         # occurred while in the COMMAND state
         self._protocol_fsm.add_handler(
-            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.ENTER,
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.ENTER,
             self._execution_state_enter)
         self._protocol_fsm.add_handler(
-            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.EXIT,
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.EXIT,
             self._execution_state_exit)
         self._protocol_fsm.add_handler(
-            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.EXECUTE,
-            self._handler_seawater_flush_execute_1375ml)
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.EXECUTE,
+            self._handler_seawater_flush_execute_2750ml)
         self._protocol_fsm.add_handler(
-            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.SUCCESS,
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.SUCCESS,
             self._execution_success_to_command_state)
         self._protocol_fsm.add_handler(
-            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.TIMEOUT,
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.TIMEOUT,
             self._execution_timeout_to_command_state)
         ## Events to queue - intended for schedulable events occurring when a sample is being taken
         self._protocol_fsm.add_handler(
-            ProtocolState.SEAWATER_FLUSH_1375ML, ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.ACQUIRE_STATUS,
             self._handler_queue_acquire_status)
 
         # this state would be entered whenever a PUMP_REAGENT_50ML event
@@ -582,9 +584,11 @@ class Protocol(SamiProtocol):
 
         self._add_build_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._build_pump_command)
         self._add_build_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._build_pump_command)
+        self._add_build_handler(InstrumentCommand.PSHEN_PUMP_50ML_STAGE2, self._build_pump_command)
 
         self._add_response_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._parse_response_newline)
         self._add_response_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._parse_response_newline)
+        self._add_response_handler(InstrumentCommand.PSHEN_PUMP_50ML_STAGE2, self._parse_response_newline)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -596,14 +600,14 @@ class Protocol(SamiProtocol):
     # Command handlers.
     ########################################################################
 
-    def _handler_command_seawater_flush_1375ml(self):
+    def _handler_command_seawater_flush_2750ml(self):
         """
         Flush with seawater
         """
 
-        log.debug('Protocol._handler_command_seawater_flush_1375ml()')
+        log.debug('Protocol._handler_command_seawater_flush_2750ml()')
 
-        next_state = ProtocolState.SEAWATER_FLUSH_1375ML
+        next_state = ProtocolState.SEAWATER_FLUSH_2750ML
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
@@ -636,10 +640,10 @@ class Protocol(SamiProtocol):
         return (next_state, (next_agent_state, result))
 
     ########################################################################
-    # Seawater flush 1375 ml handlers.
+    # Seawater flush 2750 ml handlers.
     ########################################################################
 
-    def _handler_seawater_flush_execute_1375ml(self, *args, **kwargs):
+    def _handler_seawater_flush_execute_2750ml(self, *args, **kwargs):
         """
         Execute pump command, sleep to make sure it completes and make sure pump is off
         """
@@ -647,13 +651,13 @@ class Protocol(SamiProtocol):
         try:
 
             flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
-            log.debug('Pco2wProtocol._handler_seawater_flush_execute_1375ml(): flush cycles = %s' % flush_cycles)
+            log.debug('Pco2wProtocol._handler_seawater_flush_execute_2750ml(): flush cycles = %s' % flush_cycles)
 
-            flush_duration = PHSEN_PUMP_DURATION_SEAWATER_1375ML
+            flush_duration = PHSEN_PUMP_DURATION_SEAWATER_2750ML
             flush_duration_str = self._param_dict.format(Parameter.FLUSH_DURATION, flush_duration)
-            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug(
-                'Pco2wProtocol._handler_seawater_flush_execute_1375mll(): flush duration param = %s, seconds = %s' %
+                'Pco2wProtocol._handler_seawater_flush_execute_2750mll(): flush duration param = %s, seconds = %s' %
                 (flush_duration, flush_duration_seconds))
 
             # Add offset to timeout to make sure pump completes.
@@ -662,14 +666,14 @@ class Protocol(SamiProtocol):
             self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_SEAWATER,
                                         duration=flush_duration_str,
                                         timeout=flush_timeout,
-                                        delay=PHSEN_PUMP_SLEEP_SEAWATER_1375ML,
-                                        command_count=PHSEN_PUMP_COMMANDS_SEAWATER_1375ML,
+                                        delay=PHSEN_PUMP_SLEEP_SEAWATER_2750ML,
+                                        command_count=PHSEN_PUMP_COMMANDS_SEAWATER_2750ML,
                                         cycles=flush_cycles)
 
-            log.debug('Protocol._handler_seawater_flush_execute_1375ml(): SUCCESS')
+            log.debug('Protocol._handler_seawater_flush_execute_2750ml(): SUCCESS')
             self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
         except InstrumentTimeoutException:
-            log.error('Protocol._handler_seawater_flush_execute_1375ml(): TIMEOUT')
+            log.error('Protocol._handler_seawater_flush_execute_2750ml(): TIMEOUT')
             self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
 
         return None, None
@@ -690,7 +694,7 @@ class Protocol(SamiProtocol):
 
             flush_duration = PHSEN_PUMP_DURATION_REAGENT_50ML
             flush_duration_str = self._param_dict.format(Parameter.FLUSH_DURATION, flush_duration)
-            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush duration param = %s, seconds = %s' %
                       (flush_duration, flush_duration_seconds))
 
@@ -704,7 +708,7 @@ class Protocol(SamiProtocol):
                                             flush_duration_str,
                                             timeout=flush_timeout,
                                             response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
-                self._do_cmd_resp_no_wakeup(InstrumentCommand.PHSEN_PUMP_SEAWATER,
+                self._do_cmd_resp_no_wakeup(InstrumentCommand.PSHEN_PUMP_50ML_STAGE2,
                                             flush_duration_str,
                                             timeout=flush_timeout,
                                             response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
@@ -736,7 +740,7 @@ class Protocol(SamiProtocol):
             param = Parameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
             log.debug('Protocol._handler_seawater_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration, flush_duration_seconds))
@@ -773,7 +777,7 @@ class Protocol(SamiProtocol):
             param = Parameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PHSEN_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
             log.debug('Protocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration, flush_duration_seconds))
@@ -852,7 +856,7 @@ class Protocol(SamiProtocol):
         log.debug('Protocol._build_command_dict')
 
         SamiProtocol._build_command_dict(self)
-        self._cmd_dict.add(Capability.SEAWATER_FLUSH_1375ML, display_name="seawater flush 1375 ml")
+        self._cmd_dict.add(Capability.SEAWATER_FLUSH_2750ML, display_name="seawater flush 2750 ml")
         self._cmd_dict.add(Capability.REAGENT_FLUSH_50ML, display_name="reagent flush 50 ml")
         self._cmd_dict.add(Capability.SEAWATER_FLUSH, display_name="seawater flush")
 
@@ -1071,15 +1075,25 @@ class Protocol(SamiProtocol):
                              direct_access=False,
                              default_value=0x1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='seawater 1375ml and reagent 50ml flush cycles')
+                             display_name='seawater 2750ml and reagent 50ml flush cycles')
 
-        self._param_dict.add(Parameter.FLUSH_DURATION, r'Flush duration = ([0-9]+)',
+        self._param_dict.add(Parameter.REAGENT_FLUSH_DURATION, r'Reagent flush duration = ([0-9]+)',
                              lambda match: match.group(1),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=False,
-                             default_value=0x1,
+                             default_value=0x4,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='flush duration')
+
+        self._param_dict.add(Parameter.SEAWATER_FLUSH_DURATION, r'Seawater flush duration = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x2,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='flush duration')
 

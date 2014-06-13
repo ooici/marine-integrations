@@ -42,6 +42,7 @@ from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiCapability
 from mi.instrument.sunburst.driver import SAMI_PUMP_TIMEOUT_OFFSET
+from mi.instrument.sunburst.driver import SAMI_PUMP_DURATION_UNITS
 
 ###
 #    Driver Constant Definitions
@@ -54,8 +55,6 @@ PCO2W_SAMPLE_TIMEOUT = 180
 PCO2W_PUMP_DEIONIZED_WATER_PARAM = '03'
 # Pump on, valve off
 PCO2W_PUMP_REAGENT_PARAM = '01'
-# 1/8 second
-PCO2W_PUMP_DURATION_UNITS = 0.125
 # 1/8 second increments to pump 50ml
 PCO2W_PUMP_DURATION_50ML = 8
 # Sleep time between 50ml pumps
@@ -152,7 +151,7 @@ class Pco2wParameter(SamiParameter):
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
     PUMP_100ML_CYCLES = 'pump_100ml_cycles'
-
+    DEIONIZED_WATER_FLUSH_DURATION = 'deionized_water_flush_duration'
 
 class Pco2wInstrumentCommand(SamiInstrumentCommand):
     """
@@ -553,7 +552,7 @@ class Pco2wProtocol(SamiProtocol):
 
             flush_duration = PCO2W_PUMP_DURATION_50ML
             flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
-            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug(
                 'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): duration param = %s, seconds = %s' %
                 (flush_duration, flush_duration_seconds))
@@ -593,7 +592,7 @@ class Pco2wProtocol(SamiProtocol):
 
             flush_duration = PCO2W_PUMP_DURATION_50ML
             flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
-            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' %
                       (flush_duration,
                        flush_duration_seconds))
@@ -630,7 +629,7 @@ class Pco2wProtocol(SamiProtocol):
             param = Pco2wParameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
             log.debug(
                 'Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' %
@@ -668,7 +667,7 @@ class Pco2wProtocol(SamiProtocol):
             param = SamiParameter.FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
-            flush_duration_seconds = flush_duration * PCO2W_PUMP_DURATION_UNITS
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
             log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' %
                       (flush_duration,
@@ -867,7 +866,18 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='pump 100ml cycles')
 
-        self._param_dict.add(Pco2wParameter.FLUSH_DURATION, r'Flush duration = ([0-9]+)',
+        self._param_dict.add(Pco2wParameter.REAGENT_FLUSH_DURATION, r'Reagent flush duration = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x8,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='flush duration')
+
+        self._param_dict.add(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION,
+                             r'Deionized water flush duration = ([0-9]+)',
                              lambda match: match.group(1),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,

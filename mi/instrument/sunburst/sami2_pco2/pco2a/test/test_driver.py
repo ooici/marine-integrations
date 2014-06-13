@@ -235,8 +235,10 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
                                              DEFAULT: 0x38, VALUE: 0x38, REQUIRED: True},
         Parameter.AUTO_SAMPLE_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                          DEFAULT: 0x38, VALUE: 3600, REQUIRED: True},
-        Parameter.FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
-                                   DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
+        Parameter.REAGENT_FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                           DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
+        Parameter.DEIONIZED_WATER_FLUSH_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                                   DEFAULT: 0x08, VALUE: 0x08, REQUIRED: True},
         Parameter.PUMP_100ML_CYCLES: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
                                       DEFAULT: 0x01, VALUE: 0x01, REQUIRED: True},
     }
@@ -682,7 +684,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
             Parameter.BIT_SWITCHES: 0x01,
             Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
             Parameter.AUTO_SAMPLE_INTERVAL: 3600,
-            Parameter.FLUSH_DURATION: 8,
+            Parameter.REAGENT_FLUSH_DURATION: 0x08,
+            Parameter.DEIONIZED_WATER_FLUSH_DURATION: 0x08,
             Parameter.PUMP_100ML_CYCLES: 1
         }
 
@@ -697,7 +700,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
             Parameter.BIT_SWITCHES: 0x02,
             Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
             Parameter.AUTO_SAMPLE_INTERVAL: 600,
-            Parameter.FLUSH_DURATION: 1,
+            Parameter.REAGENT_FLUSH_DURATION: 0x01,
+            Parameter.DEIONIZED_WATER_FLUSH_DURATION: 0x0F,
             Parameter.PUMP_100ML_CYCLES: 14
         }
 
@@ -724,7 +728,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.FLUSH_PUMP_INTERVAL, 2)
         self.assert_set(Parameter.BIT_SWITCHES, 1)
         self.assert_set(Parameter.NUMBER_EXTRA_PUMP_CYCLES, 88)
-        self.assert_set(Parameter.FLUSH_DURATION, 1)
+        self.assert_set(Parameter.REAGENT_FLUSH_DURATION, 16)
+        self.assert_set(Parameter.DEIONIZED_WATER_FLUSH_DURATION, 4)
         self.assert_set(Parameter.PUMP_100ML_CYCLES, 14)
 
         self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
@@ -745,7 +750,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
             Parameter.FLUSH_PUMP_INTERVAL: 2,
             Parameter.BIT_SWITCHES: 1,
             Parameter.NUMBER_EXTRA_PUMP_CYCLES: 88,
-            Parameter.FLUSH_DURATION: 1,
+            Parameter.REAGENT_FLUSH_DURATION: 4,
+            Parameter.DEIONIZED_WATER_FLUSH_DURATION: 16,
             Parameter.PUMP_100ML_CYCLES: 14
         }
         self.assert_set_bulk(new_values)
