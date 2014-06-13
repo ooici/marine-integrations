@@ -216,8 +216,7 @@ class SioMuleParser(Parser):
         processed file.
         @param returned_records Number of records to return 
         """
-        log.debug("Incrementing current state")
-        #log.debug("Incrementing current state: %s", self._read_state)
+        log.trace("Incrementing current state: %s", self._read_state)
 
         while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
             # if we were in the middle of processing, we need to drop the parsed
