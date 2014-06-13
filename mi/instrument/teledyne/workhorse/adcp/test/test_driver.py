@@ -7,6 +7,7 @@ Release notes:
 
 GGeneric test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
+from mi.instrument.teledyne.particles import ADCP_ANCILLARY_SYSTEM_DATA_KEY, ADCP_TRANSMIT_PATH_KEY
 
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
@@ -26,7 +27,7 @@ from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverPub
 from mi.instrument.teledyne.workhorse.test.test_driver import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
-from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA
+from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA, PT2_RAW_DATA, PT4_RAW_DATA
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_CALIBRATION_RAW_DATA
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_PS0_RAW_DATA
 
@@ -418,6 +419,20 @@ class ADCPTMixin(DriverTestMixin):
                            _coordinate_transformation_beam_parameters.items())
     _pd0_parameters_earth = dict(_pd0_parameters_base.items() +
                            _coordinate_transformation_earth_parameters.items())
+
+    _pt2_dict = {
+        ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_AMBIENT_CURRENT: {'type': float, 'value': "20.32"},
+        ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_ATTITUDE_TEMP: {'type': float, 'value': "24.65"},
+        ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_INTERNAL_MOISTURE: {'type': unicode, 'value': "8F0Ah"}
+    }  # {'adcp_ambient_temp':'20.32','adcp_attitude_temp':'24.65','adcp_internal_moisture':'8F0Ah'}
+
+    _pt4_dict = {
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_CURRENT: {'type': float, 'value': "2.0"},
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_VOLTAGE: {'type': float, 'value': "60.1"},
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_IMPEDANCE: {'type': float, 'value': "29.8"},
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_TEST_RESULT: {'type': unicode, 'value': "$0 ... PASS"},
+
+    }  # {'adcp_transmit_current':'2.0','adcp_transmit_voltage':'60.1','adcp_transmit_impedance':'29.8', 'adcp_transmit_test_results':'$0 ... PASS'})
     
     # Driver Parameter Methods
     ###
@@ -488,6 +503,26 @@ class ADCPTMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters_earth) # , verify_values
 
+    def assert_particle_pt2_data(self, data_particle, verify_values=True):
+        """
+        Verify an adcpt pt2 data particle
+        @param data_particle: ADCPT_PT2 DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        """
+        log.debug("IN assert_particle_pt2_data")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
+        self.assert_data_particle_parameters(data_particle, self._pt2_dict)  # , verify_values
+
+    def assert_particle_pt4_data(self, data_particle, verify_values=True):
+        """
+        Verify an adcpt pt4 data particle
+        @param data_particle: ADCPT_PT4 DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        """
+        log.debug("IN assert_particle_pt2_data")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
+        self.assert_data_particle_parameters(data_particle, self._pt4_dict)  # , verify_values
+
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -519,6 +554,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_particle_published(driver, RSN_CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, RSN_PS0_RAW_DATA, self.assert_particle_system_configuration, True)
         self.assert_particle_published(driver, RSN_SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
+
+        self.assert_particle_published(driver, PT2_RAW_DATA, self.assert_particle_pt2_data, True)
+        self.assert_particle_published(driver, PT4_RAW_DATA, self.assert_particle_pt4_data, True)
 
     def test_driver_parameters(self):
         """
@@ -617,6 +655,16 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_chunker_fragmented_sample(chunker, RSN_CALIBRATION_RAW_DATA, 32)
         self.assert_chunker_combined_sample(chunker, RSN_CALIBRATION_RAW_DATA)
 
+        self.assert_chunker_sample(chunker, PT2_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PT2_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PT2_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PT2_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, PT4_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PT4_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PT4_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PT4_RAW_DATA)
+
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -650,172 +698,249 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         self.assert_initialize_driver()
 
+        # params = {
+        #     Parameter.INSTRUMENT_ID: 0,
+        #     Parameter.SLEEP_ENABLE: 0,
+        #     Parameter.POLLED_MODE: False,
+        #     Parameter.XMIT_POWER: 255,
+        #     Parameter.SPEED_OF_SOUND: 1485,
+        #     Parameter.PITCH: 0,
+        #     Parameter.ROLL: 0,
+        #     Parameter.SALINITY: 35,
+        #     Parameter.TIME_PER_ENSEMBLE: '00:00:20.00',
+        #     Parameter.TIME_PER_PING: '00:01.00',
+        #     Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+        #     Parameter.BANDWIDTH_CONTROL: 0,
+        #     Parameter.CORRELATION_THRESHOLD: 64,
+        #     Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+        #     Parameter.BLANK_AFTER_TRANSMIT: 704,
+        #     Parameter.CLIP_DATA_PAST_BOTTOM: 0,
+        #     Parameter.RECEIVER_GAIN_SELECT: 1,
+        #     Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+        #     Parameter.PINGS_PER_ENSEMBLE: 1,
+        #     Parameter.DEPTH_CELL_SIZE: 800,
+        #     Parameter.TRANSMIT_LENGTH: 0,
+        #     Parameter.PING_WEIGHT: 0,
+        #     Parameter.AMBIGUITY_VELOCITY: 175,
+        #     Parameter.SERIAL_DATA_OUT: '000 000 000',
+        #     Parameter.LATENCY_TRIGGER: 0,
+        #     Parameter.HEADING_ALIGNMENT: '+00000',
+        #     Parameter.HEADING_BIAS: '+00000',
+        #     Parameter.TRANSDUCER_DEPTH:8000,
+        #     Parameter.DATA_STREAM_SELECTION:0,
+        #     Parameter.ENSEMBLE_PER_BURST:0,
+        #     Parameter.BUFFERED_OUTPUT_PERIOD:'00:00:00',
+        #     Parameter.SAMPLE_AMBIENT_SOUND:0,
+        # }
         params = {
-            Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
-            Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
             Parameter.SPEED_OF_SOUND: 1485,
             Parameter.PITCH: 0,
             Parameter.ROLL: 0,
             Parameter.SALINITY: 35,
-            Parameter.TIME_PER_ENSEMBLE: '00:00:20.00',
-            Parameter.TIME_PER_PING: '00:01.00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
             Parameter.BANDWIDTH_CONTROL: 0,
-            Parameter.CORRELATION_THRESHOLD: 64,
-            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
-            Parameter.CLIP_DATA_PAST_BOTTOM: 0,
-            Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
-            Parameter.DEPTH_CELL_SIZE: 800,
+            Parameter.BLANK_AFTER_TRANSMIT: 88,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
-            Parameter.SERIAL_DATA_OUT: '000 000 000',
-            Parameter.LATENCY_TRIGGER: 0,
-            Parameter.HEADING_ALIGNMENT: '+00000',
-            Parameter.HEADING_BIAS: '+00000',
-            Parameter.TRANSDUCER_DEPTH:8000,
-            Parameter.DATA_STREAM_SELECTION:0,
-            Parameter.ENSEMBLE_PER_BURST:0,
-            Parameter.BUFFERED_OUTPUT_PERIOD:'00:00:00',
-            Parameter.SAMPLE_AMBIENT_SOUND:0,
-
+            Parameter.TRANSDUCER_DEPTH: 8000,
         }
 
+        self.assert_set_bulk(params)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=40)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_instrument_id(self):
         self.assert_initialize_driver()
         self._test_set_instrument_id()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_sleep_enable(self):
         self.assert_initialize_driver()
         self._test_set_sleep_enable()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_polled_mode(self):
         self.assert_initialize_driver()
         self._test_set_polled_mode()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_xmit_power(self):
         self.assert_initialize_driver()
         self._test_set_xmit_power()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_pitch(self):
         self.assert_initialize_driver()
         self._test_set_pitch()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_roll(self):
         self.assert_initialize_driver()
         self._test_set_roll()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_salinity(self):
         self.assert_initialize_driver()
         self._test_set_salinity()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_coordinate_transformation(self):
         self.assert_initialize_driver()
         self._test_set_coordinate_transformation()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_sensor_source(self):
         self.assert_initialize_driver()
         self._test_set_sensor_source()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_time_per_ensemble(self):
         self.assert_initialize_driver()
         self._test_set_time_per_ensemble()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_time_per_ping(self):
         self.assert_initialize_driver()
         self._test_set_time_per_ping()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_false_target_threshold(self):
         self.assert_initialize_driver()
         self._test_set_false_target_threshold()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_bandwidth_control(self):
         self.assert_initialize_driver()
         self._test_set_bandwidth_control()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_correlation_threshold(self):
         self.assert_initialize_driver()
         self._test_set_correlation_threshold()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_error_velocity_threshold(self):
         self.assert_initialize_driver()
         self._test_set_error_velocity_threshold()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_blank_after_transmit(self):
         self.assert_initialize_driver()
         self._test_set_blank_after_transmit()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_clip_data_past_bottom(self):
         self.assert_initialize_driver()
         self._test_set_clip_data_past_bottom()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_receiver_gain_select(self):
         self.assert_initialize_driver()
         self._test_set_receiver_gain_select()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_number_of_depth_cells(self):
         self.assert_initialize_driver()
         self._test_set_number_of_depth_cells()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_pings_per_ensemble(self):
         self.assert_initialize_driver()
         self._test_set_pings_per_ensemble()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_depth_cell_size(self):
         self.assert_initialize_driver()
         self._test_set_depth_cell_size()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_transmit_length(self):
         self.assert_initialize_driver()
         self._test_set_transmit_length()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_ping_weight(self):
         self.assert_initialize_driver()
         self._test_set_ping_weight()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_ambiguity_velocity(self):
         self.assert_initialize_driver()
         self._test_set_ambiguity_velocity()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_serial_data_out_readonly(self):
         self.assert_initialize_driver()
         self._test_set_serial_data_out_readonly()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_serial_flow_control_readonly(self):
         self.assert_initialize_driver()
         self._test_set_serial_flow_control_readonly()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_banner_readonly(self):
         self.assert_initialize_driver()
         self._test_set_banner_readonly()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_save_nvram_to_recorder_readonly(self):
         self.assert_initialize_driver()
         self._test_set_save_nvram_to_recorder_readonly()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_serial_out_fw_switches_readonly(self):
         self.assert_initialize_driver()
         self._test_set_serial_out_fw_switches_readonly()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_test_set_water_profiling_mode_readonly(self):
         self.assert_initialize_driver()
         self._test_set_water_profiling_mode_readonly()
 
-
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_parameter_test_set(self):
         self.assert_initialize_driver()
         self._test_set_parameter_test()
 
+    # This is only for individual test purpose.
+    # The test function will be called by test_set_ranges()
     def _test_set_time_first_ping(self):
         self.assert_initialize_driver()
         self._test_set_time_of_first_ping_readonly()
@@ -839,7 +964,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
-
         self._test_set_xmit_power()
         self._test_set_speed_of_sound()
         self._test_set_pitch()
@@ -860,12 +984,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._test_set_transmit_length()
         self._test_set_ping_weight()
         self._test_set_ambiguity_velocity()
-
-        fail = False
-
-        self.assertFalse(fail, "See above for un-exercized parameters.")
-
-
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
