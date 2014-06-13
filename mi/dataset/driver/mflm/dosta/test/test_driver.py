@@ -413,3 +413,20 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+    def test_flmb(self):
+        """
+        Test with data from papa flmb
+        """
+        self.create_sample_data_set_dir("node10p1.dat", TELEM_DIR, "node59p1.dat")
+        self.assert_initialize()
+        result = self.data_subscribers.get_samples(DataParticleType.METADATA,1,30)
+        result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,5,30)
+
+    def test_flma(self):
+        """
+        Test with data from papa flma
+        """
+        self.create_sample_data_set_dir("node11p1.dat", TELEM_DIR, "node59p1.dat")
+        self.assert_initialize()
+        result = self.data_subscribers.get_samples(DataParticleType.METADATA,1,30)
+        result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,5,30)
