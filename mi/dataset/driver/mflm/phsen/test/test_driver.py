@@ -17,9 +17,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
-import shutil
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent

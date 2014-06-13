@@ -59,6 +59,7 @@ BATT_CONTROL_IDS = ['CO', 'C1']
 SIO_HEADER_BYTES = 33
 NORMAL_CONTROL_LEN = 40
 OPTIONAL_CONTROL_LEN = 44
+MEASUREMENT_BYTES = 4
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'phsen_abcdef_sio_mule_instrument'
@@ -120,13 +121,14 @@ class PhsenParserDataParticle(DataParticle):
         if self._data_match:
 
             ref_meas = []
+            previous_record_bytes = 4
+            # 4 sets of 4 reference light measurements (16 total)
             for i in range(0, 16):
-                start_idx = 4 + i*4
-                end_idx = 4 + (i+1)*4
+                start_idx = previous_record_bytes + i*MEASUREMENT_BYTES
                 # confirm this contains only ascii hex chars
-                if HEX_INT_MATCHER.match(self._data_match.group(4)[start_idx:end_idx]):
+                if HEX_INT_MATCHER.match(self._data_match.group(4)[start_idx:start_idx+MEASUREMENT_BYTES]):
                     try:
-                        this_ref = int(self._data_match.group(4)[start_idx:end_idx], 16)
+                        this_ref = int(self._data_match.group(4)[start_idx:start_idx+MEASUREMENT_BYTES], 16)
                         ref_meas.append(this_ref)
                     except Exception as e:
                         ref_meas.append(None)
@@ -137,14 +139,17 @@ class PhsenParserDataParticle(DataParticle):
                     ref_meas.append(None)
     
             light_meas = []
-            for i in range(0, 23):
-                for s in range(0,4):
-                    start_idx = 68 + i*16 + s*4
-                    end_idx = 68 + i*16 + (s+1)*4
+            n_outer_sets = 23
+            n_inner_sets = 4
+            previous_record_bytes = 68
+            # 23 sets of 4 light measurements
+            for i in range(0, n_outer_sets):
+                for s in range(0,n_inner_sets):
+                    start_idx = previous_record_bytes + i*n_inner_sets*MEASUREMENT_BYTES + s*MEASUREMENT_BYTES
                     # confirm this contains only ascii hex chars
-                    if HEX_INT_MATCHER.match(self._data_match.group(4)[start_idx:end_idx]):
+                    if HEX_INT_MATCHER.match(self._data_match.group(4)[start_idx:start_idx+MEASUREMENT_BYTES]):
                         try:
-                            this_meas = int(self._data_match.group(4)[start_idx:end_idx], 16)
+                            this_meas = int(self._data_match.group(4)[start_idx:start_idx+MEASUREMENT_BYTES], 16)
                             light_meas.append(this_meas)
                         except Exception as e:
                             light_meas.append(None)
@@ -170,29 +175,41 @@ class PhsenParserDataParticle(DataParticle):
                 passed_checksum = False
 
             result = [self._encode_value(PhsenParserDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[:8],
-                                         lambda val: int(val, 16)),
+                                         PhsenParserDataParticle.encode_int_16),
                       self._encode_value(PhsenParserDataParticleKey.UNIQUE_ID, self._data_match.group(2)[0:2],
-                                         lambda val: int(val, 16)),
+                                         PhsenParserDataParticle.encode_int_16),
                       self._encode_value(PhsenParserDataParticleKey.RECORD_TYPE, self._data_match.group(2)[4:6],
-                                         lambda val: int(val, 16)),
+                                         PhsenParserDataParticle.encode_int_16),
                       self._encode_value(PhsenParserDataParticleKey.RECORD_TIME, self._data_match.group(3),
                                          PhsenParserDataParticle.encode_timestamp),
                       self._encode_value(PhsenParserDataParticleKey.THERMISTOR_START, self._data_match.group(4)[0:4],
-                                         lambda val: int(val, 16)),
+                                         PhsenParserDataParticle.encode_int_16),
                       self._encode_value(PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS,
                                          ref_meas, list),
                       self._encode_value(PhsenParserDataParticleKey.LIGHT_MEASUREMENTS,
                                          light_meas, list),
                       self._encode_value(PhsenParserDataParticleKey.VOLTAGE_BATTERY, self._data_match.group(0)[-11:-7],
-                                         lambda val: int(val, 16)),
+                                         PhsenParserDataParticle.encode_int_16),
                       self._encode_value(PhsenParserDataParticleKey.THERMISTOR_END, self._data_match.group(0)[-7:-3],
-                                         lambda val: int(val, 16)),
+                                         PhsenParserDataParticle.encode_int_16),
                       self._encode_value(PhsenParserDataParticleKey.PASSED_CHECKSUM, passed_checksum,
                                          bool)]
         return result
 
     @staticmethod
+    def encode_int_16(val_str):
+        """
+        Encode a hex string into an int
+        @param val_str string containing hex value
+        """
+        return int(val_str, 16)
+
+    @staticmethod
     def encode_timestamp(timestamp_str):
+        """
+        Encode a hex value into an int if it matches the timestamp
+        @param timestamp_str string containing hex timestamp value
+        """
         timestamp_match = TIMESTAMP_MATCHER.match(timestamp_str)
         if not timestamp_match:
             return None
@@ -296,11 +313,11 @@ class PhsenControlDataParticle(DataParticle):
 
             result = [
                 self._encode_value(PhsenControlDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[:8],
-                                   lambda val: int(val, 16)),
+                                   PhsenParserDataParticle.encode_int_16),
                 self._encode_value(PhsenControlDataParticleKey.UNIQUE_ID, self._data_match.group(2)[0:2],
-                                   lambda val: int(val, 16)),
+                                   PhsenParserDataParticle.encode_int_16),
                 self._encode_value(PhsenControlDataParticleKey.RECORD_TYPE, control_id,
-                                   lambda val: int(val, 16)),
+                                   PhsenParserDataParticle.encode_int_16),
                 self._encode_value(PhsenControlDataParticleKey.RECORD_TIME, self._data_match.group(3)[0:8],
                                    PhsenParserDataParticle.encode_timestamp)]
             # if the flag is valid, fill in the values, otherwise set to None
@@ -388,7 +405,7 @@ class PhsenControlDataParticle(DataParticle):
             if control_id in BATT_CONTROL_IDS and HEX_INT_MATCHER.match(self._data_match.group(3)[30:34]):
                 result.append(self._encode_value(PhsenControlDataParticleKey.VOLTAGE_BATTERY,
                                                  self._data_match.group(3)[30:34],
-                                                 lambda val: int(val, 16)))
+                                                 PhsenParserDataParticle.encode_int_16))
             else:
                 result.append({DataParticleKey.VALUE_ID: PhsenControlDataParticleKey.VOLTAGE_BATTERY,
                                DataParticleKey.VALUE: None})
@@ -449,7 +466,7 @@ class PhsenParser(SioMuleParser):
             sample_count = 0
             if header_match.group(1) == 'PH':
                 # start after the sio header
-                index = SIO_HEADER_BYTES
+                index = header_match.end(0)
                 last_index = index
                 chunk_len = len(chunk)
                 while index < chunk_len:

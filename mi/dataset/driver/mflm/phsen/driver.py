@@ -18,7 +18,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import ConfigurationException
 
 from mi.dataset.harvester import SingleFileHarvester
-from mi.dataset.dataset_driver import HarvesterType
+from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle, PhsenControlDataParticle
 
@@ -50,7 +50,6 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
         Build the requested parser based on the data key
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
-        @param file_in Filename string to pass to parser
         @param data_key Key to determine which parser type is built
         """
         if data_key == DataSourceKey.PHSEN_ABCDEF_SIO_MULE:
@@ -63,13 +62,15 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
 
     def _build_telemetered_parser(self, parser_state, stream_in):
         """
-        Build and return the parser
+        Build and return the telemetered parser
+        @param parser_state starting parser state to pass to parser
+        @param stream_in Handle of open file to pass to parser
         """
-        config = self._parser_config
+        config = self._parser_config.get(DataSourceKey.PHSEN_ABCDEF_SIO_MULE)
         config.update({
-            'particle_module': 'mi.dataset.parser.phsen',
-            'particle_class': ['PhsenParserDataParticle',
-                               'PhsenControlDataParticle']
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.phsen',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: ['PhsenParserDataParticle',
+                                                     'PhsenControlDataParticle']
         })
         log.debug("My Config: %s", config)
         parser = PhsenParser(
