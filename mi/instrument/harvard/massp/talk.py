@@ -29,6 +29,7 @@ class _Recv(Thread):
         self._conn = conn
         self._last_line = ''
         self._new_line = ''
+        self.last_time = time.time()
         self.setDaemon(True)
 
     def _update_lines(self, recv):
@@ -44,7 +45,10 @@ class _Recv(Thread):
         print "### _Recv running."
         while True:
             recv = self._conn.recv(4096)
-            print 'Received: %r' % recv
+            now = time.time()
+            elapsed = now - self.last_time
+            self.last_time = now
+            print 'Elapsed [%6.2fs]: %r' % (elapsed, recv)
 
 
 class _Direct(object):
@@ -63,9 +67,9 @@ class _Direct(object):
         self._bt.start()
 
     def run(self):
-        #        """
-        #         Dispaches user commands.
-        #         """
+        """
+        Dispatches user commands.
+        """
         while True:
 
             cmd = sys.stdin.readline()

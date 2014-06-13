@@ -17,7 +17,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, Para
 from mi.core.log import get_logger
 from mi.core.log import get_logging_metaclass
 from mi.core.common import BaseEnum, Units, Prefixes
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, InitializationType
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -153,7 +153,7 @@ class Prompt(BaseEnum):
     IONREG_FINISHED = "M Ion Reg finished"
     ABORTED = "M ABORTED"
     IN_SEQUENCE = 'E001 already in sequence'
-    SET_MINUTE = 'Minutes set to'
+    SET_MINUTE = 'M set minutes to'
 
 
 class InstrumentCommand(BaseEnum):
@@ -807,17 +807,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.  Break out of any currently running sequence and return the MCU to STANDBY
         """
-        self._do_cmd_resp(InstrumentCommand.BEAT)
+        self._do_cmd_resp(InstrumentCommand.BEAT, expected_prompt=Prompt.BEAT, timeout=30)
 
         self._init_params()
 
         try:
             result = self._do_cmd_resp(InstrumentCommand.STANDBY,
                                        expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE],
-                                       timeout=30)
+                                       timeout=40)
             if result == Prompt.IN_SEQUENCE:
-                self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
-                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
+                self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=40)
+                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=40)
         except InstrumentTimeoutException:
             # something else is wrong, pass the buck to the operator
             self._async_raise_fsm_event(ProtocolEvent.ERROR)

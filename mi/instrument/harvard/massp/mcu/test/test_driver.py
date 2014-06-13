@@ -28,13 +28,15 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState, DriverProtocolState
 from mi.core.instrument.chunker import StringChunker
-from mi.instrument.harvard.massp.mcu.driver import InstrumentDriver, McuStatusParticleKey
+from mi.instrument.harvard.massp.mcu.driver import InstrumentDriver
+from mi.instrument.harvard.massp.mcu.driver import McuStatusParticleKey
 from mi.instrument.harvard.massp.mcu.driver import DataParticleType
 from mi.instrument.harvard.massp.mcu.driver import InstrumentCommand
 from mi.instrument.harvard.massp.mcu.driver import ProtocolState
 from mi.instrument.harvard.massp.mcu.driver import ProtocolEvent
 from mi.instrument.harvard.massp.mcu.driver import Capability
 from mi.instrument.harvard.massp.mcu.driver import Parameter
+from mi.instrument.harvard.massp.mcu.driver import ParameterConstraint
 from mi.instrument.harvard.massp.mcu.driver import Protocol
 from mi.instrument.harvard.massp.mcu.driver import Prompt
 from mi.instrument.harvard.massp.mcu.driver import NEWLINE
@@ -229,8 +231,8 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _driver_parameters = {
-        Parameter.TELEGRAM_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
-        Parameter.ONE_MINUTE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 1},
+        Parameter.TELEGRAM_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10000},
+        Parameter.ONE_MINUTE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 1000},
         Parameter.SAMPLE_TIME: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
     }
 
@@ -589,47 +591,45 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
     def test_get(self):
         self.assert_initialize_driver()
-        self.assert_get(Parameter.TELEGRAM_INTERVAL, self._driver_parameters[Parameter.TELEGRAM_INTERVAL][self.VALUE])
+        for param in self._driver_parameters:
+            self.assert_get(param, self._driver_parameters[param][self.VALUE])
 
-    def test_set(self):
-        self.assert_initialize_driver()
-        self.assert_set(Parameter.TELEGRAM_INTERVAL,
-                        int(self._driver_parameters[Parameter.TELEGRAM_INTERVAL][self.VALUE])+1)
-        self.assert_set_exception(Parameter.TELEGRAM_INTERVAL, -10)
-
-    def test_start1(self):
+    def test_set_and_bad_command(self):
         """
-        Test sending the START1 command
+        Test setting of parameters, including exceptions for bad parameters/values.
+        Test exception on receipt of bad command.
+        Combined due to long startup time.
+        """
+        self.assert_initialize_driver()
+
+        constraints = ParameterConstraint.dict()
+        parameters = Parameter.dict()
+        for key in constraints:
+            _type, minimum, maximum = constraints[key]
+            param = parameters[key]
+            if not self._driver_parameters[param][self.READONLY]:
+                self.assert_set(param, maximum)
+                self.assert_set_exception(param, maximum + 1)
+            else:
+                self.assert_set_exception(param, maximum)
+
+        self.assert_set_exception('BOGUS', 'CHEESE')
+        self.assert_driver_command_exception('BAD_COMMAND', exception_class=InstrumentCommandException)
+
+    def test_start1_and_data_particle(self):
+        """
+        Test sending the START1 command and data particle generation
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START1)
         self.assert_state_change(ProtocolState.WAITING_TURBO, 60)
-        self.assert_driver_command(Capability.STANDBY)
-
-    def test_data_particle(self):
-        """
-        Test data particle generation
-        """
-        self.assert_initialize_driver()
         self.assert_async_particle_generation(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=60)
+        self.assert_driver_command(Capability.STANDBY)
+        self.assert_driver_command(Capability.POWEROFF)
 
-    def test_set_bogus_parameter(self):
+    def test_regen(self):
         """
-        Test that driver raises exception on receipt of bad parameter.
-        """
-        self.assert_initialize_driver()
-        self.assert_set_exception('BOGUS', 'CHEESE')
-
-    def test_bad_command(self):
-        """
-        Test that driver raises exception on receipt of bad command.
-        """
-        self.assert_initialize_driver()
-        self.assert_driver_command_exception('BAD_COMMAND', exception_class=InstrumentCommandException)
-
-    def test_ion_regen(self):
-        """
-        Test the ion chamber regen command
+        Test the ion chamber and nafion regen commands
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.IONREG)
@@ -637,11 +637,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_driver_command(Capability.STANDBY)
         self.assert_state_change(ProtocolState.COMMAND, 20)
 
-    def test_nafion_regen(self):
-        """
-        Test the ion chamber regen command
-        """
-        self.assert_initialize_driver()
         self.assert_driver_command(Capability.NAFREG)
         self.assert_state_change(ProtocolState.REGEN, 5)
         self.assert_driver_command(Capability.STANDBY)
