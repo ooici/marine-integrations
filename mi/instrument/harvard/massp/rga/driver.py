@@ -1013,7 +1013,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Generic method to handle entering state.
         """
-        self._init_params()
+        if self.get_current_state() != ProtocolState.UNKNOWN:
+            self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_generic_exit(self):

@@ -103,9 +103,9 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    START = 'PROTOCOL_EVENT_START_TURBO'
+    START_TURBO = 'PROTOCOL_EVENT_START_TURBO'
+    STOP_TURBO = 'PROTOCOL_EVENT_STOP_TURBO'
     AT_SPEED = 'PROTOCOL_EVENT_AT_SPEED'
-    STOP = 'PROTOCOL_EVENT_STOP_TURBO'
     ERROR = 'PROTOCOL_EVENT_ERROR'
     CLEAR = MASSP_CLEAR_ERROR
     STOPPED = 'PROTOCOL_EVENT_STOPPED'
@@ -119,8 +119,8 @@ class Capability(BaseEnum):
     interval, once every Parameter.UPDATE_INTERVAL seconds.
     """
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
-    START = ProtocolEvent.START
-    STOP = ProtocolEvent.STOP
+    START_TURBO = ProtocolEvent.START_TURBO
+    STOP_TURBO = ProtocolEvent.STOP_TURBO
     CLEAR = ProtocolEvent.CLEAR
 
 
@@ -333,20 +333,20 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
-                (ProtocolEvent.START, self._handler_command_start_turbo),
+                (ProtocolEvent.START_TURBO, self._handler_command_start_turbo),
             ],
             ProtocolState.SPINNING_UP: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
-                (ProtocolEvent.STOP, self._handler_stop_turbo),
+                (ProtocolEvent.STOP_TURBO, self._handler_stop_turbo),
                 (ProtocolEvent.AT_SPEED, self._handler_spinning_up_at_speed),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.AT_SPEED: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
-                (ProtocolEvent.STOP, self._handler_stop_turbo),
+                (ProtocolEvent.STOP_TURBO, self._handler_stop_turbo),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
@@ -455,8 +455,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         Populate the command dictionary with commands.
         """
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
-        self._cmd_dict.add(Capability.START, display_name="start turbo")
-        self._cmd_dict.add(Capability.STOP, display_name="stop turbo")
+        self._cmd_dict.add(Capability.START_TURBO, display_name="start turbo")
+        self._cmd_dict.add(Capability.STOP_TURBO, display_name="stop turbo")
         self._cmd_dict.add(Capability.CLEAR, display_name="clear error state")
 
     def _build_driver_dict(self):

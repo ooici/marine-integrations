@@ -40,7 +40,7 @@ __author__ = 'Peter Cable'
 __license__ = 'Apache 2.0'
 
 log = mi.core.log.get_logger()
-META_LOGGER = mi.core.log.get_logging_metaclass('debug')
+META_LOGGER = mi.core.log.get_logging_metaclass('trace')
 
 
 ###
@@ -73,9 +73,10 @@ class ProtocolState(BaseEnum):
     CALIBRATE = DriverProtocolState.CALIBRATE
     REGEN = 'PROTOCOL_STATE_REGEN'
     ERROR = MASSP_STATE_ERROR
+    MANUAL_OVERRIDE = 'PROTOCOL_STATE_MANUAL_OVERRIDE'
 
 
-class ProtocolEvent(BaseEnum):
+class ProtocolEvent(mcu.ProtocolEvent, turbo.ProtocolEvent, rga.ProtocolEvent):
     """
     Protocol events
     """
@@ -98,9 +99,11 @@ class ProtocolEvent(BaseEnum):
     CLEAR = MASSP_CLEAR_ERROR
     POWEROFF = 'PROTOCOL_EVENT_POWEROFF'
     STOP_REGEN = 'PROTOCOL_EVENT_STOP_REGEN'
+    START_MANUAL = 'PROTOCOL_EVENT_START_MANUAL_OVERRIDE'
+    STOP_MANUAL = 'PROTOCOL_EVENT_STOP_MANUAL_OVERRIDE'
 
 
-class Capability(BaseEnum):
+class Capability(mcu.Capability, turbo.Capability, rga.Capability):
     """
     Protocol events that should be exposed to users (subset of above).
     """
@@ -113,6 +116,8 @@ class Capability(BaseEnum):
     CLEAR = ProtocolEvent.CLEAR
     POWEROFF = ProtocolEvent.POWEROFF
     STOP_REGEN = ProtocolEvent.STOP_REGEN
+    START_MANUAL = ProtocolEvent.START_MANUAL
+    STOP_MANUAL = ProtocolEvent.STOP_MANUAL
 
 
 class Parameter(DriverParameter):
@@ -281,6 +286,9 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         for name in SlaveProtocol.list():
             self._protocol.register_slave_protocol(name, self._slave_protocols[name])
 
+        # build the dynamic event handlers for manual override
+        self._protocol._add_manual_override_handlers()
+
 
 ###########################################################################
 # Protocol
@@ -326,6 +334,7 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.START_ION, self._handler_command_start_ion_regen),
                 (ProtocolEvent.ERROR, self._handler_error),
                 (ProtocolEvent.POWEROFF, self._handler_command_poweroff),
+                (ProtocolEvent.START_MANUAL, self._handler_command_start_manual),
             ],
             ProtocolState.AUTOSAMPLE: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
@@ -364,6 +373,11 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
                 (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
             ],
+            ProtocolState.MANUAL_OVERRIDE: [
+                (ProtocolEvent.ENTER, self._handler_generic_enter),
+                (ProtocolEvent.EXIT, self._handler_generic_exit),
+                (ProtocolEvent.STOP_MANUAL, self._handler_manual_override_stop),
+            ],
         }
 
         for state in handlers:
@@ -384,6 +398,18 @@ class Protocol(InstrumentProtocol):
 
         self._slave_protocols = {}
         self.initialize_scheduler()
+
+    def _add_manual_override_handlers(self):
+        for slave in self._slave_protocols:
+            for event in self._slave_protocols[slave]._cmd_dict._cmd_dict:
+                self._protocol_fsm.add_handler(ProtocolState.MANUAL_OVERRIDE,
+                                               event, self._build_override_handler(slave, event))
+
+    def _build_override_handler(self, slave, event):
+        log.debug('Building event handler for protocol: %s event: %s', slave, event)
+        def inner():
+            return self._slave_protocols[slave]._protocol_fsm.on_event(event)
+        return inner
 
     def register_slave_protocol(self, name, protocol):
         """
@@ -466,7 +492,7 @@ class Protocol(InstrumentProtocol):
         rps = rga.ProtocolState
         action_map = {
             # Waiting Turbo (RGA is off)
-            (mps.WAITING_TURBO, tps.COMMAND, rps.COMMAND): (TURBO, turbo.Capability.START),
+            (mps.WAITING_TURBO, tps.COMMAND, rps.COMMAND): (TURBO, turbo.Capability.START_TURBO),
             (mps.WAITING_TURBO, tps.AT_SPEED, rps.COMMAND): (MCU, mcu.Capability.START2),
 
             # Waiting RGA
@@ -477,7 +503,7 @@ class Protocol(InstrumentProtocol):
 
             # Stopping
             (mps.STOPPING, tps.AT_SPEED, rps.SCAN): (RGA, rga.Capability.STOP_SCAN),
-            (mps.STOPPING, tps.AT_SPEED, rps.COMMAND): (TURBO, turbo.Capability.STOP),
+            (mps.STOPPING, tps.AT_SPEED, rps.COMMAND): (TURBO, turbo.Capability.STOP_TURBO),
             (mps.STOPPING, tps.COMMAND, rps.SCAN): (RGA, rga.Capability.STOP_SCAN),  # this should never happen!
             (mps.STOPPING, tps.COMMAND, rps.COMMAND): (MCU, mcu.Capability.STANDBY),
         }
@@ -518,7 +544,7 @@ class Protocol(InstrumentProtocol):
         # RGA must be in COMMAND or ERROR, the TURBO must be stopped.
         elif turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.ERROR,
                                  turbo.ProtocolState.SPINNING_DOWN]:
-            self._send_event_to_slave(TURBO, turbo.ProtocolEvent.STOP)
+            self._send_event_to_slave(TURBO, turbo.ProtocolEvent.STOP_TURBO)
         # Turbo and RGA must be in COMMAND or ERROR, stop the MCU
         elif mcu_state in [mcu.ProtocolState.WAITING_TURBO, mcu.ProtocolState.WAITING_RGA, mcu.ProtocolState.STOPPING]:
             self._send_event_to_slave(MCU, mcu.ProtocolEvent.STANDBY)
@@ -534,7 +560,8 @@ class Protocol(InstrumentProtocol):
         @param events: Events to be filtered
         @return: list of events which are also capabilities
         """
-        return [x for x in events if Capability.has(x)]
+        return [x for x in events if Capability.has(x) or mcu.Capability.has(x)
+                or turbo.Capability.has(x) or rga.Capability.has(x)]
 
     def _get_slave_states(self):
         """
@@ -667,6 +694,7 @@ class Protocol(InstrumentProtocol):
 
         for protocol in self._slave_protocols.values():
             return_dict[ConfigMetadataKey.PARAMETERS].update(protocol._param_dict.generate_dict())
+            return_dict[ConfigMetadataKey.COMMANDS].update(protocol._cmd_dict.generate_dict())
 
         return return_dict
 
@@ -720,7 +748,8 @@ class Protocol(InstrumentProtocol):
         """
         Generic enter handler, raise STATE CHANGE
         """
-        self._init_params()
+        if self.get_current_state() != ProtocolState.UNKNOWN:
+            self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_generic_exit(self, *args, **kwargs):
@@ -884,6 +913,13 @@ class Protocol(InstrumentProtocol):
         self._send_event_to_slave(MCU, mcu.Capability.POWEROFF)
         return None, (None, None)
 
+    def _handler_command_start_manual(self):
+        """
+        Move FSM to MANUAL OVERRIDE state
+        @return next_state, (next_agent_state, result)
+        """
+        return ProtocolState.MANUAL_OVERRIDE, (ResourceAgentState.COMMAND, None)
+
     ########################################################################
     # Error handlers.
     ########################################################################
@@ -986,4 +1022,22 @@ class Protocol(InstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.STANDBY)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    def _handler_manual_override_stop(self):
+        """
+        Exit manual override.  Attempt to bring the slave drivers back to COMMAND.
+        """
+        mcu_state, turbo_state, rga_state = self._get_slave_states()
+        if rga_state == rga.ProtocolState.SCAN:
+            self._slave_protocols[RGA]._protocol_fsm.on_event(rga.Capability.STOP_SCAN)
+        if turbo_state == turbo.ProtocolState.AT_SPEED:
+            self._slave_protocols[TURBO]._protocol_fsm.on_event(turbo.Capability.STOP_TURBO)
+        while rga_state not in [rga.ProtocolState.COMMAND, rga.ProtocolState.ERROR] or \
+              turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.ERROR]:
+            time.sleep(.1)
+            mcu_state, turbo_state, rga_state = self._get_slave_states()
+        if mcu_state != mcu.ProtocolState.COMMAND:
+            self._slave_protocols[MCU]._protocol_fsm.on_event(mcu.Capability.STANDBY)
+
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)

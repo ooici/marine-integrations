@@ -52,15 +52,14 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-startup_config = {DriverConfigKey.PARAMETERS: {Parameter.SAMPLE_INTERVAL: 3600}}
-startup_config[DriverConfigKey.PARAMETERS].update(mcu.startup_config[DriverConfigKey.PARAMETERS])
-startup_config[DriverConfigKey.PARAMETERS].update(turbo.startup_config[DriverConfigKey.PARAMETERS])
-startup_config[DriverConfigKey.PARAMETERS].update(rga.startup_config[DriverConfigKey.PARAMETERS])
+massp_startup_config = {DriverConfigKey.PARAMETERS: {Parameter.SAMPLE_INTERVAL: 3600}}
+massp_startup_config[DriverConfigKey.PARAMETERS].update(mcu.mcu_startup_config[DriverConfigKey.PARAMETERS])
+massp_startup_config[DriverConfigKey.PARAMETERS].update(turbo.turbo_startup_config[DriverConfigKey.PARAMETERS])
+massp_startup_config[DriverConfigKey.PARAMETERS].update(rga.rga_startup_config[DriverConfigKey.PARAMETERS])
 
 ###
 #   Driver parameters for the tests
 ###
-
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.harvard.massp.ooicore.driver',
@@ -68,7 +67,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='4OW0M1',
     instrument_agent_name='harvard_massp_ooicore',
     instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config=startup_config
+    driver_startup_config=massp_startup_config
 )
 
 
@@ -131,7 +130,7 @@ class DriverTestMixinSub(DriverTestMixin):
     def send_side_effect(self, protocol, name):
         """
         Side effect function generator - will send responses based on input
-        @param driver Instrument driver instance
+        @param protocol Instrument protocol instance
         @returns side effect function
         """
         def inner(data):
@@ -141,9 +140,9 @@ class DriverTestMixinSub(DriverTestMixin):
             @returns length of response
             """
             my_response = str(self.responses[name].get(data.strip()))
-            log.debug('my_send data: %r responses: %r', data, self.responses[name])
+            log.trace('my_send data: %r responses: %r', data, self.responses[name])
             if my_response is not None:
-                log.debug("my_send: data: %r, my_response: %r", data, my_response)
+                log.trace("my_send: data: %r, my_response: %r", data, my_response)
                 time.sleep(.1)
                 if name == 'rga':
                     self.send_port_agent_packet(protocol, my_response + '\n' + NEWLINE)
@@ -160,7 +159,7 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _capabilities = {
-        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER', 'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
                                 'DRIVER_EVENT_START_DIRECT',
@@ -168,8 +167,10 @@ class DriverTestMixinSub(DriverTestMixin):
                                 'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                 'DRIVER_EVENT_CALIBRATE',
                                 'PROTOCOL_EVENT_ERROR',
+                                'PROTOCOL_EVENT_POWEROFF',
                                 'PROTOCOL_EVENT_START_NAFION_REGEN',
-                                'PROTOCOL_EVENT_START_ION_REGEN', ],
+                                'PROTOCOL_EVENT_START_ION_REGEN',
+                                'PROTOCOL_EVENT_START_MANUAL_OVERRIDE'],
         ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                    'PROTOCOL_EVENT_STOP',
                                    'PROTOCOL_EVENT_ERROR',
@@ -178,8 +179,22 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.POLL: ['PROTOCOL_EVENT_STOP', 'PROTOCOL_EVENT_ERROR'],
         ProtocolState.CALIBRATE: ['PROTOCOL_EVENT_STOP', 'PROTOCOL_EVENT_ERROR'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.NAFION_REGEN: ['PROTOCOL_EVENT_STOP', 'PROTOCOL_EVENT_ERROR'],
-        ProtocolState.ION_REGEN: ['PROTOCOL_EVENT_STOP', 'PROTOCOL_EVENT_ERROR'],
+        ProtocolState.REGEN: ['PROTOCOL_EVENT_STOP_REGEN', 'PROTOCOL_EVENT_ERROR'],
+        ProtocolState.MANUAL_OVERRIDE: ['PROTOCOL_EVENT_STOP_MANUAL_OVERRIDE',
+                                        'DRIVER_EVENT_CALIBRATE',
+                                        'PROTOCOL_EVENT_START1',
+                                        'PROTOCOL_EVENT_START2',
+                                        'PROTOCOL_EVENT_SAMPLE',
+                                        'PROTOCOL_EVENT_NAFREG',
+                                        'PROTOCOL_EVENT_IONREG',
+                                        'PROTOCOL_EVENT_STANDBY',
+                                        'PROTOCOL_EVENT_POWEROFF',
+                                        'PROTOCOL_EVENT_CLEAR',
+                                        'DRIVER_EVENT_ACQUIRE_STATUS',
+                                        'PROTOCOL_EVENT_START_TURBO',
+                                        'PROTOCOL_EVENT_STOP_TURBO',
+                                        'PROTOCOL_EVENT_START_SCAN',
+                                        'PROTOCOL_EVENT_STOP_SCAN'],
     }
 
     _driver_parameters = {
@@ -192,12 +207,28 @@ class DriverTestMixinSub(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.CALIBRATE: {STATES: [ProtocolState.COMMAND]},
+        Capability.CALIBRATE: {STATES: [ProtocolState.COMMAND, ProtocolState.MANUAL_OVERRIDE]},
+        Capability.CLEAR: {STATES: [ProtocolState.ERROR, ProtocolState.MANUAL_OVERRIDE]},
+        Capability.POWEROFF: {STATES: [ProtocolState.COMMAND, ProtocolState.MANUAL_OVERRIDE]},
+
         Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_SAMPLE: {STATES: [ProtocolState.COMMAND]},
         Capability.START_ION: {STATES: [ProtocolState.COMMAND]},
         Capability.START_NAFION: {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.AUTOSAMPLE]},
+
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.START1: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.START2: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.SAMPLE: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.START_TURBO: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.STOP_TURBO: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.START_SCAN: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.STOP_SCAN: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.IONREG: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.NAFREG: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.STANDBY: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.STOP_REGEN: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
     }
 
 
@@ -256,19 +287,19 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         for slave in SlaveProtocol.list():
             protocol = driver._slave_protocols[slave]
             if slave == 'mcu':
-                protocol.set_init_params(mcu.startup_config)
+                protocol.set_init_params(mcu.mcu_startup_config)
                 self.responses[slave] = mcu.DriverTestMixinSub.responses
             elif slave == 'rga':
-                protocol.set_init_params(rga.startup_config)
+                protocol.set_init_params(rga.rga_startup_config)
                 self.responses[slave] = rga.DriverTestMixinSub.responses
             elif slave == 'turbo':
-                protocol.set_init_params(turbo.startup_config)
+                protocol.set_init_params(turbo.turbo_startup_config)
                 self.responses[slave] = turbo.DriverTestMixinSub.responses
             protocol._connection.send.side_effect = self.send_side_effect(protocol, slave)
             protocol._init_params()
 
         driver._protocol._param_dict.set_value(Parameter.SAMPLE_INTERVAL,
-                                               startup_config['parameters'][Parameter.SAMPLE_INTERVAL])
+                                               massp_startup_config['parameters'][Parameter.SAMPLE_INTERVAL])
 
         # Force the instrument into a known state
         self.assert_force_state(driver, initial_protocol_state)
@@ -428,8 +459,36 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         get the driver schema and verify it is configured properly
         """
+        self.maxDiff = None
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
+    def test_manual_override(self):
+        """
+        test the manual override state
+        """
+        driver = self.test_connect()
+        driver._protocol._protocol_fsm.on_event(Capability.START_MANUAL)
+
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.MANUAL_OVERRIDE)
+
+        driver._protocol._protocol_fsm.on_event(Capability.START1)
+        self.send_port_agent_packet(driver._slave_protocols['mcu'], McuPrompt.START1 + NEWLINE)
+
+        driver._protocol._protocol_fsm.on_event(Capability.START_TURBO)
+
+        self.responses['turbo'] = turbo.DriverTestMixinSub.responses_at_speed
+
+        driver._protocol._protocol_fsm.on_event(Capability.START_SCAN)
+        driver._protocol._protocol_fsm.on_event(Capability.STOP_SCAN)
+
+        driver._protocol._protocol_fsm.on_event(Capability.STOP_TURBO)
+
+        self.responses['turbo'] = turbo.DriverTestMixinSub.responses_stopped
+
+        driver._protocol._protocol_fsm.on_event(Capability.STOP_MANUAL)
+
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
 
 
 ###############################################################################
@@ -565,7 +624,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         Test get action for all parameters
         """
         self.assert_initialize_driver()
-        for key, value in startup_config[DriverConfigKey.PARAMETERS].iteritems():
+        for key, value in massp_startup_config[DriverConfigKey.PARAMETERS].iteritems():
             self.assert_get(key, value)
 
     def test_set_parameters(self):
@@ -583,7 +642,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         constraints.update(rga.ParameterConstraints.dict())
 
         for name, parameter in parameters.iteritems():
-            value = startup_config[DriverConfigKey.PARAMETERS].get(parameter)
+            value = massp_startup_config[DriverConfigKey.PARAMETERS].get(parameter)
             if value is not None:
                 if name in constraints:
                     _, minimum, maximum = constraints[name]
@@ -686,7 +745,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_NAFION)
-        self.assert_state_change(ProtocolState.NAFION_REGEN, 10)
+        self.assert_state_change(ProtocolState.REGEN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
     def test_ionreg(self):
@@ -695,7 +754,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_ION)
-        self.assert_state_change(ProtocolState.ION_REGEN, 10)
+        self.assert_state_change(ProtocolState.REGEN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
 
@@ -988,7 +1047,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         constraints.update(rga.ParameterConstraints.dict())
 
         for name, parameter in parameters.iteritems():
-            value = startup_config[DriverConfigKey.PARAMETERS].get(parameter)
+            value = massp_startup_config[DriverConfigKey.PARAMETERS].get(parameter)
             if value is not None:
                 if name in constraints:
                     _, minimum, maximum = constraints[name]

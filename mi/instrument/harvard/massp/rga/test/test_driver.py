@@ -52,8 +52,19 @@ from mi.core.log import get_logger
 
 log = get_logger()
 
-startup_config = {DriverConfigKey.PARAMETERS: {Parameter.EE: 70, Parameter.IE: 1, Parameter.VF: 90, Parameter.NF: 4,
-                                               Parameter.SA: 10, Parameter.MI: 1, Parameter.MF: 100, Parameter.FL: 1.0}}
+rga_startup_config = {
+    DriverConfigKey.PARAMETERS: {
+        Parameter.EE: 70,
+        Parameter.IE: 1,
+        Parameter.VF: 90,
+        Parameter.NF: 4,
+        Parameter.SA: 10,
+        Parameter.MI: 1,
+        Parameter.MF: 100,
+        Parameter.FL: 1.0
+    }
+}
+
 
 ###
 #   Driver parameters for the tests
@@ -66,7 +77,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='harvard_massp_rga',
     instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config=startup_config
+    driver_startup_config=rga_startup_config
 )
 
 #################################### RULES ####################################
@@ -187,7 +198,7 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _capabilities = {
-        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER', 'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
                                 'DRIVER_EVENT_START_DIRECT',
@@ -228,10 +239,13 @@ class DriverTestMixinSub(DriverTestMixin):
             @returns length of response
             """
             data = data.replace(NEWLINE, '')
-            log.debug('my_send data: %r', data)
+            log.trace('my_send data: %r', data)
             my_response = str(self.responses.get(data))
             if my_response is not None:
-                log.debug("my_send: data: %r, my_response: %r", data, my_response)
+                log.trace("my_send: data: %r, my_response: %r", data, my_response)
+                # scans repeat over and over, sleep between them to prevent overloading cpu
+                if data == 'SC1':
+                    time.sleep(1)
                 self._send_port_agent_packet(driver, my_response + '\n' + NEWLINE)
                 return len(my_response)
 
@@ -276,7 +290,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
         driver._connection.send.side_effect = self.my_send(driver)
-        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol.set_init_params(rga_startup_config)
         driver._protocol._init_params()
         return driver
 
@@ -311,10 +325,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         dynamic based on instrument parameters.
         """
         driver = self.test_connect()
+        self.clear_data_particle_queue()
         driver._protocol._protocol_fsm.on_event(Capability.START_SCAN)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.SCAN)
 
         particles = []
+        time.sleep(5)
 
         for p in self._data_particle_received:
             particle_dict = json.loads(p)

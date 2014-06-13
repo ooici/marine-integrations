@@ -18,9 +18,12 @@ from mock import Mock
 import time
 import ntplib
 
-from mi.core.exceptions import InstrumentCommandException, InstrumentProtocolException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentCommandException
 from mi.core.instrument.data_particle import RawDataParticle
-from mi.core.instrument.instrument_driver import DriverConfigKey, ResourceAgentState, DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverConfigKey
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.log import get_logger
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -54,9 +57,16 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-startup_config = {DriverConfigKey.PARAMETERS: {Parameter.UPDATE_INTERVAL: 5, Parameter.MAX_DRIVE_CURRENT: 140,
-                                               Parameter.MAX_TEMP_BEARING: 65, Parameter.MAX_TEMP_MOTOR: 90,
-                                               Parameter.MIN_SPEED: 80000, Parameter.TARGET_SPEED: 90000, }}
+turbo_startup_config = {
+    DriverConfigKey.PARAMETERS: {
+        Parameter.UPDATE_INTERVAL: 5,
+        Parameter.MAX_DRIVE_CURRENT: 140,
+        Parameter.MAX_TEMP_BEARING: 65,
+        Parameter.MAX_TEMP_MOTOR: 90,
+        Parameter.MIN_SPEED: 80000,
+        Parameter.TARGET_SPEED: 90000
+    }
+}
 
 ###
 #   Driver parameters for the tests
@@ -69,7 +79,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='harvard_massp_turbo',
     instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config=startup_config
+    driver_startup_config=turbo_startup_config
 )
 
 #################################### RULES ####################################
@@ -197,15 +207,15 @@ class DriverTestMixinSub(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.START: {STATES: [ProtocolState.COMMAND]},
-        Capability.STOP: {STATES: [ProtocolState.SPINNING_UP, ProtocolState.AT_SPEED]},
+        Capability.START_TURBO: {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_TURBO: {STATES: [ProtocolState.SPINNING_UP, ProtocolState.AT_SPEED]},
         Capability.CLEAR: {STATES: [ProtocolState.ERROR]},
         Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.SPINNING_UP, ProtocolState.AT_SPEED,
                                              ProtocolState.SPINNING_DOWN]},
     }
 
     _capabilities = {
-        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER', 'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
                                 'DRIVER_EVENT_START_DIRECT',
@@ -292,7 +302,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
         driver._connection.send.side_effect = self.my_send(driver)
-        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol.set_init_params(turbo_startup_config)
         driver._protocol._init_params()
         return driver
 
@@ -401,7 +411,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 
             driver = self.test_connect()
             try:
-                driver._protocol._protocol_fsm.on_event(Capability.START)
+                driver._protocol._protocol_fsm.on_event(Capability.START_TURBO)
                 self.assertEqual(driver._protocol.get_current_state(), ProtocolState.SPINNING_UP)
                 self.responses = self.responses_at_speed
                 driver._protocol._protocol_fsm.on_event(Capability.ACQUIRE_STATUS)
@@ -465,10 +475,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         through the correct state sequence to COMMAND.
         """
         self.assert_initialize_driver()
-        self.assert_driver_command(Capability.START)
+        self.assert_driver_command(Capability.START_TURBO)
         self.assert_state_change(ProtocolState.SPINNING_UP, 10)
         self.assert_state_change(ProtocolState.AT_SPEED, 600)
-        self.assert_driver_command(Capability.STOP)
+        self.assert_driver_command(Capability.STOP_TURBO)
         self.assert_state_change(ProtocolState.SPINNING_DOWN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
@@ -578,11 +588,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_particles(self):
         self.assert_enter_command_mode()
-        self.assert_execute_resource(Capability.START)
+        self.assert_execute_resource(Capability.START_TURBO)
         self.assert_particle_async(DataParticleType.TURBO_STATUS,
                                    self.assert_status_particle,
                                    particle_count=2, timeout=20)
-        self.assert_execute_resource(Capability.STOP)
+        self.assert_execute_resource(Capability.STOP_TURBO)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
     def test_get_set_parameters(self):
@@ -640,14 +650,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
-            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.START],
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.START_TURBO],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
         self.assert_capabilities(capabilities)
 
-        self.assert_execute_resource(Capability.START)
+        self.assert_execute_resource(Capability.START_TURBO)
         self.assert_state_change(ResourceAgentState.BUSY, ProtocolState.SPINNING_UP, 20)
 
         ##################
@@ -656,7 +666,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: [],
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
-            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP, ProtocolEvent.ACQUIRE_STATUS],
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP_TURBO, ProtocolEvent.ACQUIRE_STATUS],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
@@ -671,14 +681,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: [],
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
-            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP, ProtocolEvent.ACQUIRE_STATUS],
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP_TURBO, ProtocolEvent.ACQUIRE_STATUS],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
         self.assert_capabilities(capabilities)
 
-        self.assert_execute_resource(Capability.STOP)
+        self.assert_execute_resource(Capability.STOP_TURBO)
         self.assert_state_change(ResourceAgentState.BUSY, ProtocolState.SPINNING_DOWN, 20)
 
         ##################

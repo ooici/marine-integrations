@@ -16,8 +16,8 @@ from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 from mi.core.log import get_logger
 from mi.core.log import get_logging_metaclass
-from mi.core.common import BaseEnum, Units
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.common import BaseEnum, Units, Prefixes
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, InitializationType
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -116,6 +116,8 @@ class Parameter(DriverParameter):
     Device specific parameters.
     """
     TELEGRAM_INTERVAL = 'mcu_telegram_interval'
+    ONE_MINUTE = 'mcu_one_minute'
+    SAMPLE_TIME = 'mcu_sample_time'
 
     @classmethod
     def reverse_dict(cls):
@@ -127,7 +129,9 @@ class ParameterConstraint(BaseEnum):
     Constraints for parameters
     (type, min, max)
     """
-    TELEGRAM_INTERVAL = (int, 1, 30)
+    TELEGRAM_INTERVAL = (int, 1, 30000)
+    ONE_MINUTE = (int, 1, 99999)
+    SAMPLE_TIME = (int, 1, 99)
 
 
 class Prompt(BaseEnum):
@@ -149,6 +153,7 @@ class Prompt(BaseEnum):
     IONREG_FINISHED = "M Ion Reg finished"
     ABORTED = "M ABORTED"
     IN_SEQUENCE = 'E001 already in sequence'
+    SET_MINUTE = 'Minutes set to'
 
 
 class InstrumentCommand(BaseEnum):
@@ -168,9 +173,10 @@ class InstrumentCommand(BaseEnum):
     ABORT = 'U AABORT'
     RESETP = 'U SETRESETP'
     SET_TELEGRAM_INTERVAL = 'U SETRATEDLR'
+    SET_MINUTE = 'U SETMINUTE'
 
 
-###############################################################################
+# ##############################################################################
 # Data Particles
 ###############################################################################
 
@@ -304,7 +310,7 @@ class McuDataParticle(DataParticle):
             segments = [[x.split('.')[0] for x in row.split(':')[1:]] for row in self.raw_data.split(',')[1:-1]]
 
             powers, pressures, internals, externals, external_statuses, power_statuses, \
-                solenoid_statuses, calibration_statuses, heater_statuses = segments
+            solenoid_statuses, calibration_statuses, heater_statuses = segments
 
             for index, value in enumerate(calibration_statuses):
                 if value == '':
@@ -551,6 +557,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         for command in InstrumentCommand.list():
             if command == InstrumentCommand.SET_TELEGRAM_INTERVAL:
                 self._add_build_handler(command, self._build_telegram_interval_command)
+            elif command == InstrumentCommand.SAMPLE:
+                self._add_build_handler(command, self._build_sample_command)
+            elif command == InstrumentCommand.SET_MINUTE:
+                self._add_build_handler(command, self._build_set_minute_command)
             else:
                 self._add_build_handler(command, self._build_simple_command)
 
@@ -592,9 +602,29 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              display_name='Data Telegram Interval in Sample',
-                             units=Units.SECOND,
-                             description='The interval in seconds between successive MCU data telegrams' +
+                             units=Prefixes.MILLI + Units.SECOND,
+                             description='The interval in milliseconds between successive MCU data telegrams' +
                                          'while in the SAMPLE/CAL state')
+        self._param_dict.add(Parameter.SAMPLE_TIME,
+                             '',
+                             None,
+                             None,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             display_name='Sample Cycle Time',
+                             units=Units.MINUTE,
+                             description='The length of each portion of the sample cycle')
+        self._param_dict.add(Parameter.ONE_MINUTE,
+                             '',
+                             None,
+                             None,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             display_name='Length of One Minute',
+                             units=Prefixes.MILLI + Units.SECOND,
+                             description='MCU timing constant representing the number of seconds per minute')
 
     def _build_command_dict(self):
         """
@@ -603,6 +633,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.START1, display_name="start sequence 1")
         self._cmd_dict.add(Capability.START2, display_name="start sequence 2")
         self._cmd_dict.add(Capability.SAMPLE, display_name="start sample sequence")
+        self._cmd_dict.add(Capability.CALIBRATE, display_name="start calibrate sequence")
         self._cmd_dict.add(Capability.NAFREG, display_name="start nafion regeneration")
         self._cmd_dict.add(Capability.IONREG, display_name="start ion chamber regeneration")
         self._cmd_dict.add(Capability.STANDBY, display_name="transition to standby")
@@ -619,8 +650,25 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Build the telegram interval command using the TELEGRAM_INTERVAL parameter
         """
-        return '%s%08d' % (InstrumentCommand.SET_TELEGRAM_INTERVAL,
-                           int(self._param_dict.get(Parameter.TELEGRAM_INTERVAL)) * 1000)
+        return '%s%08d%s' % (InstrumentCommand.SET_TELEGRAM_INTERVAL,
+                             int(self._param_dict.get(Parameter.TELEGRAM_INTERVAL)),
+                             NEWLINE)
+
+    def _build_set_minute_command(self, *args, **kwargs):
+        """
+        Build the SETMINUTE command
+        """
+        return '%s%05d%s' % (InstrumentCommand.SET_MINUTE,
+                             int(self._param_dict.get(Parameter.ONE_MINUTE)),
+                             NEWLINE)
+
+    def _build_sample_command(self, *args, **kwargs):
+        """
+        Build the SAMPLE command
+        """
+        return '%s%02d%s' % (InstrumentCommand.SAMPLE,
+                             int(self._param_dict.get(Parameter.SAMPLE_TIME)),
+                             NEWLINE)
 
     def _got_chunk(self, chunk, ts):
         """
@@ -698,6 +746,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._verify_not_readonly(*args, **kwargs)
         params_to_set = args[0]
+        startup = False
+        if len(args) > 1:
+            startup = args[1]
         old_config = self._param_dict.get_all()
 
         # check if in range
@@ -729,6 +780,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                     'Attempted to set unknown parameter: %s value: %s' % (key, val))
         new_config = self._param_dict.get_all()
 
+        # only program this parameter on startup
+        if startup and new_config[Parameter.ONE_MINUTE] is not None:
+            self._do_cmd_resp(InstrumentCommand.SET_MINUTE, expected_prompt=Prompt.SET_MINUTE)
+
         # If we changed anything, raise a CONFIG_CHANGE event
         if old_config != new_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -752,8 +807,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.  Break out of any currently running sequence and return the MCU to STANDBY
         """
-        self._init_params()
         self._do_cmd_resp(InstrumentCommand.BEAT)
+
+        self._init_params()
 
         try:
             result = self._do_cmd_resp(InstrumentCommand.STANDBY,

@@ -45,7 +45,11 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-startup_config = {DriverConfigKey.PARAMETERS: {Parameter.TELEGRAM_INTERVAL: 10}}
+mcu_startup_config = {DriverConfigKey.PARAMETERS: {
+    Parameter.TELEGRAM_INTERVAL: 10000,
+    Parameter.ONE_MINUTE: 1000,
+    Parameter.SAMPLE_TIME: 10
+}}
 
 ###
 #   Driver parameters for the tests
@@ -56,7 +60,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='IN2N03',
     instrument_agent_name='harvard_massp_mcu',
     instrument_agent_packet_config=DataParticleType,
-    driver_startup_config=startup_config
+    driver_startup_config=mcu_startup_config
 )
 
 #################################### RULES ####################################
@@ -214,30 +218,34 @@ class DriverTestMixinSub(DriverTestMixin):
     responses = {
         InstrumentCommand.START1: Prompt.OK,
         InstrumentCommand.START2: Prompt.OK,
-        InstrumentCommand.SAMPLE: Prompt.SAMPLE_START,
+        InstrumentCommand.SAMPLE + '10': Prompt.SAMPLE_START,
         InstrumentCommand.CAL: Prompt.OK,
         InstrumentCommand.STANDBY: Prompt.OK + NEWLINE + Prompt.STANDBY,
         InstrumentCommand.BEAT: Prompt.BEAT,
         InstrumentCommand.NAFREG: Prompt.OK,
         InstrumentCommand.IONREG: Prompt.OK,
         InstrumentCommand.SET_TELEGRAM_INTERVAL + '00010000': Prompt.OK,
+        InstrumentCommand.SET_MINUTE + '01000': Prompt.SET_MINUTE
     }
 
     _driver_parameters = {
         Parameter.TELEGRAM_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
+        Parameter.ONE_MINUTE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 1},
+        Parameter.SAMPLE_TIME: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
     }
 
     _driver_capabilities = {
         # capabilities defined in the IOS
         Capability.START1: {STATES: [ProtocolState.COMMAND]},
         Capability.START2: {STATES: [ProtocolState.START1]},
-        Capability.SAMPLE: {STATES: [ProtocolState.START2]},
+        Capability.SAMPLE: {STATES: [ProtocolState.WAITING_RGA]},
         Capability.STANDBY: {STATES: [ProtocolState.WAITING_TURBO, ProtocolState.WAITING_RGA,
                                       ProtocolState.SAMPLE, ProtocolState.REGEN]},
         Capability.CLEAR: {STATES: [ProtocolState.ERROR]},
         Capability.IONREG: {STATES: [ProtocolState.COMMAND]},
         Capability.NAFREG: {STATES: [ProtocolState.COMMAND]},
         Capability.POWEROFF: {STATES: [ProtocolState.COMMAND]},
+        Capability.CALIBRATE: {STATES: [ProtocolState.WAITING_RGA]},
     }
 
     _capabilities = {
@@ -384,8 +392,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
+        log.debug('Adding Mock side effect to connection.send')
         driver._connection.send.side_effect = self.my_send(driver)
-        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol.set_init_params(mcu_startup_config)
         driver._protocol._init_params()
         return driver
 
@@ -513,13 +522,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
         driver._connection.send.side_effect = lambda x: sent.append(x)
-        driver._protocol.set_init_params(self.test_config.driver_startup_config)
-        driver._protocol._init_params()
+        driver._protocol.set_init_params(mcu_startup_config)
 
         driver._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
         driver._protocol._async_raise_fsm_event(ProtocolEvent.DISCOVER)
         wait(InstrumentCommand.BEAT + NEWLINE)
         self._send_port_agent_packet(driver, Prompt.BEAT + NEWLINE)
+        wait(InstrumentCommand.SET_MINUTE + '01000' + NEWLINE)
+        self._send_port_agent_packet(driver, Prompt.SET_MINUTE + NEWLINE)
         wait(InstrumentCommand.STANDBY + NEWLINE)
         self._send_port_agent_packet(driver, Prompt.IN_SEQUENCE + NEWLINE)
         wait(InstrumentCommand.ABORT + NEWLINE)
