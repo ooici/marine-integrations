@@ -106,7 +106,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
-        log.error("Sung %s", repr(reply))
+        log.error("Sung all parameters %s", repr(reply))
         self.assert_driver_parameters(reply, True)
 
 
@@ -330,120 +330,64 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #self.assert_set_exception(WorkhorseParameter.BANNER, True)
         self._tested[WorkhorseParameter.BANNER] = True
 
-    def _test_set_pitch(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for PITCH ======")
-        # PITCH:  -- Int -6000 to 6000
-        self.assert_set(WorkhorseParameter.PITCH, -6000)
-        self.assert_set(WorkhorseParameter.PITCH, -4000)
-        self.assert_set(WorkhorseParameter.PITCH, -2000)
-        self.assert_set(WorkhorseParameter.PITCH, -1)
-        self.assert_set(WorkhorseParameter.PITCH, 0)
-        self.assert_set(WorkhorseParameter.PITCH, 1)
-        self.assert_set(WorkhorseParameter.PITCH, 2000)
-        self.assert_set(WorkhorseParameter.PITCH, 4000)
-        self.assert_set(WorkhorseParameter.PITCH, 6000)
+    # def _test_set_polled_mode(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for POLLED_MODE ======")
+    #     # POLLED_MODE:  -- (True/False)
+    #     self.assert_set(WorkhorseParameter.POLLED_MODE, True)
+    #     self.assert_set_exception(WorkhorseParameter.POLLED_MODE, "LEROY JENKINS")
+    #     #
+    #     # Reset to good value.
+    #     #
+    #     #self.assert_set(WorkhorseParameter.POLLED_MODE, self._driver_parameter_defaults[WorkhorseParameter.POLLED_MODE])
+    #     self.assert_set(WorkhorseParameter.POLLED_MODE, self._driver_parameters[WorkhorseParameter.POLLED_MODE][self.VALUE])
+    #     self._tested[WorkhorseParameter.POLLED_MODE] = True
 
-        self.assert_set_exception(WorkhorseParameter.PITCH, "LEROY JENKINS")
-        self.assert_set_exception(WorkhorseParameter.PITCH, -6001)
-        self.assert_set_exception(WorkhorseParameter.PITCH, 6001)
-        self.assert_set_exception(WorkhorseParameter.PITCH, 3.1415926)
+    # def _test_set_sleep_enable(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for SLEEP_ENABLE ======")
+    #     # SLEEP_ENABLE:  -- (0,1,2)
+    #     self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 1)
+    #     self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 2)
+    #
+    #     self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, -1)
+    #     self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, 3)
+    #     self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, 3.1415926)
+    #     self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, "LEROY JENKINS")
+    #     #
+    #     # Reset to good value.
+    #     #
+    #     #self.assert_set(WorkhorseParameter.SLEEP_ENABLE, self._driver_parameter_defaults[WorkhorseParameter.SLEEP_ENABLE])
+    #     self.assert_set(WorkhorseParameter.SLEEP_ENABLE, self._driver_parameters[WorkhorseParameter.SLEEP_ENABLE][self.VALUE])
+    #     self._tested[WorkhorseParameter.SLEEP_ENABLE] = True
 
-        #
-        # Reset to good value.
-        #
-        #self.assert_set(WorkhorseParameter.PITCH, self._driver_parameter_defaults[WorkhorseParameter.PITCH])
-        self.assert_set(WorkhorseParameter.PITCH, self._driver_parameters[WorkhorseParameter.PITCH][self.VALUE])
-
-        self._tested[WorkhorseParameter.PITCH] = True
-
-    def _test_set_roll(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for ROLL ======")
-        # ROLL:  -- Int -6000 to 6000
-        self.assert_set(WorkhorseParameter.ROLL, -6000)
-        self.assert_set(WorkhorseParameter.ROLL, -4000)
-        self.assert_set(WorkhorseParameter.ROLL, -2000)
-        self.assert_set(WorkhorseParameter.ROLL, -1)
-        self.assert_set(WorkhorseParameter.ROLL, 0)
-        self.assert_set(WorkhorseParameter.ROLL, 1)
-        self.assert_set(WorkhorseParameter.ROLL, 2000)
-        self.assert_set(WorkhorseParameter.ROLL, 4000)
-        self.assert_set(WorkhorseParameter.ROLL, 6000)
-
-        self.assert_set_exception(WorkhorseParameter.ROLL, "LEROY JENKINS")
-        self.assert_set_exception(WorkhorseParameter.ROLL, -6001)
-        self.assert_set_exception(WorkhorseParameter.ROLL, 6001)
-        self.assert_set_exception(WorkhorseParameter.ROLL, 3.1415926)
-        #
-        # Reset to good value.
-        #
-        #self.assert_set(WorkhorseParameter.ROLL, self._driver_parameter_defaults[WorkhorseParameter.ROLL])
-        self.assert_set(WorkhorseParameter.ROLL, self._driver_parameters[WorkhorseParameter.ROLL][self.VALUE])
-        self._tested[WorkhorseParameter.ROLL] = True
-
-    def _test_set_polled_mode(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for POLLED_MODE ======")
-        # POLLED_MODE:  -- (True/False)
-        self.assert_set(WorkhorseParameter.POLLED_MODE, True)
-        self.assert_set_exception(WorkhorseParameter.POLLED_MODE, "LEROY JENKINS")
-        #
-        # Reset to good value.
-        #
-        #self.assert_set(WorkhorseParameter.POLLED_MODE, self._driver_parameter_defaults[WorkhorseParameter.POLLED_MODE])
-        self.assert_set(WorkhorseParameter.POLLED_MODE, self._driver_parameters[WorkhorseParameter.POLLED_MODE][self.VALUE])
-        self._tested[WorkhorseParameter.POLLED_MODE] = True
-
-    def _test_set_sleep_enable(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for SLEEP_ENABLE ======")
-        # SLEEP_ENABLE:  -- (0,1,2)
-        self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 1)
-        self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 2)
-
-        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, -1)
-        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, 3)
-        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, 3.1415926)
-        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, "LEROY JENKINS")
-        #
-        # Reset to good value.
-        #
-        #self.assert_set(WorkhorseParameter.SLEEP_ENABLE, self._driver_parameter_defaults[WorkhorseParameter.SLEEP_ENABLE])
-        self.assert_set(WorkhorseParameter.SLEEP_ENABLE, self._driver_parameters[WorkhorseParameter.SLEEP_ENABLE][self.VALUE])
-        self._tested[WorkhorseParameter.SLEEP_ENABLE] = True
-
-    def _test_set_coordinate_transformation(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
-        # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11000')
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11111')
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11101')
-
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '00000')
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '00111')
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '00101')
-
-        self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, -1)
-        self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, 3)
-        self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, 3.1415926)
-        self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, "LEROY JENKINS")
-        #
-        # Reset to good value.
-        #
-        self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, self._driver_parameters[WorkhorseParameter.COORDINATE_TRANSFORMATION][self.VALUE])
-        self._tested[WorkhorseParameter.COORDINATE_TRANSFORMATION] = True
+    # def _test_set_coordinate_transformation(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
+    #     # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11000')
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11111')
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11101')
+    #
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '00000')
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '00111')
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '00101')
+    #
+    #     self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, -1)
+    #     self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, 3)
+    #     self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, 3.1415926)
+    #     self.assert_set_exception(WorkhorseParameter.COORDINATE_TRANSFORMATION, "LEROY JENKINS")
+    #     #
+    #     # Reset to good value.
+    #     #
+    #     self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, self._driver_parameters[WorkhorseParameter.COORDINATE_TRANSFORMATION][self.VALUE])
+    #     self._tested[WorkhorseParameter.COORDINATE_TRANSFORMATION] = True
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
