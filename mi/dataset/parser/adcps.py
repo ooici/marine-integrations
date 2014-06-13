@@ -67,6 +67,9 @@ DATA_FAIL_MATCHER = re.compile(DATA_FAIL_REGEX)
 DATA_REGEX = b'\x6e\x7f[\x00-\xFF]{32}([\x00-\xFF]+)([\x00-\xFF]{2})'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
+SIO_HEADER_BYTES = 33
+STARTING_BYTES = 34
+
 CRC_TABLE = [0, 1996959894, 3993919788, 2567524794, 124634137, 1886057615, 3915621685, 2657392035,
 249268274, 2044508324, 3772115230, 2547177864, 162941995, 2125561021, 3887607047, 2428444049,
 498536548, 1789927666, 4089016648, 2227061214, 450548861, 1843258603, 4107580753, 2211677639,
@@ -141,7 +144,7 @@ class AdcpsParserDataParticle(DataParticle):
         if self._data_match:
             match = self._data_match
             try:
-                fields = struct.unpack('<HHIBBBdHhhhIbBB', match.group(0)[0:34])
+                fields = struct.unpack('<HHIBBBdHhhhIbBB', match.group(0)[0:STARTING_BYTES])
                 num_bytes = fields[1]
                 if len(match.group(0)) - 2 != num_bytes:
                     raise ValueError('num bytes %d does not match data length %d'
@@ -158,12 +161,16 @@ class AdcpsParserDataParticle(DataParticle):
                     struct_format = struct_format + 'h'
     
                 bin_len = nbins*2
-                vel_err = struct.unpack(struct_format, match.group(0)[34:(34+bin_len)])
-                vel_up = struct.unpack(struct_format, match.group(0)[(34+bin_len):(34+(bin_len*2))])
-                vel_north = struct.unpack(struct_format, match.group(0)[(34+(bin_len*2)):(34+(bin_len*3))])
-                vel_east = struct.unpack(struct_format, match.group(0)[(34+(bin_len*3)):(34+(bin_len*4))])
+                vel_err = struct.unpack(struct_format,
+                                        match.group(0)[STARTING_BYTES:(STARTING_BYTES+bin_len)])
+                vel_up = struct.unpack(struct_format,
+                                       match.group(0)[(STARTING_BYTES+bin_len):(STARTING_BYTES+(bin_len*2))])
+                vel_north = struct.unpack(struct_format,
+                                          match.group(0)[(STARTING_BYTES+(bin_len*2)):(STARTING_BYTES+(bin_len*3))])
+                vel_east = struct.unpack(struct_format,
+                                         match.group(0)[(STARTING_BYTES+(bin_len*3)):(STARTING_BYTES+(bin_len*4))])
     
-                checksum = struct.unpack('<H', match.group(0)[(34+(bin_len*4)):(36+(bin_len*4))])
+                checksum = struct.unpack('<H', match.group(0)[(STARTING_BYTES+(bin_len*4)):(36+(bin_len*4))])
                 calculated_checksum = self.calc_inner_checksum(match.group(0)[:-2])
                 if checksum[0] != calculated_checksum:
                     raise ValueError("Inner checksum %s does not match %s" % (checksum[0], calculated_checksum))
@@ -263,7 +270,6 @@ class AdcpsParser(SioMuleParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
-        (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
         (timestamp, chunk) = self._chunker.get_next_data()
 
         sample_count = 0
@@ -273,9 +279,9 @@ class AdcpsParser(SioMuleParser):
             sample_count = 0
             if header_match.group(1) == 'AD':
                 log.debug("matched chunk header %s", chunk[1:32])
-                # start at 33
-                chunk_idx = 33
-                end_idx_okay = 33
+                # start after sio header
+                chunk_idx = SIO_HEADER_BYTES
+                end_idx_okay = SIO_HEADER_BYTES
                 while chunk_idx <= len(chunk):
                     data_fail_match = DATA_FAIL_MATCHER.match(chunk[chunk_idx:])
                     data_wrapper_match = DATA_WRAPPER_MATCHER.match(chunk[chunk_idx:])
@@ -323,7 +329,6 @@ class AdcpsParser(SioMuleParser):
                         chunk_idx += 1
             self._chunk_sample_count.append(sample_count)
 
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
             (timestamp, chunk) = self._chunker.get_next_data()
 
         return result_particles

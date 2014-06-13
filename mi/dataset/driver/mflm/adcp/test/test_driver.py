@@ -19,7 +19,6 @@ import unittest
 import os
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
@@ -83,13 +82,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # there is only one file we read from, this example 'appends' data to
         # the end of the node59p1.dat file, and the data from the new append
         # is returned (not including the original data from _step1)
-        self.clear_async_data()
         self.create_sample_data_set_dir("node59p1_step2.dat", TELEM_DIR, "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, 'test_data_2.txt.result.yml',
                          count=1, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
-        self.clear_async_data()
         self.create_sample_data_set_dir("node59p1_step4.dat", TELEM_DIR, "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, count=2, timeout=10)
 

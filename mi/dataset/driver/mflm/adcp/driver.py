@@ -12,6 +12,7 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import ConfigurationException
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
@@ -47,11 +48,12 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
         @param stream_in Handle of open file to pass to parser
         @param data_key Key to determine which parser type is built
         """
-        parser = None
         if data_key == DataSourceKey.ADCPS_JLN_SIO_MULE:
             parser = self._build_telemetered_parser(parser_state, stream_in)
         elif data_key == DataSourceKey.ADCPS_JLN:
             parser = self._build_recovered_parser(parser_state, stream_in)
+        else:
+            raise ConfigurationException("Invalid data source key %s" % data_key)
         return parser
 
     def _build_telemetered_parser(self, parser_state, infile):
@@ -60,7 +62,7 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
         @param parser_state starting parser state to pass to parser
         @param infile Handle of open file to pass to parser
         """
-        config = self._parser_config
+        config = self._parser_config.get(DataSourceKey.ADCPS_JLN_SIO_MULE)
         config.update({
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcps',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpsParserDataParticle'
@@ -103,18 +105,18 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.ADCPS_JLN_SIO_MULE)
 
-        if DataSourceKey.ADCPS_JLN in self._harvester_config:
-            recov_harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataSourceKey.ADCPS_JLN),
-                driver_state[DataSourceKey.ADCPS_JLN],
-                lambda file_state, file_ingested: self._file_changed_callback(file_state,
-                                                                              DataSourceKey.ADCPS_JLN,
-                                                                              file_ingested),
-                self._exception_callback
-            )
-            harvesters.append(recov_harvester)
-        else:
-            log.warn('No configuration for %s harvester, not building', DataSourceKey.ADCPS_JLN)
+        #if DataSourceKey.ADCPS_JLN in self._harvester_config:
+        #    recov_harvester = SingleDirectoryHarvester(
+        #        self._harvester_config.get(DataSourceKey.ADCPS_JLN),
+        #        driver_state[DataSourceKey.ADCPS_JLN],
+        #       lambda file_state, file_ingested: self._file_changed_callback(file_state,
+        #                                                                      DataSourceKey.ADCPS_JLN,
+        #                                                                      file_ingested),
+        #        self._exception_callback
+        #    )
+        #    harvesters.append(recov_harvester)
+        #else:
+        #    log.warn('No configuration for %s harvester, not building', DataSourceKey.ADCPS_JLN)
         return harvesters
 
 
