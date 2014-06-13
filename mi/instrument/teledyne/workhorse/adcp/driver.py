@@ -100,7 +100,7 @@ class ADCPUnits (Units):
     SETTIME = 'CCYY/MM/DD,hh:mm:ss'
     SERIALDATAOUT = 'Vel Cor Amp'
     FLOWCONTROL = 'BITS: EnsCyc PngCyc Binry Ser Rec'
-    TRUEFALSE = 'true/False'
+    TRUEFALSE = 'True(1)/False(0)'
     NONE = ' '
     SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
     XMTPOWER = 'XMT Power 0-255'

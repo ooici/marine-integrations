@@ -10,19 +10,16 @@ __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 import time
 import datetime as dt
-import unittest
 
-from gevent import monkey; monkey.patch_all()
+from mi.core.log import get_logger
 
-from mi.core.log import get_logger ; log = get_logger()
+log = get_logger()
 
 from nose.plugins.attrib import attr
-from mi.core.common import BaseEnum
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
-from mi.core.time import get_timestamp_delayed
 from mi.core.exceptions import NotImplementedException
 from mi.instrument.teledyne.workhorse.driver import DataParticleType
 
@@ -30,10 +27,11 @@ from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
-from mi.core.common import BaseEnum
+
 DEFAULT_CLOCK_DIFF = 500
 
 from mi.core.instrument.instrument_driver import ResourceAgentState
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -45,7 +43,6 @@ from mi.core.instrument.instrument_driver import ResourceAgentState
 # 4. Using above, try to cover all paths through the functions                #
 # 5. Negative testing if at all possible.                                     #
 ###############################################################################
-
 @attr('UNIT', group='mi')
 class TeledyneUnitTest(InstrumentDriverUnitTestCase):
     def setUp(self):
@@ -62,12 +59,10 @@ class TeledyneUnitTest(InstrumentDriverUnitTestCase):
 @attr('INT', group='mi')
 class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
-    _tested = {}
-
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def _is_time_set(self, time_param, expected_time, time_format = "%d %b %Y %H:%M:%S", tolerance=DEFAULT_CLOCK_DIFF):
+    def _is_time_set(self, time_param, expected_time, time_format="%d %b %Y %H:%M:%S", tolerance=DEFAULT_CLOCK_DIFF):
         """
         Verify is what we expect it to be within a given tolerance
         @param time_param: driver parameter
@@ -75,7 +70,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         @param time_format: date time format
         @param tolerance: how close to the set time should the get be?
         """
-        log.debug("Expected time unformatted: %s", expected_time)
+        log.debug("Expected time un-formatted: %s", expected_time)
 
         result_time = self.assert_get(time_param)
 
@@ -85,7 +80,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("GOT HERE")
         converted_time = time.mktime(result_time_struct)
 
-        if(isinstance(expected_time, float)):
+        if isinstance(expected_time, float):
             expected_time_struct = time.localtime(expected_time)
         else:
             expected_time_struct = time.strptime(expected_time, time_format)
@@ -108,49 +103,11 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         raise NotImplementedException()
 
-    def _test_scheduled_compass_calibration_command(self):
-        """
-        Verify the device configuration command can be triggered and run in command
-        """
-        log.debug("IN test_scheduled_compass_calibration_command")
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100) #250
-        self.assert_current_state(TeledyneProtocolState.COMMAND)
-
-    def _test_scheduled_compass_calibration_autosample(self):
-        """
-        Verify the device configuration command can be triggered and run in autosample
-        """
-        log.debug("IN test_scheduled_compass_calibration_autosample")
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100, # 250
-            autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE)
-        self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
-        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
-
     def assert_acquire_status(self):
         """
         Verify a status particle was generated
         """
         raise NotImplementedException()
-
-    def _test_scheduled_device_configuration_command(self):
-        """
-        Verify the device status command can be triggered and run in command
-        """
-        log.debug("IN test_scheduled_device_configuration_command")
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=120)
-        self.assert_current_state(TeledyneProtocolState.COMMAND)
-
-
-    def _test_scheduled_device_configuration_autosample(self):
-        """
-        Verify the device status command can be triggered and run in autosample
-        """
-        log.debug("IN test_scheduled_device_configuration_autosample")
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=100)
-        self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
-        time.sleep(5)
-        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
 
     def assert_clock_sync(self):
         """
@@ -160,6 +117,38 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
+    def assert_acquire_status(self):
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_calibration,
+                                              timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ancillary_data,
+                                              timeout=60)
+        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data,
+                                              timeout=60)
+
+    def assert_transmit_data(self, data_particle, verify_values=True):
+        """
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCP_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        """
+        log.debug("IN assert_ADCP_TRANSMIT")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
+        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
+
+    def assert_ancillary_data(self, data_particle, verify_values=True):
+        """
+        Verify an adcp ps0 data particle
+        @param data_particle: ADCP_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        """
+        log.debug("IN assert_Ancillary_data")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
+        #self.assert_data_particle_parameters(data_particle, self._pt) # , verify_values
+
+    def assert_calibration(self, data_particle, verify_values=True):
+        log.debug("IN assert_Calibration")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
+
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -168,32 +157,56 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=350)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
-    def test_scheduled_absolute_clock_sync_command(self):
+    def test_scheduled_interval_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
         log.debug("IN test_scheduled_clock_sync_command")
         self.assert_initialize_driver()
-        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL,'00:00:04')
+        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:04')
         time.sleep(10)
 
-        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL,'00:00:00')
+        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:00')
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
-    def test_scheduled_absolute_acquire_status_command(self):
+    def test_scheduled_interval_acquire_status_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
         log.debug("IN test_scheduled_clock_sync_command")
         self.assert_initialize_driver()
-        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL,'00:00:10')
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ANCILLARY_data, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:04')
+        time.sleep(10)
+        self.assert_acquire_status()
 
-        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL,'00:00:00')
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:00')
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
+        failed = False
+        try:
+            self.assert_acquire_status()
+            failed = True
+        except AssertionError:
+            pass
+        self.assertFalse(failed)
+
+    def test_scheduled_acquire_status_autosample(self):
+        """
+        Verify the scheduled acquire status is triggered and functions as expected
+        """
+
+        log.debug("IN test_scheduled_acquire_status_autosample")
+        self.assert_initialize_driver()
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:04')
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE)
+        self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
+        time.sleep(10)
+        self.assert_acquire_status()
+        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+        self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:00')
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
 
     def test_scheduled_clock_sync_autosample(self):
         """
@@ -201,10 +214,17 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
 
         log.debug("IN test_scheduled_clock_sync_autosample")
-        self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
-                                    autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=350)
+        self.assert_initialize_driver()
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:04')
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
+        time.sleep(10)
+        self.assert_acquire_status()
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:00')
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
 
     def test_acquire_status(self):
         """
@@ -214,34 +234,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("IN test_acquire_status")
         self.assert_initialize_driver()
         self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_Calibration, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ANCILLARY_data, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_TRANSMIT_data, timeout=60)
-
-    def assert_TRANSMIT_data(self, data_particle, verify_values = True):
-        '''
-        Verify an adcpt ps0 data particle
-        @param data_particle: ADCPT_PS0DataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        log.debug("IN assert_ADCP_TRANSMIT")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
-        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
-
-    def assert_ANCILLARY_data(self, data_particle, verify_values = True):
-        '''
-        Verify an adcpt ps0 data particle
-        @param data_particle: ADCPT_PS0DataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        log.debug("IN assert_Ancillary_data")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
-        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
-
-    def assert_Calibration(self, data_particle, verify_values = True):
-        log.debug("IN assert_Calibration")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
-
+        self.assert_acquire_status()
 
     def _test_set_instrument_id(self):
         ###
@@ -258,16 +251,16 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.INSTRUMENT_ID, self._driver_parameter_defaults[TeledyneParameter.INSTRUMENT_ID])
-        self.assert_set(TeledyneParameter.INSTRUMENT_ID, self._driver_parameters[TeledyneParameter.INSTRUMENT_ID][self.VALUE])
+        self.assert_set(TeledyneParameter.INSTRUMENT_ID,
+                        self._driver_parameters[TeledyneParameter.INSTRUMENT_ID][self.VALUE])
         self._tested[TeledyneParameter.INSTRUMENT_ID] = True
 
+    # This will be called by test_set_range()
     def _test_set_xmit_power(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for XMIT_POWER ======")
-
 
         # XMIT_POWER:  -- Int 0-255
         log.error("****Sung *******  setting CQ to 0")
@@ -284,10 +277,9 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.XMIT_POWER, self._driver_parameter_defaults[TeledyneParameter.XMIT_POWER])
         self.assert_set(TeledyneParameter.XMIT_POWER, self._driver_parameters[TeledyneParameter.XMIT_POWER][self.VALUE])
-        self._tested[TeledyneParameter.XMIT_POWER] = True
 
+    # This will be called by test_set_range()
     def _test_set_speed_of_sound(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -313,10 +305,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.SPEED_OF_SOUND, self._driver_parameter_defaults[TeledyneParameter.SPEED_OF_SOUND])
-        self.assert_set(TeledyneParameter.SPEED_OF_SOUND, self._driver_parameters[TeledyneParameter.SPEED_OF_SOUND][self.VALUE])
-        self._tested[TeledyneParameter.SPEED_OF_SOUND] = True
+        self.assert_set(TeledyneParameter.SPEED_OF_SOUND,
+                        self._driver_parameters[TeledyneParameter.SPEED_OF_SOUND][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_salinity(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -343,10 +335,9 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.SALINITY, self._driver_parameter_defaults[TeledyneParameter.SALINITY])
         self.assert_set(TeledyneParameter.SALINITY, self._driver_parameters[TeledyneParameter.SALINITY][self.VALUE])
-        self._tested[TeledyneParameter.SALINITY] = True
 
+    # This will be called by test_set_range()
     def _test_set_sensor_source(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -376,10 +367,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.SENSOR_SOURCE, self._driver_parameter_defaults[TeledyneParameter.SENSOR_SOURCE])
-        self.assert_set(TeledyneParameter.SENSOR_SOURCE, self._driver_parameters[TeledyneParameter.SENSOR_SOURCE][self.VALUE])
-        self._tested[TeledyneParameter.SENSOR_SOURCE] = True
+        self.assert_set(TeledyneParameter.SENSOR_SOURCE,
+                        self._driver_parameters[TeledyneParameter.SENSOR_SOURCE][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_time_per_ensemble(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -403,28 +394,63 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.TIME_PER_ENSEMBLE, self._driver_parameter_defaults[TeledyneParameter.TIME_PER_ENSEMBLE])
-        self.assert_set(TeledyneParameter.TIME_PER_ENSEMBLE, self._driver_parameters[TeledyneParameter.TIME_PER_ENSEMBLE][self.VALUE])
-        self._tested[TeledyneParameter.TIME_PER_ENSEMBLE] = True
+        self.assert_set(TeledyneParameter.TIME_PER_ENSEMBLE,
+                        self._driver_parameters[TeledyneParameter.TIME_PER_ENSEMBLE][self.VALUE])
 
-    def _test_set_time_of_first_ping_readonly(self):
+    # This will be called by test_set_range()
+    def _test_set_pitch(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
+        log.debug("====== Testing ranges for PITCH ======")
+        # PITCH:  -- Int -6000 to 6000
+        self.assert_set(TeledyneParameter.PITCH, -6000)
+        self.assert_set(TeledyneParameter.PITCH, -4000)
+        self.assert_set(TeledyneParameter.PITCH, -2000)
+        self.assert_set(TeledyneParameter.PITCH, -1)
+        self.assert_set(TeledyneParameter.PITCH, 0)
+        self.assert_set(TeledyneParameter.PITCH, 1)
+        self.assert_set(TeledyneParameter.PITCH, 2000)
+        self.assert_set(TeledyneParameter.PITCH, 4000)
+        self.assert_set(TeledyneParameter.PITCH, 6000)
 
-        # Test read only raise exceptions on set.        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-        now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
+        self.assert_set_exception(TeledyneParameter.PITCH, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter.PITCH, -6001)
+        self.assert_set_exception(TeledyneParameter.PITCH, 6001)
+        self.assert_set_exception(TeledyneParameter.PITCH, 3.1415926)
 
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
-        self._tested[TeledyneParameter.TIME_OF_FIRST_PING] = True
+        #
+        # Reset to good value.
+        #
+        self.assert_set(TeledyneParameter.PITCH, self._driver_parameters[TeledyneParameter.PITCH][self.VALUE])
 
+    # This will be called by test_set_range()
+    def _test_set_roll(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for ROLL ======")
+        # ROLL:  -- Int -6000 to 6000
+        self.assert_set(TeledyneParameter.ROLL, -6000)
+        self.assert_set(TeledyneParameter.ROLL, -4000)
+        self.assert_set(TeledyneParameter.ROLL, -2000)
+        self.assert_set(TeledyneParameter.ROLL, -1)
+        self.assert_set(TeledyneParameter.ROLL, 0)
+        self.assert_set(TeledyneParameter.ROLL, 1)
+        self.assert_set(TeledyneParameter.ROLL, 2000)
+        self.assert_set(TeledyneParameter.ROLL, 4000)
+        self.assert_set(TeledyneParameter.ROLL, 6000)
+
+        self.assert_set_exception(TeledyneParameter.ROLL, "LEROY JENKINS")
+        self.assert_set_exception(TeledyneParameter.ROLL, -6001)
+        self.assert_set_exception(TeledyneParameter.ROLL, 6001)
+        self.assert_set_exception(TeledyneParameter.ROLL, 3.1415926)
+        #
+        # Reset to good value.
+        #
+        self.assert_set(TeledyneParameter.ROLL, self._driver_parameters[TeledyneParameter.ROLL][self.VALUE])
+
+    # This will be called by test_set_range()
     def _test_set_time_per_ping(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -446,10 +472,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.TIME_PER_PING, self._driver_parameter_defaults[TeledyneParameter.TIME_PER_PING])
-        self.assert_set(TeledyneParameter.TIME_PER_PING, self._driver_parameters[TeledyneParameter.TIME_PER_PING][self.VALUE])
-        self._tested[TeledyneParameter.TIME_PER_PING] = True
+        self.assert_set(TeledyneParameter.TIME_PER_PING,
+                        self._driver_parameters[TeledyneParameter.TIME_PER_PING][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_false_target_threshold(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -473,10 +499,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.FALSE_TARGET_THRESHOLD, self._driver_parameter_defaults[TeledyneParameter.FALSE_TARGET_THRESHOLD])
-        self.assert_set(TeledyneParameter.FALSE_TARGET_THRESHOLD, self._driver_parameters[TeledyneParameter.FALSE_TARGET_THRESHOLD][self.VALUE])
-        self._tested[TeledyneParameter.FALSE_TARGET_THRESHOLD] = True
+        self.assert_set(TeledyneParameter.FALSE_TARGET_THRESHOLD,
+                        self._driver_parameters[TeledyneParameter.FALSE_TARGET_THRESHOLD][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_bandwidth_control(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -494,10 +520,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.BANDWIDTH_CONTROL, self._driver_parameter_defaults[TeledyneParameter.BANDWIDTH_CONTROL])
-        self.assert_set(TeledyneParameter.BANDWIDTH_CONTROL, self._driver_parameters[TeledyneParameter.BANDWIDTH_CONTROL][self.VALUE])
-        self._tested[TeledyneParameter.BANDWIDTH_CONTROL] = True
+        self.assert_set(TeledyneParameter.BANDWIDTH_CONTROL,
+                        self._driver_parameters[TeledyneParameter.BANDWIDTH_CONTROL][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_correlation_threshold(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -519,10 +545,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.CORRELATION_THRESHOLD, self._driver_parameter_defaults[TeledyneParameter.CORRELATION_THRESHOLD])
-        self.assert_set(TeledyneParameter.CORRELATION_THRESHOLD, self._driver_parameters[TeledyneParameter.CORRELATION_THRESHOLD][self.VALUE])
-        self._tested[TeledyneParameter.CORRELATION_THRESHOLD] = True
+        self.assert_set(TeledyneParameter.CORRELATION_THRESHOLD,
+                        self._driver_parameters[TeledyneParameter.CORRELATION_THRESHOLD][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_error_velocity_threshold(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -546,10 +572,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, self._driver_parameter_defaults[TeledyneParameter.ERROR_VELOCITY_THRESHOLD])
-        self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, self._driver_parameters[TeledyneParameter.ERROR_VELOCITY_THRESHOLD][self.VALUE])
-        self._tested[TeledyneParameter.ERROR_VELOCITY_THRESHOLD] = True
+        self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD,
+                        self._driver_parameters[TeledyneParameter.ERROR_VELOCITY_THRESHOLD][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_blank_after_transmit(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -577,10 +603,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, self._driver_parameter_defaults[TeledyneParameter.BLANK_AFTER_TRANSMIT])
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, self._driver_parameters[TeledyneParameter.BLANK_AFTER_TRANSMIT][self.VALUE])
-        self._tested[TeledyneParameter.BLANK_AFTER_TRANSMIT] = True
+        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT,
+                        self._driver_parameters[TeledyneParameter.BLANK_AFTER_TRANSMIT][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_clip_data_past_bottom(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -594,10 +620,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.CLIP_DATA_PAST_BOTTOM, self._driver_parameter_defaults[TeledyneParameter.CLIP_DATA_PAST_BOTTOM])
-        self.assert_set(TeledyneParameter.CLIP_DATA_PAST_BOTTOM, self._driver_parameters[TeledyneParameter.CLIP_DATA_PAST_BOTTOM][self.VALUE])
-        self._tested[TeledyneParameter.CLIP_DATA_PAST_BOTTOM] = True
+        self.assert_set(TeledyneParameter.CLIP_DATA_PAST_BOTTOM,
+                        self._driver_parameters[TeledyneParameter.CLIP_DATA_PAST_BOTTOM][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_receiver_gain_select(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -616,20 +642,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, self._driver_parameter_defaults[TeledyneParameter.RECEIVER_GAIN_SELECT])
-        self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, self._driver_parameters[TeledyneParameter.RECEIVER_GAIN_SELECT][self.VALUE])
-        self._tested[TeledyneParameter.RECEIVER_GAIN_SELECT] = True
+        self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT,
+                        self._driver_parameters[TeledyneParameter.RECEIVER_GAIN_SELECT][self.VALUE])
 
-    def _test_set_receiver_gain_select_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
-
-        # Test read only raise exceptions on set.
-        self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
-        self._tested[TeledyneParameter.RECEIVER_GAIN_SELECT] = True
-
+    # This will be called by test_set_range()
     def _test_set_number_of_depth_cells(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -650,10 +666,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, self._driver_parameter_defaults[TeledyneParameter.NUMBER_OF_DEPTH_CELLS])
-        self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, self._driver_parameters[TeledyneParameter.NUMBER_OF_DEPTH_CELLS][self.VALUE])
-        self._tested[TeledyneParameter.NUMBER_OF_DEPTH_CELLS] = True
+        self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS,
+                        self._driver_parameters[TeledyneParameter.NUMBER_OF_DEPTH_CELLS][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_pings_per_ensemble(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -672,10 +688,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.PINGS_PER_ENSEMBLE, self._driver_parameter_defaults[TeledyneParameter.PINGS_PER_ENSEMBLE])
-        self.assert_set(TeledyneParameter.PINGS_PER_ENSEMBLE, self._driver_parameters[TeledyneParameter.PINGS_PER_ENSEMBLE][self.VALUE])
-        self._tested[TeledyneParameter.PINGS_PER_ENSEMBLE] = True
+        self.assert_set(TeledyneParameter.PINGS_PER_ENSEMBLE,
+                        self._driver_parameters[TeledyneParameter.PINGS_PER_ENSEMBLE][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_depth_cell_size(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -694,10 +710,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, self._driver_parameter_defaults[TeledyneParameter.DEPTH_CELL_SIZE])
-        self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, self._driver_parameters[TeledyneParameter.DEPTH_CELL_SIZE][self.VALUE])
-        self._tested[TeledyneParameter.DEPTH_CELL_SIZE] = True
+        self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE,
+                        self._driver_parameters[TeledyneParameter.DEPTH_CELL_SIZE][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_transmit_length(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -712,13 +728,14 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set_exception(TeledyneParameter.TRANSMIT_LENGTH, -1)
         self.assert_set_exception(TeledyneParameter.TRANSMIT_LENGTH, 3.1415926)
         self.assert_set_exception(TeledyneParameter.TRANSMIT_LENGTH, "LEROY JENKINS")
+
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.TRANSMIT_LENGTH, self._driver_parameter_defaults[TeledyneParameter.TRANSMIT_LENGTH])
-        self.assert_set(TeledyneParameter.TRANSMIT_LENGTH, self._driver_parameters[TeledyneParameter.TRANSMIT_LENGTH][self.VALUE])
-        self._tested[TeledyneParameter.TRANSMIT_LENGTH] = True
+        self.assert_set(TeledyneParameter.TRANSMIT_LENGTH,
+                        self._driver_parameters[TeledyneParameter.TRANSMIT_LENGTH][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_ping_weight(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -736,10 +753,10 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.PING_WEIGHT, self._driver_parameter_defaults[TeledyneParameter.PING_WEIGHT])
-        self.assert_set(TeledyneParameter.PING_WEIGHT, self._driver_parameters[TeledyneParameter.PING_WEIGHT][self.VALUE])
-        self._tested[TeledyneParameter.PING_WEIGHT] = True
+        self.assert_set(TeledyneParameter.PING_WEIGHT,
+                        self._driver_parameters[TeledyneParameter.PING_WEIGHT][self.VALUE])
 
+    # This will be called by test_set_range()
     def _test_set_ambiguity_velocity(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -765,103 +782,117 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         #
         # Reset to good value.
         #
-        #self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, self._driver_parameter_defaults[TeledyneParameter.AMBIGUITY_VELOCITY])
-        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
-        self._tested[TeledyneParameter.AMBIGUITY_VELOCITY] = True
+        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY,
+                        self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
 
-    def _test_set_blank_after_transmit_readonly(self):
-            ###
-            #   test get set of a variety of parameter ranges
-            ###
-            log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
-
-            # Test read only raise exceptions on set.
-            self.assert_set_exception(TeledyneParameter.BLANK_AFTER_TRANSMIT, 0)
-            self._tested[TeledyneParameter.BLANK_AFTER_TRANSMIT] = True
-
-    def _test_set_bandwidth_control_readonly(self):
+    # ReadOnly parameter tests
+    def test_set_time_of_first_ping_readonly(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for BANDWIDTH_CONTROL ====== READONLY")
+        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
 
         # Test read only raise exceptions on set.
-        self.assert_set_exception(TeledyneParameter.BANDWIDTH_CONTROL, 0)
-        self._tested[TeledyneParameter.BANDWIDTH_CONTROL] = True
+        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+        now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
 
-    def _test_set_serial_data_out_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for SERIAL_DATA_OUT ======")
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
+        self._tested[TeledyneParameter.TIME_OF_FIRST_PING] = True
 
-        # Test read only raise exceptions on set.
-        self.assert_set(TeledyneParameter.SERIAL_DATA_OUT, '000 000 111')
-        self._tested[TeledyneParameter.SERIAL_DATA_OUT] = True
+    # def _test_set_receiver_gain_select_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
+    #
+    #     # Test read only raise exceptions on set.
+    #     self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
+    #
+    # def _test_set_blank_after_transmit_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
+    #
+    #     # Test read only raise exceptions on set.
+    #     self.assert_set_exception(TeledyneParameter.BLANK_AFTER_TRANSMIT, 0)
+    #     self._tested[TeledyneParameter.BLANK_AFTER_TRANSMIT] = True
 
-    def _test_set_serial_out_fw_switches_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for SERIAL_OUT_FW_SWITCHES ======")
+    # def _test_set_bandwidth_control_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for BANDWIDTH_CONTROL ====== READONLY")
+    #
+    #     # Test read only raise exceptions on set.
+    #     self.assert_set_exception(TeledyneParameter.BANDWIDTH_CONTROL, 0)
+    #     self._tested[TeledyneParameter.BANDWIDTH_CONTROL] = True
 
-        # Test read only raise exceptions on set.
-        #self.assert_set_exception(TeledyneParameter.SERIAL_OUT_FW_SWITCHES, '110100100')
-        self._tested[TeledyneParameter.SERIAL_OUT_FW_SWITCHES] = True
+    # ReadOnly parameter tests
+    # def _test_set_serial_data_out_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for SERIAL_DATA_OUT ======")
+    #
+    #     # Test read only raise exceptions on set.
+    #     self.assert_set_exception(TeledyneParameter.SERIAL_DATA_OUT, '000 000 111')
+    #     self._tested[TeledyneParameter.SERIAL_DATA_OUT] = True
+    #
+    # def _test_set_serial_out_fw_switches_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for SERIAL_OUT_FW_SWITCHES ======")
+    #
+    #     # Test read only raise exceptions on set.
+    #     #self.assert_set_exception(TeledyneParameter.SERIAL_OUT_FW_SWITCHES, '110100100')
+    #     self._tested[TeledyneParameter.SERIAL_OUT_FW_SWITCHES] = True
 
-
-    def _test_set_parameter_test(self):
-        self.assert_set(TeledyneParameter.HEADING_ALIGNMENT, "+10000")
+    # ReadOnly parameter setting exception tests
+    def test_set_parameter_test(self):
+        self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+10000")
         self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+40000")
-        self._tested[TeledyneParameter.HEADING_ALIGNMENT] = True
-
-        self.assert_set(TeledyneParameter.ENSEMBLE_PER_BURST, 600)
+        self.assert_set_exception(TeledyneParameter.ENSEMBLE_PER_BURST, 600)
         self.assert_set_exception(TeledyneParameter.ENSEMBLE_PER_BURST, 70000)
-        self._tested[TeledyneParameter.ENSEMBLE_PER_BURST] = True
-
-        self.assert_set(TeledyneParameter.LATENCY_TRIGGER, 1)
-        self._tested[TeledyneParameter.LATENCY_TRIGGER] = True
-
-        self.assert_set(TeledyneParameter.DATA_STREAM_SELECTION, 10)
+        self.assert_set_exception(TeledyneParameter.LATENCY_TRIGGER, 1)
+        self.assert_set_exception(TeledyneParameter.DATA_STREAM_SELECTION, 10)
         self.assert_set_exception(TeledyneParameter.DATA_STREAM_SELECTION, 19)
-        self._tested[TeledyneParameter.DATA_STREAM_SELECTION] = True
+        self.assert_set_exception(TeledyneParameter.BUFFERED_OUTPUT_PERIOD, "00:00:11")
 
-        self.assert_set(TeledyneParameter.BUFFERED_OUTPUT_PERIOD, "00:00:11")
-        self._tested[TeledyneParameter.BUFFERED_OUTPUT_PERIOD] = True
-
-        self.assert_set(TeledyneParameter.TRANSDUCER_DEPTH, 60000)
-        self.assert_set_exception(TeledyneParameter.TRANSDUCER_DEPTH, 70000)
-        self._tested[TeledyneParameter.TRANSDUCER_DEPTH] = True
-
-        self.assert_set(TeledyneParameter.SAMPLE_AMBIENT_SOUND, 1)
-        self._tested[TeledyneParameter.SAMPLE_AMBIENT_SOUND] = True
-
-
-    def _test_set_coordinate_transformation(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
-
-        # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11000')
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11111')
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11101')
-
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00000')
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00111')
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00101')
-
-        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, -1)
-        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3)
-        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3.1415926)
-        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, "LEROY JENKINS")
+        # def _test_set_coordinate_transformation(self):
+        #     ###
+        #     #   test get set of a variety of parameter ranges
+        #     ###
+        #     log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
         #
-        # Reset to good value.
+        #     # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11000')
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11111')
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11101')
         #
-        #self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, self._driver_parameter_defaults[WorkhorseParameter.COORDINATE_TRANSFORMATION])
-        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, self._driver_parameters[TeledyneParameter.COORDINATE_TRANSFORMATION][self.VALUE])
-        self._tested[TeledyneParameter.COORDINATE_TRANSFORMATION] = True
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00000')
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00111')
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00101')
+        #
+        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, -1)
+        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3)
+        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3.1415926)
+        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, "LEROY JENKINS")
+        #     #
+        #     # Reset to good value.
+        #     #
+        #     #self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION,
+        # self._driver_parameter_defaults[WorkhorseParameter.COORDINATE_TRANSFORMATION])
+        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION,
+        #                     self._driver_parameters[TeledyneParameter.COORDINATE_TRANSFORMATION][self.VALUE])
+        #     self._tested[TeledyneParameter.COORDINATE_TRANSFORMATION] = True
 
 
 ###############################################################################
@@ -890,7 +921,7 @@ class TeledyneQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_timeout(self):
         """
-        Verify that DA timesout as expected and transistions back to command mode.
+        Verify that DA timeout as expected and transitions back to command mode.
         """
         self.assert_enter_command_mode()
 

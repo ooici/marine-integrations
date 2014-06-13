@@ -535,12 +535,10 @@ class Protocol(WorkhorseProtocol):
             raise InstrumentParameterException("Invalid init config format")
 
         self._startup_config = config
-        log.error("Sung init params %s", repr(config))
         param_config = config.get(DriverConfigKey.PARAMETERS)
         if(param_config):
             for name in param_config.keys():
                 log.debug("Setting init value for %s to %s", name, param_config[name])
-                log.error("Sung Setting init value for %s to %s", name, param_config[name])
                 if name.find('_') != -1:  # Found
                     self._param_dict2.set_init_value(name, param_config[name])
                 else:
@@ -2819,7 +2817,7 @@ class Protocol(WorkhorseProtocol):
         """
         result = None
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
 
         log.info("SYNCING TIME WITH SENSOR.")
         self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
@@ -2976,7 +2974,7 @@ class Protocol(WorkhorseProtocol):
         next_state = None
         next_agent_state = None
 
-        kwargs['timeout'] = 120
+        kwargs['timeout'] = 150
 
         output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
@@ -2991,7 +2989,7 @@ class Protocol(WorkhorseProtocol):
         save setup to ram.
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
         result = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
@@ -3008,7 +3006,7 @@ class Protocol(WorkhorseProtocol):
         next_state = None
         next_agent_state = None
 
-        kwargs['timeout'] = 120  # long time to get params.
+        kwargs['timeout'] = 150  # long time to get params.
         log.trace("in _handler_command_get_configuration")
         output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
@@ -3023,7 +3021,7 @@ class Protocol(WorkhorseProtocol):
         run test PT200
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
@@ -3036,7 +3034,7 @@ class Protocol(WorkhorseProtocol):
         run Factory set
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
@@ -3049,7 +3047,7 @@ class Protocol(WorkhorseProtocol):
         run user set
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
@@ -3062,7 +3060,7 @@ class Protocol(WorkhorseProtocol):
         clear the error status word
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
@@ -3075,7 +3073,7 @@ class Protocol(WorkhorseProtocol):
         read the error status word
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
@@ -3089,7 +3087,7 @@ class Protocol(WorkhorseProtocol):
         display the error log.
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_FAULT_LOG, *args, **kwargs)
@@ -3102,7 +3100,7 @@ class Protocol(WorkhorseProtocol):
         clear the error log.
         """
         next_state = None
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, *args, **kwargs)
@@ -3357,7 +3355,7 @@ class Protocol(WorkhorseProtocol):
             self._stop_logging(*args, **kwargs)
             self._stop_logging2(*args, **kwargs)
 
-            kwargs['timeout'] = 120
+            kwargs['timeout'] = 150
             output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
             output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
@@ -3511,7 +3509,7 @@ class Protocol(WorkhorseProtocol):
         log.trace("IN _handler_command_acquire_status")
         next_state = None
 
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 50
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
         self._do_cmd_no_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
