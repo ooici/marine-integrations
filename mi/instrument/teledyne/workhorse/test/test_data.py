@@ -167,6 +167,7 @@ CG_SAMPLE_RAW_DATA = \
 "\x00\x00\x00\x64\x00\x00\x00\x64\x00" + \
 "\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00" + \
 "\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x8b\xc6\x9e\x3f"
+
 CG_SAMPLE_RAW_DATA2 = \
 "\x7f\x7f\x68\x08\x00\x06\x12\x00\x4d\x00\x8e\x00\xb0\x03\x42\x05\xd4\x06\x00\x00\x32\x28\xc8\x41\x00\x35\x04\x64\x01\x00\x20\x03" + \
 "\xc0\x02\x01\x40\x05\x00\xd0\x07\x00\x01\x00\x1f\x00\x00\x00\x00\x7d\x3d\x99\x06\xcd\x03\x01\x05\x32\x00\xc6\x00\x2e\x00\x00\x06" + \
@@ -314,6 +315,19 @@ NEWLINE + \
 NEWLINE + \
 ">"
 
+RSN_PT2_RAW_DATA = \
+"  Ambient  Temperature =    20.69 Degrees C" + NEWLINE +\
+"  Attitude Temperature =    24.98 Degrees C" + NEWLINE +\
+"  Internal Moisture    = 8E9Eh" + NEWLINE +\
+">"
+
+RSN_PT4_RAW_DATA = \
+"IXMT    =      2.0 Amps rms  [Data=afh]" + NEWLINE +\
+"VXMT    =     60.1 Volts rms [Data=9eh]" + NEWLINE +\
+"   Z    =     30.0 Ohms"  + NEWLINE +\
+"Transmit Test Results = $0 ... PASS" + NEWLINE +\
+">"
+
 CG_CALIBRATION_RAW_DATA = \
 "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
 "               Calibration date and time: 12/14/2012  15:01:59" + NEWLINE + \
@@ -445,6 +459,19 @@ NEWLINE +\
 "  0.2661    0.2661    0.2661    0.2661        4359    4359    4359    4359" + NEWLINE +\
 "  1.0337    1.0337   -1.0337   -1.0337       16936   16936  -16936  -16936" + NEWLINE +\
 "Beam Angle Corrections Are Loaded." + NEWLINE +\
+">"
+
+PT2_RAW_DATA = \
+"Ambient  Temperature =    20.32 Degrees C" + NEWLINE +\
+"  Attitude Temperature =    24.65 Degrees C" + NEWLINE +\
+"  Internal Moisture    = 8F0Ah" + NEWLINE +\
+">"
+
+PT4_RAW_DATA = \
+"IXMT    =      2.0 Amps rms  [Data=b0h]" + NEWLINE +\
+"VXMT    =     60.1 Volts rms [Data=9eh]" + NEWLINE +\
+"   Z    =     29.8 Ohms"  + NEWLINE +\
+"Transmit Test Results = $0 ... PASS"  + NEWLINE +\
 ">"
 
 PS4_RAW_DATA = \
