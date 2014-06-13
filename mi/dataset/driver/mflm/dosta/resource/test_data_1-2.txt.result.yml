@@ -16,8 +16,8 @@ data:
     particle_object: DostadParserDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374621301
-    estimated_oxygen: 302.636
-    air_saturation: 98.918
+    estimated_oxygen_concentration: 302.636
+    estimated_oxygen_saturation: 98.918
     optode_temperature: 16.355
     calibrated_phase: 30.771
     temp_compensated_phase: 30.771
@@ -31,8 +31,8 @@ data:
     particle_object: DostadParserDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374624001
-    estimated_oxygen: 317.073
-    air_saturation: 98.515
+    estimated_oxygen_concentration: 317.073
+    estimated_oxygen_saturation: 98.515
     optode_temperature: 14.004
     calibrated_phase: 31.299
     temp_compensated_phase: 31.299

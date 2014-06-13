@@ -8,8 +8,8 @@ data:
   - _index: 1
     internal_timestamp: '2013-07-24T06:00:01'
     sio_controller_timestamp: 1374645601
-    estimated_oxygen: 326.544
-    air_saturation: 96.726
+    estimated_oxygen_concentration: 326.544
+    estimated_oxygen_saturation: 96.726
     optode_temperature: 11.873
     calibrated_phase: 31.965
     temp_compensated_phase: 31.965

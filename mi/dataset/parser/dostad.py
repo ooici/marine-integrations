@@ -33,8 +33,8 @@ class StateKey(BaseEnum):
 
 class DostadParserDataParticleKey(BaseEnum):
     CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
-    ESTIMATED_OXYGEN = 'estimated_oxygen'
-    AIR_SATURATION = 'air_saturation'
+    ESTIMATED_OXYGEN = 'estimated_oxygen_concentration'
+    ESTIMATED_SATURATION = 'estimated_oxygen_saturation'
     OPTODE_TEMPERATURE = 'optode_temperature'
     CALIBRATED_PHASE = 'calibrated_phase'
     TEMP_COMPENSATED_PHASE = 'temp_compensated_phase'
@@ -100,7 +100,7 @@ class DostadParserDataParticle(DataParticle):
                                          DostadParserDataParticle.encode_int_16),
                       self._encode_value(DostadParserDataParticleKey.ESTIMATED_OXYGEN,
                                          self._data_match.group(3), float),
-                      self._encode_value(DostadParserDataParticleKey.AIR_SATURATION,
+                      self._encode_value(DostadParserDataParticleKey.ESTIMATED_SATURATION,
                                          self._data_match.group(4), float),
                       self._encode_value(DostadParserDataParticleKey.OPTODE_TEMPERATURE,
                                          self._data_match.group(5), float),

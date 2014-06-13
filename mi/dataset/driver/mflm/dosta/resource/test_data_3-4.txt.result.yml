@@ -8,8 +8,8 @@ data:
   - _index: 1
     internal_timestamp: '2013-07-24T06:00:01'
     sio_controller_timestamp: 1374645601
-    estimated_oxygen: 326.544
-    air_saturation: 96.726
+    estimated_oxygen_concentration: 326.544
+    estimated_oxygen_saturation: 96.726
     optode_temperature: 11.873
     calibrated_phase: 31.965
     temp_compensated_phase: 31.965
@@ -21,8 +21,8 @@ data:
   - _index: 2
     internal_timestamp: '2013-07-24T12:00:02'
     sio_controller_timestamp: 1374667202
-    estimated_oxygen: 332.060
-    air_saturation: 99.617
+    estimated_oxygen_concentration: 332.060
+    estimated_oxygen_saturation: 99.617
     optode_temperature: 12.432
     calibrated_phase: 31.490
     temp_compensated_phase: 31.490
@@ -34,8 +34,8 @@ data:
   - _index: 3
     internal_timestamp: '2013-07-24T18:00:02'
     sio_controller_timestamp: 1374688802
-    estimated_oxygen: 354.515
-    air_saturation: 101.592
+    estimated_oxygen_concentration: 354.515
+    estimated_oxygen_saturation: 101.592
     optode_temperature: 10.440
     calibrated_phase: 31.666
     temp_compensated_phase: 31.666
@@ -47,8 +47,8 @@ data:
   - _index: 4
     internal_timestamp: '2013-07-25T00:00:02'
     sio_controller_timestamp: 1374710402
-    estimated_oxygen: 337.540
-    air_saturation: 100.172
+    estimated_oxygen_concentration: 337.540
+    estimated_oxygen_saturation: 100.172
     optode_temperature: 11.955
     calibrated_phase: 31.521
     temp_compensated_phase: 31.521
