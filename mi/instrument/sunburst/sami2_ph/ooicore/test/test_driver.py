@@ -1,7 +1,7 @@
 """
 @package mi.instrument.sunburst.sami2_ph.ooicore.test.test_driver
 @file marine-integrations/mi/instrument/sunburst/sami2_ph/ooicore/driver.py
-@author Stuart Pearce
+@author Kevin Stiemke
 @brief Test cases for ooicore driver
 
 USAGE:

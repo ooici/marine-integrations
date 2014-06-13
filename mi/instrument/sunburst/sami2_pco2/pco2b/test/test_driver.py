@@ -1,7 +1,7 @@
 """
 @package mi.instrument.sunburst.sami2_pco2.pco2b.test.test_driver
 @file marine-integrations/mi/instrument/sunburst/sami2_pco2/pco2b/driver.py
-@author Christopher Wingard
+@author Kevin Stiemke
 @brief Test cases for pco2b driver
 
 USAGE:
