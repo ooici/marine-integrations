@@ -395,7 +395,7 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         self.assert_data_particle_parameters(data_particle, self._reference_status_parameters, verify_values)
 
-    def assert_data_particle_test(self, data_particle, verify_values=False):
+    def assert_data_particle(self, data_particle, verify_values=False):
         """
         Verify a SUNA test data particle
         @param data_particle: a SUNA test data particle
@@ -479,7 +479,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         #validate data particles
         self.assert_particle_published(driver, SUNA_ASCII_SAMPLE, self.assert_data_particle_sample, True)
         self.assert_particle_published(driver, SUNA_ASCII_STATUS, self.assert_data_particle_status, True)
-        #self.assert_particle_published(driver, SUNA_ASCII_TEST, self.assert_data_particle_test, True)
+        self.assert_particle_published(driver, SUNA_ASCII_TEST, self.assert_data_particle, True)
 
     def test_protocol_filter_capabilities(self):
         """

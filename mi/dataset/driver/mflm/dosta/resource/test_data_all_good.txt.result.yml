@@ -2,14 +2,26 @@
 
 header:
   particle_object: DostadParserDataParticle
+<<<<<<< HEAD
   particle_type: dosta_abcdjm_sio_instrument
+=======
+  particle_type: dosta_ln_wfp_instrument
+>>>>>>> upstream/master
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-24T06:00:01'
+<<<<<<< HEAD
     sio_controller_timestamp: 1374645601
     estimated_oxygen: 326.544
     air_saturation: 96.726
+=======
+    controller_timestamp: 1374645601
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen_concentration: 326.544
+    estimated_oxygen_saturation: 96.726
+>>>>>>> upstream/master
     optode_temperature: 11.873
     calibrated_phase: 31.965
     temp_compensated_phase: 31.965
