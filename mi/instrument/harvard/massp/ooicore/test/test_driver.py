@@ -14,14 +14,15 @@ USAGE:
 """
 
 import re
-import ntplib
 import json
 import time
-import gevent
 from pprint import pformat
+from collections import Counter
+
+import ntplib
+import gevent
 from nose.plugins.attrib import attr
 from mock import Mock
-from collections import Counter
 from pyon.core.exception import ResourceError, BadRequest
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
@@ -45,7 +46,8 @@ from mi.instrument.harvard.massp.mcu.driver import Prompt as McuPrompt
 import mi.instrument.harvard.massp.mcu.test.test_driver as mcu
 import mi.instrument.harvard.massp.rga.test.test_driver as rga
 import mi.instrument.harvard.massp.turbo.test.test_driver as turbo
-from mi.core.log import get_logger, get_logging_metaclass
+from mi.core.log import get_logger
+
 
 __author__ = 'Peter Cable'
 __license__ = 'Apache 2.0'
@@ -503,9 +505,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 ###############################################################################
 # noinspection PyMethodMayBeStatic,PyAttributeOutsideInit
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
-    __metaclass__ = get_logging_metaclass(log_level='error')
-
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     def setUp(self):
         self.port_agents = {}
         InstrumentDriverIntegrationTestCase.setUp(self)
@@ -577,6 +577,21 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
             }
         return config
 
+    def assert_slave_state(self, name, state, timeout=30, sleep_time=.5, command_ok=False):
+        end_time = time.time() + timeout
+        while True:
+            if command_ok and self.driver_client.cmd_dvr('get_resource_state') == ProtocolState.COMMAND:
+                return
+            _, states = self.driver_client.cmd_dvr('execute_resource', Capability.GET_SLAVE_STATES)
+            if states.get(name) == state:
+                return
+            self.assertGreater(end_time, time.time(),
+                               msg='Slave protocol [%s] failed to transition to %s before timeout' % (name, state))
+            log.debug('Failed to achieve target slave [%s] state: %s.  Sleeping [%5.2fs left]',
+                      name, state, end_time - time.time())
+            time.sleep(sleep_time)
+
+
     def test_driver_process(self):
         """
         Test for correct launch of driver process and communications, including asynchronous driver events.
@@ -643,12 +658,21 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         for name, parameter in parameters.iteritems():
             value = massp_startup_config[DriverConfigKey.PARAMETERS].get(parameter)
+            # do we have a value to set?
             if value is not None:
-                if name in constraints:
-                    _, minimum, maximum = constraints[name]
-                    self.assert_set(parameter, minimum + 1)
+                # is the parameter RW?
+                if not self._driver_parameters[parameter][self.READONLY]:
+                    # is there a constraint for this parameter?
+                    if name in constraints:
+                        _, minimum, maximum = constraints[name]
+                        # set within constraints
+                        self.assert_set(parameter, minimum + 1)
+                    else:
+                        # set to startup value + 1
+                        self.assert_set(parameter, value + 1)
                 else:
-                    self.assert_set(parameter, value + 1)
+                    # readonly, assert exception on set
+                    self.assert_set_exception(parameter)
 
     def test_set_bogus_parameter(self):
         """
@@ -676,10 +700,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         for parameter in constraints:
             param = parameters[parameter]
-            _, minimum, maximum = constraints[parameter]
-            self.assert_set_exception(param, minimum - 1)
-            self.assert_set_exception(param, maximum + 1)
-            self.assert_set_exception(param, "strings aren't valid here!")
+            if not self._driver_parameters[param][self.READONLY]:
+                _, minimum, maximum = constraints[parameter]
+                self.assert_set_exception(param, minimum - 1)
+                self.assert_set_exception(param, maximum + 1)
+                self.assert_set_exception(param, "strings aren't valid here!")
 
     def test_bad_command(self):
         """
@@ -757,15 +782,60 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_state_change(ProtocolState.REGEN, 10)
         self.assert_state_change(ProtocolState.COMMAND, 600)
 
+    def test_manual_override(self):
+        """
+        Test the manual override mode.  Verify we can go through an entire sample sequence manually.
+        """
+        self.assert_initialize_driver()
+        self.assert_driver_command(Capability.START_MANUAL, state=ProtocolState.MANUAL_OVERRIDE)
+        self.assert_driver_command(Capability.START1)
+        self.assert_slave_state('mcu', mcu.ProtocolState.WAITING_TURBO, timeout=90, sleep_time=2)
+        self.assert_driver_command(Capability.START_TURBO)
+        self.assert_slave_state('turbo', turbo.ProtocolState.AT_SPEED, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.START2)
+        self.assert_slave_state('mcu', mcu.ProtocolState.WAITING_RGA, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.START_SCAN)
+        self.assert_slave_state('rga', rga.ProtocolState.SCAN, timeout=60, sleep_time=1)
+        self.assert_driver_command(Capability.SAMPLE)
+        self.assert_slave_state('mcu', mcu.ProtocolState.SAMPLE, timeout=60, sleep_time=1)
+        self.assert_slave_state('mcu', mcu.ProtocolState.STOPPING, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.STOP_SCAN)
+        self.assert_slave_state('rga', rga.ProtocolState.COMMAND, timeout=60, sleep_time=1)
+        self.assert_driver_command(Capability.STOP_TURBO)
+        self.assert_slave_state('turbo', turbo.ProtocolState.SPINNING_DOWN, timeout=60, sleep_time=1)
+        self.assert_slave_state('turbo', turbo.ProtocolState.COMMAND, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.STANDBY)
+        self.assert_slave_state('mcu', mcu.ProtocolState.COMMAND, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.STOP_MANUAL, state=ProtocolState.COMMAND)
+
+    def test_exit_manual_override(self):
+        """
+        Test that we when we exit manual override in sequence, all slave protocols return to COMMAND
+        """
+        self.assert_initialize_driver()
+        self.assert_driver_command(Capability.START_MANUAL, state=ProtocolState.MANUAL_OVERRIDE)
+        self.assert_driver_command(Capability.START1)
+        self.assert_slave_state('mcu', mcu.ProtocolState.WAITING_TURBO, timeout=90, sleep_time=2)
+        self.assert_driver_command(Capability.START_TURBO)
+        self.assert_slave_state('turbo', turbo.ProtocolState.AT_SPEED, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.START2)
+        self.assert_slave_state('mcu', mcu.ProtocolState.WAITING_RGA, timeout=600, sleep_time=10)
+        self.assert_driver_command(Capability.START_SCAN)
+        self.assert_slave_state('rga', rga.ProtocolState.SCAN, timeout=60, sleep_time=1)
+        self.assert_driver_command(Capability.SAMPLE)
+        self.assert_slave_state('mcu', mcu.ProtocolState.SAMPLE, timeout=60, sleep_time=1)
+        self.assert_driver_command(Capability.STOP_MANUAL)
+        self.assert_state_change(ProtocolState.COMMAND, timeout=120)
+        self.assert_slave_state('rga', rga.ProtocolState.COMMAND, command_ok=True)
+        self.assert_slave_state('turbo', turbo.ProtocolState.COMMAND, command_ok=True)
+        self.assert_slave_state('mcu', mcu.ProtocolState.COMMAND, command_ok=True)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
 # integration.  The generally aren't used for instrument debugging and should #
 # be tackled after all unit and integration tests are complete                #
-#                                                                             #
-#    NOTE: execute U SETMINUTE01000 on the MCU prior to running these tests   #
-#                                                                             #
 ###############################################################################
 # noinspection PyMethodMayBeStatic,PyAttributeOutsideInit,PyProtectedMember
 @attr('QUAL', group='mi')

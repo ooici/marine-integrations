@@ -479,6 +479,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START1_COMPLETE, self._handler_start1_complete),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.WAITING_TURBO: [
@@ -492,6 +493,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.START2_COMPLETE, self._handler_start2_complete),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.WAITING_RGA: [
@@ -506,12 +508,14 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.SAMPLE_COMPLETE, self._handler_sample_complete),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.CALIBRATE: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.CALIBRATE_COMPLETE, self._handler_cal_complete),
+                (ProtocolEvent.STANDBY, self._handler_stop),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.STOPPING: [

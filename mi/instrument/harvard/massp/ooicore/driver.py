@@ -10,6 +10,7 @@ Driver for the MASSP in-situ mass spectrometer
 
 import functools
 import time
+
 import mi.core.log
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.instrument.driver_dict import DriverDictKey
@@ -101,6 +102,7 @@ class ProtocolEvent(mcu.ProtocolEvent, turbo.ProtocolEvent, rga.ProtocolEvent):
     STOP_REGEN = 'PROTOCOL_EVENT_STOP_REGEN'
     START_MANUAL = 'PROTOCOL_EVENT_START_MANUAL_OVERRIDE'
     STOP_MANUAL = 'PROTOCOL_EVENT_STOP_MANUAL_OVERRIDE'
+    GET_SLAVE_STATES = 'PROTOCOL_EVENT_GET_SLAVE_STATES'
 
 
 class Capability(mcu.Capability, turbo.Capability, rga.Capability):
@@ -118,6 +120,7 @@ class Capability(mcu.Capability, turbo.Capability, rga.Capability):
     STOP_REGEN = ProtocolEvent.STOP_REGEN
     START_MANUAL = ProtocolEvent.START_MANUAL
     STOP_MANUAL = ProtocolEvent.STOP_MANUAL
+    GET_SLAVE_STATES = ProtocolEvent.GET_SLAVE_STATES
 
 
 class Parameter(DriverParameter):
@@ -377,6 +380,7 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.STOP_MANUAL, self._handler_manual_override_stop),
+                (ProtocolEvent.GET_SLAVE_STATES, self._handler_manual_get_slave_states),
             ],
         }
 
@@ -408,7 +412,7 @@ class Protocol(InstrumentProtocol):
     def _build_override_handler(self, slave, event):
         log.debug('Building event handler for protocol: %s event: %s', slave, event)
         def inner():
-            return self._slave_protocols[slave]._protocol_fsm.on_event(event)
+            return None, self._slave_protocols[slave]._protocol_fsm.on_event(event)
         return inner
 
     def register_slave_protocol(self, name, protocol):
@@ -643,7 +647,8 @@ class Protocol(InstrumentProtocol):
                     self._param_dict.set_value(key, params[key])
                 else:
                     raise InstrumentParameterException('Invalid key in SET action: %s' % key)
-            temp_dict.setdefault(target, {})[key] = params[key]
+            else:
+                temp_dict.setdefault(target, {})[key] = params[key]
 
         # set parameters for slave protocols
         for name in temp_dict:
@@ -672,7 +677,8 @@ class Protocol(InstrumentProtocol):
                 # master driver parameter
                 log.debug("Setting init value for %s to %s", key, config[key])
                 self._param_dict.set_init_value(key, config[key])
-            temp_dict.setdefault(target, {})[key] = config[key]
+            else:
+                temp_dict.setdefault(target, {})[key] = config[key]
 
         for name in temp_dict:
             if name in self._slave_protocols:
@@ -1041,3 +1047,11 @@ class Protocol(InstrumentProtocol):
             self._slave_protocols[MCU]._protocol_fsm.on_event(mcu.Capability.STANDBY)
 
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    def _handler_manual_get_slave_states(self):
+        """
+        Get the slave states and return them to the user
+        @return: next_state, (next_agent_state, result)
+        """
+        mcu_state, turbo_state, rga_state = self._get_slave_states()
+        return None, (None, {'mcu': mcu_state, 'rga': rga_state, 'turbo': turbo_state})
