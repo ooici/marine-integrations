@@ -1054,4 +1054,4 @@ class Protocol(InstrumentProtocol):
         @return: next_state, (next_agent_state, result)
         """
         mcu_state, turbo_state, rga_state = self._get_slave_states()
-        return None, (None, {'mcu': mcu_state, 'rga': rga_state, 'turbo': turbo_state})
+        return None, (None, {MCU: mcu_state, RGA: rga_state, TURBO: turbo_state})
