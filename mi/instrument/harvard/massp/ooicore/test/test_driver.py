@@ -183,6 +183,7 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
         ProtocolState.REGEN: ['PROTOCOL_EVENT_STOP_REGEN', 'PROTOCOL_EVENT_ERROR'],
         ProtocolState.MANUAL_OVERRIDE: ['PROTOCOL_EVENT_STOP_MANUAL_OVERRIDE',
+                                        'PROTOCOL_EVENT_GET_SLAVE_STATES',
                                         'DRIVER_EVENT_CALIBRATE',
                                         'PROTOCOL_EVENT_START1',
                                         'PROTOCOL_EVENT_START2',
