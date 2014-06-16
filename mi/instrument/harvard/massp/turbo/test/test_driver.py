@@ -34,7 +34,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.core.instrument.chunker import StringChunker
-from mi.instrument.harvard.massp.turbo.driver import InstrumentDriver
+from mi.instrument.harvard.massp.turbo.driver import InstrumentDriver, CURRENT_STABILIZE_RETRIES
 from mi.instrument.harvard.massp.turbo.driver import TRUE
 from mi.instrument.harvard.massp.turbo.driver import FALSE
 from mi.instrument.harvard.massp.turbo.driver import TurboStatusParticleKey
@@ -230,7 +230,9 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.SPINNING_DOWN: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                       'PROTOCOL_EVENT_STOPPED'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR', 'DRIVER_EVENT_ACQUIRE_STATUS']
+        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR',
+                              'PROTOCOL_EVENT_STOP_TURBO',
+                              'DRIVER_EVENT_ACQUIRE_STATUS']
     }
 
     def _send_port_agent_packet(self, driver, data):
@@ -418,7 +420,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                 time.sleep(.1)
                 self.assertEqual(driver._protocol.get_current_state(), ProtocolState.AT_SPEED)
                 self.responses = each
-                for x in xrange(4):
+                for x in xrange(CURRENT_STABILIZE_RETRIES+1):
                     driver._protocol._protocol_fsm.on_event(Capability.ACQUIRE_STATUS)
                     time.sleep(.1)
             except Exception as e:
