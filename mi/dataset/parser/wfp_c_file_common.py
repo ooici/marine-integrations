@@ -17,6 +17,7 @@ import copy
 import re
 import ntplib
 import struct
+import binascii
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
@@ -25,6 +26,7 @@ from mi.core.exceptions import SampleException, DatasetParserException
 
 from mi.dataset.dataset_parser import BufferLoadingParser
 
+EOP_ONLY_MATCHER = re.compile(b'\xFF{11}')
 EOP_REGEX = b'\xFF{11}([\x00-\xFF]{8})'
 EOP_MATCHER = re.compile(EOP_REGEX)
 
@@ -34,7 +36,6 @@ FOOTER_BYTES = DATA_RECORD_BYTES + TIME_RECORD_BYTES
 
 class StateKey(BaseEnum):
     POSITION = 'position' # holds the file position
-    TIMESTAMP = 'timestamp' # holds the timestamp
     RECORDS_READ = 'records_read' # holds the number of records read so far
     METADATA_SENT = 'metadata_sent' # holds a flag indicating if the footer has been sent
 
@@ -60,7 +61,6 @@ class WfpCFileCommonParser(BufferLoadingParser):
         if filesize < FOOTER_BYTES:
             raise SampleException('File must be at least %d bytes to read the timestamp' % FOOTER_BYTES)
         self._read_state = {StateKey.POSITION: 0,
-                            StateKey.TIMESTAMP: 0.0,
                             StateKey.RECORDS_READ: 0,
                             StateKey.METADATA_SENT: False}
         super(WfpCFileCommonParser, self).__init__(config,
@@ -90,9 +90,13 @@ class WfpCFileCommonParser(BufferLoadingParser):
 
         while data_index < raw_data_len:
             # check if this is a status or data sample message
-            if EOP_MATCHER.match(raw_data[data_index:data_index+DATA_RECORD_BYTES+TIME_RECORD_BYTES]):
-                # do not return this record as chunk it marks the end of all chunks
-                break
+            if EOP_ONLY_MATCHER.match(raw_data[data_index:data_index + DATA_RECORD_BYTES]):
+                if (raw_data_len - (data_index + DATA_RECORD_BYTES)) >= TIME_RECORD_BYTES:
+                    return_list.append((data_index, data_index + DATA_RECORD_BYTES + TIME_RECORD_BYTES))
+                    break;
+                else:
+                    # not enough bytes have been read to get both the end of profile and timestamps, need to wait for more
+                    break
             else:
                 return_list.append((data_index, data_index + DATA_RECORD_BYTES))
                 data_index += DATA_RECORD_BYTES
@@ -155,11 +159,7 @@ class WfpCFileCommonParser(BufferLoadingParser):
             if not number_samples.is_integer():
                 raise SampleException("File does not evenly fit into number of samples")
             if not self._read_state[StateKey.METADATA_SENT]:
-                # only need to create the particle if it has not been sent previously
-                timestamp = float(ntplib.system_to_ntp_time(self._start_time))
-                sample = self.extract_metadata_particle((match.group(1), number_samples), timestamp)
-                if sample:
-                    self._saved_metadata = sample
+                self.footer_data = (match.group(1), number_samples)
             # reset the file handle to the beginning of the file
             self._stream_handle.seek(0)
         else:
@@ -174,27 +174,23 @@ class WfpCFileCommonParser(BufferLoadingParser):
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
         if not (StateKey.POSITION in state_obj) or not \
-        (StateKey.TIMESTAMP in state_obj) or not \
         (StateKey.RECORDS_READ in state_obj) or not \
         (StateKey.METADATA_SENT in state_obj):
             raise DatasetParserException("Invalid state keys")
         self._chunker.clean_all_chunks()
         self._record_buffer = []
         self._saved_header = None
-        self._timestamp = state_obj[StateKey.TIMESTAMP]
         self._state = state_obj
         self._read_state = state_obj
         self._stream_handle.seek(state_obj[StateKey.POSITION])
 
-    def _increment_state(self, increment, timestamp, records_read):
+    def _increment_state(self, increment, records_read):
         """
         Increment the parser state
         @param increment the number of bytes to increment the file position 
         @param timestamp The timestamp completed up to that position
         @param records_read The number of new records that have been read
         """
-        self._timestamp = timestamp
-        self._read_state[StateKey.TIMESTAMP] = timestamp
         self._read_state[StateKey.POSITION] += increment
         self._read_state[StateKey.RECORDS_READ] += records_read
 
@@ -216,21 +212,27 @@ class WfpCFileCommonParser(BufferLoadingParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """     
         result_particles = []
-        
-        if not self._read_state[StateKey.METADATA_SENT] and not self._saved_metadata is None:
+
+        if not self._read_state[StateKey.METADATA_SENT] and not self.footer_data is None:
+            timestamp = float(ntplib.system_to_ntp_time(self._start_time))
+            sample = self.extract_metadata_particle(self.footer_data, timestamp)
             self._read_state[StateKey.METADATA_SENT] = True
-            result_particles.append((self._saved_metadata, copy.copy(self._read_state)))
+            result_particles.append((sample, copy.copy(self._read_state)))
 
         (timestamp, chunk) = self._chunker.get_next_data()
 
         while (chunk != None):
             # particle-ize the data block received, return the record
-            timestamp = self.calc_timestamp(self._read_state[StateKey.RECORDS_READ])
-            sample = self.extract_data_particle(chunk, timestamp)
-            if sample:
-                # create particle
-                self._increment_state(DATA_RECORD_BYTES, timestamp, 1)
-                result_particles.append((sample, copy.copy(self._read_state)))
+            if EOP_MATCHER.match(chunk):
+                # this is the end of profile matcher, just increment the state
+                self._increment_state(DATA_RECORD_BYTES + TIME_RECORD_BYTES, 0)
+            else:
+                timestamp = self.calc_timestamp(self._read_state[StateKey.RECORDS_READ])
+                sample = self.extract_data_particle(chunk, timestamp)
+                if sample:
+                    # create particle
+                    self._increment_state(DATA_RECORD_BYTES, 1)
+                    result_particles.append((sample, copy.copy(self._read_state)))
 
             (timestamp, chunk) = self._chunker.get_next_data()
 

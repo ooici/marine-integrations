@@ -44,6 +44,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentParameterExpirationException
 
+MAX_BUFFER_SIZE=32768
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
 RE_PATTERN = type(re.compile(""))
@@ -294,7 +295,6 @@ class InstrumentProtocol(object):
 
         self._driver_event(DriverAsyncEvent.AGENT_EVENT, val)
 
-
     def _async_raise_fsm_event(self, event, *args, **kwargs):
         """
         Spawn a new thread and raise an FSM event.  This is intended to be used from the listener
@@ -305,18 +305,22 @@ class InstrumentProtocol(object):
         """
         log.info("_async_raise_fsm_event: starting new thread to raise event")
 
-        if not args:
-            args = []
+        args = list(args)
+
+        log.debug('_async_raise_fsm_event event: %s args: %r', event, args)
 
         args.insert(0, event)
 
-        self._connection_lost = True
-        new_thread = Thread(
-            target=self._protocol_fsm.on_event,
-            args=args)
-        new_thread.start()
+        def run():
+            try:
+                self._protocol_fsm.on_event(*args)
+            except Exception as e:
+                log.error('Exception in asynchronous thread: %r', e)
+                self._driver_event(DriverAsyncEvent.ERROR, e)
+            log.info('_async_raise_fsm_event: event complete. bub bye thread. (%r)', args)
 
-        log.info("_async_raise_fsm_event: event complete. bub bye thread.")
+        new_thread = Thread(target=run)
+        new_thread.start()
 
     ########################################################################
     # Scheduler interface.
@@ -331,8 +335,11 @@ class InstrumentProtocol(object):
             raise KeyError("scheduler does not exist for '%s'" % name)
 
         log.debug("removing scheduler: %s" % name)
-        callback = self._scheduler_callback.get(name) 
-        self._scheduler.remove_job(callback)
+        callback = self._scheduler_callback.get(name)
+        try:
+            self._scheduler.remove_job(callback)
+        except KeyError:
+            log.warning('Unable to remove job from scheduler.')
         self._scheduler_callback.pop(name)
         self._scheduler_config.pop(name, None)
     
@@ -826,12 +833,12 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         assumption is the longer is more specific.
         @return: list of prompts orders by length.
         """
-        if(isinstance(self._prompts, list)):
+        if isinstance(self._prompts, list):
             prompts = self._prompts
         else:
             prompts = self._prompts.list()
 
-        prompts.sort(lambda x,y: cmp(len(y), len(x)))
+        prompts.sort(lambda x, y: cmp(len(y), len(x)))
 
         return prompts
 
@@ -846,7 +853,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
-        @param response_regex Look for a resposne value that matches the
+        @param response_regex Look for a response value that matches the
         supplied compiled regex pattern. Groups that match will be returned as a
         string. Cannot be used with expected prompt. None
         will be returned as a prompt with this match. If a regex is supplied,
@@ -856,7 +863,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         prompt is looked for.
         @throw InstrumentProtocolException if both regex and expected prompt are
         passed in or regex is not a compiled pattern.
-        @throw InstrumentTimeoutExecption on timeout
+        @throw InstrumentTimeoutException on timeout
         """
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
@@ -866,11 +873,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         if expected_prompt and response_regex:
             raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
-
-        if response_regex:
-            prompt_list = []
             
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
@@ -878,42 +882,45 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
-        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%r, response_regex=%s, promptbuf=%s',
-                  timeout, prompt_list, expected_prompt, response_regex, self._promptbuf)
+        if response_regex is None:
+            pattern = None
+        else:
+            pattern = response_regex.pattern
+
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s, response_regex=%r, promptbuf=%s',
+                  timeout, prompt_list, expected_prompt, pattern, self._promptbuf)
         while True:
             if response_regex:
                 match = response_regex.search(self._linebuf)
                 if match:
                     return match.groups()
-                else:
-                    time.sleep(.1)
             else:
                 for item in prompt_list:
                     index = self._promptbuf.find(item)
                     if index >= 0:
                         result = self._promptbuf[0:index+len(item)]
-                        return (item, result)
-                    else:
-                        time.sleep(.1)
+                        return item, result
+
+            time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
 
     def _get_raw_response(self, timeout=10, expected_prompt=None):
         """
-        Get a response from the instrument, but dont trim whitespace. Used in
+        Get a response from the instrument, but don't trim whitespace. Used in
         times when the whitespace is what we are looking for.
         
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
-        @throw InstrumentProtocolExecption on timeout
+        @throw InstrumentProtocolException on timeout
         """
         # Grab time for timeout and wait for prompt.
         strip_chars = "\t "
 
         starttime = time.time()
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
@@ -960,8 +967,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         expected_prompt = kwargs.get('expected_prompt', None)
         response_regex = kwargs.get('response_regex', None)
         write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
-        retval = None
-        
+
         if response_regex and not isinstance(response_regex, RE_PATTERN):
             raise InstrumentProtocolException('Response regex is not a compiled pattern!')
         
@@ -976,8 +982,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         cmd_line = build_handler(cmd, *args)
         # Wakeup the device, pass up exception if timeout
 
-        prompt = self._wakeup(timeout)
-
+        self._wakeup(timeout)
+        
         # Clear line and prompt buffers for result.
         self._linebuf = ''
         self._promptbuf = ''
@@ -1063,7 +1069,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._connection.send(cmd)
  
     ########################################################################
-    # Incomming data (for parsing) callback.
+    # Incoming data (for parsing) callback.
     ########################################################################            
     def got_data(self, port_agent_packet):
         """
@@ -1094,7 +1100,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 (timestamp, chunk) = self._chunker.get_next_data()
 
     ########################################################################
-    # Incomming raw data callback.
+    # Incoming raw data callback.
     ########################################################################            
     def got_raw(self, port_agent_packet):
         """
@@ -1117,6 +1123,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
     def add_to_buffer(self, data):
         '''
         Add a chunk of data to the internal data buffers
+        buffers implemented as lifo ring buffer
         @param data: bytes to add to the buffer
         '''
         # Update the line and prompt buffers.
@@ -1124,8 +1131,21 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._promptbuf += data
         self._last_data_timestamp = time.time()
 
-        log.debug("LINE BUF: %r", self._linebuf)
-        log.debug("PROMPT BUF: %r", self._promptbuf)
+        # If our buffer exceeds the max allowable size then drop the leading
+        # characters on the floor.
+        if(len(self._linebuf) > self._max_buffer_size()):
+            self._linebuf = self._linebuf[self._max_buffer_size()*-1:]
+
+        # If our buffer exceeds the max allowable size then drop the leading
+        # characters on the floor.
+        if(len(self._promptbuf) > self._max_buffer_size()):
+            self._promptbuf = self._linebuf[self._max_buffer_size()*-1:]
+
+        log.debug("LINE BUF: %s", self._linebuf)
+        log.debug("PROMPT BUF: %s", self._promptbuf)
+
+    def _max_buffer_size(self):
+        return MAX_BUFFER_SIZE
 
     ########################################################################
     # Wakeup helpers.
@@ -1161,8 +1181,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             log.debug("Prompts: %s", self._get_prompts())
 
             for item in self._get_prompts():
-                log.debug("buffer: %r", self._promptbuf)
-                log.debug("find prompt: %r", item)
+                log.debug("buffer: %s", self._promptbuf)
+                log.debug("find prompt: %s", item)
                 index = self._promptbuf.find(item)
                 log.debug("Got prompt (index: %s): %s ", index, repr(self._promptbuf))
                 if index >= 0:

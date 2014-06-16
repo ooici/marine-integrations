@@ -1,0 +1,16 @@
+# Expected Results
+
+header:
+  particle_object: ParadTelemeteredDataParticle
+  particle_type: parad_m_glider_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: '2012-02-21T18:42:06.168370Z' 
+    m_present_time: 1329849726.16837
+    m_present_secs_into_mission: 157.168
+    sci_m_present_time: 1329849726.16837
+    sci_m_present_secs_into_mission: 157.168
+    sci_bsipar_par: 633.461
+
+

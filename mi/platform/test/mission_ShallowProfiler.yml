@@ -1,0 +1,136 @@
+name: Shallow Profiler
+version: 0.4
+description: Shallow Profiler Mission
+
+platform:
+  platformID: SWPROF
+mission:
+  - missionThread: 
+    instrumentID: [SWPROF, OPTAA, PCO2W, CTDPF]
+    errorHandling:
+      default: retry
+      maxRetries: 3
+    schedule:
+      startTime: 05/02/2014 00:00:00
+      loop:
+        quantity: -1   # No. of loops (-1 for infinite)
+        value: 1      # Repeat missionParams every 'xx' 'units'
+        units: hrs    # mins, hrs, days
+      event:
+        parentID:
+        eventID:
+    preMissionSequence:
+      - command: SWPROF, execute_resource(TURN_ON_PORT{OPTAA})
+        onError: retry
+      - command: SWPROF, execute_resource(TURN_ON_PORT{PCO2W})
+        onError: retry
+      - command: SWPROF, execute_resource(TURN_ON_PORT{CTDPF})
+        onError: retry
+      - command: SWPROF, execute_resource(CLOCK_SYNC)
+        onError: retry
+      - command: OPTAA, execute_resource(CLOCK_SYNC)
+        onError: retry
+      - command: PCO2W, execute_resource(CLOCK_SYNC)
+        onError: retry
+      - command: CTDPF, execute_resource(CLOCK_SYNC)
+        onError: retry
+    missionSequence:
+      - command: SWPROF, execute_resource(TURN_ON_PORT{OPTAA})
+        onError: retry
+      - command: OPTAA, execute_agent(INITIALIZE) #OPTAA INACTIVE
+        onError: retry
+        onError: retry
+      - command: CTDPF, execute_agent(RUN) #CTD COMMAND
+        onError: retry
+      - command: CTDPF, set_resource(INTERVAL{1}) #CTD Set sampling interval
+        onError: retry
+      - command: CTDPF, execute_resource(START_AUTOSAMPLE)
+        onError: retry
+      - command: SWPROF, execute_resource(TURN_OFF_PORT{PCO2W})
+        onError: retry
+      - command: SWPROF, execute_resource(LOAD_MISSION{0})
+        onError: retry
+      - command: SWPROF, execute_resource(RUN_MISSION{0})
+        onError: retry
+    postMissionSequence:
+
+  - missionThread: 
+    instrumentID: [SWPROF OPTAA]
+    errorHandling:
+      default: retry
+      maxRetries: 3
+    schedule:
+      startTime:
+      loop:
+        quantity:
+        value:
+        units:
+      event:
+        parentID: SWPROF
+        eventID: PROFILER_AT_CEILING
+    preMissionSequence:
+    missionSequence:
+      - command: OPTAA, execute_agent(GO_INACTIVE) #OPTAA INACTIVE
+        onError: retry
+      - command: SWPROF, execute_resource(TURN_OFF_PORT{OPTAA})
+        onError: retry
+    postMissionSequence:
+
+  - missionThread: 
+    instrumentID: [SWPROF, PCO2W]
+    errorHandling:
+      default: retry
+      maxRetries: 3
+    schedule:
+      startTime:
+      loop:
+        quantity:
+        value:
+        units:
+      event:
+        parentID: SWPROF
+        eventID: PROFILER_AT_STEP
+    preMissionSequence:
+    missionSequence:
+      - command: PCO2W, execute_agent(GO_ACTIVE) #PCO2W IDLE
+        onError: retry
+      - command: PCO2W, execute_agent(RUN) #PCO2W COMMAND
+        onError: retry
+      - command: PCO2W, set_resource(INTERVAL{1}) #PCO2W Set Sampling Interval
+        onError: retry
+      - command: PCO2W, execute_resource(ACQUIRE_SAMPLE)
+        onError: retry
+      - command: PCO2W, execute_agent(GO_INACTIVE)
+        onError: retry
+    postMissionSequence:
+
+  - missionThread: 
+    instrumentID: [SWPROF, OPTAA, PCO2W, CTDPF]
+    errorHandling:
+      default: retry
+      maxRetries: 3
+    schedule:
+      startTime:
+      loop:
+        quantity:
+        value:
+        units:
+      event:
+        parentID: SWPROF
+        eventID: PROFILER_AT_FLOOR
+    preMissionSequence:
+    missionSequence:
+      - command: CTDPF, execute_resource(STOP_AUTOSAMPLE)
+        onError: retry
+      - command: CTDPF, execute_agent(GO_INACTIVE)
+        onError: retry
+      - command: SWPROF, execute_resource(CLOCK_SYNC)
+        onError: retry
+      - command: OPTAA, execute_resource(CLOCK_SYNC)
+        onError: retry
+      - command: PCO2W, execute_resource(CLOCK_SYNC)
+        onError: retry
+      - command: CTDPF, execute_resource(CLOCK_SYNC)
+        onError: retry
+    postMissionSequence:
+

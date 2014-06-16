@@ -15,25 +15,18 @@ USAGE:
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-import gevent
 import unittest
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
 from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
@@ -41,13 +34,12 @@ from mi.dataset.dataset_driver import DriverParameter
 
 from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver
 
-from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
+from mi.dataset.parser.glider import DostaTelemeteredDataParticle
+
 from pyon.agent.agent import ResourceAgentState
 
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
+
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.moas.gl.dosta.driver',
@@ -59,8 +51,8 @@ DataSetTestCase.initialize(
     startup_config = {
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dostaTelemeteredTest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaTelemeteredTest',
             DataSetDriverConfigKeys.PATTERN: '*.mrg',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
@@ -68,7 +60,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ggldr_dosta_delayed'
+SAMPLE_STREAM = 'dosta_abcdjm_glider_instrument'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -89,17 +81,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(DostaTelemeteredDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(DostaTelemeteredDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
 
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, count=172, timeout=30)
+        self.assert_data(DostaTelemeteredDataParticle, count=60, timeout=30)
 
     def test_stop_resume(self):
         """
@@ -111,7 +103,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Create and store the new driver state
         state = {
             'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 2288)
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 1085)
         }
         self.driver = self._get_driver_object(memento=state)
 
@@ -121,7 +113,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrDostaDelayedDataParticle, 'merged_dosta_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data(DostaTelemeteredDataParticle, 'merged_dosta_record.mrg.result.yml', count=3, timeout=10)
 
     def test_stop_start_ingest(self):
         """
@@ -134,14 +126,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
         self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(DostaTelemeteredDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
         self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrDostaDelayedDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(DostaTelemeteredDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
     def test_bad_sample(self):
@@ -155,14 +147,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2250),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1085),
         }
         self.driver = self._get_driver_object(memento=state)
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrDostaDelayedDataParticle, 'bad_sample_dosta_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data(DostaTelemeteredDataParticle, 'bad_sample_dosta_record.mrg.result.yml', count=3, timeout=10)
 
     def test_sample_exception(self):
         """
@@ -218,7 +210,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('unit_363_2013_245_6_6.mrg')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,172,120)
+        result = self.get_samples(SAMPLE_STREAM,60,120)
 
     def test_stop_start(self):
         """
@@ -286,7 +278,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('multiple_dosta_record-shutdownrestart.mrg', "unit_363_2013_245_7_6.mrg")
             # Now read the first records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 1)
             log.debug("got result 1 %s", result)
@@ -303,27 +295,26 @@ class QualificationTest(DataSetQualificationTestCase):
             result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("got result 2 %s", result)
             self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
-
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    @unittest.skip('foo')
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('unit_363_2013_245_7_7.mrg')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
+
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
