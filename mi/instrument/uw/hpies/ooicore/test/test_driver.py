@@ -685,6 +685,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical
         instrument. (telnet mode)
         """
+        self.assert_enter_command_mode()
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
