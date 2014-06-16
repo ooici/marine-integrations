@@ -876,7 +876,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # engineering parameters can be added in sub classes
         self._engineering_parameters = [SamiParameter.AUTO_SAMPLE_INTERVAL]
-        self._engineering_parameters.append(SamiParameter.FLUSH_DURATION)
+        self._engineering_parameters.append(SamiParameter.REAGENT_FLUSH_DURATION)
 
         # Add build handlers for device commands.
         self._add_build_handler(SamiInstrumentCommand.SAMI_GET_STATUS, self._build_simple_command)

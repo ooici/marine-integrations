@@ -576,7 +576,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assertEqual(5, command_count, 'REAGENT_FLUSH_50ML seawater flush command count %s != 5' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-        driver._protocol._param_dict.set_value(Parameter.REAGENT_FLUSH_DURATION, 0x27)
+        driver._protocol._param_dict.set_value(Parameter.SEAWATER_FLUSH_DURATION, 0x27)
         driver._protocol._protocol_fsm.current_state = ProtocolState.SEAWATER_FLUSH
         driver._protocol._handler_seawater_flush_execute()
         call = mock.call('P01,27\r')
@@ -586,7 +586,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assertEqual(1, command_count, 'SEAWATER_FLUSH command count %s != 1' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-        driver._protocol._param_dict.set_value(Parameter.SEAWATER_FLUSH_DURATION, 0x77)
+        driver._protocol._param_dict.set_value(Parameter.REAGENT_FLUSH_DURATION, 0x77)
         driver._protocol._protocol_fsm.current_state = ProtocolState.REAGENT_FLUSH
         driver._protocol._handler_reagent_flush_execute()
         call = mock.call('P03,77\r')

@@ -422,6 +422,7 @@ class Pco2wProtocol(SamiProtocol):
             self._handler_queue_acquire_status)
 
         self._engineering_parameters.append(Pco2wParameter.PUMP_100ML_CYCLES)
+        self._engineering_parameters.append(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION)
 
         self._add_build_handler(Pco2wInstrumentCommand.PCO2W_ACQUIRE_BLANK_SAMPLE, self._build_simple_command)
         self._add_build_handler(Pco2wInstrumentCommand.PCO2W_PUMP_DEIONIZED_WATER, self._build_pump_command)
@@ -551,7 +552,7 @@ class Pco2wProtocol(SamiProtocol):
                       pump_100ml_cycles)
 
             flush_duration = PCO2W_PUMP_DURATION_50ML
-            flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
+            flush_duration_str = self._param_dict.format(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug(
                 'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): duration param = %s, seconds = %s' %
@@ -591,7 +592,7 @@ class Pco2wProtocol(SamiProtocol):
                       pump_100ml_cycles)
 
             flush_duration = PCO2W_PUMP_DURATION_50ML
-            flush_duration_str = self._param_dict.format(Pco2wParameter.FLUSH_DURATION, flush_duration)
+            flush_duration_str = self._param_dict.format(Pco2wParameter.REAGENT_FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' %
                       (flush_duration,
@@ -626,7 +627,7 @@ class Pco2wProtocol(SamiProtocol):
 
         try:
 
-            param = Pco2wParameter.FLUSH_DURATION
+            param = Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
@@ -664,7 +665,7 @@ class Pco2wProtocol(SamiProtocol):
         """
 
         try:
-            param = SamiParameter.FLUSH_DURATION
+            param = SamiParameter.REAGENT_FLUSH_DURATION
             flush_duration = self._param_dict.get(param)
             flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS

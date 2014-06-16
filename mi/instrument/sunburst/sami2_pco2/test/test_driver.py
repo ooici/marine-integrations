@@ -119,7 +119,7 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
         self.assertEqual(10, command_count, 'REAGENT_FLUSH_100ML command count %s != 10' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-        driver._protocol._param_dict.set_value(Pco2wParameter.REAGENT_FLUSH_DURATION, 0x27)
+        driver._protocol._param_dict.set_value(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION, 0x27)
         driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH
         driver._protocol._handler_deionized_water_flush_execute()
         call = mock.call('P03,27\r')
@@ -129,7 +129,7 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
         self.assertEqual(1, command_count, 'DEIONIZED_WATER_FLUSH command count %s != 1' % command_count)
         driver._protocol._connection.send.reset_mock()
 
-        driver._protocol._param_dict.set_value(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION, 0x77)
+        driver._protocol._param_dict.set_value(Pco2wParameter.REAGENT_FLUSH_DURATION, 0x77)
         driver._protocol._protocol_fsm.current_state = Pco2wProtocolState.REAGENT_FLUSH
         driver._protocol._handler_reagent_flush_execute()
         call = mock.call('P01,77\r')
