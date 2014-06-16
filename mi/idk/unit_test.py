@@ -2539,21 +2539,27 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             result = self.instrument_agent_client.get_resource(get_params, timeout=GET_TIMEOUT)
             self.assertEqual(result[name], value)
 
-    def assert_read_only_parameter(self, name, value):
+    def assert_read_only_parameter(self, name, value=None):
         """
         verify that parameters are read only.  Ensure an exception is thrown
         when set is called and that the value returned is the same as the
-        passed in value.
+        passed in value.  If value is not provided, retrieve the current value
+        from the driver.
         """
-        setParams = {name: value}
-        getParams = [name]
+        get_params = [name]
+
+        if value is None:
+            value = self.instrument_agent_client.get_resource(get_params)[name]
+
+        set_params = {name: value}
 
         # Call set, but verify the command failed.
-        #self.instrument_agent_client.set_resource(setParams)
+        with self.assertRaises(BadRequest):
+            self.instrument_agent_client.set_resource(set_params)
 
         # Call get and verify the value is correct.
-        #result = self.instrument_agent_client.get_resource(getParams)
-        #self.assertEqual(result[name], value)
+        result = self.instrument_agent_client.get_resource(get_params)
+        self.assertEqual(result[name], value)
 
     def assert_stop_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         """

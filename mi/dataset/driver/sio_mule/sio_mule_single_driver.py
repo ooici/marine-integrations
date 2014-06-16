@@ -36,40 +36,37 @@ class SioMuleSingleDataSetDriver(SingleFileDataSetDriver):
         Check if the file has grown larger, if it has update the unprocessed data to add
         the additional section of the file
         """
-        # confirm the current file is in the driver state and the file size is present,
-        # and confirm we have a parser state with unprocessed data
+        parser_state = None
         if self._filename in self._driver_state and \
+            DriverStateKey.PARSER_STATE in self._driver_state[self._filename]:
+
+            parser_state = self._driver_state[self._filename].get(DriverStateKey.PARSER_STATE)
+
+        # See if the last unprocessed index is less than the new file size
+        if parser_state != None and \
             DriverStateKey.FILE_SIZE in self._next_driver_state[self._filename] and \
             DriverStateKey.FILE_SIZE in self._driver_state[self._filename] and \
-            DriverStateKey.PARSER_STATE in self._driver_state[self._filename] and \
-            StateKey.UNPROCESSED_DATA in self._driver_state[self._filename][DriverStateKey.PARSER_STATE]:
+            parser_state[StateKey.UNPROCESSED_DATA][-1][1] < \
+            self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE]:
 
-            # shorten names of long state variables
-            parser_state = self._driver_state[self._filename].get(DriverStateKey.PARSER_STATE)
             last_size = self._driver_state[self._filename][DriverStateKey.FILE_SIZE]
-            next_size = self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE]
+            new_parser_state = parser_state
 
-            # Check for cases where we need to change the last unprocessed index
-            if parser_state[StateKey.UNPROCESSED_DATA] == [] and last_size < next_size:
-                # we have processed up to the last file size, append a
-                # new block that goes from the last file size to the new file size
-                log.debug('Appending new unprocessed parser %d,%d', last_size, next_size)
-                parser_state[StateKey.UNPROCESSED_DATA].append([last_size, next_size])
-                self._save_parser_state(parser_state)
+            # the file is larger, need to update last unprocessed index
+            # set the new parser unprocessed data state
+            if last_size == new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
+                # if the last unprocessed is the last file size, just increase the last index
+                log.debug('Replacing last unprocessed parser with %d',
+                          self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE])
+                new_parser_state[StateKey.UNPROCESSED_DATA][-1][1] = \
+                self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE]
 
-            elif parser_state[StateKey.UNPROCESSED_DATA] != [] and \
-                parser_state[StateKey.UNPROCESSED_DATA][-1][1] < next_size:
+            elif last_size  > new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
+                # if we processed past the last file size, append a new unprocessed block
+                # that goes from the last file size to the new file size
+                log.debug('Appending new unprocessed parser %d,%d', last_size,
+                          self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE])
+                new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size,
+                                                                    self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE]])
 
-                if last_size > parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
-                    # the previous file size is greater than the last unprocessed index so
-                    # we have processed up to the last file size, append a
-                    # new block that goes from the last file size to the new file size
-                    log.debug('Appending new unprocessed parser %d,%d', last_size, next_size)
-                    parser_state[StateKey.UNPROCESSED_DATA].append([last_size, next_size])
-                    self._save_parser_state(parser_state)
-
-                elif last_size == parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
-                    # if the last unprocessed is the last file size, increase the last index
-                    log.debug('Replacing last unprocessed parser with %d', next_size)
-                    parser_state[StateKey.UNPROCESSED_DATA][-1][1] = next_size
-                    self._save_parser_state(parser_state)
+            self._save_parser_state(new_parser_state)
