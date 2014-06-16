@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Anton Kueltz
+  driver_make: satlantic
+  driver_model: suna_deep
+  driver_name: ooicore
+  email: Anton.Kueltz@Raytheon.com
+  release_notes: initial_rev
+  version: 0.0.3

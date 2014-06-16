@@ -15,7 +15,7 @@ import os
 import sys
 import shutil
 import subprocess
-from os.path import basename, dirname
+from os.path import basename, dirname, isdir
 from operator import itemgetter
 from string import Template
 
@@ -267,7 +267,8 @@ class DependencyList:
         for key, files in filelist.iteritems():
             inroot = key[0] in self.file_roots
             if(not(internal or external) or (internal and inroot) or (external and not inroot)):
-                result.append(key[1])
+                if not isdir(key[1]):
+                    result.append(key[1])
         
         result = sorted(result)
         for file in result:

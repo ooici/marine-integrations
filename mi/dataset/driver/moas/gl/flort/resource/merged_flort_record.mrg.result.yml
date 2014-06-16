@@ -1,0 +1,34 @@
+# Expected Results
+
+header:
+  particle_object: FlortTelemeteredDataParticle
+  particle_type: flort_m_glider_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: '2012-02-21T18:42:03.943940Z'
+    m_present_time: 1329849723.94394
+    m_present_secs_into_mission: 154.944
+    sci_m_present_time: 1329849723.94394
+    sci_m_present_secs_into_mission: 154.944
+    sci_flbbcd_bb_units: 0.000262988
+    sci_flbbcd_cdom_units: 2.12
+    sci_flbbcd_chlor_units: 0.847
+  - _index: 2
+    internal_timestamp: '2012-02-21T18:42:05.085750Z' 
+    m_present_time: 1329849725.08575
+    m_present_secs_into_mission: 156.086
+    sci_m_present_time: 1329849725.08575
+    sci_m_present_secs_into_mission: 156.086
+    sci_flbbcd_bb_units: 0.000308858
+    sci_flbbcd_cdom_units: 2.3744
+    sci_flbbcd_chlor_units: 0.8833
+  - _index: 3
+    internal_timestamp: '2012-02-21T18:42:06.168370Z'
+    m_present_time: 1329849726.16837
+    m_present_secs_into_mission: 157.168
+    sci_m_present_time: 1329849726.16837
+    sci_m_present_secs_into_mission: 157.168
+    sci_flbbcd_bb_units: 0.000266046
+    sci_flbbcd_cdom_units: 1.9504
+    sci_flbbcd_chlor_units: 0.9922

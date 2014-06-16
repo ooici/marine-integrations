@@ -2,11 +2,12 @@
 
 header:
   particle_object: DostadParserDataParticle
-  particle_type: dostad_parsed
+  particle_type: dosta_ln_wfp_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-23T23:15:01'
+    controller_timestamp: 1374621301
     product_number: 4831
     serial_number: 128
     estimated_oxygen_concentration: 302.636

@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Dan Mergens
+  driver_make: mclane
+  driver_model: ras
+  driver_name: ppsdn
+  email: danmergens@gmail.com
+  release_notes: initial_rev
+  version: '1.0'
