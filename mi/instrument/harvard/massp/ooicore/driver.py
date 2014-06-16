@@ -202,7 +202,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     def _handler_connected_disconnect(self, *args, **kwargs):
         """
         Disconnect to the device via port agent / logger and destroy the protocol FSM.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED, None) if successful.
+        @returns: (next_state, result) tuple, (DriverConnectionState.DISCONNECTED, None) if successful.
         """
         for connection in self._connection.values():
             connection.stop_comms()
@@ -213,7 +213,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     def _handler_connected_connection_lost(self, *args, **kwargs):
         """
         The device connection was lost. Stop comms, destroy protocol FSM and revert to disconnected state.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED, None).
+        @returns: (next_state, result) tuple, (DriverConnectionState.DISCONNECTED, None).
         """
         for connection in self._connection.values():
             connection.stop_comms()
@@ -242,7 +242,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         DriverConnectionState.CONNECTED state.
 
         @param all_configs configuration dict
-        @retval a dictionary of Connection instances, which will be assigned to self._connection
+        @returns a dictionary of Connection instances, which will be assigned to self._connection
         @throws InstrumentParameterException Invalid configuration.
         """
         connections = {}
@@ -419,6 +419,7 @@ class Protocol(InstrumentProtocol):
         """
         @param name: slave protocol name
         @param protocol: slave protocol instance
+        @return: None
         """
         self._slave_protocols[name] = protocol
 
@@ -466,6 +467,8 @@ class Protocol(InstrumentProtocol):
         self._cmd_dict.add(Capability.STOP_REGEN, display_name="Stop the current regeneration sequence")
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="Stop autosample")
         self._cmd_dict.add(Capability.POWEROFF, display_name='Issue the "Power Off" command to the instrument')
+        self._cmd_dict.add(Capability.GET_SLAVE_STATES,
+                           display_name='Report the states of the underlying slave protocols')
 
     def _build_driver_dict(self):
         """

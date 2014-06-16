@@ -1072,7 +1072,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_da_command(_turbo + turbo.DriverTestMixinSub.set_pump_off,
                                turbo.DriverTestMixinSub.set_pump_off)
 
-        # wait just a moment...
+        # wait just a moment to allow the turbo to start spinning down...
         time.sleep(1)
 
         # put the MCU in standby

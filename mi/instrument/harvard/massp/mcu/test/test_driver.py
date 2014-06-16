@@ -164,7 +164,7 @@ class DriverTestMixinSub(DriverTestMixin):
         if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
         else:
-            self.fail("Unknown Particle Detected: %s" % data_particle)
+            self.fail("Unknown particle detected: %s" % data_particle)
 
     def assert_particle_exception(self, driver, sample_data):
         """
