@@ -12,73 +12,63 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import string
-from mi.core.common import BaseEnum
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger; log = get_logger()
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
-from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn__stc_imodemParser, Flort_kn__stc_imodemParserDataParticle
+from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn_stc_imodemParser, Flort_kn_stc_imodemParserDataParticle,\
+                                                   Flort_kn_stc_imodemParserDataParticleRecovered, \
+                                                   DataParticleType
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 
-class DataTypeKey(BaseEnum):
-    """
-    Serves as an enumeration that determines whether the driver is parsing Instrument data
-    or Recovered data
-    """
-    FLORT_KN_INSTRUMENT = ' flort_kn_stc_imodem_instrument'
-    FLORT_KN_RECOVERED = 'flort_kn_stc_imodem_instrument_recovered'
-
-
-class FLORT_KN__STC_IMODEN_DataSetDriver(MultipleHarvesterDataSetDriver):
+class FLORT_KN_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
 
     def __init__(self, config, memento, data_callback, state_callback,
                  event_callback, exception_callback):
 
-        data_keys = [DataTypeKey.FLORT_KN_INSTRUMENT, DataTypeKey.FLORT_KN_RECOVERED]
-        super(FLORT_KN__STC_IMODEN_DataSetDriver, self).__init__(config, memento, data_callback,
+        data_keys = DataParticleType.list()
+
+        super(FLORT_KN_STC_IMODEM_DataSetDriver, self).__init__(config, memento, data_callback,
                                                                  state_callback, event_callback,
                                                                  exception_callback, data_keys)
     @classmethod
     def stream_config(cls):
-        return [Flort_kn__stc_imodemParserDataParticle.type()]
+        return [Flort_kn_stc_imodemParserDataParticle.type(),
+                Flort_kn_stc_imodemParserDataParticleRecovered.type()]
 
-    def _build_parser(self, parser_state, infile, data_key = None):
+    def _build_parser(self, parser_state, infile, data_key=None):
         """
         Build and return the parser
         """
 
+        if data_key == DataParticleType.FLORT_KN_INSTRUMENT:
+            config = self._parser_config.get(DataParticleType.FLORT_KN_INSTRUMENT)
+            config.update({
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn_stc_imodemParserDataParticle'
+            })
 
+        elif data_key == DataParticleType.FLORT_KN_RECOVERED:
+            config = self._parser_config.get(DataParticleType.FLORT_KN_RECOVERED)
+            config.update({
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn_stc_imodemParserDataParticleRecovered'
+            })
 
-
-        if data_key == DataTypeKey.FLORT_KN_INSTRUMENT:
-             config = self._parser_config.get(DataTypeKey.FLORT_KN_INSTRUMENT)
-             config.update({
-                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
-                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn__stc_imodemParserDataParticle'
-             })
-        elif data_key == DataTypeKey.FLORT_KN_RECOVERED:
-             config = self._parser_config.get(data_key.FLORT_KN_RECOVERED)
-             config.update({
-                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
-                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn__stc_imodemParserDataParticleRecovered'
-             })
         else:
-             return None
+            return None
 
         log.debug("My Config: %s", config)
-        parser = Flort_kn__stc_imodemParser(
-             config,
-             parser_state,
-             infile,
-             self._save_parser_state,
-             self._data_callback,
-             self._sample_exception_callback
+        parser = Flort_kn_stc_imodemParser(
+            config,
+            parser_state,
+            infile,
+            lambda state, ingested:
+                 self._save_parser_state(state, data_key, ingested),
+            self._data_callback,
+            self._sample_exception_callback
         )
         return parser
-
-
-
-
 
     def _build_harvester(self, driver_state):
 
@@ -86,13 +76,13 @@ class FLORT_KN__STC_IMODEN_DataSetDriver(MultipleHarvesterDataSetDriver):
 
         instrument_harvester = self.build_single_harvester(
                                     driver_state,
-                                    DataTypeKey.FLORT_KN_INSTRUMENT)
+                                    DataParticleType.FLORT_KN_INSTRUMENT)
         if instrument_harvester is not None:
             harvesters.append(instrument_harvester)
 
         recovered_harvester = self.build_single_harvester(
                                    driver_state,
-                                   DataTypeKey.FLORT_KN_RECOVERED)
+                                   DataParticleType.FLORT_KN_RECOVERED)
         if recovered_harvester is not None:
             harvesters.append(recovered_harvester)
 
@@ -103,13 +93,12 @@ class FLORT_KN__STC_IMODEN_DataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the harvester
         """
         if key in self._harvester_config:
-                self._harvester = SingleDirectoryHarvester(
-                    self._harvester_config,
-                    driver_state,
-                    self._new_file_callback,
-                    self._modified_file_callback,
-                    self._exception_callback
-                )
+                harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(key),
+                driver_state[key],
+                lambda filename: self._new_file_callback(filename, key),
+                lambda modified: self._modified_file_callback(modified, key),
+                self._exception_callback)
         else:
-            self._harvestor = None
-        return self._harvester
+            harvester = None
+        return harvester

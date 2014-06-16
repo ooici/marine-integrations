@@ -26,8 +26,8 @@ from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, SAMPLE
 
 
 class DataParticleType(BaseEnum):
-    FLORT_KN_INS = 'flort_kn__stc_imodem_instrument'
-    HOLD_PLACE = 'flort_kn__stc_imodem_instrument_recovered'
+    FLORT_KN_INSTRUMENT = 'flort_kn_stc_imodem_instrument'
+    FLORT_KN_RECOVERED = 'flort_kn_stc_imodem_instrument_recovered'
 
 class Flort_kn__stc_imodemParserDataParticleKey(BaseEnum):
     TIMESTAMP = 'wfp_timestamp'
@@ -37,12 +37,13 @@ class Flort_kn__stc_imodemParserDataParticleKey(BaseEnum):
 
 
 
-class Flort_kn__stc_imodemParserDataParticle(DataParticle):
+class Flort_kn_stc_imodemParserDataParticleAbstract(DataParticle):
     """
-    Class for parsing data from the FLORT_KN__STC_IMODEM data set
+    Parent class for the recovered and instrument particles (Flort_kn__stc_imodemParserDataParticleRecovered and
+    Flort_kn__stc_imodemParserDataParticle respectively)
     """
 
-    _data_particle_type = DataParticleType.FLORT_KN_INS
+    _data_particle_type = None
     
     def _build_parsed_values(self):
         """
@@ -80,8 +81,8 @@ class Flort_kn__stc_imodemParserDataParticle(DataParticle):
         data, timestamp, and new sequence, they are the same enough for this 
         particle
         """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+        if ((self.raw_data == arg.raw_data) and
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] ==
              arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
@@ -92,14 +93,20 @@ class Flort_kn__stc_imodemParserDataParticle(DataParticle):
                 log.debug('Timestamp does not match')
             return False
 
-class Flort_kn__stc_imodemParserDataParticleRecovered(Flort_kn__stc_imodemParserDataParticle):
+class Flort_kn_stc_imodemParserDataParticleRecovered(Flort_kn_stc_imodemParserDataParticleAbstract):
     """
-    Class for parsing data from the FLORT_KN__STC_IMODEM data set
+     The FLORT_KN__STC_IMODEM data set recovered particle
     """
 
-    _data_particle_type = DataParticleType.HOLD_PLACE
+    _data_particle_type = DataParticleType.FLORT_KN_RECOVERED
 
-class Flort_kn__stc_imodemParser(WfpEFileParser):
+class Flort_kn_stc_imodemParserDataParticle(Flort_kn_stc_imodemParserDataParticleAbstract):
+    """
+     The FLORT_KN__STC_IMODEM data set telemetered particle
+    """
+    _data_particle_type = DataParticleType.FLORT_KN_INSTRUMENT
+
+class Flort_kn_stc_imodemParser(WfpEFileParser):
 
     def parse_record(self, record):
         """
@@ -113,7 +120,7 @@ class Flort_kn__stc_imodemParser(WfpEFileParser):
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
-            sample = self._extract_sample(Flort_kn__stc_imodemParserDataParticle, None, record, self._timestamp)
+            sample = self._extract_sample(self._particle_class, None, record, self._timestamp)
             if sample:
                 # create particle
                 log.trace("Extracting sample %s with read_state: %s", sample, self._read_state)
