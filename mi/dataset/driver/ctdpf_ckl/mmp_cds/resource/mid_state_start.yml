@@ -1,0 +1,14 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243027.0394668579
+    raw_time_microseconds: 39467
+    raw_time_seconds: 1385254227
+    conductivity: 32.6013
+    pressure: 13.85
+    temperature: 8.7799
