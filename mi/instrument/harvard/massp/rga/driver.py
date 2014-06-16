@@ -402,6 +402,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         This is a placeholder.  The sieve function for the RGA is built dynamically when a scan is started.
         This function must return a list.
+        see self._build_sieve_function()
         """
         return []
 
