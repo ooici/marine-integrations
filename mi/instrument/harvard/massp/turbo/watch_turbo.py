@@ -27,6 +27,7 @@ names = {
 query_temp_bearing = '0010034202=?104' + NEWLINE
 query_temp_motor = '0010034602=?108' + NEWLINE
 query_speed_actual = '0010039802=?115' + NEWLINE
+query_current = '0010031002=?099' + NEWLINE
 response = '0011039806090000037'
 
 set_pump_on = '0011002306111111019' + NEWLINE
@@ -83,6 +84,7 @@ class Poller(Thread):
             self.q.put(query_temp_bearing)
             self.q.put(query_temp_motor)
             self.q.put(query_speed_actual)
+            self.q.put(query_current)
             time.sleep(5)
 
 

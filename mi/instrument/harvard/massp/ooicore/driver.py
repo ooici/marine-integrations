@@ -546,8 +546,7 @@ class Protocol(InstrumentProtocol):
         if rga_state not in [rga.ProtocolState.COMMAND, rga.ProtocolState.ERROR]:
             self._send_event_to_slave(RGA, rga.ProtocolEvent.STOP_SCAN)
         # RGA must be in COMMAND or ERROR, the TURBO must be stopped.
-        elif turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.ERROR,
-                                 turbo.ProtocolState.SPINNING_DOWN]:
+        elif turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.SPINNING_DOWN]:
             self._send_event_to_slave(TURBO, turbo.ProtocolEvent.STOP_TURBO)
         # Turbo and RGA must be in COMMAND or ERROR, stop the MCU
         elif mcu_state in [mcu.ProtocolState.WAITING_TURBO, mcu.ProtocolState.WAITING_RGA, mcu.ProtocolState.STOPPING]:

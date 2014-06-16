@@ -111,6 +111,14 @@ class DriverTestMixinSub(DriverTestMixin):
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
 
+    def get_sample_interval(self):
+        one_minute = massp_startup_config[DriverConfigKey.PARAMETERS][mcu.Parameter.ONE_MINUTE]
+        # turbo spin up time is fixed
+        fixed_time = 60 * 15
+        # sample time is variable, based on the value of one_minute
+        sample_time = (one_minute / 1000.0) * 70
+        return sample_time + fixed_time
+
     @staticmethod
     def send_port_agent_packet(protocol, data):
         """
@@ -744,26 +752,24 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         Particles are tested elsewhere, so skipped here.
         """
         self.assert_initialize_driver()
-        self.assert_driver_command(Capability.ACQUIRE_SAMPLE)
-        self.assert_state_change(ProtocolState.POLL, 10)
-        self.assert_state_change(ProtocolState.COMMAND, 800)
+        self.assert_driver_command(Capability.ACQUIRE_SAMPLE, state=ProtocolState.POLL)
+        self.assert_state_change(ProtocolState.COMMAND, self.get_sample_interval())
 
     def test_autosample(self):
         """
         Start autosample, verify we generate three RGA status particles, indicating two
         complete sampling cycles and the start of a third...
         """
-        interval = 800
         num_samples = 2
         self.assert_initialize_driver()
         self.assert_set(rga.Parameter.NF, 6)
-        self.assert_set(Parameter.SAMPLE_INTERVAL, interval)
+        self.assert_set(Parameter.SAMPLE_INTERVAL, self.get_sample_interval())
         self.assert_driver_command(Capability.START_AUTOSAMPLE)
-        self.assert_async_particle_generation(rga.DataParticleType.RGA_STATUS,
-                                              Mock(),
-                                              particle_count=num_samples, timeout=interval * num_samples)
+        self.assert_async_particle_generation(rga.DataParticleType.RGA_STATUS, Mock(),
+                                              particle_count=num_samples,
+                                              timeout=self.get_sample_interval() * num_samples)
         self.assert_driver_command(Capability.STOP_AUTOSAMPLE)
-        self.assert_state_change(ProtocolState.COMMAND, timeout=interval)
+        self.assert_state_change(ProtocolState.COMMAND, timeout=self.get_sample_interval())
 
     def test_nafreg(self):
         """
@@ -830,6 +836,30 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_slave_state('rga', rga.ProtocolState.COMMAND, command_ok=True)
         self.assert_slave_state('turbo', turbo.ProtocolState.COMMAND, command_ok=True)
         self.assert_slave_state('mcu', mcu.ProtocolState.COMMAND, command_ok=True)
+
+    def test_full_sample(self):
+        """
+        Run a sample with the "normal" timing
+        """
+        # grab the old config
+        startup_params = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
+        old_value = startup_params[mcu.Parameter.ONE_MINUTE]
+        failed = False
+
+        try:
+            startup_params[mcu.Parameter.ONE_MINUTE] = 60000
+            # re-init to take our new config
+            self.init_driver_process_client()
+            self.test_acquire_sample()
+
+        except Exception as e:
+            failed = True
+            log.info('Exception thrown, test should fail: %r', e)
+        finally:
+            startup_params[mcu.Parameter.ONE_MINUTE] = old_value
+
+        if failed:
+            self.fail('Failed to acquire sample with normal timing')
 
 
 ###############################################################################

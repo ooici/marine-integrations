@@ -10,6 +10,7 @@ Turbo driver for the MASSP in-situ mass spectrometer
 
 import re
 import time
+
 import mi.core.exceptions as exceptions
 from mi.core.driver_scheduler import TriggerType
 from mi.core.driver_scheduler import DriverSchedulerConfigKey
@@ -51,6 +52,7 @@ TRUE = '111111'
 FALSE = '000000'
 TURBO_RESPONSE = re.compile('^(\d*)\r')
 MAX_RETRIES = 5
+CURRENT_STABILIZE_RETRIES = 5
 META_LOGGER = get_logging_metaclass('trace')
 
 
@@ -354,6 +356,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
+                (ProtocolEvent.STOP_TURBO, self._handler_stop_turbo),
                 (ProtocolEvent.CLEAR, self._handler_clear),
             ],
             ProtocolState.SPINNING_DOWN: [
@@ -496,7 +499,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         Build a command for the turbopump
         @param address: target address
         @param c_type: command type (QUERY/SET)
-        @param c_data: command data
+        @param c: command
+        @param data: command_data
         @return: command string
         """
         command = '%03d%02d%03d%02d%s' % (address, c_type, c, len(data), data)
@@ -688,7 +692,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             # or if we're up to speed and we have exceeded MAX_DRIVE_CURRENT more than 3 subsequent intervals
             if responses[InstrumentCommand.DRIVE_CURRENT] > self._param_dict.get(Parameter.MAX_DRIVE_CURRENT):
                 self._max_current_count += 1
-                if self._max_current_count > 3:
+                if self._max_current_count > CURRENT_STABILIZE_RETRIES:
                     self._async_raise_fsm_event(ProtocolEvent.ERROR)
                     raise exceptions.InstrumentStateException('Turbo current draw to high: %d' %
                                                               responses[InstrumentCommand.DRIVE_CURRENT])
