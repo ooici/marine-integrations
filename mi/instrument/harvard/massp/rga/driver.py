@@ -61,6 +61,11 @@ QUERY = 'query'
 STATUS = 'status'
 
 
+class DriverUnits(Units):
+    COUNT = 'count'
+    AMU = 'amu'
+
+
 class ScheduledJob(BaseEnum):
     """
     Scheduled jobs for the RGA
@@ -419,7 +424,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             Parameter.EE: {
                 name: 'Electron Energy',
                 desc: 'The desired electron ionization energy',
-                units: Units.ELECTRONVOLT,
+                units: DriverUnits.ELECTRONVOLT,
                 val_desc: 'The desired electron ionization energy in units of eV'
             },
             Parameter.IE: {
@@ -431,7 +436,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 name: 'Focus Plate Voltage',
                 desc: 'The focus plate voltage in the ionizer',
                 val_desc: 'The parameter represents the magnitude of the biasing voltage (negative) in units of volts.',
-                units: Units.VOLT,
+                units: DriverUnits.VOLT,
             },
             Parameter.NF: {
                 name: 'Noise Floor',
@@ -446,17 +451,17 @@ class Protocol(CommandResponseInstrumentProtocol):
                 name: 'Steps per AMU',
                 desc: 'Set the number of steps executed per amu of analog scan.',
                 val_desc: 'The parameter specifies the number of steps-per-amu.',
-                units: 'count',
+                units: DriverUnits.COUNT,
             },
             Parameter.MI: {
                 name: 'Initial Mass',
                 desc: 'The initial scan mass',
-                units: 'amu',
+                units: DriverUnits.AMU,
             },
             Parameter.MF: {
                 name: 'Final Mass',
                 desc: 'The final scan mass',
-                units: 'amu',
+                units: DriverUnits.AMU,
             },
             Parameter.FL: {
                 name: 'Electron Emission Current',
@@ -476,7 +481,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                       'during an analog scan under the current scan conditions.',
                 val_desc: 'Total number of ion currents to be transmitted.  Does not include the four extra' +
                           'bytes for total pressure included when performing an analog scan.',
-                units: 'count'
+                units: DriverUnits.COUNT
             },
             Parameter.ER: {
                 name: 'Status Byte',
