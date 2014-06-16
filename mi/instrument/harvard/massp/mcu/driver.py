@@ -634,15 +634,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Populate the command dictionary with commands.
         """
-        self._cmd_dict.add(Capability.START1, display_name="start sequence 1")
-        self._cmd_dict.add(Capability.START2, display_name="start sequence 2")
-        self._cmd_dict.add(Capability.SAMPLE, display_name="start sample sequence")
-        self._cmd_dict.add(Capability.CALIBRATE, display_name="start calibrate sequence")
-        self._cmd_dict.add(Capability.NAFREG, display_name="start nafion regeneration")
-        self._cmd_dict.add(Capability.IONREG, display_name="start ion chamber regeneration")
-        self._cmd_dict.add(Capability.STANDBY, display_name="transition to standby")
-        self._cmd_dict.add(Capability.CLEAR, display_name="clear error state")
-        self._cmd_dict.add(Capability.POWEROFF, display_name="power off instrument")
+        self._cmd_dict.add(Capability.START1, display_name="Execute ASTART1")
+        self._cmd_dict.add(Capability.START2, display_name="Execute ASTART2")
+        self._cmd_dict.add(Capability.SAMPLE, display_name="Execute ASAMPLEXX")
+        self._cmd_dict.add(Capability.CALIBRATE, display_name="Execute ACAL9")
+        self._cmd_dict.add(Capability.NAFREG, display_name="Execute U ANAFREG3")
+        self._cmd_dict.add(Capability.IONREG, display_name="Execute U AIONREG3")
+        self._cmd_dict.add(Capability.STANDBY, display_name="Execute U ASTANDBY")
+        self._cmd_dict.add(Capability.CLEAR, display_name="Clear the driver error state")
+        self._cmd_dict.add(Capability.POWEROFF, display_name="Execute U APOWEROFF")
 
     def _build_driver_dict(self):
         """
