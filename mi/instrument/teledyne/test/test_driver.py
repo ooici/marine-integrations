@@ -783,6 +783,8 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     # ReadOnly parameter setting exception tests
     def test_set_parameter_test(self):
+        self.assert_initialize_driver()
+
         self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+10000")
         self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+40000")
         self.assert_set_exception(TeledyneParameter.ENSEMBLE_PER_BURST, 600)
