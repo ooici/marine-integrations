@@ -146,7 +146,6 @@ InstrumentDriverTestCase.initialize(
             Parameter2.SALINITY: 35,
             Parameter2.COORDINATE_TRANSFORMATION: '00111',
             Parameter2.TIME_PER_ENSEMBLE: '00:00:00.00',
-            #Parameter2.TIME_PER_PING: '00:01.00',
             Parameter2.FALSE_TARGET_THRESHOLD: '050,001',
             Parameter2.BANDWIDTH_CONTROL: 0,
             Parameter2.CORRELATION_THRESHOLD: 64,
