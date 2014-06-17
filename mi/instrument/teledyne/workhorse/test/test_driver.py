@@ -231,53 +231,46 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     ###
     #   Test scheduled events
     ###
-    def assert_compass_calibration(self):
-        """
-        Verify a calibration particle was generated
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=120)
+    # def assert_compass_calibration(self):
+    #     """
+    #     Verify a calibration particle was generated
+    #     """
+    #     self.clear_events()
+    #     self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=120)
 
-    def _test_scheduled_compass_calibration_command(self):
-        """
-        Verify the device configuration command can be triggered and run in command
-        """
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100)
-        self.assert_current_state(TeledyneProtocolState.COMMAND)
-
-    def _test_scheduled_compass_calibration_autosample(self):
-        """
-        Verify the device configuration command can be triggered and run in autosample
-        """
-
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100,
-            autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE)
-        self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
-        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
-
-    def assert_acquire_status(self):
-        """
-        Verify a status particle was generated
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=120)
-
-    def _test_scheduled_device_configuration_command(self):
-        """
-        Verify the device status command can be triggered and run in command
-        """
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=100)
-        self.assert_current_state(TeledyneProtocolState.COMMAND)
-
-    def _test_scheduled_device_configuration_autosample(self):
-        """
-        Verify the device status command can be triggered and run in autosample
-        """
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=100)
-        self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
-        time.sleep(5)
-        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
+    # def _test_scheduled_compass_calibration_command(self):
+    #     """
+    #     Verify the device configuration command can be triggered and run in command
+    #     """
+    #     self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100)
+    #     self.assert_current_state(TeledyneProtocolState.COMMAND)
+    #
+    # def _test_scheduled_compass_calibration_autosample(self):
+    #     """
+    #     Verify the device configuration command can be triggered and run in autosample
+    #     """
+    #
+    #     self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100,
+    #         autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE)
+    #     self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
+    #     self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
+    #
+    # def _test_scheduled_device_configuration_command(self):
+    #     """
+    #     Verify the device status command can be triggered and run in command
+    #     """
+    #     self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=100)
+    #     self.assert_current_state(TeledyneProtocolState.COMMAND)
+    #
+    # def _test_scheduled_device_configuration_autosample(self):
+    #     """
+    #     Verify the device status command can be triggered and run in autosample
+    #     """
+    #     self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
+    #                                 autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=100)
+    #     self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
+    #     time.sleep(5)
+    #     self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
 
     def assert_clock_sync(self):
         """
@@ -287,48 +280,56 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:10].upper() in dt.upper())
 
-    def test_scheduled_clock_sync_command(self):
-        """
-        Verify the scheduled clock sync is triggered and functions as expected
-        """
-        self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
-        self.assert_current_state(TeledyneProtocolState.COMMAND)
+    # def test_scheduled_clock_sync_command(self):
+    #     """
+    #     Verify the scheduled clock sync is triggered and functions as expected
+    #     """
+    #     self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
+    #     self.assert_current_state(TeledyneProtocolState.COMMAND)
+    #
+    # def test_scheduled_clock_sync_autosample(self):
+    #     """
+    #     Verify the scheduled clock sync is triggered and functions as expected
+    #     """
+    #     self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
+    #                                 autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=200)
+    #     self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
+    #     self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
 
-    def test_scheduled_clock_sync_autosample(self):
-        """
-        Verify the scheduled clock sync is triggered and functions as expected
-        """
-        self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
-                                    autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=200)
-        self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
-        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
+    # def _test_set_serial_flow_control_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for SERIAL_FLOW_CONTROL ======")
+    #     # Test read only raise exceptions on set.
+    #     self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
+    #     self._tested[WorkhorseParameter.SERIAL_FLOW_CONTROL] = True
+    #
+    # def _test_set_save_nvram_to_recorder_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for SAVE_NVRAM_TO_RECORDER ======")
+    #     # Test read only raise exceptions on set.
+    #     self.assert_set_exception(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, False)
+    #     self._tested[WorkhorseParameter.SAVE_NVRAM_TO_RECORDER] = True
+    #
+    # def _test_set_banner_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for BANNER ======")
+    #     # Test read only raise exceptions on set.
+    #     #self.assert_set_exception(WorkhorseParameter.BANNER, True)
+    #     self._tested[WorkhorseParameter.BANNER] = True
 
-    def _test_set_serial_flow_control_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for SERIAL_FLOW_CONTROL ======")
-        # Test read only raise exceptions on set.
-        self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
-        self._tested[WorkhorseParameter.SERIAL_FLOW_CONTROL] = True
-
-    def _test_set_save_nvram_to_recorder_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for SAVE_NVRAM_TO_RECORDER ======")
-        # Test read only raise exceptions on set.
-        self.assert_set_exception(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, False)
-        self._tested[WorkhorseParameter.SAVE_NVRAM_TO_RECORDER] = True
-
-    def _test_set_banner_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for BANNER ======")
-        # Test read only raise exceptions on set.
-        #self.assert_set_exception(WorkhorseParameter.BANNER, True)
-        self._tested[WorkhorseParameter.BANNER] = True
+    # def test_set_readonly(self):
+    #     ###
+    #     #  Test set parameters which are readonly
+    #     ###
+    #     self.assert_initialize_driver()
+    #     self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
+    #     self.assert_set_exception(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, False)
 
     # def _test_set_polled_mode(self):
     #     ###
