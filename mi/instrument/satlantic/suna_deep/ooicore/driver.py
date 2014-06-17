@@ -7,17 +7,17 @@ Release notes:
 
 initial_rev
 """
-import functools
+
 
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
-from mi.core.log import get_logger, get_logging_metaclass
-log = get_logger()
-
 import re
+import functools
 
 from mi.core.common import BaseEnum, Units
+from mi.core.log import get_logger, get_logging_metaclass
+log = get_logger()
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -481,7 +481,7 @@ class SUNAStatusDataParticleKey(BaseEnum):
     EXT_POWER_PORT = "nutnr_ext_power_port"
     LAMP_SHUTTER = "nutnr_lamp_shutter"
     REF_DETECTOR = "nutnr_reference_detector"
-    PROTECTR = "protectr"
+    PROTECTR = "nutnr_wiper_protector"
     SUPER_CAPACITORS = "nutnr_super_capacitors"
     PSB_SUPERVISOR = "nutnr_psb_supervisor"
     USB_COMM = "nutnr_usb_communication"
@@ -497,13 +497,13 @@ class SUNAStatusDataParticleKey(BaseEnum):
     SENSOR_ADDR_HOUS_TEMP = "nutnr_sensor_address_hous_temp"
     SERIAL_NUM_SPECT = "nutnr_serial_number_spec"
     SERIAL_NUM_LAMP = "nutnr_serial_number_lamp"
-    STUPSTUS = "stupstus"
-    BRNHOURS = "brnhours"
-    BRNNUMBER = "brnnumbr"
-    DARK_HOURS = "drkhours"
-    DARK_NUM = "drknumbr"
-    CHRLDURA = "chrldura"
-    CHRDDURA = "chrddura"
+    STUPSTUS = "nutnr_stupstus"
+    BRNHOURS = "nutnr_brnhours"
+    BRNNUMBER = "nutnr_brnnumbr"
+    DARK_HOURS = "nutnr_drkhours"
+    DARK_NUM = "nutnr_drknumbr"
+    CHRLDURA = "nutnr_chrldura"
+    CHRDDURA = "nutnr_chrddura"
     BAUD_RATE = "baud_rate"
     MSG_LEVEL = "nutnr_msg_level"
     MSG_FILE_SIZE = "nutnr_msg_file_size"
@@ -512,17 +512,17 @@ class SUNAStatusDataParticleKey(BaseEnum):
     LOGGING_FRAME_TYPE = "nutnr_logging_frame_type"
     OUTPUT_DARK_FRAME = "nutnr_output_dark_frame"
     LOGGING_DARK_FRAME = "nutnr_logging_dark_frame"
-    TIMERESL = "timeresl"
+    TIMERESL = "nutnr_timeresl"
     LOG_FILE_TYPE = "nutnr_log_file_type"
-    ACQCOUNT = "acqcount"
-    CNTCOUNT = "cntcount"
+    ACQCOUNT = "nutnr_acqcount"
+    CNTCOUNT = "nutnr_cntcount"
     NITRATE_MIN = "nutnr_dac_nitrate_min"
     NITRATE_MAX = "nutnr_dac_nitrate_max"
     WAVELENGTH_LOW = "nutnr_data_wavelength_low"
     WAVELENGTH_HIGH = "nutnr_data_wavelength_high"
     SDI12_ADDR = "nutnr_sdi12_address"
-    DATAMODE = "datamode"
-    OPERATING_MODE = "operating_mode"
+    DATAMODE = "nutnr_data_mode"
+    OPERATING_MODE = "nutnr_operating_mode"
     OPERATION_CTRL = "nutnr_operation_ctrl"
     EXTL_DEV = "nutnr_extl_dev"
     PRERUN_TIME = "nutnr_ext_dev_prerun_time"
@@ -536,14 +536,14 @@ class SUNAStatusDataParticleKey(BaseEnum):
     PERIODIC_SAMPLES = "nutnr_periodic_samples"
     POLLED_TIMEOUT = "nutnr_polled_timeout"
     APF_TIMEOUT = "nutnr_apf_timeout"
-    STABILITY_TIME = "nutnr_stability_time"
+    STABILITY_TIME = "nutnr_lamp_stability_time"
     MIN_LAMP_ON = "nutnr_ref_min_lamp_on"
     SKIP_SLEEP = "nutnr_skip_sleep"
     SWITCHOFF_TEMP = "nutnr_lamp_switchoff_temp"
     SPEC_PERIOD = "nutnr_spec_integration_period"
-    DRKAVERS = "drkavers"
-    LGTAVERS = "lgtavers"
-    REFSAMPLES = "refsmpls"
+    DRKAVERS = "nutnr_dark_avg"
+    LGTAVERS = "nutnr_light_avg"
+    REFSAMPLES = "nutnr_reference_samples"
     DARK_SAMPLES = "nutnr_dark_samples"
     LIGHT_SAMPLES = "nutnr_light_samples"
     DARK_DURATION = "nutnr_dark_duration"
@@ -554,11 +554,11 @@ class SUNAStatusDataParticleKey(BaseEnum):
     BASELINE_ORDER = "nutnr_baseline_order"
     CONCENTRATIONS_FIT = "nutnr_concentrations_fit"
     DARK_CORR_METHOD = "nutnr_dark_corr_method"
-    DRKCOEFS = "drkcoefs"
-    DAVGPRM_0 = "davgprm0"
-    DAVGPRM_1 = "davgprm1"
-    DAVGPRM_2 = "davgprm2"
-    DAVGPRM_3 = "davgprm3"
+    DRKCOEFS = "nutnr_dark_coefs"
+    DAVGPRM_0 = "nutnr_davgprm0"
+    DAVGPRM_1 = "nutnr_davgprm1"
+    DAVGPRM_2 = "nutnr_davgprm2"
+    DAVGPRM_3 = "nutnr_davgprm3"
     ABSORBANCE_CUTOFF = "nutnr_absorbance_cutoff"
     TIME_ADJ = "nutnr_int_time_adj"
     TIME_FACTOR = "nutnr_int_time_factor"
@@ -566,7 +566,7 @@ class SUNAStatusDataParticleKey(BaseEnum):
     TIME_MAX = "nutnr_int_time_max"
     FIT_WAVE_LOW = "nutnr_fit_wavelength_low"
     FIT_WAVE_HIGH = "nutnr_fit_wavelength_high"
-    LAMP_TIME = "lamp_time"
+    LAMP_TIME = "nutnr_lamp_time"
 
 
 class SUNAStatusDataParticle(DataParticle):
@@ -581,7 +581,7 @@ class SUNAStatusDataParticle(DataParticle):
             parsed_data_list = [
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_TYPE, DataParticleKey.VALUE: str(matched.group(1))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_VERSION, DataParticleKey.VALUE: str(matched.group(2))},
-                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUMBER, DataParticleKey.VALUE: int(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUMBER, DataParticleKey.VALUE: str(matched.group(3))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.INTEGRATED_WIPER, DataParticleKey.VALUE: str(matched.group(4))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXT_POWER_PORT, DataParticleKey.VALUE: str(matched.group(5))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_SHUTTER, DataParticleKey.VALUE: str(matched.group(6))},
@@ -600,7 +600,7 @@ class SUNAStatusDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ADDR_LAMP_TEMP, DataParticleKey.VALUE: str(matched.group(19))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ADDR_SPEC_TEMP, DataParticleKey.VALUE: str(matched.group(20))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_ADDR_HOUS_TEMP, DataParticleKey.VALUE: str(matched.group(21))},
-                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_SPECT, DataParticleKey.VALUE: int(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_SPECT, DataParticleKey.VALUE: str(matched.group(22))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_LAMP, DataParticleKey.VALUE: str(matched.group(23))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.STUPSTUS, DataParticleKey.VALUE: str(matched.group(24))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BRNHOURS, DataParticleKey.VALUE: int(matched.group(25))},
@@ -687,11 +687,11 @@ class SUNATestDataParticleKey(BaseEnum):
     EXT_DISK_FREE = "nutnr_external_disk_free"
     INT_DISK_SIZE = "nutnr_internal_disk_size"
     INT_DISK_FREE = "nutnr_internal_disk_free"
-    ODOMETER = "nutnr_fiberlite_odometer"
-    TEMP_HS = "nutnr_temperatures_hs"
-    TEMP_SP = "nutnr_temperatures_sp"
-    TEMP_LM = "nutnr_temperatures_lm"
-    HUMIDITY = "nutnr_humidity"
+    TEMP_HS = "temp_interior"
+    TEMP_SP = "temp_spectrometer"
+    TEMP_LM = "lamp_temp"
+    LAMP_TIME = "lamp_time" #where is this?
+    HUMIDITY = "humidity"
     ELECTRICAL_MN = "nutnr_electrical_mn"
     ELECTRICAL_BD = "nutnr_electrical_bd"
     ELECTRICAL_PR = "nutnr_electrical_pr"
@@ -722,6 +722,8 @@ class SUNATestDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(2))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(3))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(4))},
+
+                #TODO
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ODOMETER, DataParticleKey.VALUE: str(matched.group(5))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_HS, DataParticleKey.VALUE: float(matched.group(6))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_SP, DataParticleKey.VALUE: float(matched.group(7))},
@@ -1204,10 +1206,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
-                             startup_param=True,
-                             direct_access=True,
+                             startup_param=False,
+                             direct_access=False,
                              default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="Baseline Order")
 
         self._param_dict.add(Parameter.DARK_CORRECTION_METHOD,

@@ -12,9 +12,6 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-
-from mi.core.common import BaseEnum
-
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
@@ -31,6 +28,8 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
+
+from mi.core.common import BaseEnum
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey, DriverEvent, \
@@ -218,7 +217,7 @@ class DriverTestMixinSub(DriverTestMixin):
     _reference_status_parameters = {
         "nutnr_sensor_type": {'type': unicode, 'value': "SUNA"},
         "nutnr_sensor_version": {'type': unicode, 'value': "V2"},
-        "serial_number": {'type': int, 'value': 344},
+        "serial_number": {'type': str, 'value': 344},
         "nutnr_integrated_wiper": {'type': unicode, 'value': "Available"},
         "nutnr_ext_power_port": {'type': unicode, 'value': "Missing"},
         "nutnr_lamp_shutter": {'type': unicode, 'value': "Missing"},
@@ -237,7 +236,7 @@ class DriverTestMixinSub(DriverTestMixin):
         "nutnr_sensor_address_lamp_temp": {'type': unicode, 'value': '10d0fda4020800eb'},
         "nutnr_sensor_address_spec_temp": {'type': unicode, 'value': '1086818d020800d8'},
         "nutnr_sensor_address_hous_temp": {'type': unicode, 'value': '10707b6a020800cc'},
-        "nutnr_serial_number_spec": {'type': int, 'value': 86746},
+        "nutnr_serial_number_spec": {'type': str, 'value': 86746},
         "nutnr_serial_number_lamp": {'type': unicode, 'value': "C3.D01.1590"},
         "stupstus": {'type': unicode, 'value': "Done"},
         "brnhours": {'type': int, 'value': 0},
@@ -341,7 +340,7 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         Verify that all driver parameters are correct and potentially verify values.
         @param data_particle: driver parameters read from the driver instance
-        @param verify_values: should we verify values against definition?
+        @param verify_values:bool,  False = do not verify values against definition
         """
         self.assert_data_particle_parameters(data_particle, self._reference_sample_parameters, verify_values)
 
@@ -349,7 +348,7 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         Verify a SUNA status data particle
         @param data_particle: a SUNA status data particle
-        @param verify_values: bool, should we verify values against definition?
+        @param verify_values: bool,  False = do not verify values against definition
         """
         self.assert_data_particle_parameters(data_particle, self._reference_status_parameters, verify_values)
 
@@ -357,7 +356,7 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         Verify a SUNA test data particle
         @param data_particle: a SUNA test data particle
-        @param verify_values: bool, should we verify values against definition?
+        @param verify_values: bool, False = do not verify values against definition
         """
         self.assert_data_particle_parameters(data_particle, self._reference_test_parameters, verify_values)
 
