@@ -32,6 +32,7 @@ def run():
 def _write_packet(record):
     if(record.get_header_type() == PortAgentPacket.DATA_FROM_INSTRUMENT):
         sys.stdout.write(record.get_data())
+        sys.stdout.flush()
     elif(record.get_header_type() == PortAgentPacket.DATA_FROM_DRIVER):
         #sys.stdout.write(">>> %s" % record.get_data())
         pass
