@@ -263,10 +263,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("====== Testing ranges for XMIT_POWER ======")
 
         # XMIT_POWER:  -- Int 0-255
-        log.error("****Sung *******  setting CQ to 0")
         self.assert_set(TeledyneParameter.XMIT_POWER, 0)
-        log.error("****Sung *******  setting CQ to 128")
-
         self.assert_set(TeledyneParameter.XMIT_POWER, 128)
         self.assert_set(TeledyneParameter.XMIT_POWER, 254)
 
@@ -784,76 +781,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY,
                         self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
 
-    # ReadOnly parameter tests
-    # def test_set_time_of_first_ping_readonly(self):
-    #     ###
-    #     #   test get set of a variety of parameter ranges
-    #     ###
-    #     log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
-    #
-    #     # Test read only raise exceptions on set.
-    #     # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-    #     now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
-    #     today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
-    #     today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
-    #     today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
-    #
-    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
-    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
-    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
-    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
-    #     self._tested[TeledyneParameter.TIME_OF_FIRST_PING] = True
-
-    # def _test_set_receiver_gain_select_readonly(self):
-    #     ###
-    #     #   test get set of a variety of parameter ranges
-    #     ###
-    #     log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
-    #
-    #     # Test read only raise exceptions on set.
-    #     self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
-    #
-    # def _test_set_blank_after_transmit_readonly(self):
-    #     ###
-    #     #   test get set of a variety of parameter ranges
-    #     ###
-    #     log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
-    #
-    #     # Test read only raise exceptions on set.
-    #     self.assert_set_exception(TeledyneParameter.BLANK_AFTER_TRANSMIT, 0)
-    #     self._tested[TeledyneParameter.BLANK_AFTER_TRANSMIT] = True
-
-    # def _test_set_bandwidth_control_readonly(self):
-    #     ###
-    #     #   test get set of a variety of parameter ranges
-    #     ###
-    #     log.debug("====== Testing ranges for BANDWIDTH_CONTROL ====== READONLY")
-    #
-    #     # Test read only raise exceptions on set.
-    #     self.assert_set_exception(TeledyneParameter.BANDWIDTH_CONTROL, 0)
-    #     self._tested[TeledyneParameter.BANDWIDTH_CONTROL] = True
-
-    # ReadOnly parameter tests
-    # def _test_set_serial_data_out_readonly(self):
-    #     ###
-    #     #   test get set of a variety of parameter ranges
-    #     ###
-    #     log.debug("====== Testing ranges for SERIAL_DATA_OUT ======")
-    #
-    #     # Test read only raise exceptions on set.
-    #     self.assert_set_exception(TeledyneParameter.SERIAL_DATA_OUT, '000 000 111')
-    #     self._tested[TeledyneParameter.SERIAL_DATA_OUT] = True
-    #
-    # def _test_set_serial_out_fw_switches_readonly(self):
-    #     ###
-    #     #   test get set of a variety of parameter ranges
-    #     ###
-    #     log.debug("====== Testing ranges for SERIAL_OUT_FW_SWITCHES ======")
-    #
-    #     # Test read only raise exceptions on set.
-    #     #self.assert_set_exception(TeledyneParameter.SERIAL_OUT_FW_SWITCHES, '110100100')
-    #     self._tested[TeledyneParameter.SERIAL_OUT_FW_SWITCHES] = True
-
     # ReadOnly parameter setting exception tests
     def test_set_parameter_test(self):
         self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+10000")
@@ -864,34 +791,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set_exception(TeledyneParameter.DATA_STREAM_SELECTION, 10)
         self.assert_set_exception(TeledyneParameter.DATA_STREAM_SELECTION, 19)
         self.assert_set_exception(TeledyneParameter.BUFFERED_OUTPUT_PERIOD, "00:00:11")
-
-        # def _test_set_coordinate_transformation(self):
-        #     ###
-        #     #   test get set of a variety of parameter ranges
-        #     ###
-        #     log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
-        #
-        #     # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11000')
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11111')
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11101')
-        #
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00000')
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00111')
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00101')
-        #
-        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, -1)
-        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3)
-        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3.1415926)
-        #     self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, "LEROY JENKINS")
-        #     #
-        #     # Reset to good value.
-        #     #
-        #     #self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION,
-        # self._driver_parameter_defaults[WorkhorseParameter.COORDINATE_TRANSFORMATION])
-        #     self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION,
-        #                     self._driver_parameters[TeledyneParameter.COORDINATE_TRANSFORMATION][self.VALUE])
-        #     self._tested[TeledyneParameter.COORDINATE_TRANSFORMATION] = True
 
 
 ###############################################################################
