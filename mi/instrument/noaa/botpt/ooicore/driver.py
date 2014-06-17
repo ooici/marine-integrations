@@ -841,7 +841,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._do_cmd_resp(InstrumentCommand.LILY_ON, expected_prompt=Prompt.LILY_ON)
-        self._do_cmd_resp(InstrumentCommand.NANO_ON, expected_prompt=LILY_STRING)
+        self._do_cmd_resp(InstrumentCommand.NANO_ON, expected_prompt=NANO_STRING)
         self._do_cmd_resp(InstrumentCommand.IRIS_ON, expected_prompt=Prompt.IRIS_ON)
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 

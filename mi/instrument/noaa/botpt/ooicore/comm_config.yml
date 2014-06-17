@@ -4,6 +4,6 @@ comm:
   device_addr: 10.180.80.163
   device_rx_port: 9338
   device_tx_port: 9337
-  host: localhost
+  host: 127.0.0.1
   method: botpt
   sniffer_port: 6003
