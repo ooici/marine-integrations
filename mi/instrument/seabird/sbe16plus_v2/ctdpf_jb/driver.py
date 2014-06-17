@@ -20,6 +20,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.common import Units
 from mi.core.util import dict_equal
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.data_particle import DataParticleKey
@@ -65,9 +66,7 @@ SEND_OPTODE_COMMAND = "sendoptode="
 ###
 # Driver Constant Definitions
 ###
-class ParameterUnit(BaseEnum):
-    HERTZ = 'Hz'
-    SECONDS = 'seconds'
+class ParameterUnit(Units):
     TIME_INTERVAL = 'HH:MM:SS'
 
 
@@ -2097,7 +2096,7 @@ class SBE19Protocol(SBE16Protocol):
                              startup_param=True,
                              direct_access=False,
                              default_value=60,
-                             units=ParameterUnit.SECONDS,
+                             units=ParameterUnit.SECOND,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',
