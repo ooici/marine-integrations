@@ -716,7 +716,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
             Parameter.EXTERNAL_PUMP_DELAY: 300,
             Parameter.AUTO_SAMPLE_INTERVAL: 600,
             Parameter.REAGENT_FLUSH_DURATION: 0x01,
-            Parameter.DEIONIZED_WATER__FLUSH_DURATION: 0x0F,
+            Parameter.DEIONIZED_WATER_FLUSH_DURATION: 0x0F,
             Parameter.PUMP_100ML_CYCLES: 14
         }
 
