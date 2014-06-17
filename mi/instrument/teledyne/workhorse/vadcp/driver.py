@@ -93,7 +93,6 @@ class TeledyneParameter2(DriverParameter):
     SENSOR_SOURCE = 'EZ_5th'  # Sensor Source (C;D;H;P;R;S;T)
     TIME_PER_ENSEMBLE = 'TE_5th'  # 01:00:00.00 (hrs:min:sec.sec/100)
     TIME_OF_FIRST_PING = 'TG_5th'  # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-    #TIME_PER_PING = 'TP_5th'  # 00:00.20  (min:sec.sec/100)
     TIME = 'TT_5th'  # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
     FALSE_TARGET_THRESHOLD = 'WA_5th'  # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
     BANDWIDTH_CONTROL = 'WB_5th'  # Bandwidth Control (0=Wid,1=Nar)
@@ -536,7 +535,7 @@ class Protocol(WorkhorseProtocol):
 
         self._startup_config = config
         param_config = config.get(DriverConfigKey.PARAMETERS)
-        if(param_config):
+        if param_config:
             for name in param_config.keys():
                 log.debug("Setting init value for %s to %s", name, param_config[name])
                 if name.find('_') != -1:  # Found
@@ -1260,9 +1259,10 @@ class Protocol(WorkhorseProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
+        # TODO
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        #self._connection.send_break(delay)
+        # self._connection.send_break(delay)
         # Then remove below lines
 
         log.trace("IN _send_break_cmd")
@@ -1287,6 +1287,7 @@ class Protocol(WorkhorseProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
+        # TODO
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
         # self._connection.send_break(delay)
@@ -1344,12 +1345,8 @@ class Protocol(WorkhorseProtocol):
         @throws: InstrumentParameterException
         """
         log.trace("in _instrument_config_dirty2")
-        # Refresh the param dict cache
-        #self._update_params()
 
-        #startup_params = self._param_dict.get_startup_list()
         startup_params2 = self._param_dict2.get_startup_list()
-        #log.trace("Startup Parameters 4 beam: %s" % startup_params)
         log.trace("Startup Parameters 5th beam: %s" % startup_params2)
 
         for param in startup_params2:
@@ -1382,7 +1379,7 @@ class Protocol(WorkhorseProtocol):
                 # Switch to command mode,
                 self._stop_logging2()
 
-            ###
+            # ##
             # Get old param dict config.
             old_config = self._param_dict2.get_config()
             kwargs['expected_prompt'] = TeledynePrompt.COMMAND
@@ -1403,8 +1400,7 @@ class Protocol(WorkhorseProtocol):
 
             if not dict_equal(new_config, old_config, ['TT', 'TT_5th']):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-                ####
-
+        # ###
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
@@ -1469,7 +1465,7 @@ class Protocol(WorkhorseProtocol):
         # Let's give it a try in unknown state
         log.trace("in apply_startup_params")
         if (self.get_current_state() != TeledyneProtocolState.COMMAND and
-                self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
+                    self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         logging = self._is_logging2()
@@ -1512,7 +1508,7 @@ class Protocol(WorkhorseProtocol):
         apply startup parameters to the instrument.
         @throws: InstrumentProtocolException if in wrong mode.
         """
-        log.trace("IN _apply_params")
+        log.trace("IN _apply_params2")
         config = self.get_startup_config2()
         # Pass true to _set_params so we know these are startup values
         self._set_params2(config, True)
@@ -1629,8 +1625,8 @@ class Protocol(WorkhorseProtocol):
         self._wakeup2()
         self._send_break2(duration=3000)
         time.sleep(2)
-        #self._send_break2(duration=3000)
-        #time.sleep(2)
+        # self._send_break2(duration=3000)
+        # time.sleep(2)
         # Prompt device until command prompt is seen.
         timeout = 3
         self._wakeup_until2(timeout, TeledynePrompt.COMMAND)
@@ -2269,7 +2265,7 @@ class Protocol(WorkhorseProtocol):
                              direct_access=True,
                              default_value=175)
 
-        # Engineering parameters
+        # Engineering parameters for scheduling
         self._param_dict.add(Parameter.CLOCK_SYNCH_INTERVAL,
                              r'BOGUS',
                              None,
@@ -2281,6 +2277,7 @@ class Protocol(WorkhorseProtocol):
                              direct_access=False,
                              default_value="00:00:00")
 
+        # Engineering parameters for scheduling
         self._param_dict.add(Parameter.GET_STATUS_INTERVAL,
                              r'BOGUS',
                              None,
@@ -2821,9 +2818,9 @@ class Protocol(WorkhorseProtocol):
 
         log.info("SYNCING TIME WITH SENSOR.")
         self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
-                                 get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+                          get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
         self._do_cmd_resp2(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME,
-                                  get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+                           get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
 
         # Save setup to nvram and switch to autosample if successful.
         self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
@@ -2898,7 +2895,7 @@ class Protocol(WorkhorseProtocol):
                 # have all fresh values.
                 log.trace("Fetching parameters for the second time")
                 result = self._get_param_result(param_list, expire_time)
-        #for slave
+        # for slave
         try:
             # Take a first pass at getting parameters.  If they are
             # expired an exception will be raised.
@@ -2940,7 +2937,7 @@ class Protocol(WorkhorseProtocol):
                 log.trace("Fetching parameters for the second time")
                 result2 = self._get_param_result2(param_list2, expire_time)
 
-        #combine the two results
+        # combine the two results
         result.update(result2)
         return next_state, result
 
@@ -2992,9 +2989,9 @@ class Protocol(WorkhorseProtocol):
         kwargs['timeout'] = 70
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
-        result = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
-
-        return next_state, result
+        result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
+        result_combined = result + result2
+        return next_state, result_combined
 
     # Overwritten to invoke Master/Slave instruments
     def _handler_command_get_configuration(self, *args, **kwargs):
@@ -3079,7 +3076,7 @@ class Protocol(WorkhorseProtocol):
         result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, *args, **kwargs)
         result_combined = result + result2
         return next_state, result_combined
-        #return (next_state, result)
+        # return (next_state, result)
 
     # Overwritten to invoke Master/Slave instruments
     def _handler_command_display_fault_log(self, *args, **kwargs):
@@ -3170,13 +3167,12 @@ class Protocol(WorkhorseProtocol):
         @throws InstrumentProtocolException if command misunderstood or
         incorrect prompt received.
         """
-        next_state = None
         result = None
 
         # Wake up the device, continuing until autosample prompt seen.
         timeout = kwargs.get('timeout', TIMEOUT)
 
-        #if (self._is_logging(timeout)):
+        # if (self._is_logging(timeout)):
         self._stop_logging(timeout)
         self._stop_logging2(timeout)
 
@@ -3359,7 +3355,7 @@ class Protocol(WorkhorseProtocol):
             output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
             output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error_status = e
@@ -3376,7 +3372,7 @@ class Protocol(WorkhorseProtocol):
         result2 = self._sanitize(base64.b64decode(output2))
         result_combined = result + ", " + result2
         return next_state, (next_agent_state, result_combined)
-        #return (next_state, (next_agent_state, {'result': result}))
+        # return (next_state, (next_agent_state, {'result': result}))
 
     # Overwritten to invoke Master/Slave instruments
     def _handler_autosample_get_status(self, *args, **kwargs):
@@ -3461,7 +3457,7 @@ class Protocol(WorkhorseProtocol):
             output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
             output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error_status = e
@@ -3522,6 +3518,7 @@ class Protocol(WorkhorseProtocol):
 
         return next_state, None
 
+    # For master
     def _wakeup(self, timeout=3, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
@@ -3550,7 +3547,7 @@ class Protocol(WorkhorseProtocol):
                     return item
         return None
 
-     # For slave
+    # For slave
     def _wakeup2(self, timeout=3, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
