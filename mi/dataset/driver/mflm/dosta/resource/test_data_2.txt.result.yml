@@ -2,14 +2,12 @@
 
 header:
   particle_object: DostadParserDataParticle
-  particle_type: dosta_ln_wfp_instrument
+  particle_type: dosta_abcdjm_sio_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-24T00:00:01'
-    controller_timestamp: 1374624001
-    product_number: 4831
-    serial_number: 128
+    sio_controller_timestamp: 1374624001
     estimated_oxygen_concentration: 317.073
     estimated_oxygen_saturation: 98.515
     optode_temperature: 14.004

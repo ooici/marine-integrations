@@ -1,23 +1,44 @@
 # Result data after parsing test_data_1.txt 
 
 header:
-  particle_object: CtdmoParserDataParticle
-  particle_type: ctdmo_ghqr__mule_sio_instrument
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
 
 data:
   - _index: 1
+    particle_object: CtdmoParserDataParticle
+    particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T12:00:01'
-    controller_timestamp: 1374674838
+    sio_controller_timestamp: 1374674838
     inductive_id: 55
     temperature: 224894 
     conductivity: 428375
     pressure: 4153
     ctd_time: 427982401
   - _index: 2
-    internal_timestamp: '2016-01-30T23:22:28'
-    controller_timestamp: 1374689239
+    particle_object: CtdmoParserDataParticle
+    particle_type: ctdmo_ghqr_sio_mule_instrument
+    internal_timestamp: '2013-07-24T16:00:01'
+    sio_controller_timestamp: 1374689239
     inductive_id: 55
-    temperature: 390164
-    conductivity: 220978
-    pressure: 17969
-    ctd_time: 507511348
+    temperature: 212374
+    conductivity: 417778
+    pressure: 4046
+    ctd_time: 427996801
+  - _index: 3
+    particle_object: CtdmoParserDataParticle
+    particle_type: ctdmo_ghqr_sio_mule_instrument
+    internal_timestamp: '2013-07-24T18:00:01'
+    sio_controller_timestamp: 1374696438
+    inductive_id: 55
+    temperature: 204248
+    conductivity: 410396
+    pressure: 4002
+    ctd_time: 428004001
+  - _index: 4
+    particle_object: CtdmoOffsetDataParticle
+    particle_type: ctdmo_ghqr_sio_offset
+    internal_timestamp: '2013-07-24T22:07:18'
+    sio_controller_timestamp: 1374703638
+    inductive_id: 55
+    ctd_time_offset: 0
