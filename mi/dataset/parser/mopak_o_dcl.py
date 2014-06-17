@@ -26,7 +26,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
-from mi.dataset.dataset_parser import BufferLoadingFilenameParser
+from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import BinaryChunker
 
 
@@ -132,7 +132,7 @@ class MopakODclRateParserDataParticle(DataParticle):
         log.trace('MopakOStcRateParserDataParticle: particle=%s', result)
         return result
 
-class MopakODclParser(BufferLoadingFilenameParser):
+class MopakODclParser(BufferLoadingParser):
     
     def __init__(self,
                  config,
@@ -152,7 +152,6 @@ class MopakODclParser(BufferLoadingFilenameParser):
 
         super(MopakODclParser, self).__init__(config,
                                                stream_handle,
-                                               filename,
                                                state,
                                                self.sieve_function,
                                                state_callback,

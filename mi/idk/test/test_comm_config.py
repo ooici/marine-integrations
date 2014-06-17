@@ -16,6 +16,7 @@ from os import remove
 from os.path import exists
 import sys
 import string
+import yaml
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -169,7 +170,7 @@ class TestCommConfig(MiUnitTest):
         types = CommConfig.valid_type_list()
         log.debug( "types: %s" % types)
         
-        known_types = [ConfigTypes.ETHERNET, ConfigTypes.SERIAL, ConfigTypes.BOTPT]
+        known_types = [ConfigTypes.ETHERNET, ConfigTypes.SERIAL, ConfigTypes.BOTPT, ConfigTypes.MULTI]
         
         self.assertEqual(sorted(types), sorted(known_types))
         
@@ -242,5 +243,15 @@ class TestCommConfig(MiUnitTest):
         self.assertEqual(config.data_port, DATA_PORT)
         self.assertEqual(config.command_port, COMMAND_PORT)
 
-
+    def test_8_config_read_multi(self):
+        # create an ethernet config
+        self.test_4_config_write_ethernet()
+        ethernet_config = CommConfig.get_config_from_type(self.config_file(), ConfigTypes.ETHERNET)
+        # stuff it into a multi-comm config
+        config = { 'comm': {'method': 'multi', 'configs': {'test': {'comm': ethernet_config.dict()}}}}
+        # dump the new config to a file
+        open(self.config_file(), 'wb').write(yaml.dump(config))
+        # load the config from file, verify the embedded config matches the original ethernet config
+        multi_config = CommConfig.get_config_from_type(self.config_file(), ConfigTypes.MULTI)
+        self.assertEqual(multi_config.configs['test'].dict(), ethernet_config.dict())
 

@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Bill Bollenbacher
-  driver_make: mclane
-  driver_model: ras
-  driver_name: ooicore
-  email: wbollenbacher@ucsd.edu
-  release_notes: initial_rev
-  version: '1.0'
