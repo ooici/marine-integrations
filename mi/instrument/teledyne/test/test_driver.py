@@ -118,6 +118,9 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertTrue(lt[:13].upper() in dt.upper())
 
     def assert_acquire_status(self):
+        """
+        Assert that Acquire_status return the following ASYNC particles
+        """
         self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_calibration,
                                               timeout=60)
         self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA, self.assert_ancillary_data,
