@@ -1,8 +1,8 @@
 """
 @package mi.instrument.seabird.sbe16plus_v2.ooicore.test.test_driver
 @file ion/services/mi/drivers/sbe16_plus_v2/test_sbe16_driver.py
-@author David Everett 
-@brief Test cases for InstrumentDriver
+@author Tapana Gupta
+@brief Test cases for ctdbp_no driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -13,7 +13,6 @@ USAGE:
        $ bin/test_driver -q
 
 """
-from nose.tools import assert_true
 from mi.core.instrument.instrument_driver import DriverConfigKey
 
 __author__ = 'Tapana Gupta'
@@ -42,27 +41,26 @@ from mi.core.instrument.chunker import StringChunker
 from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
 from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
-
 from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
 
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Capability
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Parameter
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ConfirmedParameter
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SendOptodeCommand
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ScheduledJob
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19ConfigurationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
 
 from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import DataParticleType
-from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOConfigurationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOHardwareParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOCalibrationParticleKey
-from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import Parameter
-from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import ConfirmedParameter
 from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOProtocol
 from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import InstrumentDriver
 
@@ -80,8 +78,28 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'seabird_sbe16plus_v2_ctdbp_no',
     instrument_agent_packet_config = DataParticleType(),
 
-    #driver_startup_config = {DriverConfigKey.PARAMETERS : {Parameter.CLOCK_INTERVAL: '00:00:00', Parameter.STATUS_INTERVAL : '00:00:00'}}
-    driver_startup_config = {}
+    driver_startup_config = {DriverConfigKey.PARAMETERS:
+            {Parameter.PTYPE: 3,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: True,
+             Parameter.OUTPUT_FORMAT: 0,
+             Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True,
+             Parameter.CLOCK_INTERVAL: '00:00:00',
+             Parameter.STATUS_INTERVAL: '00:00:00'}}
 )
 
 #################################### RULES ####################################
@@ -113,18 +131,6 @@ InstrumentDriverTestCase.initialize(
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.									  #
 ###############################################################################
-#class DriverTestMixinSub(DriverTestMixin):
-#    def assertSampleDataParticle(self, data_particle):
-#        '''
-#        Verify a particle is a know particle to this driver and verify the particle is
-#        correct
-#        @param data_particle: Data particle of unkown type produced by the driver
-#        '''
-#        if (isinstance(data_particle, RawDataParticle)):
-#            self.assert_particle_raw(data_particle)
-#        else:
-#            log.error("Unknown Particle Detected: %s" % data_particle)
-#            self.assertFalse(True)
 class SBE16NOMixin(DriverTestMixin):
 
     InstrumentDriver = InstrumentDriver
@@ -142,7 +148,6 @@ class SBE16NOMixin(DriverTestMixin):
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
-
 
     ###
     #  Instrument output (driver input) Definitions
@@ -205,7 +210,6 @@ class SBE16NOMixin(DriverTestMixin):
 "      </Sensor>" + NEWLINE + \
 "   </ExternalSensors>" + NEWLINE + \
 "</HardwareData>" + NEWLINE
-
 
     VALID_GETCC_RESPONSE =  "" + \
 "<CalibrationCoefficients DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
@@ -274,7 +278,6 @@ class SBE16NOMixin(DriverTestMixin):
 "   </Calibration>" + NEWLINE + \
 "</CalibrationCoefficients>" + NEWLINE
 
-
     VALID_GETCD_RESPONSE =  "" + \
 "<ConfigurationData DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
 "   <ProfileMode>" + NEWLINE + \
@@ -305,7 +308,6 @@ class SBE16NOMixin(DriverTestMixin):
 "   <OutputExecutedTag>no</OutputExecutedTag>" + NEWLINE + \
 "   <OutputFormat>raw HEX</OutputFormat>" + NEWLINE + \
 "</ConfigurationData>" + NEWLINE
-
 
     VALID_GETSD_RESPONSE =  "" + \
 "<StatusData DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
@@ -388,28 +390,28 @@ class SBE16NOMixin(DriverTestMixin):
     }
 
     _configuration_parameters = {
-        SBE16NOConfigurationParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.SCANS_TO_AVERAGE: {TYPE: int, VALUE: 4, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.MIN_COND_FREQ: {TYPE: int, VALUE: 500, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.PUMP_DELAY: {TYPE: int, VALUE: 60, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.AUTO_RUN: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.IGNORE_SWITCH: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.BATTERY_TYPE: {TYPE: unicode, VALUE: "alkaline", REQUIRED: True},
-        SBE16NOConfigurationParticleKey.BATTERY_CUTOFF: {TYPE: float, VALUE: 7.5, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.EXT_VOLT_0: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.EXT_VOLT_1: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.EXT_VOLT_2: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.EXT_VOLT_3: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.EXT_VOLT_4: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.EXT_VOLT_5: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.SBE38: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.WETLABS: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.OPTODE: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.SBE63: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.GAS_TENSION_DEVICE: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.ECHO_CHARACTERS: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.OUTPUT_EXECUTED_TAG: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SBE16NOConfigurationParticleKey.OUTPUT_FORMAT: {TYPE: unicode, VALUE: "raw HEX", REQUIRED: True},
+        SBE19ConfigurationParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE19ConfigurationParticleKey.SCANS_TO_AVERAGE: {TYPE: int, VALUE: 4, REQUIRED: True},
+        SBE19ConfigurationParticleKey.MIN_COND_FREQ: {TYPE: int, VALUE: 500, REQUIRED: True},
+        SBE19ConfigurationParticleKey.PUMP_DELAY: {TYPE: int, VALUE: 60, REQUIRED: True},
+        SBE19ConfigurationParticleKey.AUTO_RUN: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.IGNORE_SWITCH: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE19ConfigurationParticleKey.BATTERY_TYPE: {TYPE: unicode, VALUE: "alkaline", REQUIRED: True},
+        SBE19ConfigurationParticleKey.BATTERY_CUTOFF: {TYPE: float, VALUE: 7.5, REQUIRED: True},
+        SBE19ConfigurationParticleKey.EXT_VOLT_0: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE19ConfigurationParticleKey.EXT_VOLT_1: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE19ConfigurationParticleKey.EXT_VOLT_2: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.EXT_VOLT_3: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.EXT_VOLT_4: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.EXT_VOLT_5: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.SBE38: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.WETLABS: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.OPTODE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE19ConfigurationParticleKey.SBE63: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.GAS_TENSION_DEVICE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.ECHO_CHARACTERS: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE19ConfigurationParticleKey.OUTPUT_EXECUTED_TAG: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE19ConfigurationParticleKey.OUTPUT_FORMAT: {TYPE: unicode, VALUE: "raw HEX", REQUIRED: True},
     }
 
     _status_parameters = {
@@ -513,7 +515,7 @@ class SBE16NOMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.DATE_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 3, VALUE: 3},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
@@ -603,7 +605,7 @@ class SBE16NOMixin(DriverTestMixin):
         @param data_particle:  SBE19ConfigurationParticle configuration particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_keys(SBE16NOConfigurationParticleKey, self._configuration_parameters)
+        self.assert_data_particle_keys(SBE19ConfigurationParticleKey, self._configuration_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
 
@@ -709,10 +711,10 @@ class SBE16NOUnitTestCase(SeaBirdUnitTest, SBE16NOMixin):
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
         Test silly made up capabilities to verify they are blocked by filter.
         """
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        my_event_callback = Mock()
         protocol = SBE16NOProtocol(Prompt, NEWLINE, my_event_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
+        driver_capabilities = Capability.list()
+        test_capabilities = Capability.list()
 
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")
@@ -862,6 +864,7 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_set(Parameter.NUM_AVG_SAMPLES, 4)
 
         # Attempt to set Read only params
+        self.assert_set_readonly(Parameter.DATE_TIME, '06032014113000')
         self.assert_set_readonly(Parameter.PTYPE, 1)
         self.assert_set_readonly(Parameter.VOLT0, False)
         self.assert_set_readonly(Parameter.VOLT1, False)
@@ -912,6 +915,10 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
 
+        # Invalid command/state transitions
+        self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
+
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         ####
@@ -927,7 +934,6 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        log.warn("$$$ param reply is %s" % reply)
         self.assert_driver_parameters(reply, True)
 
     def test_startup_params(self):
@@ -939,10 +945,27 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         # Explicitly verify these values after discover.  They should match
         # what the startup values should be
         get_values = {
-            Parameter.PUMP_DELAY: 60,
-            Parameter.NUM_AVG_SAMPLES: 4,
-            Parameter.CLOCK_INTERVAL: '00:00:00',
-            Parameter.STATUS_INTERVAL: '00:00:00'
+            Parameter.PTYPE: 3,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: True,
+             Parameter.OUTPUT_FORMAT: 0,
+             Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True,
+             Parameter.CLOCK_INTERVAL: '00:00:00',
+             Parameter.STATUS_INTERVAL: '00:00:00'
         }
 
         # Change the values of these parameters to something before the
@@ -959,7 +982,7 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
 
         self.assert_set_bulk(new_values)
 
-         # Start autosample and try again
+        # Start autosample and try again
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
@@ -1054,7 +1077,7 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         #verify that the event got scheduled
-        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=75)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -1093,12 +1116,11 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         # Allow for a clock sync to happen
-        time.sleep(60)
+        time.sleep(100)
         # Verification: Search log for 'Performing Clock Sync in autosample mode',
         # should be seen roughly 90 seconds after the interval was set
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-
 
 
 ###############################################################################
@@ -1249,10 +1271,16 @@ class SBE16NOQualTestCase(SeaBirdQualificationTest, SBE16NOMixin):
         """
         self.assert_enter_command_mode()
 
+        # Perform a clock sync!
         self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+
+        # Call discover so that the driver gets the updated DateTime value from the instrument
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
 
         # get the time from the driver
         check_new_params = self.instrument_agent_client.get_resource([Parameter.DATE_TIME])
+
         # convert driver's time from formatted date/time string to seconds integer
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.DATE_TIME).lower(), "%d %b %Y %H:%M:%S"))
 
@@ -1262,8 +1290,9 @@ class SBE16NOQualTestCase(SeaBirdQualificationTest, SBE16NOMixin):
         # convert local time from formatted date/time string to seconds integer to drop DST
         local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
 
-        # Now verify that the time matches to within 15 seconds
-        self.assertLessEqual(abs(instrument_time - local_time), 15)
+        # Now verify that the time matches to within 10 seconds
+        # The instrument time will be slightly behind as assert_discover takes a few seconds to complete
+        self.assertLessEqual(abs(instrument_time - local_time), 10)
 
     def test_get_set_parameters(self):
         '''
@@ -1275,9 +1304,17 @@ class SBE16NOQualTestCase(SeaBirdQualificationTest, SBE16NOMixin):
         self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 2)
         self.assert_set_parameter(Parameter.PUMP_DELAY, 55)
 
+        #get parameters and verify values
+        self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 2)
+        self.assert_get_parameter(Parameter.PUMP_DELAY, 55)
+
         #set parameters back to their default values
         self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 4)
         self.assert_set_parameter(Parameter.PUMP_DELAY, 60)
+
+        #get parameters and verify values
+        self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 4)
+        self.assert_get_parameter(Parameter.PUMP_DELAY, 60)
 
     def test_get_capabilities(self):
         """
