@@ -255,7 +255,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                       VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        # STARTUP: True, VALUE: '****/**/**,**:**:**'
+
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '00:01.00',
                                   VALUE: '00:01.00'},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '050,001',
@@ -766,8 +766,6 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: should we verify values against definition?
         """
         log.debug("assert_driver_parameters current_parameters = " + str(current_parameters))
-        log.error("Sung assert_driver_parameters current_parameters = " + str(current_parameters))
-        log.error("Sung assert_driver_parameters driver parameters = " + str(self._driver_parameters))
         temp_parameters = copy.deepcopy(self._driver_parameters)
         temp_parameters.update(self._driver_parameters_slave)
         self.assert_parameters(current_parameters, temp_parameters, verify_values)
@@ -1163,25 +1161,17 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         if config['instrument_type'] != ConfigTypes.MULTI:
             config = {'only one port agent here!': config}
         for name, each in config.items():
-            log.error("Sung init port agent name %s", name)
-            log.error("Sung init port agent each %s", each)
             if type(each) != dict:
                 continue
             port_agent_host = each.get('device_addr')
-            log.error("Sung init port agant host %s", port_agent_host)
             if port_agent_host is not None:
-                log.error("Sung init port agant calling launch_process")
                 port_agent = PortAgentProcess.launch_process(each, timeout=60, test_mode=True)
-                log.error("Sung init port agant  after")
                 port = port_agent.get_data_port()
-                log.error("Sung init port agant port %s", port)
                 pid = port_agent.get_pid()
-
                 if port_agent_host == LOCALHOST:
                     log.info('Started port agent pid %s listening at port %s' % (pid, port))
                 else:
                     log.info("Connecting to port agent on host: %s, port: %s", port_agent_host, port)
-                log.error("Sung init port agant port agent %s", repr(port_agent))
                 port_agents[name] = port_agent
 
         self.addCleanup(self.stop_port_agent)
@@ -1897,7 +1887,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY,
                         self._driver_parameters_slave[TeledyneParameter2.AMBIGUITY_VELOCITY][self.VALUE])
 
-    def test_set_ranges(self):
+    def SungTested_est_set_ranges(self):
         self.assert_initialize_driver()
 
         # self._test_set_xmit_power()
