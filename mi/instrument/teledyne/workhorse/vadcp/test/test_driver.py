@@ -1935,6 +1935,19 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._test_set_ping_weight_slave()
         self._test_set_ambiguity_velocity_slave()
 
+    # ReadOnly parameter setting exception tests
+    def test_set_parameter_test_slave(self):
+        self.assert_initialize_driver()
+
+        self.assert_set_exception(TeledyneParameter2.HEADING_ALIGNMENT, "+10000")
+        self.assert_set_exception(TeledyneParameter2.HEADING_ALIGNMENT, "+40000")
+        self.assert_set_exception(TeledyneParameter2.ENSEMBLE_PER_BURST, 600)
+        self.assert_set_exception(TeledyneParameter2.ENSEMBLE_PER_BURST, 70000)
+        self.assert_set_exception(TeledyneParameter2.LATENCY_TRIGGER, 1)
+        self.assert_set_exception(TeledyneParameter2.DATA_STREAM_SELECTION, 10)
+        self.assert_set_exception(TeledyneParameter2.DATA_STREAM_SELECTION, 19)
+        self.assert_set_exception(TeledyneParameter2.BUFFERED_OUTPUT_PERIOD, "00:00:11")
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
