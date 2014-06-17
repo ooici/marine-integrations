@@ -1227,7 +1227,8 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
     def assert_acquire_status(self):
         """
-        Overwritten
+        Overwritten`
+        It needs to verify additional data particles for VADCP
         """
         self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_calibration,
                                               timeout=60)
