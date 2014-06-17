@@ -18,6 +18,7 @@ from mock import Mock
 from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger
+
 log = get_logger()
 
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverUnitTest
@@ -51,7 +52,7 @@ from mi.instrument.teledyne.workhorse.adcp.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse.adcp.driver import Protocol
 
 from mi.instrument.teledyne.workhorse.adcp.driver import ProtocolState
-###
+# ##
 #   Driver parameters for tests
 ###
 
@@ -279,7 +280,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3"},
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7"},
         ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode,
-                                                             'value': u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" + \
+                                                             'value' : u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" + \
                                                                       "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" + \
                                                                       "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" + \
                                                                       "82  00 00 06 FF 23 E5  09 CPU727-2011-00E\n" + \
@@ -919,213 +920,213 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_instrument_id(self):
-        self.assert_initialize_driver()
-        self._test_set_instrument_id()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_sleep_enable(self):
-        self.assert_initialize_driver()
-        self._test_set_sleep_enable()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_polled_mode(self):
-        self.assert_initialize_driver()
-        self._test_set_polled_mode()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_xmit_power(self):
-        self.assert_initialize_driver()
-        self._test_set_xmit_power()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_pitch(self):
-        self.assert_initialize_driver()
-        self._test_set_pitch()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_roll(self):
-        self.assert_initialize_driver()
-        self._test_set_roll()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_salinity(self):
-        self.assert_initialize_driver()
-        self._test_set_salinity()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_coordinate_transformation(self):
-        self.assert_initialize_driver()
-        self._test_set_coordinate_transformation()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_sensor_source(self):
-        self.assert_initialize_driver()
-        self._test_set_sensor_source()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_time_per_ensemble(self):
-        self.assert_initialize_driver()
-        self._test_set_time_per_ensemble()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_time_per_ping(self):
-        self.assert_initialize_driver()
-        self._test_set_time_per_ping()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_false_target_threshold(self):
-        self.assert_initialize_driver()
-        self._test_set_false_target_threshold()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_bandwidth_control(self):
-        self.assert_initialize_driver()
-        self._test_set_bandwidth_control()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_correlation_threshold(self):
-        self.assert_initialize_driver()
-        self._test_set_correlation_threshold()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_error_velocity_threshold(self):
-        self.assert_initialize_driver()
-        self._test_set_error_velocity_threshold()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_blank_after_transmit(self):
-        self.assert_initialize_driver()
-        self._test_set_blank_after_transmit()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_clip_data_past_bottom(self):
-        self.assert_initialize_driver()
-        self._test_set_clip_data_past_bottom()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_receiver_gain_select(self):
-        self.assert_initialize_driver()
-        self._test_set_receiver_gain_select()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_number_of_depth_cells(self):
-        self.assert_initialize_driver()
-        self._test_set_number_of_depth_cells()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_pings_per_ensemble(self):
-        self.assert_initialize_driver()
-        self._test_set_pings_per_ensemble()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_depth_cell_size(self):
-        self.assert_initialize_driver()
-        self._test_set_depth_cell_size()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_transmit_length(self):
-        self.assert_initialize_driver()
-        self._test_set_transmit_length()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_ping_weight(self):
-        self.assert_initialize_driver()
-        self._test_set_ping_weight()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_ambiguity_velocity(self):
-        self.assert_initialize_driver()
-        self._test_set_ambiguity_velocity()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_serial_data_out_readonly(self):
-        self.assert_initialize_driver()
-        self._test_set_serial_data_out_readonly()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_serial_flow_control_readonly(self):
-        self.assert_initialize_driver()
-        self._test_set_serial_flow_control_readonly()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_banner_readonly(self):
-        self.assert_initialize_driver()
-        self._test_set_banner_readonly()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_save_nvram_to_recorder_readonly(self):
-        self.assert_initialize_driver()
-        self._test_set_save_nvram_to_recorder_readonly()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_serial_out_fw_switches_readonly(self):
-        self.assert_initialize_driver()
-        self._test_set_serial_out_fw_switches_readonly()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_test_set_water_profiling_mode_readonly(self):
-        self.assert_initialize_driver()
-        self._test_set_water_profiling_mode_readonly()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_parameter_test_set(self):
-        self.assert_initialize_driver()
-        self._test_set_parameter_test()
-
-    # This is only for individual test purpose.
-    # The test function will be called by test_set_ranges()
-    def _test_set_time_first_ping(self):
-        self.assert_initialize_driver()
-        self._test_set_time_of_first_ping_readonly()
-
-    def _test_test_set_ranges(self):
-        self.assert_initialize_driver()
-        fail = False
-
-        for k in self._tested.keys():
-            if k not in self._driver_parameters.keys():
-                log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
-                #fail = True
-
-        for k in self._driver_parameters.keys():
-            if k not in [Parameter.TIME_OF_FIRST_PING, Parameter.TIME] + self._tested.keys():
-                log.error("*ERROR* " + k + " is in _driver_parameters but was not tested.")
-                fail = True
-
-        self.assertFalse(fail, "See above for un-exercized parameters.")
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_instrument_id(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_instrument_id()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_sleep_enable(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_sleep_enable()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_polled_mode(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_polled_mode()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_xmit_power(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_xmit_power()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_pitch(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_pitch()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_roll(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_roll()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_salinity(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_salinity()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_coordinate_transformation(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_coordinate_transformation()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_sensor_source(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_sensor_source()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_time_per_ensemble(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_time_per_ensemble()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_time_per_ping(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_time_per_ping()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_false_target_threshold(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_false_target_threshold()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_bandwidth_control(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_bandwidth_control()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_correlation_threshold(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_correlation_threshold()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_error_velocity_threshold(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_error_velocity_threshold()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_blank_after_transmit(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_blank_after_transmit()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_clip_data_past_bottom(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_clip_data_past_bottom()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_receiver_gain_select(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_receiver_gain_select()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_number_of_depth_cells(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_number_of_depth_cells()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_pings_per_ensemble(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_pings_per_ensemble()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_depth_cell_size(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_depth_cell_size()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_transmit_length(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_transmit_length()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_ping_weight(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_ping_weight()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_ambiguity_velocity(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_ambiguity_velocity()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_serial_data_out_readonly(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_serial_data_out_readonly()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_serial_flow_control_readonly(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_serial_flow_control_readonly()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_banner_readonly(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_banner_readonly()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_save_nvram_to_recorder_readonly(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_save_nvram_to_recorder_readonly()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_serial_out_fw_switches_readonly(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_serial_out_fw_switches_readonly()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_test_set_water_profiling_mode_readonly(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_water_profiling_mode_readonly()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_parameter_test_set(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_parameter_test()
+    #
+    # # This is only for individual test purpose.
+    # # The test function will be called by test_set_ranges()
+    # def _test_set_time_first_ping(self):
+    #     self.assert_initialize_driver()
+    #     self._test_set_time_of_first_ping_readonly()
+    #
+    # def _test_test_set_ranges(self):
+    #     self.assert_initialize_driver()
+    #     fail = False
+    #
+    #     for k in self._tested.keys():
+    #         if k not in self._driver_parameters.keys():
+    #             log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
+    #             #fail = True
+    #
+    #     for k in self._driver_parameters.keys():
+    #         if k not in [Parameter.TIME_OF_FIRST_PING, Parameter.TIME] + self._tested.keys():
+    #             log.error("*ERROR* " + k + " is in _driver_parameters but was not tested.")
+    #             fail = True
+    #
+    #     self.assertFalse(fail, "See above for un-exercized parameters.")
 
     def test_set_ranges(self):
         self.assert_initialize_driver()
