@@ -11,11 +11,12 @@ Generic test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
-
 import time as time
 
 from nose.plugins.attrib import attr
-from mi.core.log import get_logger; log = get_logger()
+from mi.core.log import get_logger
+
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import AgentCapabilityType
@@ -42,18 +43,18 @@ from mi.core.exceptions import InstrumentCommandException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
 
-#################################### RULES ####################################
-#                                                                             #
+# ################################### RULES ####################################
+# #
 # Common capabilities in the base class                                       #
-#                                                                             #
+# #
 # Instrument specific stuff in the derived class                              #
-#                                                                             #
+# #
 # Generator spits out either stubs or comments describing test this here,     #
 # test that there.                                                            #
-#                                                                             #
+# #
 # Qualification tests are driven through the instrument_agent                 #
-#                                                                             #
-###############################################################################
+# #
+# ##############################################################################
 
 class WorkhorseParameterAltValue():
     # Values that are valid, but not the ones we want to use,
@@ -61,43 +62,35 @@ class WorkhorseParameterAltValue():
     #
 
     # Probably best NOT to tweek this one.
-    SERIAL_FLOW_CONTROL = '11110' 
+    SERIAL_FLOW_CONTROL = '11110'
     BANNER = 1
-    SAVE_NVRAM_TO_RECORDER = True # Immutable.
+    SAVE_NVRAM_TO_RECORDER = True  # Immutable.
     SLEEP_ENABLE = 1
     POLLED_MODE = True
     PITCH = 1
     ROLL = 1
 
 
-
-###############################################################################
-#                                UNIT TESTS                                   #
-###############################################################################
+# ##############################################################################
+# UNIT TESTS                                   #
+# ##############################################################################
 @attr('UNIT', group='mi')
 class WorkhorseDriverUnitTest(TeledyneUnitTest):
     def setUp(self):
         TeledyneUnitTest.setUp(self)
 
 
-###############################################################################
+# ##############################################################################
 #                            INTEGRATION TESTS                                #
 ###############################################################################
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
-
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
-        """
-        for k in self._driver_parameters.keys():
-            if self.VALUE in self._driver_parameters[k]:
-                if self._driver_parameters[k][self.READONLY] == False:
-                    self._driver_parameter_defaults[k] = self._driver_parameters[k][self.VALUE]
-        """
+
     ###
     #    Add instrument specific integration tests
     ###
-    
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -119,17 +112,20 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # First test in command mode
         ####
 
-        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
+                                   delay=1)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
         self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
+        self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
+                                   expected="Parameters saved as USER defaults")
         self.assert_driver_command(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
         self.assert_driver_command(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
         self.assert_driver_command(TeledyneProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
-        self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
+        self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG,
+                                   expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
         self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
         self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
         self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
@@ -139,16 +135,25 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # Test in streaming mode
         ####
         # Put us in streaming
-        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS, exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
+                                   delay=1)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS,
+                                             exception_class=InstrumentCommandException)
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC,
+                                             exception_class=InstrumentCommandException)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
@@ -207,18 +212,18 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.BUFFERED_OUTPUT_PERIOD: '00:00:00'
         }
         new_set = {
-            'SERIAL_FLOW_CONTROL':'11110',
-            'BANNER' : 1,
-            'SAVE_NVRAM_TO_RECORDER': True, # Immutable.
-            'SLEEP_ENABLE' :1,
-            'POLLED_MODE' :True,
-            'PITCH' :1,
-            'ROLL' : 1
+            'SERIAL_FLOW_CONTROL': '11110',
+            'BANNER': 1,
+            'SAVE_NVRAM_TO_RECORDER': True,  # Immutable.
+            'SLEEP_ENABLE': 1,
+            'POLLED_MODE': True,
+            'PITCH': 1,
+            'ROLL': 1
         }
         # Change the values of these parameters to something before the
         # driver is reinitalized.  They should be blown away on reinit.
         new_values = {}
-      
+
         p = WorkhorseParameter.dict()
         set_dict = {}
         for k, v in new_set.items():
@@ -235,6 +240,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:10].upper() in dt.upper())
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -246,7 +252,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
     def setUp(self):
         TeledyneQualificationTest.setUp(self)
 
-    def assert_configuration(self, data_particle, verify_values = False):
+    def assert_configuration(self, data_particle, verify_values=False):
         '''
         Verify assert_compass_calibration particle
         @param data_particle:  ADCP_COMPASS_CALIBRATION data particle
@@ -256,7 +262,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._system_configuration_data_parameters, verify_values)
 
-    def assert_compass_calibration(self, data_particle, verify_values = False):
+    def assert_compass_calibration(self, data_particle, verify_values=False):
         '''
         Verify assert_compass_calibration particle
         @param data_particle:  ADCP_COMPASS_CALIBRATION data particle
@@ -282,12 +288,12 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         '''
         verify that parameters are set correctly.  Assumes we are in command mode.
         '''
-        setParams = { name : value }
-        getParams = [ name ]
+        setParams = {name: value}
+        getParams = [name]
 
         self.instrument_agent_client.set_resource(setParams, timeout=300)
 
-        if(verify):
+        if verify:
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
 
@@ -325,7 +331,8 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         # Now verify that at least the date matches
         check_new_params = self.instrument_agent_client.get_resource([WorkhorseParameter.TIME], timeout=45)
 
-        instrument_time = time.mktime(time.strptime(check_new_params.get(WorkhorseParameter.TIME).lower(), "%Y/%m/%d,%H:%M:%S %Z"))
+        instrument_time = time.mktime(
+            time.strptime(check_new_params.get(WorkhorseParameter.TIME).lower(), "%Y/%m/%d,%H:%M:%S %Z"))
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 45)
 
@@ -351,13 +358,11 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                 TeledyneProtocolEvent.GET_CONFIGURATION,
                 TeledyneProtocolEvent.GET_ERROR_STATUS_WORD,
                 TeledyneProtocolEvent.GET_FAULT_LOG,
-                TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX,
                 TeledyneProtocolEvent.RUN_TEST_200,
                 TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
-                TeledyneProtocolEvent.SEND_LAST_SAMPLE,
                 TeledyneProtocolEvent.FACTORY_SETS,
                 TeledyneProtocolEvent.USER_SETS
-                ],
+            ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
@@ -369,11 +374,11 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             TeledyneProtocolEvent.STOP_AUTOSAMPLE,
             TeledyneProtocolEvent.GET_CONFIGURATION,
             TeledyneProtocolEvent.GET_CALIBRATION,
-            ]
+        ]
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
@@ -412,37 +417,23 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         """
         self.assert_enter_command_mode()
 
-
         for k in self._driver_parameters.keys():
             if self.VALUE in self._driver_parameters[k]:
-                if False == self._driver_parameters[k][self.READONLY]:
+                if not self._driver_parameters[k][self.READONLY]:
                     self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
-                    log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
-
-
-        # Change these values anyway just in case it ran first.
-        # ReadOnly
-        #self.assert_set_parameter(WorkhorseParameter.INSTRUMENT_ID, 1)
-        # ReaOnly
-        #self.assert_set_parameter(WorkhorseParameter.SLEEP_ENABLE, 1)
-        # ReadOnly
-        #self.assert_set_parameter(WorkhorseParameter.POLLED_MODE, True)
+                    log.error("VERIFYING %s is set to %s appropriately ", k,
+                              str(self._driver_parameters[k][self.VALUE]))
 
         self.assert_set_parameter(WorkhorseParameter.XMIT_POWER, 250)
         self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1480)
         self.assert_set_parameter(WorkhorseParameter.PITCH, 1)
         self.assert_set_parameter(WorkhorseParameter.ROLL, 1)
         self.assert_set_parameter(WorkhorseParameter.SALINITY, 36)
-        self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 6000,0)
+        self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 6000, 0)
         self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 0)
-
 
         self.assert_set_parameter(WorkhorseParameter.TIME_PER_ENSEMBLE, '00:00:01.00')
         self.assert_set_parameter(WorkhorseParameter.TIME_PER_ENSEMBLE, '01:00:00.00')
-
-        #ReadOnly
-        #self.assert_set_parameter(WorkhorseParameter.TIME_PER_PING, '00:02.00')
-        #self.assert_set_parameter(WorkhorseParameter.TIME_PER_PING, '01:20.00')
 
         self.assert_set_parameter(WorkhorseParameter.FALSE_TARGET_THRESHOLD, '049,002')
         self.assert_set_parameter(WorkhorseParameter.BANDWIDTH_CONTROL, 1)
@@ -453,26 +444,13 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_set_parameter(WorkhorseParameter.CLIP_DATA_PAST_BOTTOM, 1)
         self.assert_set_parameter(WorkhorseParameter.RECEIVER_GAIN_SELECT, 0)
-        self.assert_set_parameter(WorkhorseParameter.WATER_REFERENCE_LAYER, '002,006')
         self.assert_set_parameter(WorkhorseParameter.NUMBER_OF_DEPTH_CELLS, 99)
         self.assert_set_parameter(WorkhorseParameter.PINGS_PER_ENSEMBLE, 0)
         self.assert_set_parameter(WorkhorseParameter.DEPTH_CELL_SIZE, 790)
 
-
         self.assert_set_parameter(WorkhorseParameter.TRANSMIT_LENGTH, 1)
         self.assert_set_parameter(WorkhorseParameter.PING_WEIGHT, 1)
         self.assert_set_parameter(WorkhorseParameter.AMBIGUITY_VELOCITY, 176)
-
-        #ReadOnly
-        #self.assert_set_parameter(WorkhorseParameter.LATENCY_TRIGGER, 1)
-        #self.assert_set_parameter(WorkhorseParameter.HEADING_ALIGNMENT, '+10000')
-        #self.assert_set_parameter(WorkhorseParameter.HEADING_BIAS, '+10000')
-        #self.assert_set_parameter(WorkhorseParameter.DATA_STREAM_SELECTION, 18)
-        #self.assert_set_parameter(WorkhorseParameter.ENSEMBLE_PER_BURST, 10000)
-        #self.assert_set_parameter(WorkhorseParameter.BUFFERED_OUTPUT_PERIOD, '00:00:12')
-        #self.assert_set_parameter(WorkhorseParameter.SAMPLE_AMBIENT_SOUND, 1)
-
-
 
     def test_startup_params_second_pass(self):
         """
@@ -486,12 +464,12 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_enter_command_mode()
         for k in self._driver_parameters.keys():
             if self.VALUE in self._driver_parameters[k]:
-                if False == self._driver_parameters[k][self.READONLY]:
+                if not self._driver_parameters[k][self.READONLY]:
                     self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
-                    log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
+                    log.error("VERIFYING %s is set to %s appropriately ", k,
+                              str(self._driver_parameters[k][self.VALUE]))
 
         # Change these values anyway just in case it ran first.
-
         self.assert_set_parameter(WorkhorseParameter.XMIT_POWER, 250)
         self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1480)
         self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1500)
@@ -508,7 +486,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.BLANK_AFTER_TRANSMIT, 352)
         self.assert_set_parameter(WorkhorseParameter.CLIP_DATA_PAST_BOTTOM, 1)
         self.assert_set_parameter(WorkhorseParameter.RECEIVER_GAIN_SELECT, 0)
-        self.assert_set_parameter(WorkhorseParameter.WATER_REFERENCE_LAYER, '002,006')
         self.assert_set_parameter(WorkhorseParameter.NUMBER_OF_DEPTH_CELLS, 99)
         self.assert_set_parameter(WorkhorseParameter.NUMBER_OF_DEPTH_CELLS, 30)
         self.assert_set_parameter(WorkhorseParameter.PINGS_PER_ENSEMBLE, 0)
@@ -517,7 +494,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.TRANSMIT_LENGTH, 1)
         self.assert_set_parameter(WorkhorseParameter.PING_WEIGHT, 1)
         self.assert_set_parameter(WorkhorseParameter.AMBIGUITY_VELOCITY, 176)
-        #self.assert_set_parameter(WorkhorseParameter.SERIAL_DATA_OUT, '000 000 000')
 
 
 ###############################################################################
@@ -525,7 +501,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 # Device specific pulication tests are for                                    #
 # testing device specific capabilities                                        #
 ###############################################################################
-
 @attr('PUB', group='mi')
 class WorkhorseDriverPublicationTest(TeledynePublicationTest):
     def setUp(self):
