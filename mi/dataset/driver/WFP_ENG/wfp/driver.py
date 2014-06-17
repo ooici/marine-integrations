@@ -80,7 +80,7 @@ class WfpEngWfp(SioMuleDataSetDriver):
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng__stc_imodem_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'status_data_particle_class': WfpEngStcImodemStatusRecoveredDataParticle,
                     'start_data_particle_class': WfpEngStcImodemStartRecoveredDataParticle,
                     'engineering_data_particle_class': WfpEngStcImodemEngineeringRecoveredDataParticle
@@ -101,7 +101,7 @@ class WfpEngWfp(SioMuleDataSetDriver):
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng_wfp_sio_mule',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'start_time_data_particle_class': WfpEngWfpSioMuleParserDataStartTimeParticle,
                     'status_data_particle_class': WfpEngWfpSioMuleParserDataStatusParticle,
                     'engineering_data_particle_class': WfpEngWfpSioMuleParserDataEngineeringParticle

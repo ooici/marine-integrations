@@ -97,7 +97,7 @@ class WfpEngStcImodemParserUnitTestCase(ParserUnitTestCase):
             DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED: {
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng__stc_imodem_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'status_data_particle_class': WfpEngStcImodemStatusRecoveredDataParticle,
                     'start_data_particle_class': WfpEngStcImodemStartRecoveredDataParticle,
                     'engineering_data_particle_class': WfpEngStcImodemEngineeringRecoveredDataParticle
@@ -106,7 +106,7 @@ class WfpEngStcImodemParserUnitTestCase(ParserUnitTestCase):
             DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED: {
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng__stc_imodem_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'status_data_particle_class': WfpEngStcImodemStatusTelemeteredDataParticle,
                     'start_data_particle_class': WfpEngStcImodemStartTelemeteredDataParticle,
                     'engineering_data_particle_class': WfpEngStcImodemEngineeringTelemeteredDataParticle

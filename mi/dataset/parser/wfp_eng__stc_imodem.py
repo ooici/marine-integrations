@@ -22,6 +22,7 @@ log = get_logger()
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, WFP_E_COASTAL_FLAGS_HEADER_MATCHER, \
     HEADER_BYTES, SAMPLE_BYTES, STATUS_BYTES, PROFILE_MATCHER
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
 
 class WfpEngStcImodemParser(WfpEFileParser):
@@ -35,7 +36,7 @@ class WfpEngStcImodemParser(WfpEFileParser):
                  *args, **kwargs):
         self._saved_header = None
         log.info(config)
-        particle_classes_dict = config.get('particle_classes_dict')
+        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
         self._start_data_particle_class = particle_classes_dict.get('start_data_particle_class')
         self._status_data_particle_class = particle_classes_dict.get('status_data_particle_class')
         self._engineering_data_particle_class = particle_classes_dict.get('engineering_data_particle_class')
