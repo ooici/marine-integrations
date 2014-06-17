@@ -7,11 +7,11 @@ header:
 data:
   - _index: 1
     internal_timestamp: '2013-07-25T05:26:16.97'
-    controller_timestamp: 1374733211
-    adcps_jln_number: 107
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374733211
+    ensemble_number: 107
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -37,11 +37,11 @@ data:
     adcps_jln_vel_east: [5376, -6401, -16385, 1280, 5888, 4864, 3072, 7680, 0, 256, 6656, -3073, -6401, -8705, -6657, -2049, -2305, -3073, -513, -7425, 512, 4352, -8449, -1793, -13312, 8192, -24576, 128]
   - _index: 2
     internal_timestamp: '2013-07-25T07:26:16.97'
-    controller_timestamp: 1374740411
-    adcps_jln_number: 109
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374740411
+    ensemble_number: 109
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -67,11 +67,11 @@ data:
     adcps_jln_vel_east: [3584, 256, -8449, 12288, 1024, 1792, 0, -1281, -4609, 6912, 3840, 14080, -7681, 4096, -2561, -3585, -7425, 3840, 5888, 8192, 4608, -7169, -3841, 32000, 11520, 19456, 3584, 128]
   - _index: 3
     internal_timestamp: '2013-07-25T09:26:16.97'
-    controller_timestamp: 1374747611
-    adcps_jln_number: 111
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374747611
+    ensemble_number: 111
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -97,11 +97,11 @@ data:
     adcps_jln_vel_east: [-1281, -2049, -2817, -1, -4353, -3585, 768, -7425, -7937, 4608, -6657, -3073, -8705, -7681, 768, 2304, 1280, 4608, 2816, 512, -4865, 5632, -16384, 18176, -2049, -12033, -10753, 128]
   - _index: 4
     internal_timestamp: '2013-07-25T11:26:16.97'
-    controller_timestamp: 1374754811
-    adcps_jln_number: 113
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374754811
+    ensemble_number: 113
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -127,11 +127,11 @@ data:
     adcps_jln_vel_east: [4096, -4865, -2817, 7680, -1793, 1536, -2561, -8193, -3329, 768, -3073, -4097, 2304, 7936, -12801, -3073, -7681, 6144, 1536, -769, -6401, 7424, 16896, -19457, -18433, 4352, -23808, 128]
   - _index: 5
     internal_timestamp: '2013-07-25T13:26:16.97'
-    controller_timestamp: 1374762011
-    adcps_jln_number: 115
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374762011
+    ensemble_number: 115
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -157,11 +157,11 @@ data:
     adcps_jln_vel_east: [-3585, -6401, -1537, -4097, -3841, -1, -6401, -769, -2817, 8448, 768, -1281, -6145, -4353, 3072, 4096, -2817, 6144, 2048, 4864, -4609, 4096, 18944, -257, 4608, 27391, -29953, 128]
   - _index: 6
     internal_timestamp: '2013-07-25T15:26:16.97'
-    controller_timestamp: 1374769211
-    adcps_jln_number: 117
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374769211
+    ensemble_number: 117
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -187,11 +187,11 @@ data:
     adcps_jln_vel_east: [-3841, -3073, 3584, 11264, 1792, -5121, 6912, 2816, -1025, -257, 2304, 2048, -2817, 4608, 7424, -3073, 1024, 8448, 3584, 1792, 4608, -2049, -12289, -1537, -9217, -5889, 0, 128]
   - _index: 7
     internal_timestamp: '2013-07-25T17:26:16.97'
-    controller_timestamp: 1374776411
-    adcps_jln_number: 119
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374776411
+    ensemble_number: 119
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
@@ -217,11 +217,11 @@ data:
     adcps_jln_vel_east: [4608, 512, -1, -2561, 2304, -3585, -513, 8192, -4353, 3072, -4097, 7168, -1025, -513, -11009, -9985, -7937, 4096, -6913, 11520, -6401, -2561, -11009, -12545, -2305, 27648, 11520, 128]
   - _index: 8
     internal_timestamp: '2013-07-25T19:26:16.97'
-    controller_timestamp: 1374783611
-    adcps_jln_number: 121
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374783611
+    ensemble_number: 121
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25
