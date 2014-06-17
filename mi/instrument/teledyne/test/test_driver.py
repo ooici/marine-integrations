@@ -700,7 +700,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # DEPTH_CELL_SIZE: int 80 - 3200
         self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, 80)
-        self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, 3200)
 
         self.assert_set_exception(TeledyneParameter.DEPTH_CELL_SIZE, 3201)
         self.assert_set_exception(TeledyneParameter.DEPTH_CELL_SIZE, -1)
@@ -786,24 +785,24 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
 
     # ReadOnly parameter tests
-    def test_set_time_of_first_ping_readonly(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
-
-        # Test read only raise exceptions on set.
-        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-        now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
-
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
-        self._tested[TeledyneParameter.TIME_OF_FIRST_PING] = True
+    # def test_set_time_of_first_ping_readonly(self):
+    #     ###
+    #     #   test get set of a variety of parameter ranges
+    #     ###
+    #     log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
+    #
+    #     # Test read only raise exceptions on set.
+    #     # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    #     now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
+    #     today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
+    #     today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+    #     today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
+    #
+    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
+    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
+    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
+    #     self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
+    #     self._tested[TeledyneParameter.TIME_OF_FIRST_PING] = True
 
     # def _test_set_receiver_gain_select_readonly(self):
     #     ###
