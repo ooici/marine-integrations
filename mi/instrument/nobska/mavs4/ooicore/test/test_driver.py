@@ -130,84 +130,89 @@ class Mavs4Mixin(DriverTestMixin):
     #  Parameter and Type Definitions
     ###
     _driver_parameters = {
-        InstrumentParameters.SYS_CLOCK : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.NOTE1 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.NOTE2 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.NOTE3 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_FRAME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '3', VALUE: '3'},
-        InstrumentParameters.MONITOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 'HEX', VALUE: 'HEX'},
-        InstrumentParameters.QUERY_MODE : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT:'n'},
-        InstrumentParameters.FREQUENCY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1.0},
-        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1},
-        InstrumentParameters.SAMPLE_PERIOD : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.SAMPLES_PER_BURST : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.BURST_INTERVAL_DAYS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
-        InstrumentParameters.BURST_INTERVAL_HOURS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
-        InstrumentParameters.BURST_INTERVAL_MINUTES : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
-        InstrumentParameters.BURST_INTERVAL_SECONDS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
-        InstrumentParameters.SI_CONVERSION : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.WARM_UP_INTERVAL : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'f'},
-        InstrumentParameters.THREE_AXIS_COMPASS : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
-        InstrumentParameters.SOLID_STATE_TILT : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
-        InstrumentParameters.THERMISTOR : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
-        InstrumentParameters.PRESSURE : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_1 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_2 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
-        InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '2'},
-        InstrumentParameters.SERIAL_NUMBER : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_C : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_D : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.COMPASS_OFFSET_0 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.COMPASS_OFFSET_1 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.COMPASS_OFFSET_2 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.COMPASS_SCALE_FACTORS_0 : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.COMPASS_SCALE_FACTORS_1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.COMPASS_SCALE_FACTORS_2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.TILT_PITCH_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.TILT_ROLL_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.SYS_CLOCK: {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.NOTE1: {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.NOTE2: {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.NOTE3: {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_FRAME: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '3',
+                                              VALUE: '3'},
+        InstrumentParameters.MONITOR: {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_TIME: {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES: {TYPE: str, READONLY: False, DA: True, STARTUP: True,
+                                                                    DEFAULT: 'HEX', VALUE: 'HEX'},
+        InstrumentParameters.QUERY_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        InstrumentParameters.FREQUENCY: {TYPE: float, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1.0},
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                                       DEFAULT: 1},
+        InstrumentParameters.SAMPLE_PERIOD: {TYPE: float, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.SAMPLES_PER_BURST: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.BURST_INTERVAL_DAYS: {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        InstrumentParameters.BURST_INTERVAL_HOURS: {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        InstrumentParameters.BURST_INTERVAL_MINUTES: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                                      DEFAULT: 0},
+        InstrumentParameters.BURST_INTERVAL_SECONDS: {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                                      DEFAULT: 0},
+        InstrumentParameters.SI_CONVERSION: {TYPE: float, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.WARM_UP_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'f'},
+        InstrumentParameters.THREE_AXIS_COMPASS: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True},
+        InstrumentParameters.SOLID_STATE_TILT: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True},
+        InstrumentParameters.THERMISTOR: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True},
+        InstrumentParameters.PRESSURE: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False},
+        InstrumentParameters.AUXILIARY_1: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False},
+        InstrumentParameters.AUXILIARY_2: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False},
+        InstrumentParameters.AUXILIARY_3: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False},
+        InstrumentParameters.SENSOR_ORIENTATION: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '2'},
+        InstrumentParameters.SERIAL_NUMBER: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_A: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_B: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_C: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_D: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_OFFSET_0: {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_OFFSET_1: {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_OFFSET_2: {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_0: {TYPE: float, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_1: {TYPE: float, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_2: {TYPE: float, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.TILT_PITCH_OFFSET: {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.TILT_ROLL_OFFSET: {TYPE: int, READONLY: True, DA: False, STARTUP: False},
     }
 
     # parameter values to test.
     parameter_values = {
-        InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        InstrumentParameters.MONITOR : 'y',
-        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI',
-        InstrumentParameters.QUERY_MODE : 'n',
-        InstrumentParameters.FREQUENCY : 2.0,
-        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
-        InstrumentParameters.SAMPLE_PERIOD : 5.0,
-        InstrumentParameters.SAMPLES_PER_BURST : 2,
-        InstrumentParameters.BURST_INTERVAL_DAYS : 0,
-        InstrumentParameters.BURST_INTERVAL_HOURS : 0,
-        InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
-        InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
-        InstrumentParameters.SI_CONVERSION : .00231,
+        # InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        # InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        # InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        # InstrumentParameters.MONITOR : 'y',
+        # InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI',
+        InstrumentParameters.QUERY_MODE: False,
+        # InstrumentParameters.FREQUENCY : 2.0,
+        # InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+        # InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        # InstrumentParameters.SAMPLES_PER_BURST : 2,
+        # InstrumentParameters.BURST_INTERVAL_DAYS : 0,
+        # InstrumentParameters.BURST_INTERVAL_HOURS : 0,
+        # InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
+        # InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
+        # InstrumentParameters.SI_CONVERSION : .00231,
     }
     
     parameter_values_B = {
-        InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        InstrumentParameters.MONITOR : 'n',
-        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
-        InstrumentParameters.QUERY_MODE : 'n',
-        InstrumentParameters.FREQUENCY : 10.0,
-        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 20,
-        InstrumentParameters.SAMPLE_PERIOD : 2.0,
-        InstrumentParameters.SAMPLES_PER_BURST : 4,
-        InstrumentParameters.BURST_INTERVAL_DAYS : 1,
-        InstrumentParameters.BURST_INTERVAL_HOURS : 1,
-        InstrumentParameters.BURST_INTERVAL_MINUTES : 1,
-        InstrumentParameters.BURST_INTERVAL_SECONDS : 1,
-        InstrumentParameters.SI_CONVERSION : .00123,
+        # InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        # InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        # InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        # InstrumentParameters.MONITOR : 'n',
+        # InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
+        InstrumentParameters.QUERY_MODE: True,
+        # InstrumentParameters.FREQUENCY : 10.0,
+        # InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 20,
+        # InstrumentParameters.SAMPLE_PERIOD : 2.0,
+        # InstrumentParameters.SAMPLES_PER_BURST : 4,
+        # InstrumentParameters.BURST_INTERVAL_DAYS : 1,
+        # InstrumentParameters.BURST_INTERVAL_HOURS : 1,
+        # InstrumentParameters.BURST_INTERVAL_MINUTES : 1,
+        # InstrumentParameters.BURST_INTERVAL_SECONDS : 1,
+        # InstrumentParameters.SI_CONVERSION : .00123,
     }
     
         
@@ -646,25 +651,13 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.assert_initialize_driver()
 
         # construct values dynamically to get time stamp for notes
-        new_parameter_values = {}
-        for key in self.parameter_values.iterkeys():
-            new_parameter_values[key] = self.parameter_values[key]
-               
+        for key in self.parameter_values:
+            log.debug('djm - key: %r, value: %r' % (key, self.parameter_values[key]))
+            self.assert_set(key, self.parameter_values[key])
+            self.assert_set(key, self.parameter_values_B[key])
+
         # try a read-only parameter
-        self.assert_ion_exception(InstrumentParameterException,
-                                  self.driver_client.cmd_dvr,
-                                  'set_resource',
-                                  [InstrumentParameters.LOG_DISPLAY_TIME])
-                                  
-        # Set parameters and verify.
-        self.assert_set_bulk(new_parameter_values)
-        
-        # do it all again with a different value set
-        new_parameter_values = {}
-        for key in self.parameter_values_B.iterkeys():
-            new_parameter_values[key] = self.parameter_values_B[key]
-        self.assert_set_bulk(new_parameter_values)
-        
+        self.assert_set_readonly(InstrumentParameters.LOG_DISPLAY_TIME)
 
     def test_set_clock(self):
         self.assert_initialize_driver()
@@ -681,7 +674,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
         self.assert_clock_set(self.TIME_TO_SET, rcvd_time)
 
-    
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
 
