@@ -14,20 +14,19 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import copy
-import re
 import ntplib
 import struct
 import binascii
 from datetime import datetime
 import time
-from functools import partial
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.dataset_parser import BufferLoadingParser
-from mi.core.instrument.chunker import BinaryChunker
 
 
 ACCEL_ID = b'\xcb'
@@ -45,8 +44,10 @@ class StateKey(BaseEnum):
     TIMER_START = 'timer_start'
 
 class MopakDataParticleType(BaseEnum):
-    ACCEL = 'mopak_o_dcl_accel'
-    RATE = 'mopak_o_dcl_rate'
+    ACCEL_TELEM = 'mopak_o_dcl_accel'
+    RATE_TELEM = 'mopak_o_dcl_rate'
+    ACCEL_RECOV = 'mopak_o_dcl_accel_recovered'
+    RATE_RECOV = 'mopak_o_dcl_rate_recovered'
 
 class MopakODclAccelParserDataParticleKey(BaseEnum):
     MOPAK_ACCELX = 'mopak_accelx'
@@ -60,12 +61,12 @@ class MopakODclAccelParserDataParticleKey(BaseEnum):
     MOPAK_MAGZ = 'mopak_magz'
     MOPAK_TIMER = 'mopak_timer'
 
-class MopakODclAccelParserDataParticle(DataParticle):
+class MopakODclAccelAbstractDataParticle(DataParticle):
     """
-    Class for parsing data from the Mopak_o_stc data set
+    Abstract Class for parsing data from the Mopak_o_stc data set
     """
 
-    _data_particle_type = MopakDataParticleType.ACCEL
+    _data_particle_type = None
 
     def _build_parsed_values(self):
         """
@@ -93,6 +94,21 @@ class MopakODclAccelParserDataParticle(DataParticle):
         log.trace('MopakODclAccelParserDataParticle: particle=%s', result)
         return result
 
+class MopakODclAccelParserDataParticle(MopakODclAccelAbstractDataParticle):
+    """
+    Class for parsing data from the Mopak_o_stc data set
+    """
+
+    _data_particle_type = MopakDataParticleType.ACCEL_TELEM
+
+class MopakODclAccelParserRecoveredDataParticle(MopakODclAccelAbstractDataParticle):
+    """
+    Class for parsing data from the Mopak_o_stc data set
+    """
+
+    _data_particle_type = MopakDataParticleType.ACCEL_RECOV
+
+
 class MopakODclRateParserDataParticleKey(BaseEnum):
     MOPAK_ROLL = 'mopak_roll'
     MOPAK_PITCH = 'mopak_pitch'
@@ -102,12 +118,12 @@ class MopakODclRateParserDataParticleKey(BaseEnum):
     MOPAK_ANG_RATEZ = 'mopak_ang_ratez'
     MOPAK_TIMER = 'mopak_timer'
 
-class MopakODclRateParserDataParticle(DataParticle):
+class MopakODclRateParserDataAbstractParticle(DataParticle):
     """
-    Class for parsing data from the mopak_o_dcl data set
+    Abstract Class for parsing data from the mopak_o_dcl data set
     """
 
-    _data_particle_type = MopakDataParticleType.RATE
+    _data_particle_type = None
     
     def _build_parsed_values(self):
         """
@@ -132,6 +148,21 @@ class MopakODclRateParserDataParticle(DataParticle):
         log.trace('MopakOStcRateParserDataParticle: particle=%s', result)
         return result
 
+class MopakODclRateParserDataParticle(MopakODclRateParserDataAbstractParticle):
+    """
+    Class for parsing data from the mopak_o_dcl data set
+    """
+
+    _data_particle_type = MopakDataParticleType.RATE_TELEM
+
+class MopakODclRateParserRecoveredDataParticle(MopakODclRateParserDataAbstractParticle):
+    """
+    Class for parsing data from the mopak_o_dcl data set
+    """
+
+    _data_particle_type = MopakDataParticleType.RATE_RECOV
+
+
 class MopakODclParser(BufferLoadingParser):
     
     def __init__(self,
@@ -143,21 +174,28 @@ class MopakODclParser(BufferLoadingParser):
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
+
         self.timer_diff = None
+
         self._read_state = {StateKey.POSITION: 0, StateKey.TIMER_ROLLOVER: 0, StateKey.TIMER_START: None}
         # convert the date / time string from the file name to a starting time in seconds UTC
+
         file_datetime = datetime.strptime(filename[:15], "%Y%m%d_%H%M%S")
         local_seconds = time.mktime(file_datetime.timetuple())
         self._start_time_utc = local_seconds - time.timezone
 
+        # Get the particle classes to publish from the configuration
+        particle_classes_dict = config.get('particle_classes_dict')
+        self._accel_particle_class = particle_classes_dict.get('accel_particle_class')
+        self._rate_particle_class = particle_classes_dict.get('rate_particle_class')
+
         super(MopakODclParser, self).__init__(config,
-                                               stream_handle,
-                                               state,
-                                               self.sieve_function,
-                                               state_callback,
-                                               publish_callback,
-                                               exception_callback,
-                                               *args, **kwargs)
+                                              stream_handle,
+                                              state,
+                                              self.sieve_function,
+                                              state_callback,
+                                              publish_callback,
+                                              exception_callback)
 
         if state:
             self.set_state(state)
@@ -334,11 +372,13 @@ class MopakODclParser(BufferLoadingParser):
                 last_timer = timer
 
                 if chunk[0] == ACCEL_ID:
-                    sample = self._extract_sample(MopakODclAccelParserDataParticle, None, chunk, timestamp)
+
+                    sample = self._extract_sample(self._accel_particle_class, None, chunk, timestamp)
                     # increment state
                     self._increment_state(ACCEL_BYTES)
+
                 elif chunk[0] == RATE_ID:
-                    sample = self._extract_sample(MopakODclRateParserDataParticle, None, chunk, timestamp)
+                    sample = self._extract_sample(self._rate_particle_class, None, chunk, timestamp)
                     # increment state
                     self._increment_state(RATE_BYTES)
 
