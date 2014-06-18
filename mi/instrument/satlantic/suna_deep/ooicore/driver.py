@@ -186,8 +186,9 @@ SUNA_STATUS_PATTERN += r'INTADMAX\s+(\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_LOW\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_HGH\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'LAMPTIME\s+(\d+)\s+'
+#SUNA_STATUS_PATTERN += r'Ok\s+(\S*.cal)'
 
-SUNA_STATUS_REGEX = re.compile(SUNA_STATUS_PATTERN)
+SUNA_STATUS_REGEX = re.compile(SUNA_STATUS_PATTERN, re.DOTALL)
 
 # SUNA TEST REGEX
 SUNA_TEST_PATTERN = r'Extrn Disk Size; Free , (\d+); (\d+)\s+'
@@ -372,6 +373,7 @@ class InstrumentCommand(BaseEnum):
     EXIT = "exit"
     SELFTEST = "selftest"
     STATUS = "get cfg"
+    GET_CAL_FILE = "get activecalfile"
 
     # Polled Mode
     MEASURE = "Measure"  # takes param n indicating amount of light frames
@@ -567,6 +569,7 @@ class SUNAStatusDataParticleKey(BaseEnum):
     FIT_WAVE_LOW = "nutnr_fit_wavelength_low"
     FIT_WAVE_HIGH = "nutnr_fit_wavelength_high"
     LAMP_TIME = "nutnr_lamp_time"
+    CALIBRATION_FILE = "nutnr_activecalfile"
 
 
 class SUNAStatusDataParticle(DataParticle):
@@ -671,7 +674,8 @@ class SUNAStatusDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_MAX, DataParticleKey.VALUE: int(matched.group(90))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_LOW, DataParticleKey.VALUE: float(matched.group(91))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_HIGH, DataParticleKey.VALUE: float(matched.group(92))},
-                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(93))}]
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(93))}] #,
+                #{DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CALIBRATION_FILE, DataParticleKey.VALUE: str(matched.group(94))}]
 
         except ValueError:
             raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
@@ -690,7 +694,7 @@ class SUNATestDataParticleKey(BaseEnum):
     TEMP_HS = "temp_interior"
     TEMP_SP = "temp_spectrometer"
     TEMP_LM = "lamp_temp"
-    LAMP_TIME = "lamp_time" #where is this?
+    LAMP_TIME = "lamp_time"
     HUMIDITY = "humidity"
     ELECTRICAL_MN = "nutnr_electrical_mn"
     ELECTRICAL_BD = "nutnr_electrical_bd"
@@ -717,14 +721,19 @@ class SUNATestDataParticle(DataParticle):
         if not matched:
             raise SampleException("No regex match for test [%s]" % self.raw_data)
         try:
+
+            time_str = str(matched.group(5)).split(":")
+            hours = int(time_str[0])
+            minutes = int(time_str[1])
+            seconds = int(time_str[2])
+            time_in_seconds = (hours * 3600) + (minutes * 60) + seconds
+
             parsed_data_list = [
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(1))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(2))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(3))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(4))},
-
-                #TODO
-                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ODOMETER, DataParticleKey.VALUE: str(matched.group(5))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: time_in_seconds},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_HS, DataParticleKey.VALUE: float(matched.group(6))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_SP, DataParticleKey.VALUE: float(matched.group(7))},
                 {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_LM, DataParticleKey.VALUE: float(matched.group(8))},
@@ -810,8 +819,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Set attributes
-        self.num_samples = 1  # number of light samples
-        self.time_samples = 5  # seconds of light samples
         self._newline = NEWLINE
 
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
@@ -868,6 +875,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.TIMED, self._build_timed_command)
         self._add_build_handler(InstrumentCommand.SELFTEST, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.SET_CLOCK, self._build_clock_command)
+        self._add_build_handler(InstrumentCommand.GET_CAL_FILE, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.GET, self._parse_generic_response)
@@ -1015,15 +1023,15 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.SKIP_SLEEP_AT_START,
                              r'SKPSLEEP\s(\S*)',
-                             lambda match: match.group(1),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
-                             default_value=InstrumentCommandArgs.ON,
+                             default_value=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="Skip Sleep at Start",
-                             description='Skip putting instrument to sleep at start: On or Off')
+                             description='Skip putting instrument to sleep at start')
 
         self._param_dict.add(Parameter.COUNTDOWN,
                              r'COUNTDWN\s(\S*)',
@@ -1146,15 +1154,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         # DATA PROCESSING
         self._param_dict.add(Parameter.TEMP_COMPENSATION,
                              r'TEMPCOMP\s(\S*)',
-                             lambda match: match.group(1),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
-                             default_value=InstrumentCommandArgs.OFF,
+                             default_value=False,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Temperature Compensation",
-                             description="Temperature compensation: On or Off")
+                             description="Temperature compensation")
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW,
                              r'WFIT_LOW\s(\S*)',
@@ -1208,7 +1216,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=False,
-                             default_value=1,
+                             value=1,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="Baseline Order")
 
@@ -1225,23 +1233,23 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.SALINITY_FITTING,
                              r'SALINFIT\s(\S*)',
-                             lambda match: match.group(1),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
-                             default_value=InstrumentCommandArgs.ON,
+                             default_value=True,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Salinity Fitting")
 
         self._param_dict.add(Parameter.BROMIDE_TRACING,
                              r'BRMTRACE\s(\S*)',
-                             lambda match: match.group(1),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
-                             default_value=InstrumentCommandArgs.OFF,
+                             default_value=False,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Bromide Tracing")
 
@@ -1258,12 +1266,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT,
                              r'INTPRADJ\s(\S*)',
-                             lambda match: match.group(1),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
-                             default_value=InstrumentCommandArgs.ON,
+                             default_value=True,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Integration Time Adjustment")
 
@@ -1303,6 +1311,30 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Integration Time Max",
                              units=Units.SECOND)
 
+        #DRIVER PARAMETERS
+        self._param_dict.add(Parameter.NUM_LIGHT_SAMPLES,
+                             r'donotmatch',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Number of Light Samples",
+                             description="Number of light samples taken in polled mode")
+
+        self._param_dict.add(Parameter.TIME_LIGHT_SAMPLE,
+                             r'donotmatch',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Time to Take Light Sample",
+                             description="Number of seconds to take light samples in polled mode ",
+                             units=Units.SECOND)
+
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
@@ -1334,6 +1366,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         Generic enter handler, raise STATE CHANGE
         """
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    @staticmethod
+    def _true_false_to_string(v):
+        """
+        Write a boolean value to string formatted for set operations.
+        @param v a boolean value.
+        @retval A On/Off string formatted for set operations.
+        @throws InstrumentParameterException if value not a bool.
+        """
+
+        if not isinstance(v, bool):
+            raise InstrumentParameterException('Value %s is not a bool.' % str(v))
+        if v:
+            return InstrumentCommandArgs.ON
+        else:
+            return InstrumentCommandArgs.OFF
 
     ########################################################################
     # Unknown handlers.
@@ -1378,6 +1426,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Start acquire status
         """
         self._do_cmd_no_resp(InstrumentCommand.STATUS)
+        #self._do_cmd_no_resp(InstrumentCommand.GET_CAL_FILE)
         return None, (None, None)
 
     def _handler_command_start_direct(self):
@@ -1421,21 +1470,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             for param in params:
                 if not Parameter.has(param):
                     raise InstrumentParameterException("%s is not a parameter" % param)
-
-                # handle driver parameters
-                if param == Parameter.NUM_LIGHT_SAMPLES:
-                    result[param] = self.num_samples
-                elif param == Parameter.TIME_LIGHT_SAMPLE:
-                    result[param] = self.time_samples
-                elif param == Parameter.FIT_WAVELENGTH_BOTH:
-                     #wfitboth is a set only param and cannot be read from the instrument
-                    result[param] = self._param_dict.get(Parameter.FIT_WAVELENGTH_BOTH)
-                else:
-                    # always get str type from instrument
-                    type_func = PARAM_TYPE_FUNC.get(param)
-                    value = type_func(self._get_from_instrument(param))
-                    result[param] = value
-                    self._param_dict.set_value(param, value)
+                result[param] = self._param_dict.get(param)
 
             new_config = self._param_dict.get_config()
 
@@ -1472,21 +1507,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         for (key, val) in params.iteritems():
             log.debug("KEY = %s VALUE = %s", key, val)
             # check for driver parameters
-            if key == Parameter.NUM_LIGHT_SAMPLES:
-                self.num_samples = params[key]
-            elif key == Parameter.TIME_LIGHT_SAMPLE:
-                self.time_samples = params[key]
+            if key == Parameter.NUM_LIGHT_SAMPLES or key == Parameter.TIME_LIGHT_SAMPLE:
+                self._param_dict.set_value(key, params[key])
             else:
-                if not Parameter.has(key):
-                    raise InstrumentParameterException("%s is not a parameter" % key)
-
                 try:
                     str_val = self._param_dict.format(key, params[key])
                 except KeyError:
                     raise InstrumentParameterException('Could not format param %s' % key)
 
-                self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT,
-                                      expected_prompt=[Prompt.OK, Prompt.ERROR])
+                self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT, expected_prompt=[Prompt.OK, Prompt.ERROR])
                 self._param_dict.set_value(key, params[key])
 
         new_config = self._param_dict.get_config()
@@ -1566,7 +1595,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Measure N Light Samples
         """
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self.num_samples, timeout=POLL_TIMEOUT)
+        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self._param_dict.get(Parameter.NUM_LIGHT_SAMPLES), timeout=POLL_TIMEOUT)
         return None, (None, None)
 
     def _handler_poll_measure_0(self):
@@ -1580,7 +1609,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Timed Sampling for N time
         """
-        self._do_cmd_no_resp(InstrumentCommand.TIMED, self.time_samples, timeout=POLL_TIMEOUT)
+        self._do_cmd_no_resp(InstrumentCommand.TIMED, self._param_dict.get(Parameter.TIME_LIGHT_SAMPLE), timeout=POLL_TIMEOUT)
         return None, (None, None)
 
     def _handler_poll_stop_poll(self):
@@ -1723,7 +1752,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._connection.send(NEWLINE)
 
-    def _send_dollar(self, timeout=TIMEOUT):
+    def _send_dollar(self):
         """
         Send a blind $ command to the device
         """
