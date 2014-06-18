@@ -54,7 +54,7 @@ class AdcpsJlnStcDataSetDriver(MultipleHarvesterDataSetDriver):
 
         # configure the parser based on the data_key
         if data_key == DataTypeKey.ADCPS_JLN_STC:
-            config = self._parser_config
+            config = self._parser_config.get(data_key)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcps_jln_stc',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpsJlnStcInstrumentParserDataParticle'
@@ -66,7 +66,7 @@ class AdcpsJlnStcDataSetDriver(MultipleHarvesterDataSetDriver):
                                        self._data_callback, self._sample_exception_callback)
 
         elif data_key == DataTypeKey.ADCPS_JLN:
-            config = self._parser_config
+            config = self._parser_config.get(data_key)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcps_jln',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpsJlnParticle'

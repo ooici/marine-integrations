@@ -80,7 +80,11 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataTypeKey.ADCPS_JLN_STC: {},
+            DataTypeKey.ADCPS_JLN: {}
+
+        }
     }
 )
 
@@ -648,4 +652,9 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_new_file_exception(filename, ADCPS_JLN_RECOVERED_DIR)
 
-
+    def test_harvester_new_file_exception(self):
+        """
+        Need to overload the inherited test because it does not work for the
+        adcps_jln_stc pattern.  The two tests above it replace it.
+        """
+        pass
