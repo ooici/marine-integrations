@@ -313,10 +313,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.SAMPLE, self._parse_cmd_prompt_response, PARProtocolState.COMMAND)
         self._add_response_handler(Command.SAMPLE, self._parse_response, PARProtocolState.UNKNOWN)
 
-        self._add_response_handler(Command.BREAK, self._parse_silent_response, PARProtocolState.COMMAND)    # TODO delete?
+        # self._add_response_handler(Command.BREAK, self._parse_silent_response, PARProtocolState.COMMAND)    # TODO delete?
         # self._add_response_handler(Command.BREAK, self._parse_header_response, PARProtocolState.AUTOSAMPLE)
         self._add_response_handler(Command.EXIT_AND_RESET, self._parse_header_response, PARProtocolState.COMMAND)
-        self._add_response_handler(Command.RESET, self._parse_silent_response, PARProtocolState.COMMAND)
+        # self._add_response_handler(Command.RESET, self._parse_silent_response, PARProtocolState.COMMAND)
         self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.AUTOSAMPLE)
         # self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.POLL)
         # self._add_response_handler(Command.BREAK, self._parse_header_response, PARProtocolState.POLL)
@@ -399,7 +399,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
-        matchers.append(SAMPLE_REGEX)
+        # matchers.append(SAMPLE_REGEX)
         # matchers.append(HEADER_REGEX)
 
         for matcher in matchers:
@@ -460,7 +460,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         if len(cmd_line) <= 1:
             self._connection.send(cmd_line)
         else:
-            self._connection.send("    ".join(map(None, cmd_line)))
+            # self._connection.send("    ".join(map(None, cmd_line)))
+            self._connection.send(cmd_line)
+            time.sleep(0.2)
+            self._connection.send(self.eoln)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -479,7 +482,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
-            log.error('_do_cmd_no_resp: no handler for command: %s' % cmd)
+            log.error('_do_cmd_resp: no handler for command: %s' % cmd)
             raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
         cmd_line = build_handler(cmd, *args)
 
@@ -497,7 +500,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         if len(cmd_line) <= 1:
             self._connection.send(cmd_line)
         else:
-            self._connection.send("    ".join(map(None, cmd_line)))
+            # self._connection.send("    ".join(map(None, cmd_line)))
+            self._connection.send(cmd_line)
+            time.sleep(0.2)
+            self._connection.send(self.eoln)
 
         # TODO: check for "Invalid Command" response from instrument and raise error?
 
@@ -514,6 +520,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         resp_result = None
         if resp_handler:
             resp_result = resp_handler(result, prompt)
+
+        time.sleep(0.25)
 
         return resp_result
 
@@ -560,7 +568,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         # Command device to update parameters and send a config change event.
         # self._update_params(timeout=3) # TODO: is this needed here, timeout? should be handled by init
+
         self._init_params()
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -674,22 +684,19 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("Updating parameter dict")
         # old_config = self._param_dict.get_config()
-        old_config = self._param_dict.get_all() # test purpose only?
-
-        self._do_cmd_resp(Command.SAMPLE, timeout=1, expected_prompt=[PARProtocolError.INVALID_COMMAND, "SATPAR"])
-        self._do_cmd_resp(Command.SAMPLE, timeout=1, expected_prompt=[PARProtocolError.INVALID_COMMAND, "SATPAR"])
+        old_config = self._param_dict.get_all()  # test purpose only?
 
         # TODO: baudrate?
-        max_rate = self._do_cmd_resp(Command.GET, Parameter.MAXRATE, expected_prompt=Prompt.COMMAND)
-        self._param_dict.update(max_rate)
+        max_rate_response = self._do_cmd_resp(Command.GET, Parameter.MAXRATE, expected_prompt=Prompt.COMMAND)
+        self._param_dict.update(max_rate_response)
 
         if startup:
             # cycle thru reset to get the start-up banner which has instrument, serial, & Firmware
-            (instr, sernum, firm) = self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=HEADER_REGEX, timeout=15)
+            (instr, sernum, firm) = self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt="Initializing system. Please wait...", timeout=15)
             self._send_break()  # Go back to command mode
-            self._param_dict.set_value(Parameter.INSTRUMENT, instr)
-            self._param_dict.set_value(Parameter.SERIAL, sernum)
-            self._param_dict.set_value(Parameter.FIRMWARE, firm)
+            # self._param_dict.set_value(Parameter.INSTRUMENT, instr)
+            # self._param_dict.set_value(Parameter.SERIAL, sernum)
+            # self._param_dict.set_value(Parameter.FIRMWARE, firm)
 
         new_config = self._param_dict.get_all()
         log.debug("Updated parameter dict: old_config = %s, new_config = %s", old_config, new_config)
@@ -730,12 +737,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             for (name, value) in params.iteritems():
                 log.debug('_set_params: setting %s to %s', name, value)
                 if self._do_cmd_resp(Command.SET, name, value,
-                                     expected_prompt=[PARProtocolError.INVALID_COMMAND, Prompt.COMMAND]):
+                                     expected_prompt=Prompt.COMMAND):
                     log.debug('_set_params: %s was updated to %s', name, value)
         except Exception as ex:
             raise InstrumentParameterException('Unable to set parameter %s to %s: %s' % (name, value, ex))
 
-        time.sleep(0.5)
+        self._do_cmd_resp(Command.SAVE, expected_prompt=Prompt.COMMAND)
         self._update_params(args[1])
 
     def _handler_command_set(self, *args, **kwargs):
@@ -820,7 +827,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid parameter
         """
-        self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=SAMPLE_REGEX, timeout=15)    # TODO: correlate timeout to maxrate? factor in reset time!
+        # self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=SAMPLE_REGEX, timeout=15)    # TODO: correlate timeout to maxrate? factor in reset time!
+        self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt="Initializing system. Please wait...", timeout=10)
         # TODO: guess we should factor in reset time, have no control whether instrument decides to reset!
         return PARProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
@@ -831,7 +839,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid parameter
         """
-        self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=SAMPLE_REGEX, timeout=15)
+        # self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=SAMPLE_REGEX, timeout=15)
+        self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt="Initializing system. Please wait...", timeout=10)
         self._send_break_poll()
         return PARProtocolState.POLL, (None, None)  # TODO: what should ResourceAgentState be?
 
@@ -957,7 +966,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # save current maxrate, set maxrate to 1 can make this more reliable!
 
         # TODO keep track of polled to make this faster
-        self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=SAMPLE_REGEX, timeout=10)
+        # self._do_cmd_resp(Command.EXIT_AND_RESET, response_regex=SAMPLE_REGEX, timeout=10)
+        self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt="Initializing system. Please wait...", timeout=10)
+
         self._send_break()
 
         return None, (None, None)
@@ -1041,6 +1052,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     ###################################################################
     # Builders
     ###################################################################
+    def _make_delay(self, cmd_line):
+        if len(cmd_line) <= 1:
+            return cmd_line
+        else:
+            return "    ".join(map(None, cmd_line))
+
     def _build_set_command(self, cmd, param, value):
         """
         Build a command that is ready to send out to the instrument. Checks for
@@ -1052,9 +1069,13 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval Returns string ready for sending to instrument
         """
         # Check to make sure all parameters are valid up front
+
         assert Parameter.has(param)
         assert cmd == Command.SET
-        return "%s %s %s%s" % (Command.SET, param, value, self.eoln)
+        cmd_line = "%s %s %s" % (Command.SET, param, value)
+
+        return self._make_delay(cmd_line)
+        # return "%s %s %s%s" % (Command.SET, param, value, self.eoln)
 
     def _build_param_fetch_command(self, cmd, param):
         """
@@ -1065,16 +1086,22 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval Returns string ready for sending to instrument
         """
         assert Parameter.has(param)
-        return "%s %s%s" % (Command.GET, param, self.eoln)
+        cmd_line = "%s %s" % (Command.GET, param)
+
+        return self._make_delay(cmd_line)
+
+        # return "%s %s%s" % (Command.GET, param, self.eoln)
 
     def _build_exec_command(self, cmd):
         """
         Builder for simple commands
 
-        @param cmd The command being used (Command.GET in this case)
+        @param cmd The command being used (Command.SAVE, Command.EXIT, Command.EXIT_AND_RESET in this case)
         @retval Returns string ready for sending to instrument
         """
-        return "%s%s" % (cmd, self.eoln)
+        return self._make_delay(cmd)
+
+        # return "%s%s" % (cmd, self.eoln)
 
     def _build_control_command(self, cmd):
         """ Send a single control char command
@@ -1082,7 +1109,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param cmd The control character to send
         @retval The string with the complete command
         """
-        return "%c" % cmd
+        return "%c" % self._make_delay(cmd)
+        # return "%c" % cmd
 
     ##################################################################
     # Response parsers
@@ -1161,7 +1189,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return An InstErrorCode value
         """
-        log.debug("Parsing header response of [%s] with prompt [%s]", response, prompt)
+        # r'Instrument: (?P<instr>.*)\r\nS/N: (?P<sernum>\d{4,10})\r\nFirmware: (?P<firm>.*)\r\n'
+        log.debug("Parsing header response of %s", response)
 
         # TODO: we can reset the "polling_state" flag here, since this always resets it to auto
 
