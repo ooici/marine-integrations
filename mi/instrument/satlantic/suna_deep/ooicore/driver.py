@@ -186,7 +186,7 @@ SUNA_STATUS_PATTERN += r'INTADMAX\s+(\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_LOW\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_HGH\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'LAMPTIME\s+(\d+)\s+'
-#SUNA_STATUS_PATTERN += r'Ok\s+(\S*.cal)'
+SUNA_STATUS_PATTERN += r'.*Ok\s+(\S*.cal)'
 
 SUNA_STATUS_REGEX = re.compile(SUNA_STATUS_PATTERN, re.DOTALL)
 
@@ -674,8 +674,8 @@ class SUNAStatusDataParticle(DataParticle):
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_MAX, DataParticleKey.VALUE: int(matched.group(90))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_LOW, DataParticleKey.VALUE: float(matched.group(91))},
                 {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_HIGH, DataParticleKey.VALUE: float(matched.group(92))},
-                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(93))}] #,
-                #{DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CALIBRATION_FILE, DataParticleKey.VALUE: str(matched.group(94))}]
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(93))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CALIBRATION_FILE, DataParticleKey.VALUE: str(matched.group(94))}]
 
         except ValueError:
             raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
@@ -1426,7 +1426,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Start acquire status
         """
         self._do_cmd_no_resp(InstrumentCommand.STATUS)
-        #self._do_cmd_no_resp(InstrumentCommand.GET_CAL_FILE)
+        self._do_cmd_no_resp(InstrumentCommand.GET_CAL_FILE)
         return None, (None, None)
 
     def _handler_command_start_direct(self):
