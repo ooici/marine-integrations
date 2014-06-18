@@ -15,7 +15,8 @@ import string
 from mi.core.log import get_logger; log = get_logger()
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
-from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn_stc_imodemParser, Flort_kn_stc_imodemParserDataParticle,\
+from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn_stc_imodemParser,\
+                                                   Flort_kn_stc_imodemParserDataParticleTelemetered,\
                                                    Flort_kn_stc_imodemParserDataParticleRecovered, \
                                                    DataParticleType
 from mi.dataset.harvester import SingleDirectoryHarvester
@@ -33,7 +34,7 @@ class FLORT_KN_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
                                                                  exception_callback, data_keys)
     @classmethod
     def stream_config(cls):
-        return [Flort_kn_stc_imodemParserDataParticle.type(),
+        return [Flort_kn_stc_imodemParserDataParticleTelemetered.type(),
                 Flort_kn_stc_imodemParserDataParticleRecovered.type()]
 
     def _build_parser(self, parser_state, infile, data_key=None):
@@ -41,15 +42,15 @@ class FLORT_KN_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the parser
         """
 
-        if data_key == DataParticleType.FLORT_KN_INSTRUMENT:
-            config = self._parser_config.get(DataParticleType.FLORT_KN_INSTRUMENT)
+        if data_key == DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED:
+            config = self._parser_config.get(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
-                DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn_stc_imodemParserDataParticle'
+                DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn_stc_imodemParserDataParticleTelemetered'
             })
 
-        elif data_key == DataParticleType.FLORT_KN_RECOVERED:
-            config = self._parser_config.get(DataParticleType.FLORT_KN_RECOVERED)
+        elif data_key == DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED:
+            config = self._parser_config.get(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn_stc_imodemParserDataParticleRecovered'
@@ -76,13 +77,13 @@ class FLORT_KN_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
 
         instrument_harvester = self.build_single_harvester(
                                     driver_state,
-                                    DataParticleType.FLORT_KN_INSTRUMENT)
+                                    DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED)
         if instrument_harvester is not None:
             harvesters.append(instrument_harvester)
 
         recovered_harvester = self.build_single_harvester(
                                    driver_state,
-                                   DataParticleType.FLORT_KN_RECOVERED)
+                                   DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED)
         if recovered_harvester is not None:
             harvesters.append(recovered_harvester)
 
@@ -101,4 +102,5 @@ class FLORT_KN_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
                 self._exception_callback)
         else:
             harvester = None
+            log.debug("harvester not built")
         return harvester
