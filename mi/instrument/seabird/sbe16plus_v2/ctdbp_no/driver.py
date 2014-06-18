@@ -947,7 +947,7 @@ class SBE16NOProtocol(SBE19Protocol):
                              startup_param=True,
                              direct_access=False,
                              default_value=60,
-                             units=ParameterUnit.SECONDS,
+                             units=ParameterUnit.SECOND,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',

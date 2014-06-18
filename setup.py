@@ -16,12 +16,12 @@ version = '0.2.1'
 
 setup(  name = 'marine-integrations',
         version = version,
-        description = 'OOI ION Marine Integrations',
+        description = 'OOINet Marine Integrations',
         url = 'https://github.com/ooici/marine-integrations',
         download_url = 'http://sddevrepo.oceanobservatories.org/releases/',
-        license = 'Apache 2.0',
-        author = 'Michael Meisinger',
-        author_email = 'mmeisinger@ucsd.edu',
+        license = 'BSD',
+        author = 'Ocean Observatories Initiative',
+        author_email = 'contactooici@oceanobservatories.org',
         keywords = ['ooici','ioncore', 'pyon', 'coi'],
         packages = find_packages(),
         dependency_links = [
