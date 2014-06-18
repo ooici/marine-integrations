@@ -49,14 +49,14 @@ class AdcpaDataSetDriver(MultipleHarvesterDataSetDriver):
 
         # configure the parser based on the data_key
         if data_key == DataTypeKey.ADCPA_INSTRUMENT:
-            config = self._parser_config
+            config = self._parser_config.get(data_key)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcpa_m_glider',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpaMGliderInstrumentParticle'
             })
 
         elif data_key == DataTypeKey.ADCPA_RECOVERED:
-            config = self._parser_config
+            config = self._parser_config.get(data_key)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcpa_m_glider',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpaMGliderRecoveredParticle'

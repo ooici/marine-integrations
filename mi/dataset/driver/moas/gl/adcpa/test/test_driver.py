@@ -68,7 +68,10 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataTypeKey.ADCPA_INSTRUMENT: {},
+            DataTypeKey.ADCPA_RECOVERED: {}
+        }
     }
 )
 
