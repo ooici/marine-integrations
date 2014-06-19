@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Christopher Fortin
+  constructor: DostaLnWfpSioMuleDataSetDriver
+  driver_name: dosta_ln_wfp_sio_mule
+  driver_path: dosta_ln/wfp_sio_mule
+  email: cfortin@bbn.com
+  release_notes: Initial Release
+  version: 0.0.1
