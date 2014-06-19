@@ -547,7 +547,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
             self._apply_params()
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             log.error("EXCEPTION WAS " + str(e))
@@ -615,7 +615,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             if not dict_equal(new_config, old_config, ['TT']):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             log.error("EXCEPTION in _update_params WAS " + str(e))
@@ -647,10 +647,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
-        #try:
-        #    startup = args[1]
-        #except IndexError:
-        #    pass
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
         for (key, val) in params.iteritems():
@@ -670,19 +666,17 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentParameterExpirationException if value is expired.
         """
         result = {}
-
         for param in param_list:
             val = self._param_dict.get(param, expire_time)
             result[param] = val
-
         return result
 
+    # This method will be overwritten
     def _send_break_cmd(self, duration=500):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.error("SENDING BREAK TO PORT AGENT......")
-        #self._connection.send_break(duration)
+        log.error("SENDING BREAK TO PORT AGENT is not implemented")
 
     def _send_break(self, duration=500):
         """
@@ -795,7 +789,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ""
 
         prompt = self._wakeup(timeout=3)
-        #log.debug("********** GOT PROMPT" + repr(prompt))
         if TeledynePrompt.COMMAND == prompt:
             logging = False
             log.trace("COMMAND MODE!")
@@ -961,7 +954,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         log.trace("in _handler_command_enter()")
-        #self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1065,7 +1057,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._stop_logging()
             self._init_params()
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error = e
@@ -1074,7 +1066,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Switch back to streaming
             log.debug("starting logging")
             self._start_logging()
-            #self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
 
         if error:
             log.error("Error in apply_startup_params: %s", error)
@@ -1123,7 +1114,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Wake up the device, continuing until autosample prompt seen.
         timeout = kwargs.get('timeout', TIMEOUT)
 
-        #if (self._is_logging(timeout)):
         self._stop_logging(timeout)
 
         next_state = TeledyneProtocolState.COMMAND
@@ -1171,7 +1161,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     # have all fresh values.
                     log.trace("Fetching parameters for the second time")
                     result = self._get_param_result(param_list, expire_time)
-                # Catch all error so we can put ourself back into
+                # Catch all error so we can put ourselves back into
                 # streaming.  Then rethrow the error
                 except Exception as e:
                     error = e
@@ -1215,7 +1205,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             kwargs['timeout'] = 120
             output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error = e
@@ -1256,7 +1246,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Sync the clock
             output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error = e
@@ -1320,7 +1310,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout,
                              time_format="%Y/%m/%d,%H:%M:%S")
 
-        # Catch all error so we can put ourself back into
+        # Catch all error so we can put ourselves back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error = e
