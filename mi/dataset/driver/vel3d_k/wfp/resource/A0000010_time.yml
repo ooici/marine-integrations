@@ -1,0 +1,11 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3602255402.0
+    particle_object: Vel3dKWfpMetadataParticle
+    particle_type: vel3d_k_wfp_metadata
+    vel3d_k_time_on: 1393266602
+    vel3d_k_time_off: 1393266947

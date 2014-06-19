@@ -1,6 +1,8 @@
 comm:
   command_port: 5113
   data_port: 5112
-  device_addr: ciports1-4.whoi.edu
+  device_addr: 10.180.80.175
   device_port: 2103
+  host: localhost
   method: ethernet
+  sniffer_port: 6003
