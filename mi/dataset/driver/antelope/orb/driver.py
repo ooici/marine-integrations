@@ -21,7 +21,7 @@ from mi.core.exceptions import SampleException, ConfigurationException
 
 from mi.dataset.dataset_driver import DataSetDriver, DriverStateKey, DataSourceConfigKey
 from mi.dataset.parser.antelope_orb import AntelopeOrbParser, AntelopeOrbPacketParticle
-from mi.dataset.parser.antelope_orb import ParserConfigKey
+from mi.dataset.parser.antelope_orb import ParserConfigKey, PARTICLE_CLASSES
 
 
 class AntelopeOrbDataSetDriver(DataSetDriver):
@@ -32,7 +32,7 @@ class AntelopeOrbDataSetDriver(DataSetDriver):
 
     @classmethod
     def stream_config(cls):
-        return [AntelopeOrbPacketParticle.type()]
+        return [cls.type() for cls in PARTICLE_CLASSES.values()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         super(AntelopeOrbDataSetDriver, self).__init__(config, memento, data_callback, state_callback,

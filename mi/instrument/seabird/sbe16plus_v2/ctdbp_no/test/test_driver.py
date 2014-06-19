@@ -79,8 +79,25 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {DriverConfigKey.PARAMETERS:
-            {Parameter.PUMP_DELAY: 60,
+            {Parameter.PTYPE: 3,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: True,
+             Parameter.OUTPUT_FORMAT: 0,
              Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True,
              Parameter.CLOCK_INTERVAL: '00:00:00',
              Parameter.STATUS_INTERVAL: '00:00:00'}}
 )
@@ -898,6 +915,10 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
 
+        # Invalid command/state transitions
+        self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
+
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         ####
@@ -924,10 +945,27 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         # Explicitly verify these values after discover.  They should match
         # what the startup values should be
         get_values = {
-            Parameter.PUMP_DELAY: 60,
-            Parameter.NUM_AVG_SAMPLES: 4,
-            Parameter.CLOCK_INTERVAL: '00:00:00',
-            Parameter.STATUS_INTERVAL: '00:00:00'
+            Parameter.PTYPE: 3,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: True,
+             Parameter.OUTPUT_FORMAT: 0,
+             Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True,
+             Parameter.CLOCK_INTERVAL: '00:00:00',
+             Parameter.STATUS_INTERVAL: '00:00:00'
         }
 
         # Change the values of these parameters to something before the
@@ -1039,7 +1077,7 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         #verify that the event got scheduled
-        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=75)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -1078,7 +1116,7 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         # Allow for a clock sync to happen
-        time.sleep(60)
+        time.sleep(100)
         # Verification: Search log for 'Performing Clock Sync in autosample mode',
         # should be seen roughly 90 seconds after the interval was set
 

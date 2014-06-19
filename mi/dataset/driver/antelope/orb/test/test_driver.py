@@ -58,7 +58,7 @@ try:
     from mi.dataset.parser.antelope_orb import StateKey
     from mi.dataset.parser.antelope_orb import ParserConfigKey
 except Exception as e: 
-    log.warn("Failed to import antelope lib: %s", e)
+    log.warn("Failed to import antelope lib: %s", e, exc_info=True)
 
 from mock import patch, MagicMock
 
@@ -491,7 +491,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_start_sampling()
 
             # Verify we get one sample
-            result = self.data_subscribers.get_samples(DataParticleType.ANTELOPE_ORB_PACKET, 2)
+            result = self.data_subscribers.get_samples(DataParticleType.ANTELOPE_ORB_PACKET + '_chan', 2)
             log.debug("First RESULT: %s", result)
 
             # Verify values
@@ -554,7 +554,7 @@ class QualificationTest(DataSetQualificationTestCase):
               while True:
                   try:
                       nsamps = len(self.data_subscribers.samples_received.get(
-                                                           DataParticleType.ANTELOPE_ORB_PACKET))
+                                                           DataParticleType.ANTELOPE_ORB_PACKET + '_chan'))
                   except TypeError:
                       log.warning("No samples received")
                   end_time = time.time()

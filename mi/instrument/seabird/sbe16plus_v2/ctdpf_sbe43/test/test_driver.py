@@ -79,8 +79,25 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {DriverConfigKey.PARAMETERS:
-            {Parameter.PUMP_DELAY: 60,
-             Parameter.NUM_AVG_SAMPLES: 4}}
+            {Parameter.PTYPE: 1,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: False,
+             Parameter.OUTPUT_FORMAT: 0,
+             Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True}}
 )
 
 #################################### RULES ####################################
@@ -845,6 +862,10 @@ class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
 
+        # Invalid command/state transitions
+        self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
+
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         ####
@@ -871,8 +892,25 @@ class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
         # Explicitly verify these values after discover.  They should match
         # what the startup values should be
         get_values = {
-            Parameter.PUMP_DELAY: 60,
-            Parameter.NUM_AVG_SAMPLES: 4
+            Parameter.PTYPE: 1,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: False,
+             Parameter.OUTPUT_FORMAT: 0,
+             Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True
         }
 
         # Change the values of these parameters to something before the
