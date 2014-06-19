@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Mark Worden
+  constructor: WfpEngWfp
+  driver_name: wfp_eng_wfp
+  driver_path: WFP_ENG/wfp
+  email: mark_c_worden@raytheon.com
+  release_notes: initial release
+  version: 0.0.1
