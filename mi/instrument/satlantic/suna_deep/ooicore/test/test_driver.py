@@ -154,6 +154,8 @@ class ParameterConstraints(BaseEnum):
     INTEG_TIME_FACTOR = (Parameter.INTEG_TIME_FACTOR, int, 1, 20)
     INTEG_TIME_STEP = (Parameter.INTEG_TIME_STEP, int, 1, 20)
     INTEG_TIME_MAX = (Parameter.INTEG_TIME_MAX, int, 1, 20)
+    NUM_LIGHT_SAMPLES = (Parameter.NUM_LIGHT_SAMPLES, int, 0, 15)
+    TIME_LIGHT_SAMPLE = (Parameter.TIME_LIGHT_SAMPLE, int, 0, 60)
 
 
 ###############################################################################
@@ -439,12 +441,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        #self.assert_raw_particle_published(driver, True)
+        self.assert_raw_particle_published(driver, True)
 
         #validate data particles
-        #self.assert_particle_published(driver, SUNA_ASCII_SAMPLE, self.assert_data_particle_sample, True)
+        self.assert_particle_published(driver, SUNA_ASCII_SAMPLE, self.assert_data_particle_sample, True)
         self.assert_particle_published(driver, SUNA_ASCII_STATUS, self.assert_data_particle_status, True)
-        #self.assert_particle_published(driver, SUNA_ASCII_TEST, self.assert_data_particle, True)
+        self.assert_particle_published(driver, SUNA_ASCII_TEST, self.assert_data_particle, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -518,6 +520,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         for param in constraints:
             param_name, type_class, minimum, maximum = constraints[param]
 
+            log.debug("PARAM NAME %s", param_name)
+
             if type_class is int:
                 self.assert_set_exception(param_name, minimum - 1, exception_class=InstrumentProtocolException)
                 self.assert_set_exception(param_name, maximum + 1, exception_class=InstrumentProtocolException)
@@ -529,9 +533,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
                 self.assert_set_exception(param_name, minimum - 0.1, exception_class=InstrumentProtocolException)
                 self.assert_set_exception(param_name, maximum + 0.1, exception_class=InstrumentProtocolException)
                 self.assert_set_exception(param_name, 'badString', exception_class=InstrumentProtocolException)
-            elif type_class is bool:
-                self.assert_set_exception(param_name, 7, exception_class=InstrumentParameterException)
-                self.assert_set_exception(param_name, 'badString', exception_class=InstrumentParameterException)
+            #TODO
+            # elif type_class is bool:
+            #     self.assert_set_exception(param_name, 7, exception_class=InstrumentParameterException)
+            #     self.assert_set_exception(param_name, 'badString', exception_class=InstrumentParameterException)
 
     def test_get_set(self):
         """
@@ -877,10 +882,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
             AgentCapabilityType.RESOURCE_PARAMETER: ['a_cutoff', 'bl_order', 'brmtrace', 'countdwn', 'datfsize',
                                                      'drkcormt', 'drkdurat', 'drksmpls', 'fitconcs', 'intadmax',
                                                      'intadstp', 'intpradj', 'intprfac', 'lamptoff', 'lgtdurat',
-                                                     'lgtsmpls', 'msgfsize', 'msglevel', 'operctrl', 'opermode',
-                                                     'outdrkfr', 'outfrtyp', 'polltout', 'reflimit', 'salinfit',
-                                                     'skpsleep', 'spintper', 'stbltime', 'tempcomp', 'wfit_hgh',
-                                                     'wfit_low', 'wfitboth']}
+                                                     'lgtsmpls', 'msgfsize', 'msglevel', 'nmlgtspl', 'operctrl',
+                                                     'opermode', 'outdrkfr', 'outfrtyp', 'polltout', 'reflimit',
+                                                     'salinfit', 'skpsleep', 'spintper', 'stbltime', 'tempcomp',
+                                                     'tlgtsmpl', 'wfit_hgh', 'wfit_low', 'wfitboth']}
 
         self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)

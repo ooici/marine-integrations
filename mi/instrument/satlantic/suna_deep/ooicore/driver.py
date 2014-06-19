@@ -186,7 +186,7 @@ SUNA_STATUS_PATTERN += r'INTADMAX\s+(\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_LOW\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_HGH\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'LAMPTIME\s+(\d+)\s+'
-SUNA_STATUS_PATTERN += r'.*Ok\s+(\S*.cal)'
+SUNA_STATUS_PATTERN += r'.*?Ok\s+(\S*\.cal)'
 
 SUNA_STATUS_REGEX = re.compile(SUNA_STATUS_PATTERN, re.DOTALL)
 
@@ -901,19 +901,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return_list = []
 
-        # look for samples
-        for matches in SUNA_SAMPLE_REGEX.finditer(raw_data):
-            return_list.append((matches.start(), matches.end()))
+        sieve_match = [SUNA_SAMPLE_REGEX,
+                       SUNA_STATUS_REGEX,
+                       SUNA_TEST_REGEX]
 
-        # look for status
-        for matches in SUNA_STATUS_REGEX.finditer(raw_data):
-            return_list.append((matches.start(), matches.end()))
+        for matcher in sieve_match:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
-        # look for test
-        for matches in SUNA_TEST_REGEX.finditer(raw_data):
-            return_list.append((matches.start(), matches.end()))
-
-        # returns a list of (start, end) tuples for all matches found
         return return_list
 
     def _build_cmd_dict(self):
@@ -1024,7 +1019,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.SKIP_SLEEP_AT_START,
                              r'SKPSLEEP\s(\S*)',
                              lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
-                             self._true_false_to_string,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
                              type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
@@ -1155,7 +1150,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.TEMP_COMPENSATION,
                              r'TEMPCOMP\s(\S*)',
                              lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
-                             self._true_false_to_string,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
                              type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
@@ -1234,7 +1229,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.SALINITY_FITTING,
                              r'SALINFIT\s(\S*)',
                              lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
-                             self._true_false_to_string,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
                              type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
@@ -1245,7 +1240,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.BROMIDE_TRACING,
                              r'BRMTRACE\s(\S*)',
                              lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
-                             self._true_false_to_string,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
                              type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
@@ -1267,7 +1262,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT,
                              r'INTPRADJ\s(\S*)',
                              lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
-                             self._true_false_to_string,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
                              type=ParameterDictType.BOOL,
                              startup_param=True,
                              direct_access=True,
@@ -1366,22 +1361,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         Generic enter handler, raise STATE CHANGE
         """
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    @staticmethod
-    def _true_false_to_string(v):
-        """
-        Write a boolean value to string formatted for set operations.
-        @param v a boolean value.
-        @retval A On/Off string formatted for set operations.
-        @throws InstrumentParameterException if value not a bool.
-        """
-
-        if not isinstance(v, bool):
-            raise InstrumentParameterException('Value %s is not a bool.' % str(v))
-        if v:
-            return InstrumentCommandArgs.ON
-        else:
-            return InstrumentCommandArgs.OFF
 
     ########################################################################
     # Unknown handlers.
@@ -1507,7 +1486,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         for (key, val) in params.iteritems():
             log.debug("KEY = %s VALUE = %s", key, val)
             # check for driver parameters
-            if key == Parameter.NUM_LIGHT_SAMPLES or key == Parameter.TIME_LIGHT_SAMPLE:
+            if key in [Parameter.NUM_LIGHT_SAMPLES, Parameter.TIME_LIGHT_SAMPLE]:
+                #todo - do a range check before setting them
                 self._param_dict.set_value(key, params[key])
             else:
                 try:
