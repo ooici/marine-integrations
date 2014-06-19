@@ -220,10 +220,6 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], self.particle_c)
 
-#*******************************************************************************************************
-#****************************************** BUBBA ******************************************************
-#*******************************************************************************************************
-
     def test_simple_pad(self):
         """
         Read test data and pull out data particles one at a time.
