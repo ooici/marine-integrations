@@ -52,14 +52,13 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import DataParticleType, \
     SatlanticOCR507ConfigurationParticleKey
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentProtocol
-from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticProtocolState
-from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticProtocolEvent
-from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticCapability
-from mi.instrument.satlantic.ocr_507_icsw.driver import ScheduledJob
-from mi.instrument.satlantic.ocr_507_icsw.driver import Prompt
-from mi.instrument.satlantic.ocr_507_icsw.driver import Parameter
-from mi.instrument.satlantic.ocr_507_icsw.driver import Command
-from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticChecksumDecorator
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtocolState
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtocolEvent
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticCapability
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Prompt
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Parameter
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Command
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticChecksumDecorator
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticle
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticleKey
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentDriver
@@ -224,7 +223,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         do a little extra validation for the Capabilites
         """
         self.assert_enum_has_no_duplicates(Command())
-        self.assert_enum_has_no_duplicates(ScheduledJob())
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(SatlanticProtocolState())
         self.assert_enum_has_no_duplicates(SatlanticProtocolEvent())
