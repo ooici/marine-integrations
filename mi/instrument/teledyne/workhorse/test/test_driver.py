@@ -81,7 +81,7 @@ class WorkhorseDriverUnitTest(TeledyneUnitTest):
 
 
 # ##############################################################################
-#                            INTEGRATION TESTS                                #
+# INTEGRATION TESTS                                #
 ###############################################################################
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
@@ -99,9 +99,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
-        log.error("Sung all parameters %s", repr(reply))
         self.assert_driver_parameters(reply, True)
-
 
     def test_commands(self):
         """
@@ -129,7 +127,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
         self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
         self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
-        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS, regex='^4 beam status outputs')
+        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
 
         ####
         # Test in streaming mode
@@ -163,7 +161,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    def _test_startup_params(self):
+    def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
         happens in the driver discovery method.
@@ -191,21 +189,16 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.CORRELATION_THRESHOLD: 64,
             WorkhorseParameter.SERIAL_OUT_FW_SWITCHES: '111100000',
             WorkhorseParameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            WorkhorseParameter.BLANK_AFTER_TRANSMIT: 704,
             WorkhorseParameter.CLIP_DATA_PAST_BOTTOM: 0,
             WorkhorseParameter.RECEIVER_GAIN_SELECT: 1,
-            WorkhorseParameter.NUMBER_OF_DEPTH_CELLS: 100,
             WorkhorseParameter.PINGS_PER_ENSEMBLE: 1,
-            WorkhorseParameter.DEPTH_CELL_SIZE: 800,
             WorkhorseParameter.TRANSMIT_LENGTH: 0,
             WorkhorseParameter.PING_WEIGHT: 0,
             WorkhorseParameter.AMBIGUITY_VELOCITY: 175,
             WorkhorseParameter.SERIAL_DATA_OUT: '000 000 000',
-
             WorkhorseParameter.LATENCY_TRIGGER: 0,
             WorkhorseParameter.HEADING_ALIGNMENT: '+00000',
             WorkhorseParameter.HEADING_BIAS: '+00000',
-            WorkhorseParameter.TRANSDUCER_DEPTH: 8000,
             WorkhorseParameter.DATA_STREAM_SELECTION: 0,
             WorkhorseParameter.ENSEMBLE_PER_BURST: 0,
             WorkhorseParameter.SAMPLE_AMBIENT_SOUND: 0,
@@ -215,13 +208,11 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             'SERIAL_FLOW_CONTROL': '11110',
             'BANNER': 1,
             'SAVE_NVRAM_TO_RECORDER': True,  # Immutable.
-            'SLEEP_ENABLE': 1,
-            'POLLED_MODE': True,
             'PITCH': 1,
             'ROLL': 1
         }
         # Change the values of these parameters to something before the
-        # driver is reinitalized.  They should be blown away on reinit.
+        # driver is reinitialized.  They should be blown away on reinit.
         new_values = {}
 
         p = WorkhorseParameter.dict()
@@ -253,21 +244,21 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         TeledyneQualificationTest.setUp(self)
 
     def assert_configuration(self, data_particle, verify_values=False):
-        '''
+        """
         Verify assert_compass_calibration particle
         @param data_particle:  ADCP_COMPASS_CALIBRATION data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(ADCP_SYSTEM_CONFIGURATION_KEY, self._system_configuration_data_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._system_configuration_data_parameters, verify_values)
 
     def assert_compass_calibration(self, data_particle, verify_values=False):
-        '''
+        """
         Verify assert_compass_calibration particle
         @param data_particle:  ADCP_COMPASS_CALIBRATION data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(ADCP_COMPASS_CALIBRATION_KEY, self._calibration_data_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
@@ -285,9 +276,9 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
     # need to override this because we are slow and dont feel like modifying the base class lightly
     def assert_set_parameter(self, name, value, verify=True):
-        '''
+        """
         verify that parameters are set correctly.  Assumes we are in command mode.
-        '''
+        """
         setParams = {name: value}
         getParams = [name]
 
@@ -299,7 +290,8 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports
+         direct access to the physical instrument. (telnet mode)
         """
 
         self.assert_enter_command_mode()
@@ -322,7 +314,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
     # Only test when time is sync in startup
     def _test_execute_clock_sync(self):
         """
-        Verify we can syncronize the instrument internal clock
+        Verify we can synchronize the instrument internal clock
         """
         self.assert_enter_command_mode()
 
@@ -498,7 +490,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
-# Device specific pulication tests are for                                    #
+# Device specific publication tests are for                                    #
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('PUB', group='mi')
