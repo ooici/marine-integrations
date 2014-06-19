@@ -93,7 +93,7 @@ class CIOMSClientFactory(object):
             log.warn("[OMSim] previous process could not be stopped properly. "
                      "The next launch may fail because of potential conflict.")
 
-        from ion.agents.platform.rsn.simulator.process_util import ProcessUtil
+        from mi.platform.rsn.simulator.process_util import ProcessUtil
         cls._sim_process = ProcessUtil()
         cls._rsn_oms, uri = cls._sim_process.launch()
 

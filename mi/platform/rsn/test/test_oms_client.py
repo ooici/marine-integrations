@@ -17,8 +17,8 @@ Logger.set_logger(log)
 
 from pyon.util.int_test import IonIntegrationTestCase
 
-from ion.agents.platform.rsn.oms_client_factory import CIOMSClientFactory
-from ion.agents.platform.rsn.test.oms_test_mixin import OmsTestMixin
+from mi.platform.rsn.oms_client_factory import CIOMSClientFactory
+from mi.platform.rsn.test.oms_test_mixin import OmsTestMixin
 
 from nose.plugins.attrib import attr
 

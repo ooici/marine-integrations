@@ -23,7 +23,7 @@ import signal
 from gevent import sleep
 
 _PYTHON_PATH = 'bin/python'
-_PROGRAM     = "ion/agents/platform/rsn/simulator/oms_simulator_server.py"
+_PROGRAM     = "mi/platform/rsn/simulator/oms_simulator_server.py"
 _COMMAND    = [_PYTHON_PATH, _PROGRAM, "--port", "0"]
 # note: "--port 0" to bind the simulator to a newly generated port.
 

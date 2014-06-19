@@ -154,7 +154,8 @@ instruments_dict = {
         'DEV_PORT'  : 4002,
         'DATA_PORT' : 5002,
         'CMD_PORT'  : 6002,
-        'PA_BINARY' : "port_agent"
+        'PA_BINARY' : "port_agent",
+        'alt_ids'   : ["PRE:SBE37_SIM_02"]
     },
 
     "SBE37_SIM_03": {
@@ -162,7 +163,8 @@ instruments_dict = {
         'DEV_PORT'  : 4003,
         'DATA_PORT' : 5003,
         'CMD_PORT'  : 6003,
-        'PA_BINARY' : "port_agent"
+        'PA_BINARY' : "port_agent",
+        'alt_ids'   : ["PRE:SBE37_SIM_03"]
     },
 
     "SBE37_SIM_04": {
@@ -444,7 +446,7 @@ class BaseIntTestPlatform(IonIntegrationTestCase, HelperTestMixin):
         self._event_subscribers.append(sub)
         sub._ready_event.wait(timeout=EVENT_TIMEOUT)
 
-    def _start_event_subscriber2(self, count, event_type, **kwargs):
+    def _start_event_subscriber2(self, count, event_type, cb=None, **kwargs):
         """
         Starts an event subscriber to expect the given number of events of the
         given event_type.
@@ -454,6 +456,7 @@ class BaseIntTestPlatform(IonIntegrationTestCase, HelperTestMixin):
 
         @param count       number of event that should be received
         @param event_type  desired event type
+        @param cb          mainly for logging purposes for the caller
         @param kwargs      other arguments for EventSubscriber constructor
 
         @return (async_event_result, events_received)  Use these to wait
@@ -466,6 +469,8 @@ class BaseIntTestPlatform(IonIntegrationTestCase, HelperTestMixin):
             # A callback for consuming events.
             if evt.type_ != event_type:
                 return
+            if cb:
+                cb(evt, args, kwargs)
             log.info('Event subscriber received evt: %s.', str(evt))
             events_received.append(evt)
             if count == 0:
@@ -966,11 +971,11 @@ class BaseIntTestPlatform(IonIntegrationTestCase, HelperTestMixin):
                                                   alerts=[temp_alert_def, late_data_alert_def])
 
         instrument_agent_instance_obj.agent_config = agent_config
+        instrument_agent_instance_obj.alt_ids = instr_info.get('alt_ids', [])
 
         instrument_agent_instance_id = self.IMS.create_instrument_agent_instance(instrument_agent_instance_obj)
 
         # data products
-
 
         org_id = self.RR2.create(org_obj)
 
