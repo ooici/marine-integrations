@@ -1,0 +1,13 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: WfpEngWfpSioMuleParserDataEngineeringParticle
+    particle_type: wfp_eng_wfp_sio_mule_engineering
+    internal_timestamp: 3583825326.0
+    wfp_timestamp: 1374836526
+    wfp_prof_current: 0.0
+    wfp_prof_voltage: 11.584400177001953
+    wfp_prof_pressure: 0.0
