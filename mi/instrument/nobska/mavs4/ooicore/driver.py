@@ -67,6 +67,8 @@ YES = 'y'
 NO = 'n'
 ON = 'On'
 OFF = 'Off'
+ENABLED = 'Enabled'
+DISABLED = 'Disabled'
 
 # default timeout.
 INSTRUMENT_TIMEOUT = 5
@@ -556,6 +558,7 @@ class Mavs4StatusDataParticle(DataParticle):
 ###
 #   Protocol for mavs4
 ###
+# noinspection PyUnusedLocal,PyMethodMayBeStatic
 class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     """
     This protocol implements a simple command-response interaction for the
@@ -878,7 +881,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Grab time for timeout and wait for prompt.
 
         starttime = time.time()
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._prompts.list()
         else:
             if isinstance(expected_prompt, str):
@@ -889,7 +892,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         while True:
             for item in prompt_list:
                 if item in self._promptbuf:
-                    return (item, self._linebuf)
+                    return item, self._linebuf
 
             if time.time() > starttime + timeout:
                 log.debug("_get_response: promptbuf=%s (%s), prompt_list: %s",
@@ -918,22 +921,22 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 self._go_to_root_menu()
                 got_prompt = True
                 break
-            except:
-                pass
+            except Exception as e:
+                log.info('failed to return to root menu [%r], retrying...', e)
 
         if not got_prompt:
             raise InstrumentTimeoutException()
 
-        # Get dest_submenu 
+        # Get dest_submenu
         dest_submenu = kwargs.pop('dest_submenu', None)
-        if dest_submenu == None:
+        if dest_submenu is None:
             raise InstrumentParameterException('_navigate_and_execute(): dest_submenu parameter missing')
 
         # save timeout and expected_prompt for the execution of the actual command after any traversing of the menu
         cmd_timeout = kwargs.pop('timeout', None)
         cmd_expected_prompt = kwargs.pop('expected_prompt', None)
 
-        # iterate through the menu traversing directions 
+        # iterate through the menu traversing directions
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
             log.debug('_navigate_and_execute: directions: %s', directions)
@@ -946,7 +949,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         kwargs['timeout'] = cmd_timeout
         kwargs['expected_prompt'] = cmd_expected_prompt
         command = cmd
-        while command != None:
+        while command is not None:
             log.debug('_navigate_and_execute: sending cmd:%s, kwargs: %s to _do_cmd_resp.',
                       command, kwargs)
             command = self._do_cmd_resp(command, **kwargs)
@@ -975,14 +978,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             raise InstrumentProtocolException('_do_cmd_resp: Cannot build command: %s' % cmd)
 
         (cmd_line, expected_response, next_cmd) = build_handler(command=cmd, **kwargs)
-        if expected_prompt == None:
+        if expected_prompt is None:
             expected_prompt = expected_response
 
         # Send command.
         log.debug(
             'mavs4InstrumentProtocol._do_cmd_resp: <%s> (%s), timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,',
             cmd_line, cmd_line.encode("hex"), timeout, expected_prompt,
-            expected_prompt.encode("hex") if expected_prompt != None else '')
+            expected_prompt.encode("hex") if expected_prompt is not None else '')
         for char in cmd_line:
             self._linebuf = ''  # Clear line and prompt buffers for result.
             self._promptbuf = ''
@@ -998,7 +1001,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             resp_result = resp_handler(result, prompt, **kwargs)
         else:
             resp_result = None
-        if next_cmd == None:
+        if next_cmd is None:
             next_cmd = resp_result
         return next_cmd
 
@@ -1034,9 +1037,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             specified)
         """
         cmd = kwargs.get('command', None)
-        if cmd == None:
+        if cmd is None:
             raise InstrumentParameterException('_build_keypress_command: command not specified.')
-        return ("%s" % (cmd), None, None)
+        return "%s" % cmd, None, None
 
     ########################################################################
     # State Unknown handlers.
@@ -1081,7 +1084,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             next_state = ProtocolStates.COMMAND
             result = ResourceAgentState.IDLE
 
-        return (next_state, result)
+        return next_state, result
 
     ########################################################################
     # State Command handlers.
@@ -1116,28 +1119,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
 
     def _set_parameter_sub_parameters(self, params_to_set):
+        parameters_handled = []
 
         # handle monitor sub-parameters as a block to reduce I/O with instrument
         parameters_dict = dict([(x, params_to_set[x]) for x in self.monitor_sub_parameters if x in params_to_set])
         if parameters_dict:
             # set the parameter values so they can be gotten in the command builders
-            for (key, value) in parameters_dict.iteritems():
+            for key, value in parameters_dict.iteritems():
                 self._param_dict.set_value(key, value)
-            # if params_to_set.get(InstrumentParameters.MONITOR, NO) != YES:
-            #     # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
-            #     dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
-            #     command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
-            #     self._navigate_and_execute(command, name=key, value=YES,
-            #                                dest_submenu=dest_submenu, timeout=15)
-            #     # check to see if the monitor parameter needs to be reset from the 'enabled' value
-            #     monitor = self._param_dict.get(InstrumentParameters.MONITOR)
-            #     if monitor != YES:
-            #         dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
-            #         command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
-            #         self._navigate_and_execute(command, name=key, value=monitor,
-            #                                    dest_submenu=dest_submenu, timeout=15)
+            if not params_to_set.get(InstrumentParameters.MONITOR, False):
+                # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
+                dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
+                command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
+                self._navigate_and_execute(command, name=InstrumentParameters.MONITOR, value=True,
+                                           dest_submenu=dest_submenu, timeout=15)
+                # check to see if the monitor parameter needs to be reset from the 'enabled' value
+                if not self._param_dict.get(InstrumentParameters.MONITOR):
+                    self._navigate_and_execute(command, name=InstrumentParameters.MONITOR, value=False,
+                                               dest_submenu=dest_submenu, timeout=15)
             # remove the sub-parameters from the params_to_set dictionary
             for parameter in parameters_dict:
+                parameters_handled.append(parameter)
                 del params_to_set[parameter]
 
         # handle burst interval parameters as a block to reduce I/O with instrument
@@ -1148,6 +1150,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             self._navigate_and_execute(command, name=InstrumentParameters.QUERY_MODE,
                                        value=params_to_set[InstrumentParameters.QUERY_MODE],
                                        dest_submenu=dest_submenu, timeout=15)
+            parameters_handled.append(InstrumentParameters.QUERY_MODE)
             del params_to_set[InstrumentParameters.QUERY_MODE]
 
         parameters_dict = dict([(x, params_to_set[x]) for x in self.burst_interval_parameters if x in params_to_set])
@@ -1161,7 +1164,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                        dest_submenu=dest_submenu, timeout=15)
             # remove the sub-parameters from the params_to_set dictionary
             for parameter in parameters_dict:
+                parameters_handled.append(parameter)
                 del params_to_set[parameter]
+
+        return parameters_handled
 
     def _check_deployment_params(self, params):
         """
@@ -1177,9 +1183,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @throws InstrumentParameterException if the parameters conflict or one
         is missing
         """
-        if (params == None):
+        if params is None:
             return list(params)
-        if (not isinstance(params, dict)):
+        if not isinstance(params, dict):
             raise InstrumentParameterException("Checking invalid deployment params")
 
         return_list = list(params)
@@ -1188,7 +1194,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         query = (InstrumentParameters.QUERY_MODE in params)
         burst = (InstrumentParameters.BURST_INTERVAL_DAYS in params)
 
-        if (query):
+        if query:
             log.trace("Parameters for query mode: %s",
                       params[InstrumentParameters.QUERY_MODE])
 
@@ -1211,7 +1217,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             target[InstrumentParameters.SAMPLE_PERIOD] = \
                 params[InstrumentParameters.SAMPLE_PERIOD]
 
-        if (len(target) <= 1):
+        if len(target) <= 1:
             return list(params)
 
         if ((len(target) == 2) and ((InstrumentParameters.FREQUENCY in target) and \
@@ -1253,19 +1259,23 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.debug('params_to_set before: %r', params_to_set)
         params_to_set = {key: value for key, value in params_to_set.iteritems() if old_config.get(key) != value}
         log.debug('params_to_set after:  %r', params_to_set)
-        self._verify_not_readonly(*args, **kwargs)
-        ordered_keys_to_set = self._check_deployment_params(params_to_set)
-        self._set_parameter_sub_parameters(params_to_set)
 
-        #for (key, val) in params_to_set.iteritems():
-        for key in ordered_keys_to_set:
-            if key in params_to_set:
-                dest_submenu = self._param_dict.get_menu_path_write(key)
-                command = self._param_dict.get_submenu_write(key)
-                self._navigate_and_execute(command, name=key, value=params_to_set[key],
-                                           dest_submenu=dest_submenu, timeout=15)
+        if params_to_set:
+            self._verify_not_readonly(*args, **kwargs)
+            ordered_keys_to_set = self._check_deployment_params(params_to_set)
+            already_set = self._set_parameter_sub_parameters(params_to_set)
 
-        self._update_params()
+            #for (key, val) in params_to_set.iteritems():
+            for key in ordered_keys_to_set:
+                if key in params_to_set and key not in already_set:
+                    dest_submenu = self._param_dict.get_menu_path_write(key)
+                    command = self._param_dict.get_submenu_write(key)
+                    self._navigate_and_execute(command, name=key, value=params_to_set[key],
+                                               dest_submenu=dest_submenu, timeout=15)
+            self._update_params()
+            new_config = self._param_dict.get_config()
+            if not dict_equal(old_config, new_config, ignore_keys=InstrumentParameters.SYS_CLOCK):
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -1288,7 +1298,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = self._set_params(*args, **kwargs)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -1296,36 +1306,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if (params == [DriverParameter.ALL]) or (params == DriverParameter.ALL):
-            result = self._param_dict.get_all()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(
-                        ('%s is not a valid parameter, full param list is %s.' % (key, params)))
-
-        return (next_state, result)
+        return self._handler_get(*args, **kwargs)
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -1347,7 +1328,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = ProtocolStates.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_test(self, *args, **kwargs):
         """
@@ -1359,7 +1340,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         next_state = ProtocolStates.TEST
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_start_direct(self):
         """
@@ -1370,7 +1351,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = ProtocolStates.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _clock_sync(self):
         """
@@ -1399,7 +1380,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_agent_state = None
         result = None
         self._clock_sync()
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -1411,7 +1392,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._generate_status_event()
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Autosample handlers.
@@ -1459,7 +1440,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = ProtocolStates.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
@@ -1498,10 +1479,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             next_state = None
             next_agent_state = None
 
-        if (error):
+        if error:
             raise error
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Direct access handlers.
@@ -1531,7 +1512,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._do_cmd_direct(data)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_direct_access_stop_direct(self):
         """
@@ -1543,7 +1524,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = ProtocolStates.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Private helpers.
@@ -1665,28 +1646,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return '4'
         return '0'
 
-    def _parse_enable_disable(self, input):
-        #log.debug('_parse_enable_disable: input=%s (%s)', input, input.encode('hex'))
-        if 'Enabled' in input:
-            return True
-        if 'Disabled' in input:
-            return False
-        raise InstrumentProtocolException('invalid input - expected Enabled/Disabled %s' % input)
-
-    def _parse_on_off(self, input):
-        #log.debug('_parse_on_off: input=%s (%s)', input, input.encode('hex'))
-        if 'Off' in input:
-            return False
-        if 'On' in input:
-            return True
-        # handle ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES parameter case when not off
-        return input
-
-    def _parse_format_to_bool(self, input):
-        if input == 'Off':
-            return False
-        return True
-
     def _build_driver_dict(self):
         """
         Populate the driver dictionary with MAVS4 metadata information.
@@ -1706,12 +1665,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         Populate the parameter dictionary with MAVS4 parameters.
         For each parameter key add value formatting function for set commands.
         """
-
-        def bool_to_yes_no(flag):
-            log.error('bool_to_yes_no: %s', flag)
-            if flag:
-                return YES
-            return NO
 
         def bool_to_on_off(flag):
             if flag:
@@ -1801,8 +1754,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.MONITOR,
                            r'.*M\| Monitor\s+(\w+).*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda string: bool_to_yes_no(string),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            value='',
                            default_value=True,
@@ -1818,8 +1771,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.LOG_DISPLAY_TIME,
                            r'Monitor\s+(?:\w+\s+){1}(\w+)',
-                           lambda match: self._parse_on_off(match.group(1)),
-                           lambda string: bool_to_yes_no(string),
+                           lambda match: True if match.group(1) == ON else False,
+                           lambda x: YES if x else NO,
                            visibility=ParameterDictVisibility.IMMUTABLE,
                            regex_flags=re.DOTALL,
                            default_value=True,
@@ -1831,8 +1784,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
                            r'Monitor\s+(?:\w+\s+){2}(\w+)',
-                           lambda match: self._parse_on_off(match.group(1)),
-                           lambda string: bool_to_yes_no(string),
+                           lambda match: True if match.group(1) == ON else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.IMMUTABLE,
                            default_value=True,
@@ -1844,8 +1797,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
                            r'Monitor\s+(?:\w+\s+){3}(\w+)',
-                           lambda match: self._parse_format_to_bool(match.group(1)),
-                           lambda string: bool_to_yes_no(string),
+                           lambda match: False if match.group(1) == OFF else True,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            startup_param=True,
                            direct_access=True,
@@ -1872,8 +1825,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.QUERY_MODE,
                            r'.*Q\| Query Mode\s+(\w+).*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda match: bool_to_yes_no(match),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=False,
                            startup_param=True,
@@ -2042,8 +1995,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.THREE_AXIS_COMPASS,
                            r'.*<1> 3-Axis Compass\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda string: bool_to_yes_no(string),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=True,
                            startup_param=True,
@@ -2060,8 +2013,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.SOLID_STATE_TILT,
                            r'.*<2> Solid State Tilt\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda string: bool_to_yes_no(string),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=True,
                            startup_param=True,
@@ -2078,7 +2031,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.THERMISTOR,
                            r'.*<3> Thermistor\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
+                           lambda match: True if match.group(1) == ENABLED else False,
                            lambda string: bool_to_on_off(string),
                            regex_flags=re.DOTALL,
                            default_value=True,
@@ -2096,8 +2049,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.PRESSURE,
                            r'.*<4> Pressure\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda match: bool_to_yes_no(match),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=False,  # this parameter can only be set to NO (meaning disabled)
                            # support for setting it to YES has not been implemented
@@ -2115,8 +2068,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.AUXILIARY_1,
                            r'.*<5> Auxiliary 1\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           bool_to_yes_no,
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=False,  # this parameter can only be set to NO (meaning disabled)
                            # support for setting it to YES has not been implemented
@@ -2134,8 +2087,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.AUXILIARY_2,
                            r'.*<6> Auxiliary 2\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda match: bool_to_yes_no(match),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=False,  # this parameter can only be set to NO (meaning disabled)
                            # support for setting it to YES has not been implemented
@@ -2153,8 +2106,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.AUXILIARY_3,
                            r'.*<7> Auxiliary 3\s+(\w+)\s+.*',
-                           lambda match: self._parse_enable_disable(match.group(1)),
-                           lambda match: bool_to_yes_no(match),
+                           lambda match: True if match.group(1) == ENABLED else False,
+                           lambda x: YES if x else NO,
                            regex_flags=re.DOTALL,
                            default_value=False,  # this parameter can only be set to NO (meaning disabled)
                            # support for setting it to YES has not been implemented
@@ -2507,12 +2460,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device 
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('set auxiliary command requires a name.')
         cmd = "%s" % (int(name[-1]) + 4)
         response = InstrumentPrompts.AUXILIARY.replace("*", name[-1])
         log.debug("_build_set_auxiliary_command: cmd=%s", cmd)
-        return (cmd, response, InstrumentCmds.ENTER_AUXILIARY)
+        return cmd, response, InstrumentCmds.ENTER_AUXILIARY
 
     def _build_enter_solid_state_tilt_command(self, **kwargs):
         """
@@ -2523,10 +2476,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device 
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('solid state tilt enter command requires a name.')
         value = kwargs.get('value', None)
-        if value == None:
+        if value is None:
             raise InstrumentParameterException('solid state tilt  enter command requires a value.')
         cmd = "%s" % (self._param_dict.format(name, value)[0])
         log.debug("_build_enter_solid_state_tilt_command: cmd=%s", cmd)
@@ -2546,10 +2499,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device 
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('thermistor enter command requires a name.')
         value = kwargs.get('value', None)
-        if value == None:
+        if value is None:
             raise InstrumentParameterException('thermistor enter command requires a value.')
         cmd = "%s" % (self._param_dict.format(name, value)[0])
         log.debug("_build_enter_thermistor_command: cmd=%s", cmd)
@@ -2570,26 +2523,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device 
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('warm up interval enter command requires a name.')
         value = kwargs.get('value', None)
-        if value == None:
+        if value is None:
             raise InstrumentParameterException('warm up interval enter command requires a value.')
         cmd = "%s" % (self._param_dict.format(name, value)[0])
         return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
                 InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
-
-    def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
-        """
-        Build handler for log display acoustic axis velocity format enter command 
-        @retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one) 
-        """
-        cmd = "%s" % (self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES_FORMAT)[0])
-        log.debug("_build_enter_log_display_acoustic_axis_velocity_format_command: cmd=%s", cmd)
-        return cmd, InstrumentPrompts.DEPLOY_MENU, None
 
     def _build_enter_log_display_acoustic_axis_velocities_command(self, **kwargs):
         """
@@ -2601,9 +2542,21 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         cmd = self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)
         log.debug("_build_enter_log_display_acoustic_axis_velocities_command: cmd=%s", cmd)
-        if cmd == NO:
+        if not cmd:
             return cmd, InstrumentPrompts.DEPLOY_MENU, None
         return YES, InstrumentPrompts.VELOCITY_FORMAT, InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES_FORMAT
+
+    def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
+        """
+        Build handler for log display acoustic axis velocity format enter command
+        @retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        cmd = "%s" % (self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES_FORMAT)[0])
+        log.debug("_build_enter_log_display_acoustic_axis_velocity_format_command: cmd=%s", cmd)
+        return cmd, InstrumentPrompts.DEPLOY_MENU, None
 
     def _build_simple_sub_parameter_enter_command(self, **kwargs):
         """
@@ -2615,16 +2568,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device
         """
         cmd_name = kwargs.get('command', None)
-        if cmd_name == None:
+        if cmd_name is None:
             raise InstrumentParameterException('simple sub parameter enter command requires a command.')
         parameter_name = self.Command_Response[cmd_name][2]
-        if parameter_name == None:
+        if parameter_name is None:
             raise InstrumentParameterException('simple sub parameter enter command requires a parameter name.')
         cmd = self._param_dict.format(parameter_name)
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
         log.debug("_build_simple_sub_parameter_enter_command: cmd=%s", cmd)
-        return (cmd, response, next_cmd)
+        return cmd, response, next_cmd
 
     def _build_enter_monitor_command(self, **kwargs):
         """
@@ -2635,16 +2588,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device 
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('enter monitor command requires a name.')
         value = kwargs.get('value', None)
-        if value == None:
+        if value is None:
             raise InstrumentParameterException('enter monitor command requires a value.')
         cmd = self._param_dict.format(name, value)
         log.debug("_build_enter_monitor_command: cmd=%s", cmd)
-        if value == NO:
-            return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
-        return (cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_TIME)
+        if cmd == NO:
+            return cmd, InstrumentPrompts.DEPLOY_MENU, None
+        return cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_TIME
 
     def _build_enter_velocity_frame_command(self, **kwargs):
         """
@@ -2655,16 +2608,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device (set to None to indicate there isn't one)
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('enter velocity frame command requires a name.')
         value = kwargs.get('value', None)
-        if value == None:
+        if value is None:
             raise InstrumentParameterException('enter velocity frame command requires a value.')
         cmd = self._param_dict.format(name, value)
         log.debug("_build_enter_velocity_frame_command: cmd=%s", cmd)
         if value == 1:
-            return (cmd, InstrumentPrompts.DISPLAY_FORMAT, None)
-        return (cmd, InstrumentPrompts.SELECTION, None)
+            return cmd, InstrumentPrompts.DISPLAY_FORMAT, None
+        return cmd, InstrumentPrompts.SELECTION, None
 
     def _build_set_note_command(self, **kwargs):
         """
@@ -2675,11 +2628,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device 
         """
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('set note command requires a name.')
         cmd = "%s" % (name[-1])
         log.debug("_build_set_note_command: cmd=%s", cmd)
-        return (cmd, InstrumentPrompts.NOTE_INPUT, InstrumentCmds.ENTER_NOTE)
+        return cmd, InstrumentPrompts.NOTE_INPUT, InstrumentCmds.ENTER_NOTE
 
     def _build_simple_enter_command(self, **kwargs):
         """
@@ -2691,19 +2644,19 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device
         """
         cmd_name = kwargs.get('command', None)
-        if cmd_name == None:
+        if cmd_name is None:
             raise InstrumentParameterException('simple enter command requires a command.')
         name = kwargs.get('name', None)
-        if name == None:
+        if name is None:
             raise InstrumentParameterException('simple enter command requires a name.')
         value = kwargs.get('value', None)
-        if value == None:
+        if value is None:
             raise InstrumentParameterException('simple enter command requires a value.')
         cmd = self._param_dict.format(name, value)
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
         log.debug("_build_simple_enter_command: cmd=%s", cmd)
-        return (cmd, response, next_cmd)
+        return cmd, response, next_cmd
 
     def _build_simple_command(self, **kwargs):
         """
@@ -2714,7 +2667,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device
         """
         cmd_name = kwargs.get('command', None)
-        if cmd_name == None:
+        if cmd_name is None:
             raise InstrumentParameterException('simple command requires a command.')
         cmd = cmd_name
         if cmd_name in self.Command_Response:
@@ -2724,7 +2677,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             response = None
             next_cmd = None
         log.debug("_build_simple_command: cmd=%s", cmd)
-        return (cmd, response, next_cmd)
+        return cmd, response, next_cmd
 
     def _parse_time_response(self, response, prompt, **kwargs):
         """
