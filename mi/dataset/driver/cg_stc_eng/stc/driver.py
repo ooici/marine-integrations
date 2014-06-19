@@ -33,7 +33,8 @@ from mi.dataset.parser.mopak_o_dcl import \
     MopakODclAccelParserDataParticle, \
     MopakODclAccelParserRecoveredDataParticle, \
     MopakODclRateParserDataParticle, \
-    MopakODclRateParserRecoveredDataParticle
+    MopakODclRateParserRecoveredDataParticle, \
+    MopakParticleClassType
 
 from mi.dataset.parser.rte_o_dcl import \
     RteODclParser, \
@@ -129,8 +130,9 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
                 # particle_class configuration does nothing for multi-particle parsers
                 # put the class names in specific config parameters so the parser can get them
                 # use real classes as objects instead of strings to make it easier
-                'particle_classes_dict': {'accel_particle_class': MopakODclAccelParserDataParticle,
-                                          'rate_particle_class': MopakODclRateParserDataParticle}
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT:
+                    {MopakParticleClassType.ACCEL_PARTCICLE_CLASS: MopakODclAccelParserDataParticle,
+                     MopakParticleClassType.RATE_PARTICLE_CLASS: MopakODclRateParserDataParticle}
             })
 
             parser = MopakODclParser(config,
@@ -150,8 +152,9 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
                 # particle_class configuration does nothing for multi-particle parsers
                 # put the class names in specific config parameters so the parser can get them
                 # use real classes as objects instead of strings to make it easier
-                'particle_classes_dict': {'accel_particle_class': MopakODclAccelParserRecoveredDataParticle,
-                                          'rate_particle_class': MopakODclRateParserRecoveredDataParticle}
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT:
+                    {MopakParticleClassType.ACCEL_PARTCICLE_CLASS: MopakODclAccelParserRecoveredDataParticle,
+                     MopakParticleClassType.RATE_PARTICLE_CLASS: MopakODclRateParserRecoveredDataParticle}
             })
 
             parser = MopakODclParser(config,
