@@ -30,6 +30,7 @@ class WorkhorseParameter(TeledyneParameter):
     Device parameters
     """
 
+
 class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
     """
     InstrumentDriver subclass for Workhorse driver.
@@ -57,6 +58,7 @@ class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
+
 
 class WorkhorseProtocol(TeledyneProtocol):
     """
@@ -95,11 +97,10 @@ class WorkhorseProtocol(TeledyneProtocol):
                     for match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, outer_pos):
                         inner_pos = match.start()
 
-                        if (outer_pos == inner_pos):
+                        if outer_pos == inner_pos:
                             return_list.append((match.start(), match.end()))
             else:
                 for match in matcher.finditer(raw_data):
-                    log.error("Sung sieve match %s", raw_data)
                     return_list.append((match.start(), match.end()))
 
         return return_list
@@ -159,11 +160,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._cmd_dict.add(TeledyneCapability.STOP_DIRECT,
                            display_name="stop direct access")
 
-
     ########################################################################
     # Private helpers.
     ########################################################################
-
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.
@@ -189,6 +188,18 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
+        if (self._extract_sample(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
+                                 ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.trace("_got_chunk2 - successful match for ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
+
+        if (self._extract_sample(ADCP_TRANSMIT_PATH_PARTICLE,
+                                 ADCP_TRANSMIT_PATH_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.trace("_got_chunk2 - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
+
     def _get_params(self):
         return dir(WorkhorseParameter)
 
@@ -198,7 +209,7 @@ class WorkhorseProtocol(TeledyneProtocol):
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
 
-    # This is only temperary solution for now until port agent is fixed
+    # This is only temporary solution for now until port agent is fixed
     def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
@@ -223,5 +234,3 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         sock.send("break " + str(delay) + "\r\n")
         sock.close()
-    
-    
