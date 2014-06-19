@@ -103,6 +103,7 @@ class DataSourceLocation(object):
 class DataSetDriverConfigKeys(BaseEnum):
     PARTICLE_MODULE = "particle_module"
     PARTICLE_CLASS = "particle_class"
+    PARTICLE_CLASSES_DICT = "particle_classes_dict"
     DIRECTORY = "directory"
     STORAGE_DIRECTORY = "storage_directory"
     PATTERN = "pattern"

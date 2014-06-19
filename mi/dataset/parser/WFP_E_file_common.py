@@ -10,19 +10,18 @@ __author__ = 'Emily Hahn, Mike Nicoletti, Maria Lutz'
 __license__ = 'Apache 2.0'
 
 import re
-import time
-import ntplib
-import struct
 
-from functools import partial
-
-from mi.core.log import get_logger; log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.log import get_logger
+log = get_logger()
+from mi.core.exceptions import SampleException, NotImplementedException, DatasetParserException
 from mi.core.common import BaseEnum
-from mi.core.instrument.chunker import BinaryChunker
 from mi.dataset.dataset_parser import BufferLoadingParser
 
-HEADER_REGEX = b'(\x00\x01\x00{7,7}\x01\x00\x01\x00{4,4})([\x00-\xff]{8,8})'
+# This regex will be used to match the flags for one of the two bit patterns:
+#  0001 0000 0000 0000 0001 0001 0000 0000  (regex: \x00\x01\x00{7}\x01\x00\x01\x00{4})
+#  0001 0000 0000 0001 0000 0000 0000 0001 (regex: \x00\x01\x00{5}\x01\x00{7}\x01)
+#  followed by 8 bytes of variable timestamp data (regex: [\x00-\xff]{8})
+HEADER_REGEX = b'(\x00\x01\x00{5}[\x00-\x01]\x00[\x00-\x01]\x00[\x00-\x01]\x00{3}[\x00-\x01])([\x00-\xff]{8})'
 HEADER_MATCHER = re.compile(HEADER_REGEX)
 
 STATUS_START_REGEX = b'\xff\xff\xff[\xfa-\xff]'
@@ -31,9 +30,34 @@ STATUS_START_MATCHER = re.compile(STATUS_START_REGEX)
 PROFILE_REGEX = b'\xff\xff\xff[\xfa-\xff][\x00-\xff]{12}'
 PROFILE_MATCHER = re.compile(PROFILE_REGEX)
 
+PROFILE_WITH_DECIM_FACTOR_REGEX = b'\xff\xff\xff[\xfa-\xff][\x00-\xff]{14}'
+PROFILE_WITH_DECIM_FACTOR_MATCHER = re.compile(PROFILE_WITH_DECIM_FACTOR_REGEX)
+
+# This regex will be used to match the flags for the coastal wfp e engineering record:
+# 0001 0000 0000 0000 0001 0001 0000 0000  (regex: \x00\x01\x00{7}\x01\x00\x01\x00{4})
+# followed by 8 bytes of variable timestamp data (regex: [\x00-\xff]{8})
+WFP_E_COASTAL_FLAGS_HEADER_REGEX = b'(\x00\x01\x00{7}\x01\x00\x01\x00{4})([\x00-\xff]{8})'
+WFP_E_COASTAL_FLAGS_HEADER_MATCHER = re.compile(WFP_E_COASTAL_FLAGS_HEADER_REGEX)
+
+# This regex will be used to match the flags for the global wfp e engineering record:
+# 0001 0000 0000 0001 0000 0000 0000 0001 (regex: \x00\x01\x00{5}\x01\x00{7}\x01)
+# followed by 8 bytes of variable timestamp data (regex: [\x00-\xff]{8})
+WFP_E_GLOBAL_FLAGS_HEADER_REGEX = b'(\x00\x01\x00{5}\x01\x00{7}\x01)([\x00-\xff]{8})'
+WFP_E_GLOBAL_FLAGS_HEADER_MATCHER = re.compile(WFP_E_GLOBAL_FLAGS_HEADER_REGEX)
+
+# Includes indicator/timestamp and the data consists of variable 26 bytes
+WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_REGEX = b'([\x00-\xff]{4})([\x00-\xff]{26})'
+WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_MATCHER = re.compile(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_REGEX)
+
+# 4 bytes for the Engineering Data Record time stamp, 26 bytes for the global Engineering Data Record
+WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES = 30
+
 HEADER_BYTES = 24
+
 SAMPLE_BYTES = 26
+
 STATUS_BYTES = 16
+STATUS_BYTES_AUGMENTED = 18
 
 
 class StateKey(BaseEnum):
@@ -51,7 +75,7 @@ class WfpEFileParser(BufferLoadingParser):
                  *args, **kwargs):
 
         self._timestamp = 0.0
-        self._record_buffer = [] # holds tuples of (record, state)
+        self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
         super(WfpEFileParser, self).__init__(config,
                                              stream_handle,
@@ -77,21 +101,23 @@ class WfpEFileParser(BufferLoadingParser):
         data_index = 0
         return_list = []
         raw_data_len = len(raw_data)
+        remain_bytes = raw_data_len
 
         while data_index < raw_data_len:
+
             # check if this is a status or data sample message
-            if STATUS_START_MATCHER.match(raw_data[data_index:data_index+4]):
+            if remain_bytes >= STATUS_BYTES and STATUS_START_MATCHER.match(raw_data[data_index:data_index+4]):
                 return_list.append((data_index, data_index + STATUS_BYTES))
                 data_index += STATUS_BYTES
-            else:
+            elif remain_bytes >= SAMPLE_BYTES:
                 return_list.append((data_index, data_index + SAMPLE_BYTES))
                 data_index += SAMPLE_BYTES
+            else:
+                log.debug("not enough bytes to deal with")
+                break
 
             remain_bytes = raw_data_len - data_index
-            # if the remaining bytes are less than the data sample bytes, all we might have left is a status sample, if we don't we're done
-            if remain_bytes < STATUS_BYTES or (remain_bytes < SAMPLE_BYTES and remain_bytes >= STATUS_BYTES and \
-            not STATUS_START_MATCHER.match(raw_data[data_index:data_index+4])):
-                break
+
         log.debug("returning sieve list %s", return_list)
         return return_list
 
@@ -138,23 +164,7 @@ class WfpEFileParser(BufferLoadingParser):
         FLORT and PARAD can copy paste this and insert their own data particle class
         needs extending for WFP_ENG
         """
-        result_particle = []
-        if DATA_SAMPLE_MATCHER.match(record):
-            # pull out the timestamp for this record
-            match = DATA_SAMPLE_MATCHER.match(record)
-            fields = struct.unpack('<I', match.group(0)[:4])
-            timestamp = int(fields[0])
-            self._timestamp = ntplib.system_to_ntp_time(timestamp)
-            log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
-            # INSERT YOUR DATA PARTICLE CLASS HERE
-            sample = self._extract_sample(data_particle_class, DATA_SAMPLE_MATCHER, record, self._timestamp)
-            if sample:
-                # create particle
-                log.trace("Extracting sample %s with read_state: %s", sample, self._read_state)
-                self._increment_state(SAMPLE_BYTES)
-                result_particle = (sample, copy.copy(self._read_state))
-
-        return result_particle
+        raise NotImplementedException("parse_record must be implemented")
 
     def parse_chunks(self):
         """
@@ -166,15 +176,14 @@ class WfpEFileParser(BufferLoadingParser):
         """
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data = None
 
-        while (chunk != None):
+        while chunk is not None:
             result_particle = self.parse_record(chunk)
             if result_particle:
                 result_particles.append(result_particle)
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+            self._chunker.get_next_non_data(clean=True)
 
         return result_particles
 
