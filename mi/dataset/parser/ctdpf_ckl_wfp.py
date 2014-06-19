@@ -18,6 +18,7 @@ log = get_logger()
 
 
 from mi.dataset.parser.wfp_c_file_common import WfpCFileCommonParser, WfpMetadataParserDataParticleKey
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
 
 class CtdpfCklWfpParser(WfpCFileCommonParser):
@@ -33,7 +34,7 @@ class CtdpfCklWfpParser(WfpCFileCommonParser):
                  *args, **kwargs):
 
 #        log.info(config)
-        particle_classes_dict = config.get('particle_classes_dict')
+        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
         self._instrument_data_particle_class = particle_classes_dict.get('instrument_data_particle_class')
         self._metadata_particle_class = particle_classes_dict.get('metadata_particle_class')
 
