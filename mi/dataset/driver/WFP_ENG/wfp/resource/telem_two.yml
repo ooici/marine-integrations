@@ -1,0 +1,17 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: WfpEngWfpSioMuleParserDataStatusParticle
+    particle_type: wfp_eng_wfp_sio_mule_status
+    internal_timestamp: 3583826263.0
+    sio_controller_timestamp: 1374837724
+    wfp_indicator: -1
+    wfp_ramp_status: 0
+    wfp_profile_status: 14
+    wfp_sensor_stop: 1374837591
+    wfp_profile_stop: 1374837463
+    wfp_decimation_factor: !!null
+
