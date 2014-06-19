@@ -230,7 +230,7 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    POLL = DriverProtocolState.POLL
+    #POLL = DriverProtocolState.POLL
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
 
 
@@ -834,7 +834,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_POLL, self._handler_command_start_poll)
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_POLL, self._handler_command_start_poll)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
@@ -848,13 +848,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # POLL State
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_generic_enter)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.EXIT, self._handler_generic_exit)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
+        # self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_generic_enter)
+        # self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.EXIT, self._handler_generic_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
+        #self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
 
         # AUTOSAMPLE State
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_generic_enter)
@@ -1414,14 +1414,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
-    def _handler_command_start_poll(self):
-        """
-        Start polling
-        """
-        self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)
-        self._do_cmd_no_resp(InstrumentCommand.EXIT)
-
-        return ProtocolState.POLL, (ResourceAgentState.BUSY, None)
 
     def _handler_command_start_autosample(self):
         """
@@ -1564,24 +1556,40 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Poll handlers.
     ########################################################################
+    def _start_poll(self):
+        """
+        Start polling
+        """
+        self._do_cmd_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED,
+                          expected_prompt=[Prompt.OK, Prompt.ERROR])
+        self._do_cmd_resp(InstrumentCommand.EXIT, expected_prompt=Prompt.POLLED)
+
+        #return ProtocolState.POLL, (ResourceAgentState.BUSY, None)
+
     def _handler_poll_acquire_sample(self):
         """
         Get a sample from the SUNA
         """
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
+        self._start_poll()
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 1, expected_prompt=Prompt.POLLED)
+        self._stop_poll()
         return None, (None, None)
 
     def _handler_poll_measure_n(self):
         """
         Measure N Light Samples
         """
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self._param_dict.get(Parameter.NUM_LIGHT_SAMPLES), timeout=POLL_TIMEOUT)
+        self._start_poll()
+        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self._param_dict.get(Parameter.NUM_LIGHT_SAMPLES),
+                             expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
         return None, (None, None)
 
     def _handler_poll_measure_0(self):
         """
         Measure 0 Dark Sample
         """
+        self._start_poll()
         self._do_cmd_no_resp(InstrumentCommand.MEASURE, 0)
         return None, (None, None)
 
@@ -1589,20 +1597,21 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Timed Sampling for N time
         """
-        self._do_cmd_no_resp(InstrumentCommand.TIMED, self._param_dict.get(Parameter.TIME_LIGHT_SAMPLE), timeout=POLL_TIMEOUT)
+        self._start_poll()
+        self._do_cmd_no_resp(InstrumentCommand.TIMED, self._param_dict.get(Parameter.TIME_LIGHT_SAMPLE),
+                             expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
         return None, (None, None)
 
-    def _handler_poll_stop_poll(self):
+    def _stop_poll(self):
         """
         Exit the poll state
         """
         try:
             self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-            self._send_dollar()     # send a "$" to get the device back to command mode
+            self._send_dollar()     # send a "$" to get the instrument back to command mode
         except InstrumentException:
             raise InstrumentProtocolException("Could not interrupt hardware!")
-
-        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Autosample handlers.

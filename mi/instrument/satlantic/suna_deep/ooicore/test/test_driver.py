@@ -477,19 +477,19 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
             ProtocolState.COMMAND:       [ProtocolEvent.ACQUIRE_SAMPLE,
                                           ProtocolEvent.ACQUIRE_STATUS,
                                           ProtocolEvent.START_DIRECT,
-                                          ProtocolEvent.START_POLL,
+                                          #ProtocolEvent.START_POLL,
                                           ProtocolEvent.START_AUTOSAMPLE,
                                           ProtocolEvent.GET,
                                           ProtocolEvent.SET,
                                           ProtocolEvent.TEST,
-                                          ProtocolEvent.CLOCK_SYNC],
-            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.EXECUTE_DIRECT,
-                                          ProtocolEvent.STOP_DIRECT],
-            ProtocolState.POLL:          [ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.CLOCK_SYNC,
+                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                           ProtocolEvent.MEASURE_N,
                                           ProtocolEvent.MEASURE_0,
-                                          ProtocolEvent.TIMED_N,
-                                          ProtocolEvent.STOP_POLL],
+                                          ProtocolEvent.TIMED_N],
+                                          #ProtocolEvent.STOP_POLL],
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.EXECUTE_DIRECT,
+                                          ProtocolEvent.STOP_DIRECT],
             ProtocolState.AUTOSAMPLE:    [ProtocolEvent.STOP_AUTOSAMPLE]
         }
 
@@ -619,7 +619,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         Verify polled acquisition of samples in auto-sample mode
         """
         self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.POLL, delay=1)
+        #self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.POLL, delay=1)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
                                          self.assert_data_particle_sample, delay=TIMEOUT)
@@ -630,7 +630,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_particle_generation(ProtocolEvent.TIMED_N, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=TIMEOUT)
 
-        self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=10)
+        #self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=10)
 
     def test_start_stop_auto_sample(self):
         """
@@ -870,14 +870,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
-            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.SET,
-                                                   ProtocolEvent.ACQUIRE_SAMPLE,
-                                                   ProtocolEvent.GET,
-                                                   ProtocolEvent.ACQUIRE_STATUS,
-                                                   ProtocolEvent.START_POLL,
-                                                   ProtocolEvent.START_AUTOSAMPLE,
-                                                   ProtocolEvent.TEST,
-                                                   ProtocolEvent.CLOCK_SYNC],
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.ACQUIRE_STATUS,
+                                          ProtocolEvent.START_DIRECT,
+                                          #ProtocolEvent.START_POLL,
+                                          ProtocolEvent.START_AUTOSAMPLE,
+                                          ProtocolEvent.GET,
+                                          ProtocolEvent.SET,
+                                          ProtocolEvent.TEST,
+                                          ProtocolEvent.CLOCK_SYNC,
+                                          ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.MEASURE_N,
+                                          ProtocolEvent.MEASURE_0,
+                                          ProtocolEvent.TIMED_N],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: ['a_cutoff', 'bl_order', 'brmtrace', 'countdwn', 'datfsize',
                                                      'drkcormt', 'drkdurat', 'drksmpls', 'fitconcs', 'intadmax',
@@ -890,20 +895,20 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
 
-        ##################
-        #  Polled Mode
-        ##################
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = []
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.ACQUIRE_SAMPLE,
-            ProtocolEvent.STOP_POLL,
-            ProtocolEvent.MEASURE_N,
-            ProtocolEvent.MEASURE_0,
-            ProtocolEvent.TIMED_N]
-
-        self.assert_switch_driver_state(ProtocolEvent.START_POLL, DriverProtocolState.POLL)
-        self.assert_capabilities(capabilities)
-        self.assert_switch_driver_state(ProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
+        # ##################
+        # #  Polled Mode
+        # ##################
+        # capabilities[AgentCapabilityType.AGENT_COMMAND] = []
+        # capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+        #     ProtocolEvent.ACQUIRE_SAMPLE,
+        #     ProtocolEvent.STOP_POLL,
+        #     ProtocolEvent.MEASURE_N,
+        #     ProtocolEvent.MEASURE_0,
+        #     ProtocolEvent.TIMED_N]
+        #
+        # self.assert_switch_driver_state(ProtocolEvent.START_POLL, DriverProtocolState.POLL)
+        # self.assert_capabilities(capabilities)
+        # self.assert_switch_driver_state(ProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
 
         ##################
         #  Streaming Mode
