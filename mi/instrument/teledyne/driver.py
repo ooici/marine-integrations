@@ -478,17 +478,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
-    # def _build_simple_command(self, cmd):
-    #     """
-    #     OVERWRITE
-    #     Build handler for basic adcpt commands.
-    #     @param cmd the simple adcpt command to format
-    #             (no value to attach to the command)
-    #     @retval The command to be sent to the device.
-    #     """
-    #     log.trace("build_simple_command: %s" % cmd)
-    #     return cmd + NEWLINE
-
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
