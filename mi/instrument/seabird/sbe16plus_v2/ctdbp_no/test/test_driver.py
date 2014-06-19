@@ -542,11 +542,14 @@ class SBE16NOMixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
+        Capability.DISCOVER : {STATES: [ProtocolState.UNKNOWN]},
+        Capability.ACQUIRE_SAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.START_DIRECT : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT : {STATES: [ProtocolState.DIRECT_ACCESS]},
         Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
 
     }
@@ -731,6 +734,7 @@ class SBE16NOUnitTestCase(SeaBirdUnitTest, SBE16NOMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
                                     'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_SET',
@@ -743,6 +747,7 @@ class SBE16NOUnitTestCase(SeaBirdUnitTest, SBE16NOMixin):
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
                                        'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS',
                                        'DRIVER_EVENT_ACQUIRE_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
@@ -1047,6 +1052,12 @@ class SBE16NOIntTestCase(SeaBirdIntegrationTest, SBE16NOMixin):
 
         # Verify that the event got scheduled
         self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=60)
+
+        # Reset the interval
+        self.assert_set(Parameter.STATUS_INTERVAL, "00:00:10")
+
+        # Verify that the event got scheduled
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=30)
 
         # This should unschedule the acquire status event
         self.assert_set(Parameter.STATUS_INTERVAL, "00:00:00")

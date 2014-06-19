@@ -38,6 +38,8 @@ from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19ConfigurationParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticle
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DEFAULT_STATUS_INTERVAL
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DEFAULT_CLOCK_SYNC_INTERVAL
 
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
 
@@ -530,12 +532,8 @@ class InstrumentDriver(SeaBirdInstrumentDriver):
         return Parameter.list()
 
 
-        ########################################################################
-        # Protocol builder.
-        ########################################################################
-        ########################################################################
-        # Protocol builder.
-
+    ########################################################################
+    # Protocol builder.
     ########################################################################
 
     def _build_protocol(self):
@@ -591,18 +589,13 @@ class SBE16NOProtocol(SBE19Protocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
-        if not (self._extract_sample(SBE16NOHardwareParticle, SBE16NOHardwareParticle.regex_compiled(), chunk,
-                                     timestamp) or
-                    self._extract_sample(SBE16NODataParticle, SBE16NODataParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(SBE16NOCalibrationParticle, SBE16NOCalibrationParticle.regex_compiled(), chunk,
-                                         timestamp) or
-                    self._extract_sample(SBE16NOConfigurationParticle, SBE16NOConfigurationParticle.regex_compiled(),
-                                         chunk, timestamp) or
-                    self._extract_sample(SBE16NOStatusParticle, SBE16NOStatusParticle.regex_compiled(), chunk,
-                                         timestamp) or
-                    self._extract_sample(SBE16NOOptodeSettingsParticle, SBE16NOOptodeSettingsParticle.regex_compiled(),
-                                         chunk, timestamp)):
-            raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
+        for particle_class in SBE16NOHardwareParticle, SBE16NODataParticle, SBE16NOCalibrationParticle, \
+                              SBE16NOConfigurationParticle, SBE16NOStatusParticle, SBE16NOOptodeSettingsParticle:
+            if self._extract_sample(particle_class, particle_class.regex_compiled(), chunk, timestamp):
+                return
+
+        raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
+
 
     ########################################################################
     # Command handlers.
@@ -614,19 +607,21 @@ class SBE16NOProtocol(SBE19Protocol):
         next_state = None
         next_agent_state = None
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
-                                   timeout=TIMEOUT)
+        result = []
+
+        result.append(self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE16NOCalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CC, response_regex=SBE16NOCalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
 
         #Reset the event counter right after getEC
@@ -645,13 +640,13 @@ class SBE16NOProtocol(SBE19Protocol):
         optode_commands = SendOptodeCommand.list()
         for command in optode_commands:
             log.debug("Sending optode command: %s" % command)
-            result += self._do_cmd_resp(Command.SEND_OPTODE, command, timeout=TIMEOUT)
+            result.append(self._do_cmd_resp(Command.SEND_OPTODE, command, timeout=TIMEOUT))
             log.debug("_handler_command_acquire_status: SendOptode Response: %s", result)
 
         #restart the optode
         self._do_cmd_resp(Command.SEND_OPTODE, start_command, timeout=TIMEOUT)
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, ''.join(result))
 
 
     def _handler_autosample_acquire_status(self, *args, **kwargs):
@@ -661,29 +656,31 @@ class SBE16NOProtocol(SBE19Protocol):
         next_state = None
         next_agent_state = None
 
+        result = []
+
         # When in autosample this command requires two wakeups to get to the right prompt
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
-                                   timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_SD, response_regex=SBE16NOStatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE16NOCalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CC, response_regex=SBE16NOCalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetEC Response: %s", result)
 
         #Reset the event counter right after getEC
         self._do_cmd_no_resp(Command.RESET_EC)
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, ''.join(result))
 
 
     ########################################################################
@@ -767,8 +764,6 @@ class SBE16NOProtocol(SBE19Protocol):
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             startup_param=False,
-                             direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
@@ -924,7 +919,6 @@ class SBE16NOProtocol(SBE19Protocol):
                              type=ParameterDictType.INT,
                              display_name="Scans To Average",
                              startup_param=True,
-                             direct_access=False,
                              default_value=4,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MIN_COND_FREQ,
@@ -934,7 +928,6 @@ class SBE16NOProtocol(SBE19Protocol):
                              type=ParameterDictType.INT,
                              display_name="Minimum Conductivity Frequency",
                              startup_param=True,
-                             direct_access=False,
                              default_value=500,
                              units=ParameterUnit.HERTZ,
                              visibility=ParameterDictVisibility.IMMUTABLE)
@@ -945,7 +938,6 @@ class SBE16NOProtocol(SBE19Protocol):
                              type=ParameterDictType.INT,
                              display_name="Pump Delay",
                              startup_param=True,
-                             direct_access=False,
                              default_value=60,
                              units=ParameterUnit.SECOND,
                              visibility=ParameterDictVisibility.READ_WRITE)
@@ -977,24 +969,20 @@ class SBE16NOProtocol(SBE19Protocol):
         self._param_dict.add(Parameter.CLOCK_INTERVAL,
                              'bogus',
                              str,
-                             None,
+                             self._get_seconds_from_time_string,
                              type=ParameterDictType.STRING,
                              display_name="Clock Interval",
                              startup_param=True,
-                             direct_access=False,
-                             default_value="00:00:00",
-                             init_value="00:00:00",
+                             default_value=DEFAULT_CLOCK_SYNC_INTERVAL,
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.STATUS_INTERVAL,
                              'bogus',
                              str,
-                             None,
+                             self._get_seconds_from_time_string,
                              type=ParameterDictType.STRING,
                              display_name="Status Interval",
                              startup_param=True,
-                             direct_access=False,
-                             default_value="00:00:00",
-                             init_value="00:00:00",
+                             default_value=DEFAULT_STATUS_INTERVAL,
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)

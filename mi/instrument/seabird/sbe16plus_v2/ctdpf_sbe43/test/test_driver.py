@@ -503,11 +503,14 @@ class SBE43Mixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
+        Capability.DISCOVER : {STATES: [ProtocolState.UNKNOWN]},
+        Capability.ACQUIRE_SAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.START_DIRECT : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT : {STATES: [ProtocolState.DIRECT_ACCESS]},
         Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
 
     }
@@ -773,7 +776,6 @@ class SBE43UnitTestCase(SeaBirdUnitTest, SBE43Mixin):
 @attr('INT', group='mi')
 class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
 
-    @unittest.skip("pass")
     def test_connection(self):
         self.assert_initialize_driver()
 
