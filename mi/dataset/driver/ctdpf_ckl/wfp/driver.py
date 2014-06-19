@@ -77,7 +77,7 @@ class CtdpfCklWfpDataSetDriver(MultipleHarvesterDataSetDriver):
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'instrument_data_particle_class': CtdpfCklWfpRecoveredDataParticle,
                     'metadata_particle_class': CtdpfCklWfpRecoveredMetadataParticle
                 }
@@ -99,7 +99,7 @@ class CtdpfCklWfpDataSetDriver(MultipleHarvesterDataSetDriver):
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'instrument_data_particle_class': CtdpfCklWfpTelemeteredDataParticle,
                     'metadata_particle_class': CtdpfCklWfpTelemeteredMetadataParticle
                 }
