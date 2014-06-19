@@ -26,7 +26,6 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -53,11 +52,8 @@ log = get_logger()
 
 Directions = MenuInstrumentProtocol.MenuTree.Directions
 
-SAMPLE_PATTERN = r'(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\r\n'
+SAMPLE_PATTERN = '\s+'.join(['(\d+\.\d+)'] * 12) + '\r\n'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
-
-STATUS_PATTERN = 'r(\d+)'
-STATUS_REGEX = re.compile(STATUS_PATTERN)
 
 # newline.
 NEWLINE = '\r'
@@ -161,7 +157,6 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    #ACQUIRE_STATUS = "BARS_GET_STATUS"
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
@@ -223,7 +218,9 @@ MENU_PROMPTS = [Prompt.MAIN_MENU, Prompt.CHANGE_PARAM_MENU,
                 Prompt.DEAD_END_PROMPT, Prompt.CONTINUE_PROMPT]
 
 MENU = MenuInstrumentProtocol.MenuTree({
-    SubMenu.MAIN: [],
+
+    SubMenu.MAIN: [Directions(command=Command.BLANK,
+                                      response=Prompt.MAIN_MENU)],
     SubMenu.CHANGE_PARAM: [Directions(command=Command.CHANGE_PARAM,
                                       response=Prompt.CHANGE_PARAM_MENU)],
     SubMenu.SHOW_PARAM: [Directions(SubMenu.CHANGE_PARAM),
@@ -289,7 +286,7 @@ class BarsStatusParticle(DataParticle):
     @staticmethod
     def regex():
         """
-        Regular expression to match a sample pattern
+        Regular expression to match a status pattern
         @return: regex string
         """
         pattern = r"""
@@ -324,18 +321,12 @@ class BarsStatusParticle(DataParticle):
 
         @throw SampleException If there is a problem with status creation
         """
-        log.debug("BarsStatusParticle _build_parsed_values")
 
         match = BarsStatusParticle.regex_compiled().match(self.raw_data)
 
         if not match:
-            log.debug("No regex match status data $$$$$$")
             raise SampleException("No regex match of status data: [%s]" % self.raw_data)
 
-        # log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
-        #           match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
-        #           match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
-        #           match.group(11))
         log.trace("Matching sample %r", match.groups())
 
         system_info = match.group('system_info')
@@ -350,8 +341,6 @@ class BarsStatusParticle(DataParticle):
         ref_temp_power = int(match.group('ref_temp_power'))
         print_on_powerup = int(match.group('print_on_powerup'))
         print_on_restart = int(match.group('print_on_powerup'))
-
-        log.debug("---- system_info = %s" % system_info)
 
         result = [{DataParticleKey.VALUE_ID: BarsStatusParticleKey.SYSTEM_INFO,
                    DataParticleKey.VALUE: system_info},
@@ -410,7 +399,7 @@ class BarsDataParticle(DataParticle):
         Regular expression to match a sample pattern
         @return: regex string
         """
-        pattern = r'(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\s+(\d+.\d+)\r\n'
+        pattern = SAMPLE_PATTERN
 
         return pattern
 
@@ -437,10 +426,6 @@ class BarsDataParticle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.raw_data)
 
-        # log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
-        #           match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
-        #           match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
-        #           match.group(11),match.group(12))
         log.trace("Matching sample %r", match.groups())
         res_5 = float(match.group(1))
         res_x1 = float(match.group(2))
@@ -641,32 +626,25 @@ class Protocol(MenuInstrumentProtocol):
         return_list = []
         matchers = []
 
-        log.debug("sieve_function enters")
-
         matchers.append(BarsStatusParticle.regex_compiled())
         matchers.append(BarsDataParticle.regex_compiled())
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
-                log.debug("match in matcher")
                 return_list.append((match.start(), match.end()))
 
-        #for match in SAMPLE_REGEX.finditer(raw_data):
-        #    return_list.append((match.start(), match.end()))
-        log.debug("return_list = %s" % return_list)
+        #log.debug("return_list = %s" % return_list)
         return return_list
 
     def _go_to_root_menu(self):
         """
-        Get back to the root menu, assuming we are in COMMAND mode.
-        Getting to command mode should be done before this method is called.
-        A discover will get there.
+        Get back to the root menu.
         """
-        #log.debug("Returning to root menu...")
+
         # Issue an enter or two off the bat to get out of any display screens
         # and confirm command mode
         try:
             response = self._do_cmd_resp(Command.BLANK, expected_prompt=Prompt.CMD_PROMPT)
-            while not str(response).lstrip().endswith(Prompt.CMD_PROMPT):
+            while not str(response).endswith(Prompt.CMD_PROMPT):
                 response = self._do_cmd_resp(Command.BLANK,
                                              expected_prompt=Prompt.CMD_PROMPT)
                 time.sleep(1)
@@ -676,15 +654,14 @@ class Protocol(MenuInstrumentProtocol):
         # When you get a --> prompt, do 9's until you get back to the root
         response = self._do_cmd_resp(Command.BACK_MENU,
                                      expected_prompt=MENU_PROMPTS)
-        while not str(response).lstrip().endswith(Prompt.MAIN_MENU):
+        while not str(response).endswith(Prompt.MAIN_MENU):
             response = self._do_cmd_resp(Command.BACK_MENU,
                                          expected_prompt=MENU_PROMPTS)
-
 
     def _filter_capabilities(self, events):
         """
         Define a small filter of the capabilities
-        @param A list of events to consider as capabilities
+        @param events list of events to consider as capabilities
         @retval A list of events that are actually capabilities
         """
         events_out = [x for x in events if Capability.has(x)]
@@ -699,7 +676,7 @@ class Protocol(MenuInstrumentProtocol):
         """
         Enter unknown state.
         """
-        log.debug('_handler_unknown')
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -707,19 +684,14 @@ class Protocol(MenuInstrumentProtocol):
     def _handler_discover(self, *args, **kwargs):
         """
         Discover current state by going to the root menu
-        @retval (next_state, result)
+        @retval (next_state, next_agent_state)
         """
-
-        next_state = None
-        next_agent_state = None
 
         # Try to break in case we are in auto sample
         self._send_break()
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.IDLE
-
-        self._go_to_root_menu()
 
         return (next_state, next_agent_state)
 
@@ -782,7 +754,7 @@ class Protocol(MenuInstrumentProtocol):
         for (key, val) in params.iteritems():
             #log.debug(" KEY = %s VALUE = %s", key, val)
             if not Parameter.has(key):
-                log.debug("Param %s not in Parameter keys", key)
+                #log.debug("Param %s not in Parameter keys", key)
                 raise InstrumentParameterException()
 
             # restrict operations to just the read/write parameters
@@ -798,7 +770,7 @@ class Protocol(MenuInstrumentProtocol):
                                                expected_prompt=Prompt.CHANGE_PARAM_MENU)
 
                 except InstrumentParameterException:
-                    log.debug("Could not set cycle time. InstrumentParameterException!")
+
                     self._go_to_root_menu()
                     raise InstrumentProtocolException("Could not set cycle time")
 
@@ -833,40 +805,11 @@ class Protocol(MenuInstrumentProtocol):
 
                 self._go_to_root_menu()
 
-                # elif (key == Parameter.EH_ISOLATION_AMP_POWER):
-                #
-                #     result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-                #     while not result:
-                #         result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-                #
-                # elif (key == Parameter.HYDROGEN_POWER):
-                #
-                #     result = self._navigate(SubMenu.HYDROGEN_POWER)
-                #     while not result:
-                #         result = self._navigate(SubMenu.HYDROGEN_POWER)
-                #
-                # elif (key == Parameter.INST_AMP_POWER):
-                #     result = self._navigate(SubMenu.INST_AMP_POWER)
-                #     while not result:
-                #         result = self._navigate(SubMenu.INST_AMP_POWER)
-                #
-                # elif (key == Parameter.REFERENCE_TEMP_POWER):
-                #     result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-                #     while not result:
-                #         result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-                #
-                # elif (key == Parameter.RES_SENSOR_POWER):
-                #     result = self._navigate(SubMenu.RES_SENSOR_POWER)
-                #     while not result:
-                #         result = self._navigate(SubMenu.RES_SENSOR_POWER)
-
-
     def _set_params(self, *args, **kwargs):
         """
         Verify not readonly params and call set_trhph_params to issue commands to the instrument
         to set various parameters
         """
-        #log.debug('_set_params')
 
         next_state = None
         result = None
@@ -889,7 +832,8 @@ class Protocol(MenuInstrumentProtocol):
 
 
     def _handler_command_set(self, *args, **kwargs):
-        """Handle setting data from command mode
+        """
+        Handle setting data from command mode
 
         @param params Dict of the parameters and values to pass to the state
         @retval return (next state, result)
@@ -898,7 +842,6 @@ class Protocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        #log.debug('_handler_command_set')
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         try:
@@ -926,8 +869,6 @@ class Protocol(MenuInstrumentProtocol):
         Start autosample mode
         """
 
-        next_state = None
-        next_agent_state = None
         result = None
 
         self._navigate(SubMenu.MAIN)
@@ -941,19 +882,17 @@ class Protocol(MenuInstrumentProtocol):
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
         Acquire Instrument Status
+        @retval return (next state, (next_agent_state, result))
         """
-
-        next_state = None
-        next_agent_state = None
-        result = None
 
         self._navigate(SubMenu.MAIN)
         self._do_cmd_no_resp(Command.SHOW_STATUS)
 
-        return (next_state, (next_agent_state, result))
+        return (None, (None, None))
 
     def _handler_command_start_direct(self):
         """
+        @retval return (next state, (next_agent_state, result))
         """
 
         result = None
@@ -985,6 +924,8 @@ class Protocol(MenuInstrumentProtocol):
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        @param data to be sent in direct access
+        @retval return (next state, next_agent_state)
         """
         next_state = None
         next_agent_state = None
@@ -999,15 +940,13 @@ class Protocol(MenuInstrumentProtocol):
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
+        @retval return (next state, (next_agent_state, result))
         """
-        next_state = None
-        next_agent_state = None
-        result = None
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return (None, (None, None))
 
     ########################################################################
     # Autosample handlers
@@ -1019,45 +958,36 @@ class Protocol(MenuInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_autosample_acquire_status(self, *args, **kwargs):
-
-        next_state = None
-        next_agent_state = None
-        result = None
+        """
+        Acquire instrument's status in autosample state
+        @retval return (next state, (next_agent_state, result))
+        """
 
         # Break out of auto sample mode by sending control S to the instrument
         self._send_break()
 
         # Send the show parameter command to collect instrument's status
         self._navigate(SubMenu.MAIN)
-        log.debug("_handler_autosample_acquire_status: send SHOW_STATUS")
         self._do_cmd_no_resp(Command.SHOW_STATUS)
-
-        # is it necessary ???????????????
-        self._go_to_root_menu()
 
         # Send the start autosample command to get back to autosample mode once
         # the instrument's status has been collected.
         self._navigate(SubMenu.MAIN)
-        log.debug("_handler_autosample_acquire_status: send START_AUTOSAMPLE")
         self._do_cmd_no_resp(Command.START_AUTOSAMPLE)
 
-        log.debug("_handler_autosample_acquire_status: Before returning")
-
-        return (next_state, (next_agent_state, result))
+        return (None, (None, None))
 
     def _handler_autosample_stop(self):
         """
         Stop autosample mode
+        @retval return (next state, (next_agent_state, result))
         """
-        next_state = None
-        next_agent_state = None
-        result = None
 
         if (self._send_break()):
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return (None, (None, None))
 
     ########################################################################
     # Command builders
@@ -1112,7 +1042,7 @@ class Protocol(MenuInstrumentProtocol):
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
         """
-        log.debug("_got_chunk")
+
         if not (self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp) or
                 self._extract_sample(BarsStatusParticle, BarsStatusParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk")
@@ -1123,7 +1053,6 @@ class Protocol(MenuInstrumentProtocol):
 
         """
 
-        #log.debug("Updating parameter dict")
         old_config = self._param_dict.get_config()
         self._get_config()
         new_config = self._param_dict.get_config()
@@ -1154,7 +1083,7 @@ class Protocol(MenuInstrumentProtocol):
         """
         log.debug("Sending break sequence to instrument...")
         # Timing is an issue, so keep it simple, work directly with the
-        # couple chars instead of command/respose. Could be done that way
+        # couple chars instead of command/response. Could be done that way
         # though. Just more steps, logic, and delay for such a simple
         # exchange
 
@@ -1162,10 +1091,14 @@ class Protocol(MenuInstrumentProtocol):
             self._promptbuf = ""
             try:
                 self._connection.send(COMMAND_CHAR[Command.BREAK])
+                time.sleep(1)
                 (prompt, result) = self._get_raw_response(timeout, expected_prompt=[Prompt.BREAK_ACK,
                                                                                     Prompt.CMD_PROMPT])
                 if (prompt == Prompt.BREAK_ACK):
+
                     self._connection.send(COMMAND_CHAR[Command.BREAK])
+                    time.sleep(1)
+
                     (prompt, result) = self._get_response(timeout, expected_prompt=Prompt.CMD_PROMPT)
                     return True
                 elif (prompt == Prompt.CMD_PROMPT):
@@ -1202,7 +1135,7 @@ class Protocol(MenuInstrumentProtocol):
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
@@ -1214,7 +1147,7 @@ class Protocol(MenuInstrumentProtocol):
                                                             int(match.group(2))),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Cycle Time",
+                             display_name="Cycle Time in seconds",
                              visibility=ParameterDictVisibility.READ_WRITE,
                              startup_param=True,
                              direct_access=True,
@@ -1244,7 +1177,7 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Metadata Powerup",
+                             display_name="Metadata on Powerup",
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1257,7 +1190,7 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Metadata Restart",
+                             display_name="Metadata on Restart",
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1285,7 +1218,7 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Inst Amp Power",
+                             display_name="Instrumentation Amp Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1300,7 +1233,7 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Eh Iso Amp Power",
+                             display_name="eH Isolation Amp Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1315,7 +1248,7 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Hydrogen Sensor Power Status",
+                             display_name="Hydrogen Sensor Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1330,7 +1263,7 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Ref Temp Power",
+                             display_name="Reference Temp Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
