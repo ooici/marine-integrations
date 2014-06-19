@@ -49,7 +49,8 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import DataParticleType
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import DataParticleType, \
+    SatlanticOCR507ConfigurationParticleKey
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentProtocol
 from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticProtocolState
 from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticProtocolEvent
@@ -153,6 +154,20 @@ class PARMixin(DriverTestMixin):
         SatlanticOCR507DataParticleKey.CHECKSUM: {TYPE: int, VALUE: 195, REQUIRED: True}
     }
 
+    _config_parameters = {
+        SatlanticOCR507ConfigurationParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '3.0A - SatNet Type B', REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.INSTRUMENT_ID: {TYPE: unicode, VALUE: 'SATDI7', REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: '0233', REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.TELEMETRY_BAUD_RATE: {TYPE: int, VALUE: 57600, REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.MAX_FRAME_RATE: {TYPE: unicode, VALUE: '1', REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.INIT_SILENT_MODE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.INIT_POWER_DOWN: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.INIT_AUTO_TELEMETRY: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.NETWORK_MODE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.NETWORK_ADDRESS: {TYPE: int, VALUE: 100, REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.NETWORK_BAUD_RATE: {TYPE: int, VALUE: 38400, REQUIRED: True}
+    }
+
     _driver_capabilities = {
         # capabilities defined in the IOS
         SatlanticCapability.START_AUTOSAMPLE: {STATES: [SatlanticProtocolState.COMMAND]},
@@ -184,12 +199,23 @@ class PARMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
+    def assert_particle_config(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  SBE16DataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        log.debug('data_particle: %r', data_particle)
+        self.assert_data_particle_keys(SatlanticOCR507ConfigurationParticleKey, self._config_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._config_parameters, verify_values)
+
 # FIXME Additional tests (incl. those for command response and verification of READ_ONLY, etc. should be added)
 
 @attr('UNIT', group='mi')
 class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
     # PASSES
-    #@unittest.skip('temp for debugging')
+    # @unittest.skip('temp for debugging')
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -207,7 +233,7 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_enum_complete(SatlanticCapability(), SatlanticProtocolEvent())
 
     # PASSES
-    #@unittest.skip('temp for debugging')
+    # @unittest.skip('temp for debugging')
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -216,7 +242,7 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     # PASSES
-    #@unittest.skip('temp for debugging')
+    # @unittest.skip('temp for debugging')
     def test_chunker(self):
         """
         Tests the chunker
@@ -236,7 +262,7 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, VALID_CONFIG)
 
-    # FIXME THIS NEEDS TO GOT THE CONFIG DATA TOO
+    # PASSES
     #@unittest.skip('temp for debugging')
     def test_got_data(self):
         """
@@ -249,10 +275,11 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
-        self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
+        # self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
+        self.assert_particle_published(driver, VALID_CONFIG, self.assert_particle_config, True)
 
     # PASSES
-    #@unittest.skip('temp for debugging')
+    # @unittest.skip('temp for debugging')
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -272,7 +299,7 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
     # PASSES
-    #@unittest.skip('temp for debugging')
+    # @unittest.skip('temp for debugging')
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -295,392 +322,527 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_capabilities(driver, capabilities)
 
 
+###############################################################################
+#                            INTEGRATION TESTS                                #
+#     Integration test test the direct driver / instrument interaction        #
+#     but making direct calls via zeromq.                                     #
+#     - Common Integration tests test the driver through the instrument agent #
+#     and common for all drivers (minimum requirement for ION ingestion)      #
+###############################################################################
 @attr('INT', group='mi')
-class SatlanticProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
+    def setUp(self):
+        InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def check_state(self, expected_state):
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, expected_state)
-
-
-    def put_instrument_in_command_mode(self):
-        """Wrap the steps and asserts for going into command mode.
-           May be used in multiple test cases.
+    def test_commands(self):
         """
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(SatlanticProtocolState.UNKNOWN)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        # Test that the driver protocol is in state command.
-        self.check_state(SatlanticProtocolState.COMMAND)
-
-
-    def _start_stop_autosample(self):
-        """Wrap the steps and asserts for going into and out of auto sample.
-           May be used in multiple test cases.
+        Run instrument commands from command mode.
         """
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
+        self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        self.check_state(SatlanticProtocolState.AUTOSAMPLE)
+        #test commands, now that we are in command mode
+        #$mnu
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=MNU_REGEX)
+        #$met
+        self.assert_driver_command(ProtocolEvent.GET_METADATA, regex=MET_REGEX)
 
-        # @todo check samples arriving here
-        # @todo check publishing samples from here
+        #$run - testing putting instrument into autosample
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        #!!!!! - testing put instrument into command mode
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, regex=MNU_REGEX)
+        #$mvs - test running wiper
+        self.assert_driver_command(ProtocolEvent.RUN_WIPER, state=ProtocolState.COMMAND, regex=RUN_REGEX)
+        #test syncing clock
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
 
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-        self.check_state(SatlanticProtocolState.COMMAND)
-
-
-    def test_startup_configuration(self):
-        '''
-        Test that the startup configuration is applied correctly
-        '''
-        self.assert_initialize_driver()
-
-        result = self.driver_client.cmd_dvr('apply_startup_params')
-
-        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.MAXRATE])
-
-        self.assertEquals(reply, {Parameter.MAXRATE: 2})
-
-        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
-
-
-    def test_configuration(self):
+    def test_autosample(self):
         """
-        Test to configure the driver process for device comms and transition
-        to disconnected state.
+        Verify that we can enter streaming and that all particles are produced
+        properly.
+
+        Because we have to test for different data particles we can't use
+        the common assert_sample_autosample method
+
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to AUTOSAMPLE
+        3. verify the particle coming in
+        4. command the instrument to STOP AUTOSAMPLE state
+        5. verify the particle coming in
         """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.FLORTD_SAMPLE, self.assert_particle_sample, timeout=10)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_async_particle_generation(DataParticleType.FLORTD_MNU, self.assert_particle_mnu, timeout=10)
 
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Re-Initialize the driver and transition to unconfigured.
-        self.driver_client.cmd_dvr('initialize')
-
-        # Test that the driver returned to state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-    def test_connect_disconnect(self):
+    def test_parameters(self):
         """
-        Test configuring and connecting to the device through the port
-        agent. Discover device state.  Then disconnect and re-initialize
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set read/write parameters w/direct access only
         """
-        self.assert_initialize_driver()
-
-        return
-        # Stop comms and transition to disconnected.
-        self.driver_client.cmd_dvr('disconnect')
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Re-Initialize the driver and transition to unconfigured.
-        self.driver_client.cmd_dvr('initialize')
-
-        # Test that the driver returned to state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-    def test_get(self):
-        # FIXME: THIS NEEDS TO BE UPDATED
-        self.put_instrument_in_command_mode()
-
-        params = {
-                   Parameter.MAXRATE: 1,
-                   Parameter.FIRMWARE: "1.0.0",
-                   Parameter.SERIAL: "0226",
-                   Parameter.INSTRUMENT: "SATPAR"
-        }
-
-        reply = self.driver_client.cmd_dvr('get_resource',
-                                           params.keys(),
-                                           timeout=20)
-
-        self.assertEquals(reply, params)
-
-        self.assertRaises(InstrumentCommandException,
-                          self.driver_client.cmd_dvr,
-                          'bogus', [Parameter.MAXRATE])
-
-        # Assert get fails without a parameter.
-        self.assertRaises(InstrumentParameterException,
-                          self.driver_client.cmd_dvr, 'get_resource')
-
-        # Assert get fails with a bad parameter (not ALL or a list).
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = 'I am a bogus param list.'
-            self.driver_client.cmd_dvr('get_resource', bogus_params)
-
-        # Assert get fails with a bad parameter in a list).
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = [
-                'a bogus parameter name',
-                Parameter.MAXRATE
-                ]
-            self.driver_client.cmd_dvr('get_resource', bogus_params)
-
-    def test_set(self):
-        config_key = Parameter.MAXRATE
-        value_A = 12
-        value_B = 1
-        config_A = {config_key:value_A}
-        config_B = {config_key:value_B}
-
-        self.put_instrument_in_command_mode()
-
-        reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=20)
-        self.assertEquals(reply[config_key], value_A)
-
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
-        self.assertEquals(reply, config_A)
-
-        reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=20)
-        self.assertEquals(reply[config_key], value_B)
-
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
-        self.assertEquals(reply, config_B)
-
-        # Assert we cannot set a bogus parameter.
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = {
-                'a bogus parameter name' : 'bogus value'
-            }
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
-
-        # Assert we cannot set a real parameter to a bogus value.
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = {
-                Parameter.MAXRATE : 'bogus value'
-            }
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
-
-    def test_error_conditions(self):
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Assert we forgot the comms parameter.
-        self.assertRaises(InstrumentParameterException,
-                          self.driver_client.cmd_dvr, 'configure')
-
-        # Assert we send a bad config object (not a dict).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = 'not a config dict'
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-
-        # Assert we send a bad config object (missing addr value).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = self.port_agent_comm_config().copy()
-            BOGUS_CONFIG.pop('addr')
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-
-        # Assert we send a bad config object (bad addr value).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = self.port_agent_comm_config().copy()
-            BOGUS_CONFIG['addr'] = ''
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Assert for a known command, invalid state.
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(SatlanticProtocolState.UNKNOWN)
-
-        # Assert for a known command, invalid state.
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        # Test that the driver protocol is in state command.
-        self.check_state(SatlanticProtocolState.COMMAND)
-
-        # tests when driver is in command mode
-        # Test a bad driver command
-        self.assertRaises(InstrumentCommandException,
-                          self.driver_client.cmd_dvr, 'bogus_command')
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'connect')
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.RESET)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_POLL)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.EXECUTE_DIRECT)
-
-        # tests when driver is in auto-sample mode
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
-        self.check_state(SatlanticProtocolState.AUTOSAMPLE)
-
-        # Test a bad driver command
-        self.assertRaises(InstrumentCommandException,
-                          self.driver_client.cmd_dvr, 'bogus_command')
-
-        # Test get from wrong state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
-
-        # Test set from wrong state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
-
-        # test commands for invalid state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.EXECUTE_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_POLL)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
-
-        # tests when driver is in poll mode
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_POLL)
-        self.check_state(SatlanticProtocolState.POLL)
-
-        # Test a bad driver command
-        self.assertRaises(InstrumentCommandException,
-                          self.driver_client.cmd_dvr, 'bogus_command')
-
-        # Test get from wrong state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
-
-        # Test set from wrong state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
-
-        # test commands for invalid state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.EXECUTE_DIRECT)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_POLL)
-
-
-    def test_stop_from_slow_autosample(self):
-        # test break from autosample at low data rates
-        self.put_instrument_in_command_mode()
-
-        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
-
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
-        #time.sleep(5)
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
-        self.check_state(SatlanticProtocolState.COMMAND)
-
-
-    def test_stop_from_fast_autosample(self):
-        # test break from autosample at high data rates
-        self.put_instrument_in_command_mode()
-
-        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:12}, timeout=20)
-
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
-        #time.sleep(5)
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
-        self.check_state(SatlanticProtocolState.COMMAND)
-        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
-
-
-
-    def test_start_stop_autosample(self):
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        #test read/write parameter
+        self.assert_set(Parameter.MEASUREMENTS_PER_REPORTED, 20)
+
+        #test setting immutable parameters when startup
+        #NOTE: this does not use the startup config because setting a combination of parameters from their default
+        #values will cause the instrument to no longer break out of autosample mode.  This is a safe way to test
+        #setting startup params without the risk of going into autosample mode.
+        self.assert_set(Parameter.MEASUREMENTS_PER_PACKET, 18, startup=True, no_get=True)
+        self.assert_get(Parameter.MEASUREMENTS_PER_PACKET, 18)
+
+        self.assert_set(Parameter.PREDEFINED_OUTPUT_SEQ, 3, startup=True, no_get=True)
+        self.assert_get(Parameter.PREDEFINED_OUTPUT_SEQ, 3)
+
+        self.assert_set(Parameter.PACKETS_PER_SET, 10, startup=True, no_get=True)
+        self.assert_get(Parameter.PACKETS_PER_SET, 10)
+
+        self.assert_set(Parameter.RECORDING_MODE, 1, startup=True, no_get=True)
+        self.assert_get(Parameter.RECORDING_MODE, 1)
+
+        self.assert_set(Parameter.MANUAL_MODE, 1, startup=True, no_get=True)
+        self.assert_get(Parameter.MANUAL_MODE, 1)
+
+        self.assert_set(Parameter.RUN_WIPER_INTERVAL, '05:00:23', startup=True, no_get=True)
+        self.assert_get(Parameter.RUN_WIPER_INTERVAL, '05:00:23')
+
+        self.assert_set(Parameter.RUN_CLOCK_SYNC_INTERVAL, '12:00:00', startup=True, no_get=True)
+        self.assert_get(Parameter.RUN_CLOCK_SYNC_INTERVAL, '12:00:00')
+
+        self.assert_set(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, '00:00:30', startup=True, no_get=True)
+        self.assert_get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, '00:00:30')
+
+        #test read only parameter (includes immutable, when not startup)- should not be set, value should not change
+        self.assert_set_exception(Parameter.SERIAL_NUM, '12.123.1234')
+        self.assert_set_exception(Parameter.FIRMWARE_VERSION, 'VER123')
+        self.assert_set_exception(Parameter.MEASUREMENTS_PER_PACKET, 16)
+        self.assert_set_exception(Parameter.MEASUREMENT_1_DARK_COUNT, 10)
+        self.assert_set_exception(Parameter.MEASUREMENT_2_DARK_COUNT, 20)
+        self.assert_set_exception(Parameter.MEASUREMENT_3_DARK_COUNT, 30)
+        self.assert_set_exception(Parameter.MEASUREMENT_1_SLOPE, 12.00)
+        self.assert_set_exception(Parameter.MEASUREMENT_2_SLOPE, 13.00)
+        self.assert_set_exception(Parameter.MEASUREMENT_3_SLOPE, 14.00)
+        self.assert_set_exception(Parameter.PREDEFINED_OUTPUT_SEQ, 0)
+        self.assert_set_exception(Parameter.BAUD_RATE, 2422)
+        self.assert_set_exception(Parameter.PACKETS_PER_SET, 0)
+        self.assert_set_exception(Parameter.RECORDING_MODE, 0)
+        self.assert_set_exception(Parameter.MANUAL_MODE, 0)
+        self.assert_set_exception(Parameter.SAMPLING_INTERVAL, "003000")
+        self.assert_set_exception(Parameter.DATE, get_timestamp_delayed("%m/%d/%y"))
+        self.assert_set_exception(Parameter.TIME, get_timestamp_delayed("%H:%M:%S"))
+        self.assert_set_exception(Parameter.MANUAL_START_TIME, "15:10:45")
+        self.assert_set_exception(Parameter.INTERNAL_MEMORY, 512)
+        self.assert_set_exception(Parameter.RUN_WIPER_INTERVAL, "00:00:00")
+        self.assert_set_exception(Parameter.RUN_CLOCK_SYNC_INTERVAL, "00:00:00")
+        self.assert_set_exception(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:00")
+
+    def test_direct_access(self):
         """
-        Test moving into and out of autosample, gathering some data, and
-        seeing it published
-        @todo check the publishing, integrate this with changes in march 2012
+        Verify we can enter the direct access state
         """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
 
-        self.put_instrument_in_command_mode()
-        self._start_stop_autosample()
-
-
-    def test_start_stop_poll(self):
-        self.put_instrument_in_command_mode()
-
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_POLL)
-        self.check_state(SatlanticProtocolState.POLL)
-        time.sleep(2)
-
-        # Already in poll mode, so this shouldn't give us anything
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_POLL)
-
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
-
-        # @todo check samples arriving here
-        # @todo check publishing samples from here
-
-        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_POLL)
-        self.check_state(SatlanticProtocolState.COMMAND)
-
-
-
-
-    @unittest.skip('Need to write this test')
-    def test_reset(self):
-        pass
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        log.debug('leaving direct access')
+# @attr('INT', group='mi')
+# class SatlanticProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
+#
+#     def check_state(self, expected_state):
+#         state = self.driver_client.cmd_dvr('get_resource_state')
+#         self.assertEqual(state, expected_state)
+#
+#
+#     def put_instrument_in_command_mode(self):
+#         """Wrap the steps and asserts for going into command mode.
+#            May be used in multiple test cases.
+#         """
+#         # Test that the driver is in state unconfigured.
+#         self.check_state(DriverConnectionState.UNCONFIGURED)
+#
+#         # Configure driver and transition to disconnected.
+#         self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+#
+#         # Test that the driver is in state disconnected.
+#         self.check_state(DriverConnectionState.DISCONNECTED)
+#
+#         # Setup the protocol state machine and the connection to port agent.
+#         self.driver_client.cmd_dvr('connect')
+#
+#         # Test that the driver protocol is in state unknown.
+#         self.check_state(SatlanticProtocolState.UNKNOWN)
+#
+#         # Discover what state the instrument is in and set the protocol state accordingly.
+#         self.driver_client.cmd_dvr('discover_state')
+#
+#         # Test that the driver protocol is in state command.
+#         self.check_state(SatlanticProtocolState.COMMAND)
+#
+#
+#     def _start_stop_autosample(self):
+#         """Wrap the steps and asserts for going into and out of auto sample.
+#            May be used in multiple test cases.
+#         """
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
+#
+#         self.check_state(SatlanticProtocolState.AUTOSAMPLE)
+#
+#         # @todo check samples arriving here
+#         # @todo check publishing samples from here
+#
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
+#
+#         self.check_state(SatlanticProtocolState.COMMAND)
+#
+#
+#     def test_startup_configuration(self):
+#         '''
+#         Test that the startup configuration is applied correctly
+#         '''
+#         self.assert_initialize_driver()
+#
+#         result = self.driver_client.cmd_dvr('apply_startup_params')
+#
+#         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.MAXRATE])
+#
+#         self.assertEquals(reply, {Parameter.MAXRATE: 2})
+#
+#         reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
+#
+#
+#     def test_configuration(self):
+#         """
+#         Test to configure the driver process for device comms and transition
+#         to disconnected state.
+#         """
+#
+#         # Test that the driver is in state unconfigured.
+#         self.check_state(DriverConnectionState.UNCONFIGURED)
+#
+#         # Configure driver and transition to disconnected.
+#         self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+#
+#         # Test that the driver is in state disconnected.
+#         self.check_state(DriverConnectionState.DISCONNECTED)
+#
+#         # Re-Initialize the driver and transition to unconfigured.
+#         self.driver_client.cmd_dvr('initialize')
+#
+#         # Test that the driver returned to state unconfigured.
+#         self.check_state(DriverConnectionState.UNCONFIGURED)
+#
+#     def test_connect_disconnect(self):
+#         """
+#         Test configuring and connecting to the device through the port
+#         agent. Discover device state.  Then disconnect and re-initialize
+#         """
+#         self.assert_initialize_driver()
+#
+#         return
+#         # Stop comms and transition to disconnected.
+#         self.driver_client.cmd_dvr('disconnect')
+#
+#         # Test that the driver is in state disconnected.
+#         self.check_state(DriverConnectionState.DISCONNECTED)
+#
+#         # Re-Initialize the driver and transition to unconfigured.
+#         self.driver_client.cmd_dvr('initialize')
+#
+#         # Test that the driver returned to state unconfigured.
+#         self.check_state(DriverConnectionState.UNCONFIGURED)
+#
+#     def test_get(self):
+#         # FIXME: THIS NEEDS TO BE UPDATED
+#         self.put_instrument_in_command_mode()
+#
+#         params = {
+#                    Parameter.MAXRATE: 1,
+#                    Parameter.FIRMWARE: "1.0.0",
+#                    Parameter.SERIAL: "0226",
+#                    Parameter.INSTRUMENT: "SATPAR"
+#         }
+#
+#         reply = self.driver_client.cmd_dvr('get_resource',
+#                                            params.keys(),
+#                                            timeout=20)
+#
+#         self.assertEquals(reply, params)
+#
+#         self.assertRaises(InstrumentCommandException,
+#                           self.driver_client.cmd_dvr,
+#                           'bogus', [Parameter.MAXRATE])
+#
+#         # Assert get fails without a parameter.
+#         self.assertRaises(InstrumentParameterException,
+#                           self.driver_client.cmd_dvr, 'get_resource')
+#
+#         # Assert get fails with a bad parameter (not ALL or a list).
+#         with self.assertRaises(InstrumentParameterException):
+#             bogus_params = 'I am a bogus param list.'
+#             self.driver_client.cmd_dvr('get_resource', bogus_params)
+#
+#         # Assert get fails with a bad parameter in a list).
+#         with self.assertRaises(InstrumentParameterException):
+#             bogus_params = [
+#                 'a bogus parameter name',
+#                 Parameter.MAXRATE
+#                 ]
+#             self.driver_client.cmd_dvr('get_resource', bogus_params)
+#
+#     def test_set(self):
+#         config_key = Parameter.MAXRATE
+#         value_A = 12
+#         value_B = 1
+#         config_A = {config_key:value_A}
+#         config_B = {config_key:value_B}
+#
+#         self.put_instrument_in_command_mode()
+#
+#         reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=20)
+#         self.assertEquals(reply[config_key], value_A)
+#
+#         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
+#         self.assertEquals(reply, config_A)
+#
+#         reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=20)
+#         self.assertEquals(reply[config_key], value_B)
+#
+#         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
+#         self.assertEquals(reply, config_B)
+#
+#         # Assert we cannot set a bogus parameter.
+#         with self.assertRaises(InstrumentParameterException):
+#             bogus_params = {
+#                 'a bogus parameter name' : 'bogus value'
+#             }
+#             self.driver_client.cmd_dvr('set_resource', bogus_params)
+#
+#         # Assert we cannot set a real parameter to a bogus value.
+#         with self.assertRaises(InstrumentParameterException):
+#             bogus_params = {
+#                 Parameter.MAXRATE : 'bogus value'
+#             }
+#             self.driver_client.cmd_dvr('set_resource', bogus_params)
+#
+#     def test_error_conditions(self):
+#         # Test that the driver is in state unconfigured.
+#         self.check_state(DriverConnectionState.UNCONFIGURED)
+#
+#         # Assert we forgot the comms parameter.
+#         self.assertRaises(InstrumentParameterException,
+#                           self.driver_client.cmd_dvr, 'configure')
+#
+#         # Assert we send a bad config object (not a dict).
+#         with self.assertRaises(InstrumentParameterException):
+#             BOGUS_CONFIG = 'not a config dict'
+#             self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+#
+#         # Assert we send a bad config object (missing addr value).
+#         with self.assertRaises(InstrumentParameterException):
+#             BOGUS_CONFIG = self.port_agent_comm_config().copy()
+#             BOGUS_CONFIG.pop('addr')
+#             self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+#
+#         # Assert we send a bad config object (bad addr value).
+#         with self.assertRaises(InstrumentParameterException):
+#             BOGUS_CONFIG = self.port_agent_comm_config().copy()
+#             BOGUS_CONFIG['addr'] = ''
+#             self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+#
+#         # Configure driver and transition to disconnected.
+#         self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+#
+#         # Test that the driver is in state disconnected.
+#         self.check_state(DriverConnectionState.DISCONNECTED)
+#
+#         # Assert for a known command, invalid state.
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
+#
+#         # Setup the protocol state machine and the connection to port agent.
+#         self.driver_client.cmd_dvr('connect')
+#
+#         # Test that the driver protocol is in state unknown.
+#         self.check_state(SatlanticProtocolState.UNKNOWN)
+#
+#         # Assert for a known command, invalid state.
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
+#
+#         # Discover what state the instrument is in and set the protocol state accordingly.
+#         self.driver_client.cmd_dvr('discover_state')
+#
+#         # Test that the driver protocol is in state command.
+#         self.check_state(SatlanticProtocolState.COMMAND)
+#
+#         # tests when driver is in command mode
+#         # Test a bad driver command
+#         self.assertRaises(InstrumentCommandException,
+#                           self.driver_client.cmd_dvr, 'bogus_command')
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'connect')
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.RESET)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_POLL)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.EXECUTE_DIRECT)
+#
+#         # tests when driver is in auto-sample mode
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
+#         self.check_state(SatlanticProtocolState.AUTOSAMPLE)
+#
+#         # Test a bad driver command
+#         self.assertRaises(InstrumentCommandException,
+#                           self.driver_client.cmd_dvr, 'bogus_command')
+#
+#         # Test get from wrong state
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
+#
+#         # Test set from wrong state
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
+#
+#         # test commands for invalid state
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.EXECUTE_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_POLL)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
+#
+#         # tests when driver is in poll mode
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_POLL)
+#         self.check_state(SatlanticProtocolState.POLL)
+#
+#         # Test a bad driver command
+#         self.assertRaises(InstrumentCommandException,
+#                           self.driver_client.cmd_dvr, 'bogus_command')
+#
+#         # Test get from wrong state
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
+#
+#         # Test set from wrong state
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
+#
+#         # test commands for invalid state
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.EXECUTE_DIRECT)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
+#
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_POLL)
+#
+#
+#     def test_stop_from_slow_autosample(self):
+#         # test break from autosample at low data rates
+#         self.put_instrument_in_command_mode()
+#
+#         self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
+#
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
+#         #time.sleep(5)
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
+#         self.check_state(SatlanticProtocolState.COMMAND)
+#
+#
+#     def test_stop_from_fast_autosample(self):
+#         # test break from autosample at high data rates
+#         self.put_instrument_in_command_mode()
+#
+#         self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:12}, timeout=20)
+#
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_AUTOSAMPLE)
+#         #time.sleep(5)
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_AUTOSAMPLE)
+#         self.check_state(SatlanticProtocolState.COMMAND)
+#         self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
+#
+#
+#
+#     def test_start_stop_autosample(self):
+#         """
+#         Test moving into and out of autosample, gathering some data, and
+#         seeing it published
+#         @todo check the publishing, integrate this with changes in march 2012
+#         """
+#
+#         self.put_instrument_in_command_mode()
+#         self._start_stop_autosample()
+#
+#
+#     def test_start_stop_poll(self):
+#         self.put_instrument_in_command_mode()
+#
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_POLL)
+#         self.check_state(SatlanticProtocolState.POLL)
+#         time.sleep(2)
+#
+#         # Already in poll mode, so this shouldn't give us anything
+#         self.assertRaises(InstrumentStateException,
+#                           self.driver_client.cmd_dvr, 'execute_resource', SatlanticProtocolEvent.START_POLL)
+#
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.ACQUIRE_SAMPLE)
+#
+#         # @todo check samples arriving here
+#         # @todo check publishing samples from here
+#
+#         self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_POLL)
+#         self.check_state(SatlanticProtocolState.COMMAND)
+#
+#
+#
+#
+#     @unittest.skip('Need to write this test')
+#     def test_reset(self):
+#         pass
 
 
 @attr('UNIT', group='mi')

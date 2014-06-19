@@ -44,21 +44,21 @@ from mi.instrument.satlantic.ocr_507_icsw.driver import SatlanticInstrumentProto
 
 SAMPLE_PATTERN = r'(?P<instrument_id>SATDI7)(?P<serial_number>\d{4})(?P<timer>\d{7}\.\d\d)(?P<binary_data>.{38})\r\n'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN, re.DOTALL)
-CONFIGURATION_PATTERN = '''Satlantic\ OCR.*?
-            Firmware\ version:\ (.*?)\s*
-            Instrument:\ (\w+)\s*
-            S\/N:\ (\w+).*?
-            Telemetry\ Baud\ Rate:\ (\d+)\ bps\s*
-            Maximum\ Frame\ Rate:\ (\d+)\ Hz\s*
-            Initialize\ Silent\ Mode:\ (off|on)\s*
-            Initialize\ Power\ Down:\ (off|on)\s*
-            Initialize\ Automatic\ Telemetry:\ (off|on)\s*
-            Network\ Mode:\ (off|on)\s*
-            Network\ Address:\ (\d+)\s*
-            Network\ Baud\ Rate:\ (\d+)\ bps.*?
+CONFIG_PATTERN = '''Satlantic\ OCR.*?
+            Firmware\ version:\ (?P<firmware_version>.*?)\s*
+            Instrument:\ (?P<instrument_id>\w+)\s*
+            S\/N:\ (?P<serial_number>\w+).*?
+            Telemetry\ Baud\ Rate:\ (?P<telemetry_baud_rate>\d+)\ bps\s*
+            Maximum\ Frame\ Rate:\ (?P<max_frame_rate>\d+)\ Hz\s*
+            Initialize\ Silent\ Mode:\ (?P<initialize_silent_mode>off|on)\s*
+            Initialize\ Power\ Down:\ (?P<initialize_power_down>off|on)\s*
+            Initialize\ Automatic\ Telemetry:\ (?P<initialize_auto_telemetry>off|on)\s*
+            Network\ Mode:\ (?P<network_mode>off|on)\s*
+            Network\ Address:\ (?P<network_address>\d+)\s*
+            Network\ Baud\ Rate:\ (?P<network_baud_rate>\d+)\ bps.*?
             \[Auto'''
 
-CONFIGURATION_REGEX = re.compile(CONFIGURATION_PATTERN, re.DOTALL | re.VERBOSE)
+CONFIG_REGEX = re.compile(CONFIG_PATTERN, re.DOTALL | re.VERBOSE)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
 init_regex = re.compile(init_pattern)
 WRITE_DELAY = 0.2
@@ -258,7 +258,7 @@ class SatlanticOCR507ConfigurationParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        match = CONFIGURATION_REGEX.match(self.raw_data)
+        match = CONFIG_REGEX.match(self.raw_data)
 
         if not match:
             raise SampleException("No regex match of parsed configuration data: [%s]" %
@@ -346,8 +346,9 @@ class SatlanticOCR507InstrumentProtocol(SatlanticInstrumentProtocol):
     possibly using better exceptions from the fsm.on_event() method
     """
     _data_particle_type = SatlanticOCR507DataParticle
+    _config_particle_type = SatlanticOCR507ConfigurationParticle
     _data_particle_regex = SAMPLE_REGEX
-    _configuration_regex = CONFIGURATION_REGEX
+    _config_particle_regex = CONFIG_REGEX
 
     @staticmethod
     def sieve_function(raw_data):
@@ -355,7 +356,7 @@ class SatlanticOCR507InstrumentProtocol(SatlanticInstrumentProtocol):
         """
         log.warn("Rawr Data: %r, len: %d", raw_data, len(raw_data))
         log.warn(SAMPLE_REGEX.pattern)
-        matchers = [SAMPLE_REGEX, CONFIGURATION_REGEX]
+        matchers = [SAMPLE_REGEX, CONFIG_REGEX]
         return_list = []
 
         for matcher in matchers:

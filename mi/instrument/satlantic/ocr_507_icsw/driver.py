@@ -1099,21 +1099,27 @@ class SatlanticInstrumentProtocol(CommandResponseInstrumentProtocol):
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
         '''
-        self._extract_sample(getattr(self, '_data_particle_type'), getattr(self, '_data_particle_regex'), chunk, timestamp)
-        self._extract_header(chunk)
+        sample = self._extract_sample(self._data_particle_type, self._data_particle_regex, chunk, timestamp) or \
+            self._extract_sample(self._config_particle_type, self._config_particle_regex, chunk, timestamp)
+        if sample:
+            return sample
 
-    def _extract_header(self, chunk):
-        '''
-        Extract key parameters from the instrument header streamed on reset.  This method
-        caches the values internally in the protocol and return with get_resource calls.
-        @param chunk: header bytes from the instrument.
-        @return:
-        '''
-        match = HEADER_REGEX.match(chunk)
-        if match:
-            self._instrument = match.group(1)
-            self._serial = match.group(2)
-            self._firmware = match.group(3)
+        return InstrumentProtocolException(u'unhandled chunk received by _got_chunk: [{0!r:s}]'.format(chunk))
+
+        # self._extract_header(chunk)
+
+    # def _extract_header(self, chunk):
+    #     '''
+    #     Extract key parameters from the instrument header streamed on reset.  This method
+    #     caches the values internally in the protocol and return with get_resource calls.
+    #     @param chunk: header bytes from the instrument.
+    #     @return:
+    #     '''
+    #     match = HEADER_REGEX.match(chunk)
+    #     if match:
+    #         self._instrument = match.group(1)
+    #         self._serial = match.group(2)
+    #         self._firmware = match.group(3)
 
 
     def _confirm_autosample_mode(self):
