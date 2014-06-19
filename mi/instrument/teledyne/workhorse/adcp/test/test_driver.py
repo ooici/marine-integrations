@@ -53,7 +53,7 @@ from mi.instrument.teledyne.workhorse.adcp.driver import Protocol
 
 from mi.instrument.teledyne.workhorse.adcp.driver import ProtocolState
 # ##
-#   Driver parameters for tests
+# Driver parameters for tests
 ###
 
 InstrumentDriverTestCase.initialize(
@@ -280,11 +280,11 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3"},
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7"},
         ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode,
-                                                             'value' : u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" + \
-                                                                      "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" + \
-                                                                      "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" + \
-                                                                      "82  00 00 06 FF 23 E5  09 CPU727-2011-00E\n" + \
-                                                                      "07  00 00 06 F6 05 15  09 TUN727-1005-06A\n" + \
+                                                             'value': u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" +
+                                                                      "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" +
+                                                                      "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" +
+                                                                      "82  00 00 06 FF 23 E5  09 CPU727-2011-00E\n" +
+                                                                      "07  00 00 06 F6 05 15  09 TUN727-1005-06A\n" +
                                                                       "DB  00 00 06 F5 CB 5D  09 DSP727-2001-06H"}
     }
 
@@ -396,7 +396,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.LEVEL_7_INTERRUPT: {'type': int, 'value': 0},
         ADCP_PD0_PARSED_KEY.ABSOLUTE_PRESSURE: {'type': int, 'value': 4294963793},
         ADCP_PD0_PARSED_KEY.PRESSURE_VARIANCE: {'type': int, 'value': 0},
-        ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP: {'type': float, 'value': 1363408382.02},
         ADCP_PD0_PARSED_KEY.VELOCITY_DATA_ID: {'type': int, 'value': 1},
         ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_ID: {'type': int, 'value': 2},
         ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_BEAM1: {'type': list,
@@ -617,7 +616,7 @@ class ADCPTMixin(DriverTestMixin):
     def assert_sample_data_particle(self, data_particle):
         """
         Verify a particle is a know particle to this driver and verify the particle is  correct
-        @param data_particle: Data particle of unkown type produced by the driver
+        @param data_particle: Data particle of unknown type produced by the driver
         """
 
         if isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM):
@@ -787,7 +786,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
 
         self.assert_enum_has_no_duplicates(InstrumentCmds())
@@ -886,6 +885,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
+    # Test parameter settings
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
@@ -968,7 +968,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_sample_autosample(self.assert_particle_pd0_data_earth, DataParticleType.ADCP_PD0_PARSED_EARTH)
 
     # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
-    # Before testin it, remove the readOnly
+    # Before testing it, remove the readOnly
     def _test_autosample_beam(self):
         """
         Verify autosample works and data particles are created
