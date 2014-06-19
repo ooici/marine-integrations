@@ -75,7 +75,7 @@ class DofstKWfpDataSetDriver(MultipleHarvesterDataSetDriver):
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dofst_k_wfp_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'instrument_data_particle_class': DofstKWfpRecoveredDataParticle,
                     'metadata_particle_class': DofstKWfpRecoveredMetadataParticle
                 }
@@ -97,7 +97,7 @@ class DofstKWfpDataSetDriver(MultipleHarvesterDataSetDriver):
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dofst_k_wfp_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-                'particle_classes_dict': {
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     'instrument_data_particle_class': DofstKWfpTelemeteredDataParticle,
                     'metadata_particle_class': DofstKWfpTelemeteredMetadataParticle
                 }
