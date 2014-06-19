@@ -70,7 +70,7 @@ from pyon.agent.agent import ResourceAgentEvent
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.ocr_507_icsw.ooicore.driver',
-    driver_class="SPKIR-ADriver",
+    driver_class="SatlanticOCR507InstrumentDriver",
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_preload_id = 'IA2',
@@ -78,9 +78,11 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            # TODO: Startup params go here
-            #SBE37Parameter.INTERVAL: 1,
-        },
+            Parameter.MAX_RATE: '4',
+            Parameter.INIT_SM: 'True',
+            Parameter.INIT_AT: 'True',
+            Parameter.NET_MODE: 'False'
+        }
     }
 )
 #
@@ -331,9 +333,13 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
+    # TODO
+    # @unittest.skip('temp for debugging')
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    # TODO
+    @unittest.skip('temp for debugging')
     def test_commands(self):
         """
         Run instrument commands from command mode.
@@ -360,6 +366,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
+    # TODO
+    @unittest.skip('temp for debugging')
     def test_autosample(self):
         """
         Verify that we can enter streaming and that all particles are produced
@@ -380,6 +388,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_async_particle_generation(DataParticleType.FLORTD_MNU, self.assert_particle_mnu, timeout=10)
 
+    # TODO
+    @unittest.skip('temp for debugging')
     def test_parameters(self):
         """
         Verify that we can set the parameters
@@ -445,6 +455,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
         self.assert_set_exception(Parameter.RUN_CLOCK_SYNC_INTERVAL, "00:00:00")
         self.assert_set_exception(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:00")
 
+    # TODO
+    @unittest.skip('temp for debugging')
     def test_direct_access(self):
         """
         Verify we can enter the direct access state

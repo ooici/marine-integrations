@@ -392,6 +392,7 @@ class SatlanticInstrumentProtocol(CommandResponseInstrumentProtocol):
         events_out = [x for x in events if SatlanticCapability.has(x)]
         return events_out
 
+    # TODO Is this sufficient?
     def get_config(self, *args, **kwargs):
         """ Get the entire configuration for the instrument
         
@@ -400,14 +401,14 @@ class SatlanticInstrumentProtocol(CommandResponseInstrumentProtocol):
         Should be a dict of parameters and values
         @throws InstrumentProtocolException On invalid parameter
         """
-        config = self._protocol_fsm.on_event(SatlanticProtocolEvent.GET, [Parameter.MAXRATE], **kwargs)
+        config = self._protocol_fsm.on_event(SatlanticProtocolEvent.GET, [Parameter.MAX_RATE], **kwargs)
         assert (isinstance(config, dict))
-        assert (config.has_key(Parameter.MAXRATE))
+        assert (config.has_key(Parameter.MAX_RATE))
         
         # Make sure we get these
         # TODO: endless loops seem like really bad idea
-        while config[Parameter.MAXRATE] == InstErrorCode.HARDWARE_ERROR:
-            config[Parameter.MAXRATE] = self._protocol_fsm.on_event(SatlanticProtocolEvent.GET, [Parameter.MAXRATE])
+        while config[Parameter.MAX_RATE] == InstErrorCode.HARDWARE_ERROR:
+            config[Parameter.MAX_RATE] = self._protocol_fsm.on_event(SatlanticProtocolEvent.GET, [Parameter.MAX_RATE])
   
         return config
         
@@ -515,7 +516,7 @@ class SatlanticInstrumentProtocol(CommandResponseInstrumentProtocol):
         # All parameters that can be set by the instrument.  Explicitly
         # excludes parameters from the instrument header.
         if (params == DriverParameter.ALL):
-            params = [Parameter.MAXRATE]
+            params = [Parameter.MAX_RATE]
 
         if ((params == None) or (not isinstance(params, list))):
                 raise InstrumentParameterException()
@@ -524,7 +525,7 @@ class SatlanticInstrumentProtocol(CommandResponseInstrumentProtocol):
             if not Parameter.has(param):
                 raise InstrumentParameterException()
 
-            if(param == Parameter.MAXRATE):
+            if(param == Parameter.MAX_RATE):
                 result_vals[param] = self._get_from_instrument(param)
             else:
                 result_vals[param] = self._get_from_cache(param)
@@ -1133,7 +1134,7 @@ class SatlanticInstrumentProtocol(CommandResponseInstrumentProtocol):
         # timestamp now,
         start_time = self._last_data_timestamp
         # wait a sample period,
-        time_between_samples = (1/self._param_dict.get_config()[Parameter.MAXRATE])+1
+        time_between_samples = (1/self._param_dict.get_config()[Parameter.MAX_RATE])+1
         time.sleep(time_between_samples)
         end_time = self._last_data_timestamp
         log.debug("_confirm_autosample_mode: end_time=%s, start_time=%s" %(end_time, start_time))
