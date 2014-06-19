@@ -2163,63 +2163,6 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
         self.assert_get_parameter(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
 
-    # # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
-    # # Before testing it, remove the readOnly
-    # def _test_autosample_earth(self):
-    #
-    #     #Verify autosample works and data particles are created
-    #     #NOTE: If TG is set autosample behaves odd...
-    #
-    #     self.assert_enter_command_mode()
-    #     #self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '11111')
-    #     self.assert_start_autosample()
-    #     self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data_earth,
-    #                                timeout=140)
-    #
-    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
-    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
-    #     self.assert_stop_autosample()
-    #
-    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
-    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
-    #
-    #     # Restart autosample and gather a couple samples
-    #     self.assert_sample_autosample(self.assert_particle_pd0_data_earth, DataParticleType.ADCP_PD0_PARSED_EARTH)
-    #
-    # # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
-    # # Before testing it, remove the readOnly
-    # def _test_autosample_beam(self):
-    #
-    #     """
-    #     Verify autosample works and data particles are created
-    #     """
-    #     self.assert_enter_command_mode()
-    #     self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '00111')
-    #     self.assert_start_autosample()
-    #
-    #     self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data,
-    #                                timeout=50)  # ADCP_PD0_PARSED_BEAM
-    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
-    #
-    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
-    #
-    #     # Stop autosample and do run a couple commands.
-    #     self.assert_stop_autosample()
-    #
-    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
-    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
-    #
-    #     # Restart autosample and gather a couple samples
-    #     self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM)
-
     def assert_cycle(self):
         self.assert_start_autosample()
 
