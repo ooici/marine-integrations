@@ -12,20 +12,30 @@ from StringIO import StringIO
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.core.instrument.data_particle import DataParticleKey
+from mi.dataset.driver.WFP_ENG.STC_IMODEM.driver import DataTypeKey
 from mi.dataset.parser.WFP_E_file_common import StateKey
-from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodemParser
-from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_startParserDataParticle
-from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_engineeringParserDataParticle
-from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_statusParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import WfpEngStcImodemParser
+from mi.dataset.parser.wfp_eng__stc_imodem_particles import WfpEngStcImodemStartRecoveredDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem_particles import WfpEngStcImodemStatusRecoveredDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem_particles import WfpEngStcImodemEngineeringRecoveredDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem_particles import WfpEngStcImodemStartTelemeteredDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem_particles import WfpEngStcImodemStatusTelemeteredDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem_particles import WfpEngStcImodemEngineeringTelemeteredDataParticle
+
+import os
+from mi.idk.config import Config
+
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'WFP_ENG', 'wfp', 'resource')
+
 
 @attr('UNIT', group='mi')
-class Wfp_eng__stc_imodemParserUnitTestCase(ParserUnitTestCase):
+class WfpEngStcImodemParserUnitTestCase(ParserUnitTestCase):
     """
     Wfp_eng__stc_imodem Parser unit test suite
     """
@@ -84,57 +94,92 @@ class Wfp_eng__stc_imodemParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng__stc_imodem',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: ['Wfp_eng__stc_imodem_statusParserDataParticle',
-                                                     'Wfp_eng__stc_imodem_startParserDataParticle',
-                                                     'Wfp_eng__stc_imodem_engineeringParserDataParticle']
-            }
+            DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng__stc_imodem_particles',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    'status_data_particle_class': WfpEngStcImodemStatusRecoveredDataParticle,
+                    'start_data_particle_class': WfpEngStcImodemStartRecoveredDataParticle,
+                    'engineering_data_particle_class': WfpEngStcImodemEngineeringRecoveredDataParticle
+                }
+            },
+            DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wfp_eng__stc_imodem_particles',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    'status_data_particle_class': WfpEngStcImodemStatusTelemeteredDataParticle,
+                    'start_data_particle_class': WfpEngStcImodemStartTelemeteredDataParticle,
+                    'engineering_data_particle_class': WfpEngStcImodemEngineeringTelemeteredDataParticle
+                }
+            },
+        }
 
-	self.start_state = {StateKey.POSITION: 0}
+        self.start_state = {StateKey.POSITION: 0}
 
-        # Define test data particles and their associated timestamps which will be 
+        # Define test data particles and their associated timestamps which will be
         # compared with returned results
-        self.timestamp1_time = self.timestamp_to_ntp('R\x9d\xac\x19')
-        self.particle_a_time = Wfp_eng__stc_imodem_startParserDataParticle(b'\x00\x01\x00\x00' \
-            '\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00R\x9d\xab\xa2R\x9d\xac\x19',
-              internal_timestamp=self.timestamp1_time)
+        timestamp1_time = self.timestamp_to_ntp('R\x9d\xac\x19')
+        self.particle_a_start_time_recov = WfpEngStcImodemStartRecoveredDataParticle(
+            b'\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00R\x9d\xab\xa2R\x9d\xac\x19',
+            internal_timestamp=timestamp1_time)
+        self.particle_a_start_time_telem = WfpEngStcImodemStartTelemeteredDataParticle(
+            b'\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00R\x9d\xab\xa2R\x9d\xac\x19',
+            internal_timestamp=timestamp1_time)
 
-        self.timestamp1_eng = self.timestamp_to_ntp('R\x9d\xac\x1d')
-        self.particle_a_eng = Wfp_eng__stc_imodem_engineeringParserDataParticle(b'R\x9d\xac\x1d' \
-            '\x00\x00\x00\x00A:6\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x01\x03\x00h\x00N',
-            internal_timestamp=self.timestamp1_eng)
+        timestamp1_eng = self.timestamp_to_ntp('R\x9d\xac\x1d')
+        self.particle_a_eng_recov = WfpEngStcImodemEngineeringRecoveredDataParticle(
+            b'R\x9d\xac\x1d\x00\x00\x00\x00A:6\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x01\x03\x00h\x00N',
+            internal_timestamp=timestamp1_eng)
+        self.particle_a_eng_telem = WfpEngStcImodemEngineeringTelemeteredDataParticle(
+            b'R\x9d\xac\x1d\x00\x00\x00\x00A:6\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x01\x03\x00h\x00N',
+            internal_timestamp=timestamp1_eng)
 
-        self.timestamp2_eng = self.timestamp_to_ntp('R\x9d\xac!')
-        self.particle_b_eng = Wfp_eng__stc_imodem_engineeringParserDataParticle(b'R\x9d\xac!C\t' \
-            '\xf2\xf7A9A!\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf2\x00c\x00O',
-            internal_timestamp=self.timestamp2_eng)
+        timestamp2_eng = self.timestamp_to_ntp('R\x9d\xac!')
+        self.particle_b_eng_recov = WfpEngStcImodemEngineeringRecoveredDataParticle(
+            b'R\x9d\xac!C\t\xf2\xf7A9A!\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf2\x00c\x00O',
+            internal_timestamp=timestamp2_eng)
+        self.particle_b_eng_telem = WfpEngStcImodemEngineeringTelemeteredDataParticle(
+            b'R\x9d\xac!C\t\xf2\xf7A9A!\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf2\x00c\x00O',
+            internal_timestamp=timestamp2_eng)
 
-        self.timestamp3_eng = self.timestamp_to_ntp('R\x9d\xac&')
-        self.particle_c_eng = Wfp_eng__stc_imodem_engineeringParserDataParticle(b"R\x9d\xac&C\xbc" \
-            "\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00O",
-            internal_timestamp=self.timestamp3_eng)
+        timestamp3_eng = self.timestamp_to_ntp('R\x9d\xac&')
+        self.particle_c_eng_recov = WfpEngStcImodemEngineeringRecoveredDataParticle(
+            b"R\x9d\xac&C\xbc\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00O",
+            internal_timestamp=timestamp3_eng)
+        self.particle_c_eng_telem = WfpEngStcImodemEngineeringTelemeteredDataParticle(
+            b"R\x9d\xac&C\xbc\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00O",
+            internal_timestamp=timestamp3_eng)
 
-        self.timestamp4_eng = self.timestamp_to_ntp('R\x9d\xac*')
-        self.particle_d_eng = Wfp_eng__stc_imodem_engineeringParserDataParticle(b'R\x9d\xac' \
-            '*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O',
-            internal_timestamp=self.timestamp4_eng)
+        timestamp4_eng = self.timestamp_to_ntp('R\x9d\xac*')
+        self.particle_d_eng_recov = WfpEngStcImodemEngineeringRecoveredDataParticle(
+            b'R\x9d\xac*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O',
+            internal_timestamp=timestamp4_eng)
+        self.particle_d_eng_telem = WfpEngStcImodemEngineeringTelemeteredDataParticle(
+            b'R\x9d\xac*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O',
+            internal_timestamp=timestamp4_eng)
 
-        self.timestamp_last_eng = self.timestamp_to_ntp('R\x9d\xac\xcf')
-        self.particle_last_eng = Wfp_eng__stc_imodem_engineeringParserDataParticle(b'R\x9d\xac\xcfA' \
-            '\xfa\xb2:A5\x0b\x0fA\xf2\x8f\\\x00\x00\x00\x00\x00\xaf\x00m\x00P',
-            internal_timestamp=self.timestamp_last_eng)
+        timestamp_last_eng = self.timestamp_to_ntp('R\x9d\xac\xcf')
+        self.particle_last_eng_recov = WfpEngStcImodemEngineeringRecoveredDataParticle(
+            b'R\x9d\xac\xcfA\xfa\xb2:A5\x0b\x0fA\xf2\x8f\\\x00\x00\x00\x00\x00\xaf\x00m\x00P',
+            internal_timestamp=timestamp_last_eng)
+        self.particle_last_eng_telem = WfpEngStcImodemEngineeringTelemeteredDataParticle(
+            b'R\x9d\xac\xcfA\xfa\xb2:A5\x0b\x0fA\xf2\x8f\\\x00\x00\x00\x00\x00\xaf\x00m\x00P',
+            internal_timestamp=timestamp_last_eng)
 
-        self.timestamp1_stat = self.timestamp_to_ntp('R\x9d\xac\xd4')
-        self.particle_a_stat = Wfp_eng__stc_imodem_statusParserDataParticle(b'\xff\xff\xff\xff' \
-            '\x00\x00\x00\rR\x9d\xac\xd4R\x9d\xadQ',
-            internal_timestamp=self.timestamp1_stat)
+        timestamp1_status = self.timestamp_to_ntp('R\x9d\xac\xd4')
+        self.particle_a_status_recov = WfpEngStcImodemStatusRecoveredDataParticle(
+            b'\xff\xff\xff\xff\x00\x00\x00\rR\x9d\xac\xd4R\x9d\xadQ',
+            internal_timestamp=timestamp1_status)
+        self.particle_a_status_telem = WfpEngStcImodemStatusTelemeteredDataParticle(
+            b'\xff\xff\xff\xff\x00\x00\x00\rR\x9d\xac\xd4R\x9d\xadQ',
+            internal_timestamp=timestamp1_status)
 
-	# uncomment the following to generate particles in yml format for driver testing results files
-	#self.particle_to_yml(self.particle_a_time)
-	#self.particle_to_yml(self.particle_a_eng)
-	#self.particle_to_yml(self.particle_b_eng)
-	#self.particle_to_yml(self.particle_c_eng)
-	#self.particle_to_yml(self.particle_d_eng)
+        # uncomment the following to generate particles in yml format for driver testing results files
+        #self.particle_to_yml(self.particle_a_start_time_recov)
+        #self.particle_to_yml(self.particle_a_eng)
+        #self.particle_to_yml(self.particle_b_eng)
+        #self.particle_to_yml(self.particle_c_eng)
+        #self.particle_to_yml(self.particle_d_eng)
         #self.particle_to_yml(self.particle_a_stat)
 
         self.file_ingested = False
@@ -146,26 +191,6 @@ class Wfp_eng__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         timestamp = int(fields[0])
         return ntplib.system_to_ntp_time(timestamp)
 
-    def particle_to_yml(self, particle):
-        """
-        This is added as a testing helper, not actually as part of the parser tests. Since the same particles
-        will be used for the driver test it is helpful to write them to .yml in the same form they need in the
-        results.yml files here.
-        """
-        particle_dict = particle.generate_dict()
-        # open write append, if you want to start from scratch manually delete this file
-        fid = open('particle.yml', 'a')
-        fid.write('  - _index: 0\n')
-        fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
-        fid.write('    particle_object: %s\n' % particle.__class__.__name__)
-        fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
-        for val in particle_dict.get('values'):
-            if isinstance(val.get('value'), float):
-                fid.write('    %s: %16.16f\n' % (val.get('value_id'), val.get('value')))
-            else:
-                fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
-        fid.close()
-
     def assert_result(self, result, position, particle, ingested):
         self.assertEqual(result, [particle])
         self.assertEqual(self.file_ingested, ingested)
@@ -176,28 +201,30 @@ class Wfp_eng__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], particle)
 
-    def test_simple(self):
+    def test_simple_recovered(self):
         """
         Read test data and pull out data particles one at a time.
         Assert that the results are those we expected.
         """
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, self.start_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback) # last one is the link to the data source
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
 
         # start with the start time record
         result = self.parser.get_records(1)
-        self.assert_result(result, 24, self.particle_a_time, False)
+        self.assert_result(result, 24, self.particle_a_start_time_recov, False)
 
         # next get engineering records
         result = self.parser.get_records(1)
-        self.assert_result(result, 50, self.particle_a_eng, False)
+        self.assert_result(result, 50, self.particle_a_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 76, self.particle_b_eng, False)
+        self.assert_result(result, 76, self.particle_b_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 102, self.particle_c_eng, False)
+        self.assert_result(result, 102, self.particle_c_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 128, self.particle_d_eng, True)
+        self.assert_result(result, 128, self.particle_d_eng_recov, True)
 
         # no data left, dont move the position
         result = self.parser.get_records(1)
@@ -205,130 +232,345 @@ class Wfp_eng__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.parser._state[StateKey.POSITION], 128)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 128)
         self.assert_(isinstance(self.publish_callback_value, list))
-        self.assertEqual(self.publish_callback_value[0], self.particle_d_eng)
+        self.assertEqual(self.publish_callback_value[0], self.particle_d_eng_recov)
 
-    def test_get_many(self):
+    def test_simple_telemetered(self):
+        """
+        Read test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        """
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        # start with the start time record
+        result = self.parser.get_records(1)
+        self.assert_result(result, 24, self.particle_a_start_time_telem, False)
+
+        # next get engineering records
+        result = self.parser.get_records(1)
+        self.assert_result(result, 50, self.particle_a_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 76, self.particle_b_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_telem, True)
+
+        # no data left, dont move the position
+        result = self.parser.get_records(1)
+        self.assertEqual(result, [])
+        self.assertEqual(self.parser._state[StateKey.POSITION], 128)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 128)
+        self.assert_(isinstance(self.publish_callback_value, list))
+        self.assertEqual(self.publish_callback_value[0], self.particle_d_eng_telem)
+
+    def test_get_many_recovered(self):
         """
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, self.start_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback)
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
 
         # start with the start time record
         result = self.parser.get_records(1)
-        self.assert_result(result, 24, self.particle_a_time, False)
+        self.assert_result(result, 24, self.particle_a_start_time_recov, False)
 
         result = self.parser.get_records(4)
-        self.assertEqual(result, [self.particle_a_eng, self.particle_b_eng, self.particle_c_eng, self.particle_d_eng])
+        self.assertEqual(result, [self.particle_a_eng_recov,
+                                  self.particle_b_eng_recov,
+                                  self.particle_c_eng_recov,
+                                  self.particle_d_eng_recov])
         self.assertEqual(self.parser._state[StateKey.POSITION], 128)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 128)
-        self.assertEqual(self.publish_callback_value[0], self.particle_a_eng)
-        self.assertEqual(self.publish_callback_value[1], self.particle_b_eng)
-        self.assertEqual(self.publish_callback_value[2], self.particle_c_eng)
-        self.assertEqual(self.publish_callback_value[3], self.particle_d_eng)
-	self.assertEqual(self.file_ingested, True)
+        self.assertEqual(self.publish_callback_value[0], self.particle_a_eng_recov)
+        self.assertEqual(self.publish_callback_value[1], self.particle_b_eng_recov)
+        self.assertEqual(self.publish_callback_value[2], self.particle_c_eng_recov)
+        self.assertEqual(self.publish_callback_value[3], self.particle_d_eng_recov)
+        self.assertEqual(self.file_ingested, True)
 
-    def test_long_stream(self):
+    def test_get_many_telemetered(self):
+        """
+        Read test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        """
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        # start with the start time record
+        result = self.parser.get_records(1)
+        self.assert_result(result, 24, self.particle_a_start_time_telem, False)
+
+        result = self.parser.get_records(4)
+        self.assertEqual(result, [self.particle_a_eng_telem,
+                                  self.particle_b_eng_telem,
+                                  self.particle_c_eng_telem,
+                                  self.particle_d_eng_telem])
+        self.assertEqual(self.parser._state[StateKey.POSITION], 128)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 128)
+        self.assertEqual(self.publish_callback_value[0], self.particle_a_eng_telem)
+        self.assertEqual(self.publish_callback_value[1], self.particle_b_eng_telem)
+        self.assertEqual(self.publish_callback_value[2], self.particle_c_eng_telem)
+        self.assertEqual(self.publish_callback_value[3], self.particle_d_eng_telem)
+        self.assertEqual(self.file_ingested, True)
+
+    def test_long_stream_recovered(self):
         """
         Test a long stream of data
         """
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, self.start_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback)
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA)
+
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
 
         # start with the start time record
         result = self.parser.get_records(1)
-        self.assert_result(result, 24, self.particle_a_time, False)
+
+        self.assert_result(result, 24, self.particle_a_start_time_recov, False)
 
         result = self.parser.get_records(32)
-        self.assertEqual(result[0], self.particle_a_eng)
-        self.assertEqual(result[-1], self.particle_last_eng)
+        self.assertEqual(result[0], self.particle_a_eng_recov)
+        self.assertEqual(result[-1], self.particle_last_eng_recov)
         self.assertEqual(self.parser._state[StateKey.POSITION], 856)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 856)
-        self.assertEqual(self.publish_callback_value[-1], self.particle_last_eng)
+        self.assertEqual(self.publish_callback_value[-1], self.particle_last_eng_recov)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 872, self.particle_a_stat, True)
+        self.assert_result(result, 872, self.particle_a_status_recov, True)
 
-    def test_after_header(self):
+    def test_long_stream_telemetered(self):
+        """
+        Test a long stream of data
+        """
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA)
+
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        # start with the start time record
+        result = self.parser.get_records(1)
+
+        self.assert_result(result, 24, self.particle_a_start_time_telem, False)
+
+        result = self.parser.get_records(32)
+        self.assertEqual(result[0], self.particle_a_eng_telem)
+        self.assertEqual(result[-1], self.particle_last_eng_telem)
+        self.assertEqual(self.parser._state[StateKey.POSITION], 856)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 856)
+        self.assertEqual(self.publish_callback_value[-1], self.particle_last_eng_telem)
+
+        result = self.parser.get_records(1)
+        self.assert_result(result, 872, self.particle_a_status_telem, True)
+
+    def test_after_header_recovered(self):
         """
         Test starting the parser in a state in the middle of processing
         """
-        new_state = {StateKey.POSITION:24}
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, new_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback)
+        new_state = {StateKey.POSITION: 24}
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), new_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
 
         # get engineering records
         result = self.parser.get_records(1)
-        self.assert_result(result, 50, self.particle_a_eng, False)
+        self.assert_result(result, 50, self.particle_a_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 76, self.particle_b_eng, False)
+        self.assert_result(result, 76, self.particle_b_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 102, self.particle_c_eng, False)
+        self.assert_result(result, 102, self.particle_c_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 128, self.particle_d_eng, True)
+        self.assert_result(result, 128, self.particle_d_eng_recov, True)
 
-    def test_mid_state_start(self):
+    def test_after_header_telemetered(self):
+        """
+        Test starting the parser in a state in the middle of processing
+        """
+        new_state = {StateKey.POSITION: 24}
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), new_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        # get engineering records
+        result = self.parser.get_records(1)
+        self.assert_result(result, 50, self.particle_a_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 76, self.particle_b_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_telem, True)
+
+    def test_mid_state_start_recovered(self):
         """
         Test starting the parser in a state in the middle of processing
         """
         new_state = {StateKey.POSITION:76}
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, new_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 102, self.particle_c_eng, False)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 128, self.particle_d_eng, True)
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), new_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
 
-    def test_set_state(self):
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_recov, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_recov, True)
+
+    def test_mid_state_start_telemetered(self):
+        """
+        Test starting the parser in a state in the middle of processing
+        """
+        new_state = {StateKey.POSITION:76}
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), new_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_telem, True)
+
+    def test_set_state_recovered(self):
         """
         Test changing to a new state after initializing the parser and 
         reading data, as if new data has been found and the state has
         changed
         """
-        new_state = {StateKey.POSITION:76}
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, self.start_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback)
+        new_state = {StateKey.POSITION: 76}
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
         # start with the start time record
         result = self.parser.get_records(1)
-        self.assert_result(result, 24, self.particle_a_time, False)
+        self.assert_result(result, 24, self.particle_a_start_time_recov, False)
 
         # set the new state, the essentially skips engineering a and b
         self.parser.set_state(new_state)
         result = self.parser.get_records(1)
-        self.assert_result(result, 102, self.particle_c_eng, False)
+        self.assert_result(result, 102, self.particle_c_eng_recov, False)
         result = self.parser.get_records(1)
-        self.assert_result(result, 128, self.particle_d_eng, True)
+        self.assert_result(result, 128, self.particle_d_eng_recov, True)
 
-    def test_bad_flags(self):
+    def test_set_state_telemetered(self):
+        """
+        Test changing to a new state after initializing the parser and
+        reading data, as if new data has been found and the state has
+        changed
+        """
+        new_state = {StateKey.POSITION: 76}
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        # start with the start time record
+        result = self.parser.get_records(1)
+        self.assert_result(result, 24, self.particle_a_start_time_telem, False)
+
+        # set the new state, the essentially skips engineering a and b
+        self.parser.set_state(new_state)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_telem, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_telem, True)
+
+    def test_bad_flags_recovered(self):
         """
         test that we don't parse any records when the flags are not what we expect
         """
         with self.assertRaises(SampleException):
-            self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_BAD_FLAGS)
-            self.parser = Wfp_eng__stc_imodemParser(self.config, self.start_state, self.stream_handle,
-                                                    self.state_callback, self.pub_callback)
+            self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_BAD_FLAGS)
+            self.parser = WfpEngStcImodemParser(
+                self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), self.start_state, self.stream_handle,
+                self.state_callback, self.pub_callback)
 
-    def test_bad_data(self):
+    def test_bad_flags_telemetered(self):
+        """
+        test that we don't parse any records when the flags are not what we expect
+        """
+        with self.assertRaises(SampleException):
+            self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_BAD_FLAGS)
+            self.parser = WfpEngStcImodemParser(
+                self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), self.start_state, self.stream_handle,
+                self.state_callback, self.pub_callback)
+
+    def test_bad_data_recovered(self):
         """
         Ensure that missing data causes us to miss records
         TODO: This test should be improved if we come up with a more accurate regex for the data sample
         """
-        self.stream_handle = StringIO(Wfp_eng__stc_imodemParserUnitTestCase.TEST_DATA_BAD_ENG)
-        self.parser = Wfp_eng__stc_imodemParser(self.config, self.start_state, self.stream_handle,
-                                                self.state_callback, self.pub_callback)
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_BAD_ENG)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_RECOVERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
 
-	# start with the start time record
-	result = self.parser.get_records(1)
-	self.assert_result(result, 24, self.particle_a_time, False)
+        # start with the start time record
+        result = self.parser.get_records(1)
+        self.assert_result(result, 24, self.particle_a_start_time_recov, False)
 
-	# next get engineering records
-	result = self.parser.get_records(4)
-	if len(result) == 4:
-	    self.fail("We got 4 records, the bad data should only make 3")
+        # next get engineering records
+        result = self.parser.get_records(4)
+        if len(result) == 4:
+            self.fail("We got 4 records, the bad data should only make 3")
 
+    def test_bad_data_telemetered(self):
+        """
+        Ensure that missing data causes us to miss records
+        TODO: This test should be improved if we come up with a more accurate regex for the data sample
+        """
+        self.stream_handle = StringIO(WfpEngStcImodemParserUnitTestCase.TEST_DATA_BAD_ENG)
+        self.parser = WfpEngStcImodemParser(
+            self.config.get(DataTypeKey.WFP_ENG_STC_IMODEM_TELEMETERED), self.start_state, self.stream_handle,
+            self.state_callback, self.pub_callback)
+
+        # start with the start time record
+        result = self.parser.get_records(1)
+        self.assert_result(result, 24, self.particle_a_start_time_telem, False)
+
+        # next get engineering records
+        result = self.parser.get_records(4)
+        if len(result) == 4:
+            self.fail("We got 4 records, the bad data should only make 3")
+
+    def particle_to_yml(self, particles, filename, mode='w'):
+        """
+        This is added as a testing helper, not actually as part of the parser tests. Since the same particles
+        will be used for the driver test it is helpful to write them to .yml in the same form they need in the
+        results.yml fids here.
+        """
+        # open write append, if you want to start from scratch manually delete this fid
+        fid = open(os.path.join(RESOURCE_PATH, filename), mode)
+
+        fid.write('header:\n')
+        fid.write("    particle_object: 'MULTIPLE'\n")
+        fid.write("    particle_type: 'MULTIPLE'\n")
+        fid.write('data:\n')
+
+        for i in range(0, len(particles)):
+            particle_dict = particles[i].generate_dict()
+
+            fid.write('  - _index: %d\n' %(i+1))
+
+            fid.write('    particle_object: %s\n' % particles[i].__class__.__name__)
+            fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
+            fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
+
+            for val in particle_dict.get('values'):
+                if isinstance(val.get('value'), float):
+                    fid.write('    %s: %16.16f\n' % (val.get('value_id'), val.get('value')))
+                else:
+                    fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
+        fid.close()
