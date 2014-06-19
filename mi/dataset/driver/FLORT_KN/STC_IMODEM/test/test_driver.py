@@ -302,7 +302,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         #self.assert_initialize(
 
-        # Verify we get one sample
+
         try:
             resulta = self.data_subscribers.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 4)
             resultb = self.data_subscribers.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 4)

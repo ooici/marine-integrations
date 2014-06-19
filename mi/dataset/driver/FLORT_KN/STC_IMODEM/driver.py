@@ -13,6 +13,7 @@ __license__ = 'Apache 2.0'
 
 import string
 from mi.core.log import get_logger; log = get_logger()
+from mi.core.exceptions import ConfigurationException
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn_stc_imodemParser,\
@@ -102,5 +103,5 @@ class FLORT_KN_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
                 self._exception_callback)
         else:
             harvester = None
-            log.debug("harvester not built")
+            raise ConfigurationException('FLORT KN recovered harvester not built because missing config')
         return harvester
