@@ -9,7 +9,6 @@ Release notes:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 import time
-import datetime as dt
 
 from mi.core.log import get_logger
 
@@ -26,7 +25,6 @@ from mi.instrument.teledyne.workhorse.driver import DataParticleType
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.driver import TeledyneParameter
-from mi.instrument.teledyne.driver import TeledyneScheduledJob
 
 DEFAULT_CLOCK_DIFF = 500
 
@@ -152,14 +150,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("IN assert_Calibration")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
 
-    def test_scheduled_clock_sync_command(self):
-        """
-        Verify the scheduled clock sync is triggered and functions as expected
-        """
-        log.debug("IN test_scheduled_clock_sync_command")
-        self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=350)
-        self.assert_current_state(TeledyneProtocolState.COMMAND)
-
     def test_scheduled_interval_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -223,7 +213,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
         time.sleep(10)
-        self.assert_acquire_status()
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
         self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:00')
@@ -239,27 +228,8 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
         self.assert_acquire_status()
 
-    def _test_set_instrument_id(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for INSTRUMENT_ID ======")
-
-        # INSTRUMENT_ID -- Int 0-255
-        self.assert_set(TeledyneParameter.INSTRUMENT_ID, 255)
-        self.assert_set(TeledyneParameter.INSTRUMENT_ID, 1)
-        self.assert_set_exception(TeledyneParameter.INSTRUMENT_ID, 256)
-        self.assert_set_exception(TeledyneParameter.INSTRUMENT_ID, "LEROY JENKINS")
-        self.assert_set_exception(TeledyneParameter.INSTRUMENT_ID, -1)
-        #
-        # Reset to good value.
-        #
-        self.assert_set(TeledyneParameter.INSTRUMENT_ID,
-                        self._driver_parameters[TeledyneParameter.INSTRUMENT_ID][self.VALUE])
-        self._tested[TeledyneParameter.INSTRUMENT_ID] = True
-
     # This will be called by test_set_range()
-    def _test_set_xmit_power(self):
+    def _tst_set_xmit_power(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -280,7 +250,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.XMIT_POWER, self._driver_parameters[TeledyneParameter.XMIT_POWER][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_speed_of_sound(self):
+    def _tst_set_speed_of_sound(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -309,7 +279,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.SPEED_OF_SOUND][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_salinity(self):
+    def _tst_set_salinity(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -338,7 +308,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.SALINITY, self._driver_parameters[TeledyneParameter.SALINITY][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_sensor_source(self):
+    def _tst_set_sensor_source(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -371,7 +341,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.SENSOR_SOURCE][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_time_per_ensemble(self):
+    def _tst_set_time_per_ensemble(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -398,7 +368,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.TIME_PER_ENSEMBLE][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_pitch(self):
+    def _tst_set_pitch(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -425,7 +395,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.PITCH, self._driver_parameters[TeledyneParameter.PITCH][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_roll(self):
+    def _tst_set_roll(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -451,7 +421,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.ROLL, self._driver_parameters[TeledyneParameter.ROLL][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_time_per_ping(self):
+    def _tst_set_time_per_ping(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -476,7 +446,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.TIME_PER_PING][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_false_target_threshold(self):
+    def _tst_set_false_target_threshold(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -503,7 +473,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.FALSE_TARGET_THRESHOLD][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_bandwidth_control(self):
+    def _tst_set_bandwidth_control(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -524,7 +494,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.BANDWIDTH_CONTROL][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_correlation_threshold(self):
+    def _tst_set_correlation_threshold(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -549,7 +519,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.CORRELATION_THRESHOLD][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_error_velocity_threshold(self):
+    def _tst_set_error_velocity_threshold(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -576,7 +546,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.ERROR_VELOCITY_THRESHOLD][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_blank_after_transmit(self):
+    def _tst_set_blank_after_transmit(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -607,7 +577,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.BLANK_AFTER_TRANSMIT][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_clip_data_past_bottom(self):
+    def _tst_set_clip_data_past_bottom(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -624,7 +594,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.CLIP_DATA_PAST_BOTTOM][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_receiver_gain_select(self):
+    def _tst_set_receiver_gain_select(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -646,7 +616,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.RECEIVER_GAIN_SELECT][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_number_of_depth_cells(self):
+    def _tst_set_number_of_depth_cells(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -670,7 +640,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.NUMBER_OF_DEPTH_CELLS][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_pings_per_ensemble(self):
+    def _tst_set_pings_per_ensemble(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -692,7 +662,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.PINGS_PER_ENSEMBLE][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_depth_cell_size(self):
+    def _tst_set_depth_cell_size(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -713,7 +683,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.DEPTH_CELL_SIZE][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_transmit_length(self):
+    def _tst_set_transmit_length(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -735,7 +705,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.TRANSMIT_LENGTH][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_ping_weight(self):
+    def _tst_set_ping_weight(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -756,7 +726,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.PING_WEIGHT][self.VALUE])
 
     # This will be called by test_set_range()
-    def _test_set_ambiguity_velocity(self):
+    def _tst_set_ambiguity_velocity(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
