@@ -61,7 +61,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.port_agent_client import PortAgentClient
 
 from mi.idk.comm_config import ConfigTypes
-from ion.agents.port.port_agent_process import PortAgentProcess, PortAgentProcessType
+from ion.agents.port.port_agent_process import PortAgentProcess
 from mi.idk.unit_test import InstrumentDriverTestCase, LOCALHOST, ParameterTestConfigKey
 
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -77,7 +77,7 @@ from mi.core.common import BaseEnum
 
 from pyon.core.exception import ResourceError
 
-###
+# ##
 #   Driver parameters for tests
 ###
 
@@ -419,11 +419,11 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3"},
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7"},
         ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode,
-                                                             'value': u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" + \
-                                                                      "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" + \
-                                                                      "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" + \
-                                                                      "82  00 00 06 FF 23 E5  09 CPU727-2011-00E\n" + \
-                                                                      "07  00 00 06 F6 05 15  09 TUN727-1005-06A\n" + \
+                                                             'value': u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" +
+                                                                      "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" +
+                                                                      "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" +
+                                                                      "82  00 00 06 FF 23 E5  09 CPU727-2011-00E\n" +
+                                                                      "07  00 00 06 F6 05 15  09 TUN727-1005-06A\n" +
                                                                       "DB  00 00 06 F5 CB 5D  09 DSP727-2001-06H"}
     }
 
@@ -452,9 +452,9 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3"},
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7"},
         ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode,
-                                                             'value': u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" + \
-                                                                      "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" + \
-                                                                      "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" + \
+                                                             'value': u"72  00 00 06 FE BC D8  09 HPA727-3009-00B \n" +
+                                                                      "81  00 00 06 F5 CD 9E  09 REC727-1004-06A\n" +
+                                                                      "A5  00 00 06 FF 1C 79  09 HPI727-3007-00A\n" +
                                                                       "82  00 00 06 FF 23 E5  09 CPU727-2011-00E\n"}
     }
 
@@ -566,7 +566,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.LEVEL_7_INTERRUPT: {'type': int, 'value': 0},
         ADCP_PD0_PARSED_KEY.ABSOLUTE_PRESSURE: {'type': int, 'value': 4294963793},
         ADCP_PD0_PARSED_KEY.PRESSURE_VARIANCE: {'type': int, 'value': 0},
-        #ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP: {'type': float, 'value': 1363408382.02 },
         ADCP_PD0_PARSED_KEY.VELOCITY_DATA_ID: {'type': int, 'value': 1},
         ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_ID: {'type': int, 'value': 2},
         ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_BEAM1: {'type': list,
@@ -755,6 +754,20 @@ class ADCPTMixin(DriverTestMixin):
                            _coordinate_transformation_beam_parameters.items())
     _pd0_parameters_earth = dict(_pd0_parameters_base.items() +
                                  _coordinate_transformation_earth_parameters.items())
+
+    _pt2_dict = {
+        ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_AMBIENT_CURRENT: {'type': float, 'value': "20.32"},
+        ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_ATTITUDE_TEMP: {'type': float, 'value': "24.65"},
+        ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_INTERNAL_MOISTURE: {'type': unicode, 'value': "8F0Ah"}
+    }
+
+    _pt4_dict = {
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_CURRENT: {'type': float, 'value': "2.0"},
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_VOLTAGE: {'type': float, 'value': "60.1"},
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_IMPEDANCE: {'type': float, 'value': "29.8"},
+        ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_TEST_RESULT: {'type': unicode, 'value': "$0 ... PASS"},
+
+    }
 
     # Driver Parameter Methods
     ###
@@ -987,7 +1000,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
 
         self.assert_enum_has_no_duplicates(InstrumentCmds())
@@ -996,7 +1009,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ScheduledJob())
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -1063,38 +1076,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def setUp(self):
         self.port_agents = {}
         InstrumentDriverIntegrationTestCase.setUp(self)
-
-    def create_serial_comm_config(self, comm_config):
-        return {
-            'instrument_type': ConfigTypes.SERIAL,
-            'port_agent_addr': comm_config.host,
-            'device_os_port': comm_config.device_os_port,
-            'device_baud': comm_config.device_baud,
-            'device_data_bits': comm_config.device_data_bits,
-            'device_stop_bits': comm_config.device_stop_bits,
-            'device_flow_control': comm_config.device_flow_control,
-            'device_parity': comm_config.device_parity,
-            'command_port': comm_config.command_port,
-            'data_port': comm_config.data_port,
-            'telnet_sniffer_port': comm_config.sniffer_port,
-            'process_type': PortAgentProcessType.UNIX,
-            'log_level': 5,
-        }
-
-    def create_ethernet_comm_config(self, comm_config):
-        config = {
-            'instrument_type': ConfigTypes.ETHERNET,
-            'port_agent_addr': comm_config.host,
-            'device_addr': comm_config.device_addr,
-            'device_port': comm_config.device_port,
-            'command_port': comm_config.command_port,
-            'data_port': comm_config.data_port,
-            'telnet_sniffer_port': comm_config.sniffer_port,
-            'process_type': PortAgentProcessType.UNIX,
-            'log_level': 5,
-        }
-        log.debug('create_ethernet_comm_config returning: %r', config)
-        return config
 
     def create_botpt_comm_config(self, comm_config):
         config = self.create_ethernet_comm_config(comm_config)
@@ -1244,7 +1225,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                                               timeout=60)
 
     # Overwritten method
-    def Sungtested_test_driver_process(self):
+    def test_driver_process(self):
         """
         Test for correct launch of driver process and communications, including asynchronous driver events.
         Overridden to support multiple port agents.
@@ -1286,7 +1267,8 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             exception_str = 'Oh no, something bad happened!'
             self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
-    def Sungtested_test_autosample_particle_generation(self):
+    # Set bulk params and test auto sampling
+    def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
         """
@@ -1314,18 +1296,9 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
-    def SungTested_test_acquire_status(self):
-        """
-        Verify the acquire_status command is functional
-        """
+    # test commands in different modes
+    def test_commands(self):
 
-        log.debug("IN test_acquire_status")
-        self.assert_initialize_driver()
-        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
-
-        self.assert_acquire_status()
-
-    def SungTested_test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
         """
@@ -1387,7 +1360,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_xmit_power_slave(self):
+    def _tst_set_xmit_power_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1406,10 +1379,10 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         # Reset to good value.
         #
         self.assert_set(TeledyneParameter2.XMIT_POWER,
-                         self._driver_parameters_slave[TeledyneParameter2.XMIT_POWER][self.VALUE])
+                        self._driver_parameters_slave[TeledyneParameter2.XMIT_POWER][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_pitch_slave(self):
+    def _tst_set_pitch_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1436,7 +1409,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.PITCH, self._driver_parameters_slave[TeledyneParameter2.PITCH][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_roll_slave(self):
+    def _tst_set_roll_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1462,7 +1435,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.ROLL, self._driver_parameters_slave[TeledyneParameter2.ROLL][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_speed_of_sound_slave(self):
+    def _tst_set_speed_of_sound_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1489,7 +1462,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.SPEED_OF_SOUND,
                         self._driver_parameters_slave[TeledyneParameter2.SPEED_OF_SOUND][self.VALUE])
 
-    def _test_set_salinity_slave(self):
+    def _tst_set_salinity_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1519,7 +1492,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.SALINITY][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_sensor_source_slave(self):
+    def _tst_set_sensor_source_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1552,7 +1525,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.SENSOR_SOURCE][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_time_per_ensemble_slave(self):
+    def _tst_set_time_per_ensemble_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1579,7 +1552,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.TIME_PER_ENSEMBLE][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_false_target_threshold_slave(self):
+    def _tst_set_false_target_threshold_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1606,7 +1579,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.FALSE_TARGET_THRESHOLD][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_bandwidth_control_slave(self):
+    def _tst_set_bandwidth_control_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1627,7 +1600,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.BANDWIDTH_CONTROL][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_correlation_threshold_slave(self):
+    def _tst_set_correlation_threshold_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1652,7 +1625,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.CORRELATION_THRESHOLD][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_error_velocity_threshold_slave(self):
+    def _tst_set_error_velocity_threshold_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1679,7 +1652,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.ERROR_VELOCITY_THRESHOLD][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_blank_after_transmit_slave(self):
+    def _tst_set_blank_after_transmit_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1710,7 +1683,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.BLANK_AFTER_TRANSMIT][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_clip_data_past_bottom_slave(self):
+    def _tst_set_clip_data_past_bottom_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1727,7 +1700,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.CLIP_DATA_PAST_BOTTOM][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_receiver_gain_select_slave(self):
+    def _tst_set_receiver_gain_select_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1749,7 +1722,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.RECEIVER_GAIN_SELECT][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_number_of_depth_cells_slave(self):
+    def _tst_set_number_of_depth_cells_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1773,7 +1746,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.NUMBER_OF_DEPTH_CELLS][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_pings_per_ensemble_slave(self):
+    def _tst_set_pings_per_ensemble_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1795,7 +1768,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.PINGS_PER_ENSEMBLE][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_depth_cell_size_slave(self):
+    def _tst_set_depth_cell_size_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1817,7 +1790,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.DEPTH_CELL_SIZE][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_transmit_length_slave(self):
+    def _tst_set_transmit_length_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1838,7 +1811,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.TRANSMIT_LENGTH][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_ping_weight_slave(self):
+    def _tst_set_ping_weight_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1859,7 +1832,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                         self._driver_parameters_slave[TeledyneParameter2.PING_WEIGHT][self.VALUE])
 
     # This will be called by test_set_ranges_slave()
-    def _test_set_ambiguity_velocity_slave(self):
+    def _tst_set_ambiguity_velocity_slave(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
@@ -1887,53 +1860,53 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY,
                         self._driver_parameters_slave[TeledyneParameter2.AMBIGUITY_VELOCITY][self.VALUE])
 
-    def SungTested_est_set_ranges(self):
+    def test_set_ranges(self):
         self.assert_initialize_driver()
 
-        self._test_set_xmit_power()
-        self._test_set_speed_of_sound()
-        self._test_set_pitch()
-        self._test_set_roll()
-        self._test_set_salinity()
-        self._test_set_sensor_source()
-        self._test_set_time_per_ensemble()
-        self._test_set_false_target_threshold()
-        self._test_set_bandwidth_control()
-        self._test_set_correlation_threshold()
-        self._test_set_error_velocity_threshold()
-        self._test_set_blank_after_transmit()
-        self._test_set_clip_data_past_bottom()
-        self._test_set_receiver_gain_select()
-        self._test_set_number_of_depth_cells()
-        self._test_set_pings_per_ensemble()
-        self._test_set_depth_cell_size()
-        self._test_set_transmit_length()
-        self._test_set_ping_weight()
-        self._test_set_ambiguity_velocity()
+        self._tst_set_xmit_power()
+        self._tst_set_speed_of_sound()
+        self._tst_set_pitch()
+        self._tst_set_roll()
+        self._tst_set_salinity()
+        self._tst_set_sensor_source()
+        self._tst_set_time_per_ensemble()
+        self._tst_set_false_target_threshold()
+        self._tst_set_bandwidth_control()
+        self._tst_set_correlation_threshold()
+        self._tst_set_error_velocity_threshold()
+        self._tst_set_blank_after_transmit()
+        self._tst_set_clip_data_past_bottom()
+        self._tst_set_receiver_gain_select()
+        self._tst_set_number_of_depth_cells()
+        self._tst_set_pings_per_ensemble()
+        self._tst_set_depth_cell_size()
+        self._tst_set_transmit_length()
+        self._tst_set_ping_weight()
+        self._tst_set_ambiguity_velocity()
 
-    def SungTested_test_set_ranges_slave(self):
+    def test_set_ranges_slave(self):
         self.assert_initialize_driver()
 
-        self._test_set_xmit_power_slave()
-        self._test_set_speed_of_sound_slave()
-        self._test_set_pitch_slave()
-        self._test_set_roll_slave()
-        self._test_set_salinity_slave()
-        self._test_set_sensor_source_slave()
-        self._test_set_time_per_ensemble_slave()
-        self._test_set_false_target_threshold_slave()
-        self._test_set_bandwidth_control_slave()
-        self._test_set_correlation_threshold_slave()
-        self._test_set_error_velocity_threshold_slave()
-        self._test_set_blank_after_transmit_slave()
-        self._test_set_clip_data_past_bottom_slave()
-        self._test_set_receiver_gain_select_slave()
-        self._test_set_number_of_depth_cells_slave()
-        self._test_set_pings_per_ensemble_slave()
-        self._test_set_depth_cell_size_slave()
-        self._test_set_transmit_length_slave()
-        self._test_set_ping_weight_slave()
-        self._test_set_ambiguity_velocity_slave()
+        self._tst_set_xmit_power_slave()
+        self._tst_set_speed_of_sound_slave()
+        self._tst_set_pitch_slave()
+        self._tst_set_roll_slave()
+        self._tst_set_salinity_slave()
+        self._tst_set_sensor_source_slave()
+        self._tst_set_time_per_ensemble_slave()
+        self._tst_set_false_target_threshold_slave()
+        self._tst_set_bandwidth_control_slave()
+        self._tst_set_correlation_threshold_slave()
+        self._tst_set_error_velocity_threshold_slave()
+        self._tst_set_blank_after_transmit_slave()
+        self._tst_set_clip_data_past_bottom_slave()
+        self._tst_set_receiver_gain_select_slave()
+        self._tst_set_number_of_depth_cells_slave()
+        self._tst_set_pings_per_ensemble_slave()
+        self._tst_set_depth_cell_size_slave()
+        self._tst_set_transmit_length_slave()
+        self._tst_set_ping_weight_slave()
+        self._tst_set_ambiguity_velocity_slave()
 
     # ReadOnly parameter setting exception tests
     def test_set_parameter_test_slave(self):
@@ -1947,6 +1920,68 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set_exception(TeledyneParameter2.DATA_STREAM_SELECTION, 10)
         self.assert_set_exception(TeledyneParameter2.DATA_STREAM_SELECTION, 19)
         self.assert_set_exception(TeledyneParameter2.BUFFERED_OUTPUT_PERIOD, "00:00:11")
+
+    # Test for 5th beam
+    def test_startup_params_slave(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+
+        since nose orders the tests by ascii value this should run first.
+        """
+        self.assert_initialize_driver()
+
+        get_values = {
+            TeledyneParameter2.SERIAL_FLOW_CONTROL: '11110',
+            TeledyneParameter2.BANNER: False,
+            TeledyneParameter2.INSTRUMENT_ID: 0,
+            TeledyneParameter2.SLEEP_ENABLE: 0,
+            TeledyneParameter2.SAVE_NVRAM_TO_RECORDER: True,
+            TeledyneParameter2.POLLED_MODE: False,
+            TeledyneParameter2.XMIT_POWER: 255,
+            TeledyneParameter2.SPEED_OF_SOUND: 1485,
+            TeledyneParameter2.PITCH: 0,
+            TeledyneParameter2.ROLL: 0,
+            TeledyneParameter2.SALINITY: 35,
+            TeledyneParameter2.TIME_PER_ENSEMBLE: '00:00:00.00',
+            TeledyneParameter2.FALSE_TARGET_THRESHOLD: '050,001',
+            TeledyneParameter2.BANDWIDTH_CONTROL: 0,
+            TeledyneParameter2.CORRELATION_THRESHOLD: 64,
+            TeledyneParameter2.SERIAL_OUT_FW_SWITCHES: '111100000',
+            TeledyneParameter2.ERROR_VELOCITY_THRESHOLD: 2000,
+            TeledyneParameter2.CLIP_DATA_PAST_BOTTOM: 0,
+            TeledyneParameter2.RECEIVER_GAIN_SELECT: 1,
+            TeledyneParameter2.PINGS_PER_ENSEMBLE: 1,
+            TeledyneParameter2.TRANSMIT_LENGTH: 0,
+            TeledyneParameter2.PING_WEIGHT: 0,
+            TeledyneParameter2.AMBIGUITY_VELOCITY: 175,
+            TeledyneParameter2.SERIAL_DATA_OUT: '000 000 000',
+            TeledyneParameter2.LATENCY_TRIGGER: 0,
+            TeledyneParameter2.HEADING_ALIGNMENT: '+00000',
+            TeledyneParameter2.HEADING_BIAS: '+00000',
+            TeledyneParameter2.DATA_STREAM_SELECTION: 0,
+            TeledyneParameter2.ENSEMBLE_PER_BURST: 0,
+            TeledyneParameter2.SAMPLE_AMBIENT_SOUND: 0,
+            TeledyneParameter2.BUFFERED_OUTPUT_PERIOD: '00:00:00'
+        }
+        new_set = {
+            'SERIAL_FLOW_CONTROL': '11110',
+            'BANNER': 1,
+            'SAVE_NVRAM_TO_RECORDER': True,  # Immutable.
+            'PITCH': 1,
+            'ROLL': 1
+        }
+        # Change the values of these parameters to something before the
+        # driver is reinitialized.  They should be blown away on reinit.
+        new_values = {}
+
+        p = TeledyneParameter2.dict()
+        for k, v in new_set.items():
+
+            if k not in ('BANNER', 'SERIAL_FLOW_CONTROL', 'SAVE_NVRAM_TO_RECORDER', 'TIME'):
+                new_values[p[k]] = v
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -2057,9 +2092,11 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
+    # Direct access to master
     def test_direct_access_telnet_mode_master(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access
+          to the physical instrument. (telnet mode)
         """
 
         self.assert_enter_command_mode()
@@ -2079,9 +2116,11 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         # Direct access is true, it should be set before
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1487)
 
+    # Direct access to slave
     def test_direct_access_telnet_mode_slave(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct
+          access to the physical instrument. (telnet mode)
         """
 
         self.assert_enter_command_mode()
@@ -2103,7 +2142,8 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
     def test_recover_from_TG(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access
+         to the physical instrument. (telnet mode)
         """
 
         self.assert_enter_command_mode()
@@ -2123,71 +2163,71 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
         self.assert_get_parameter(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
 
-    # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
-    # Before testing it, remove the readOnly
-    def _test_autosample_earth(self):
-
-        #Verify autosample works and data particles are created
-        #NOTE: If TG is set autosample behaves odd...
-
-        self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '11111')
-        self.assert_start_autosample()
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data_earth,
-                                   timeout=140)
-
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-                                    DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-                                    DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
-        self.assert_stop_autosample()
-
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-                                    DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-                                    DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
-
-        # Restart autosample and gather a couple samples
-        self.assert_sample_autosample(self.assert_particle_pd0_data_earth, DataParticleType.ADCP_PD0_PARSED_EARTH)
-
-    # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
-    # Before testing it, remove the readOnly
-    def _test_autosample_beam(self):
-
-        """
-        Verify autosample works and data particles are created
-        """
-        self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '00111')
-        self.assert_start_autosample()
-
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data,
-                                   timeout=50)  # ADCP_PD0_PARSED_BEAM
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-                                    DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
-
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-                                    DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
-
-        # Stop autosample and do run a couple commands.
-        self.assert_stop_autosample()
-
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-                                    DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-                                    DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
-
-        # Restart autosample and gather a couple samples
-        self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM)
+    # # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
+    # # Before testing it, remove the readOnly
+    # def _test_autosample_earth(self):
+    #
+    #     #Verify autosample works and data particles are created
+    #     #NOTE: If TG is set autosample behaves odd...
+    #
+    #     self.assert_enter_command_mode()
+    #     #self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '11111')
+    #     self.assert_start_autosample()
+    #     self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data_earth,
+    #                                timeout=140)
+    #
+    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
+    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
+    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+    #     self.assert_stop_autosample()
+    #
+    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
+    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
+    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+    #
+    #     # Restart autosample and gather a couple samples
+    #     self.assert_sample_autosample(self.assert_particle_pd0_data_earth, DataParticleType.ADCP_PD0_PARSED_EARTH)
+    #
+    # # Note: Parameter.COORDINATE_TRANSFORMATION is ReadOnly
+    # # Before testing it, remove the readOnly
+    # def _test_autosample_beam(self):
+    #
+    #     """
+    #     Verify autosample works and data particles are created
+    #     """
+    #     self.assert_enter_command_mode()
+    #     self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '00111')
+    #     self.assert_start_autosample()
+    #
+    #     self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data,
+    #                                timeout=50)  # ADCP_PD0_PARSED_BEAM
+    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
+    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
+    #
+    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
+    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
+    #
+    #     # Stop autosample and do run a couple commands.
+    #     self.assert_stop_autosample()
+    #
+    #     self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
+    #                                 DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+    #     self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
+    #                                 DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+    #
+    #     # Restart autosample and gather a couple samples
+    #     self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM)
 
     def assert_cycle(self):
         self.assert_start_autosample()
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=200)
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration,
-                                    DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
+                                    DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=60)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration,
-                                    DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
+                                    DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=60)
 
         # Stop autosample and do run a couple commands.
         self.assert_stop_autosample()
