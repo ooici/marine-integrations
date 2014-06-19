@@ -38,7 +38,7 @@ class DofstKWfpDataParticleKey(BaseEnum):
 
 class DofstKWfpDataParticle(DataParticle):
     """
-    Class for parsing data from the dofst_k_wfp data set
+    Class for creating the instrument particle for dofst_k
     """
     def _build_parsed_values(self):
         """
@@ -57,21 +57,21 @@ class DofstKWfpDataParticle(DataParticle):
 
 class DofstKWfpRecoveredDataParticle(DofstKWfpDataParticle):
     """
-    Class for parsing data from the recovered dofst_k_wfp data set
+    Class for the recovered dofst_k_wfp instrument particle
     """
     _data_particle_type = DataParticleType.RECOVERED_DATA
 
 
 class DofstKWfpTelemeteredDataParticle(DofstKWfpDataParticle):
     """
-    Class for parsing data from the telemetered dofst_k_wfp data set
+    Class for the telemetered dofst_k_wfp instrument particle
     """
     _data_particle_type = DataParticleType.TELEMETERED_DATA
 
 
 class DofstKWfpMetadataParticle(DataParticle):
     """
-    Class for creating the data particle for the common wfp metadata
+    Class for creating the metadata particle for dofst_k
     """
     def _build_parsed_values(self):
         """
@@ -97,13 +97,13 @@ class DofstKWfpMetadataParticle(DataParticle):
 
 class DofstKWfpRecoveredMetadataParticle(DofstKWfpMetadataParticle):
     """
-    Class for parsing data from the recovered dofst_k_wfp data set
+    Class for the recovered dofst_k_wfp metadata particle
     """
     _data_particle_type = DataParticleType.RECOVERED_METADATA
 
 
 class DofstKWfpTelemeteredMetadataParticle(DofstKWfpMetadataParticle):
     """
-    Class for parsing data from the telemetered dofst_k_wfp data set
+    Class for the telemetered dofst_k_wfp metadata particle
     """
     _data_particle_type = DataParticleType.TELEMETERED_METADATA
