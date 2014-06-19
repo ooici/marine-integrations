@@ -590,7 +590,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_AMBIENT_CURRENT: {'type': float, 'value': "20.32"},
         ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_ATTITUDE_TEMP: {'type': float, 'value': "24.65"},
         ADCP_ANCILLARY_SYSTEM_DATA_KEY.ADCP_INTERNAL_MOISTURE: {'type': unicode, 'value': "8F0Ah"}
-    }  # {'adcp_ambient_temp':'20.32','adcp_attitude_temp':'24.65','adcp_internal_moisture':'8F0Ah'}
+    }
 
     _pt4_dict = {
         ADCP_TRANSMIT_PATH_KEY.ADCP_TRANSIT_CURRENT: {'type': float, 'value': "2.0"},
@@ -889,26 +889,26 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
-        self._test_set_xmit_power()
-        self._test_set_speed_of_sound()
-        self._test_set_pitch()
-        self._test_set_roll()
-        self._test_set_salinity()
-        self._test_set_sensor_source()
-        self._test_set_time_per_ensemble()
-        self._test_set_false_target_threshold()
-        self._test_set_bandwidth_control()
-        self._test_set_correlation_threshold()
-        self._test_set_error_velocity_threshold()
-        self._test_set_blank_after_transmit()
-        self._test_set_clip_data_past_bottom()
-        self._test_set_receiver_gain_select()
-        self._test_set_number_of_depth_cells()
-        self._test_set_pings_per_ensemble()
-        self._test_set_depth_cell_size()
-        self._test_set_transmit_length()
-        self._test_set_ping_weight()
-        self._test_set_ambiguity_velocity()
+        self._tst_set_xmit_power()
+        self._tst_set_speed_of_sound()
+        self._tst_set_pitch()
+        self._tst_set_roll()
+        self._tst_set_salinity()
+        self._tst_set_sensor_source()
+        self._tst_set_time_per_ensemble()
+        self._tst_set_false_target_threshold()
+        self._tst_set_bandwidth_control()
+        self._tst_set_correlation_threshold()
+        self._tst_set_error_velocity_threshold()
+        self._tst_set_blank_after_transmit()
+        self._tst_set_clip_data_past_bottom()
+        self._tst_set_receiver_gain_select()
+        self._tst_set_number_of_depth_cells()
+        self._tst_set_pings_per_ensemble()
+        self._tst_set_depth_cell_size()
+        self._tst_set_transmit_length()
+        self._tst_set_ping_weight()
+        self._tst_set_ambiguity_velocity()
 
 
 ###############################################################################
