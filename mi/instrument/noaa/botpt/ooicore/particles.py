@@ -10,7 +10,7 @@ import re
 import time
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.exceptions import SampleException
 from mi.core.log import get_logging_metaclass
 
@@ -37,19 +37,13 @@ common_regex_items = {
 
 
 class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
     LILY_SAMPLE = 'botpt_lily_sample'
     LILY_LEVELING = 'botpt_lily_leveling'
     IRIS_SAMPLE = 'botpt_iris_sample'
     NANO_SAMPLE = 'botpt_nano_sample'
     HEAT_SAMPLE = 'botpt_heat_sample'
     BOTPT_STATUS = 'botpt_status'
-
-    # IRIS_STATUS1 = 'botpt_iris_status1'
-    # IRIS_STATUS2 = 'botpt_iris_status2'
-    # LILY_STATUS1 = 'botpt_lily_status1'
-    # LILY_STATUS2 = 'botpt_lily_status2'
-    # NANO_STATUS = 'botpt_nano_status'
-    # SYST_STATUS = 'botpt_syst_status'
 
 
 class IrisSampleParticleKey(BaseEnum):
