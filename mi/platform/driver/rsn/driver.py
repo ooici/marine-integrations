@@ -24,7 +24,7 @@ from mi.platform.platform_driver_event import ExternalEventDriverEvent
 from mi.platform.exceptions import PlatformException
 from mi.platform.exceptions import PlatformDriverException
 from mi.platform.exceptions import PlatformConnectionException
-from mi.platform.rsn.oms_client_factory import CIOMSClientFactory
+from mi.platform.driver.rsn.oms_client_factory import CIOMSClientFactory
 from mi.platform.responses import InvalidResponse
 
 from ion.agents.platform.util import ion_ts_2_ntp
