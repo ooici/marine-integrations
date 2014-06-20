@@ -7,11 +7,11 @@ header:
 data:
   - _index: 1
     internal_timestamp: '2013-07-25T17:26:16.97'
-    controller_timestamp: 1374776411
-    adcps_jln_number: 119
-    adcps_jln_unit_id: 0
-    adcps_jln_fw_vers: 50
-    adcps_jln_fw_rev: 40
+    sio_controller_timestamp: 1374776411
+    ensemble_number: 119
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
     adcps_jln_year: 2013
     adcps_jln_month: 7
     adcps_jln_day: 25

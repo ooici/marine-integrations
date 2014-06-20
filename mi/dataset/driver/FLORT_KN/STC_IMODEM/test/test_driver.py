@@ -20,41 +20,61 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+log = get_logger()
 from mi.idk.exceptions import SampleTimeout
-
+import os
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-from mi.dataset.driver.FLORT_KN.STC_IMODEM.driver import FLORT_KN__STC_IMODEM_DataSetDriver
-from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn__stc_imodemParserDataParticle
+from mi.dataset.driver.FLORT_KN.STC_IMODEM.driver import \
+    FLORT_KN_STC_IMODEM_DataSetDriver
+from mi.dataset.parser.flort_kn__stc_imodem import \
+    Flort_kn_stc_imodemParserDataParticleTelemetered, \
+    Flort_kn_stc_imodemParserDataParticleRecovered, \
+    DataParticleType
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
+DIR_FLORT_KN_LIVE = '/tmp/flort/dsatest1'
+DIR_FLORT_KN_INSTRUMENT_RECOVERED = '/tmp/flort/dsatest2'
+
 # Fill in driver details
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.FLORT_KN.STC_IMODEM.driver',
-    driver_class='FLORT_KN__STC_IMODEM_DataSetDriver',
+    driver_class='FLORT_KN_STC_IMODEM_DataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = FLORT_KN__STC_IMODEM_DataSetDriver.stream_config(),
+    agent_packet_config = FLORT_KN_STC_IMODEM_DataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'flort_kn__stc_imodem',
+        DataSourceConfigKey.RESOURCE_ID: 'flort_kn_stc_imodem',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_FLORT_KN_LIVE,
+                DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+            DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_FLORT_KN_INSTRUMENT_RECOVERED,
+                DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED: {},
+            DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED: {}
+        }
     }
 )
 
-SAMPLE_STREAM = 'flort_kn__stc_imodem_instrument'
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -74,40 +94,53 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.clear_async_data()
-        self.create_sample_data('first.DAT', "E0000001.DAT")
-        self.assert_data(Flort_kn__stc_imodemParserDataParticle, 'first.result.yml', count=1, timeout=10)
+        #self.clear_async_data()
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_LIVE, "E0000001.DAT")
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000001.DAT")
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleTelemetered, 'first.result.yml', count=1, timeout=10)
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'firstRecovered.result.yml', count=1, timeout=10)
+        self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_LIVE, "E0000002.DAT")
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleTelemetered, 'second.result.yml', count=4, timeout=10)
 
-        self.clear_async_data()
-        self.create_sample_data('second.DAT', "E0000002.DAT")
-        self.assert_data(Flort_kn__stc_imodemParserDataParticle, 'second.result.yml', count=4, timeout=10)
-
-        self.clear_async_data()
-        self.create_sample_data('E0000303.DAT', "E0000303.DAT")
+        self.create_sample_data_set_dir('E0000303.DAT', DIR_FLORT_KN_LIVE, "E0000303.DAT")
         # start is the same particle here, just use the same results
-        self.assert_data(Flort_kn__stc_imodemParserDataParticle, count=32, timeout=10)
+        self.assert_data( Flort_kn_stc_imodemParserDataParticleTelemetered, count=32, timeout=10)
+
+        self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000002.DAT")
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'secondRecovered.result.yml', count=4, timeout=10)
+
+        self.create_sample_data_set_dir('E0000303.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000303.DAT")
+
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, count=32, timeout=10)
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        path_1 = self.create_sample_data('first.DAT', "E0000001.DAT")
-        path_2 = self.create_sample_data('second.DAT', "E0000002.DAT")
+        path_1 = self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_LIVE, "E0000001.DAT")
+        path_2 = self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_LIVE, "E0000002.DAT")
+        path_3 = self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000003.DAT")
+        path_4 = self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000004.DAT")
 
         # Create and store the new driver state
-        state = {
-            'E0000001.DAT': self.get_file_state(path_1, True, 50),
-            'E0000002.DAT': self.get_file_state(path_2, False, 76)
-        }
+        state = {DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED:
+                     {'E0000001.DAT': self.get_file_state(path_1, True, 50),
+                      'E0000002.DAT': self.get_file_state(path_2, False, 76)},
+                 DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED:
+                     {'E0000003.DAT': self.get_file_state(path_3, True, 50),
+                      'E0000004.DAT': self.get_file_state(path_4, False, 76)},
+                 }
         self.driver = self._get_driver_object(memento=state)
 
-        # create some data to parse
+
         self.clear_async_data()
 
         self.driver.start_sampling()
 
-        # verify data is produced
-        self.assert_data(Flort_kn__stc_imodemParserDataParticle, 'partial_second.result.yml', count=2, timeout=10)
+        self.assert_data( Flort_kn_stc_imodemParserDataParticleTelemetered, 'partial_second.result.yml', count=2, timeout=10)
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'partial_second_recovered.result.yml',
+                         count=2, timeout=10)
+
 
     def test_stop_start_ingest(self):
         """
@@ -118,17 +151,70 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.create_sample_data('first.DAT', "E0000001.DAT")
-        self.create_sample_data('second.DAT', "E0000002.DAT")
-        self.assert_data(Flort_kn__stc_imodemParserDataParticle, 'first.result.yml', count=1, timeout=10)
-        self.assert_file_ingested("E0000001.DAT")
+        self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_LIVE, "E0000002.DAT")
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_LIVE, "E0000001.DAT")
+
+
+        self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000004.DAT")
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000003.DAT")
+
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleTelemetered, 'first.result.yml', count=1, timeout=10)
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'firstRecovered.result.yml',
+                         count=1, timeout=10)
+        self.assert_file_ingested("E0000001.DAT", DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED)
         self.assert_file_not_ingested("E0000002.DAT")
+        self.assert_file_ingested("E0000003.DAT", DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED)
+        self.assert_file_not_ingested("E0000004.DAT")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(Flort_kn__stc_imodemParserDataParticle, 'second.result.yml', count=4, timeout=10)
-        self.assert_file_ingested("E0000002.DAT")
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleTelemetered, 'second.result.yml', count=4, timeout=10)
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'secondRecovered.result.yml',
+                         count=4, timeout=10)
+        self.assert_file_ingested("E0000002.DAT", DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED)
+        self.assert_file_ingested("E0000004.DAT", DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED)
+
+    def test_get_any_order(self):
+        """
+        Test that we can get data from files for all harvesters / parsers.
+        """
+        log.info("=========== START INTEG TEST GET ANY ORDER ================")
+
+        # Start sampling.
+        self.clear_sample_data()
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+
+        self.create_sample_data_set_dir(
+            'second.DAT', DIR_FLORT_KN_LIVE, 'E0000002.DAT')
+
+        self.create_sample_data_set_dir(
+            'first.DAT', DIR_FLORT_KN_LIVE, 'E0000001.DAT')
+
+        self.create_sample_data_set_dir(
+            'second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, 'E0000004.DAT')
+
+        self.create_sample_data_set_dir(
+            'first.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, 'E0000003.DAT')
+
+        # get the first particle from the live directory
+        self.assert_data( Flort_kn_stc_imodemParserDataParticleTelemetered, 'first.result.yml',
+                         count=1, timeout=10)
+
+        # get the first particle from the recovered directory
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'firstRecovered.result.yml',
+                         count=1, timeout=10)
+
+        # get the next 4 particles from the live directory
+        self.assert_data( Flort_kn_stc_imodemParserDataParticleTelemetered, 'second.result.yml',
+                         count=4, timeout=10)
+
+        # get the next 4 particles from the recovered directory
+        self.assert_data(Flort_kn_stc_imodemParserDataParticleRecovered, 'secondRecovered.result.yml',
+                         count=4, timeout=10)
+
 
     def test_sample_exception(self):
         """
@@ -136,15 +222,25 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.clear_async_data()
 
-        config = self._driver_config()['startup_config']['harvester']['pattern']
+        config = self._driver_config()['startup_config']['harvester'][DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED]['pattern']
         filename = config.replace("*", "foo")
-        self.create_sample_data(filename)
+
+        self.create_sample_data_set_dir(filename, DIR_FLORT_KN_LIVE)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested(filename)
+        self.assert_file_ingested(filename, DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED)
+
+        config2 = self._driver_config()['startup_config']['harvester'][DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED]['pattern']
+        filename2 = config2.replace("*", "foo")
+
+        self.create_sample_data_set_dir(filename2, DIR_FLORT_KN_INSTRUMENT_RECOVERED)
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -156,12 +252,47 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
+
+    def create_data_dir(self):
+        """
+        Verify the test data directory is created and exists. Return the path to
+        the directory .
+        @return: path to data directory
+        @raise: IDKConfigMissing no harvester config
+        @raise: IDKException if data_dir exists, but not a directory
+        """
+        startup_config = self._driver_config().get('startup_config')
+        if not startup_config:
+            raise IDKConfigMissing("Driver config missing 'startup_config'")
+
+        harvester_config = startup_config.get('harvester')
+        if not harvester_config:
+            raise IDKConfigMissing("Startup config missing 'harvester' config")
+
+        data_dir = []
+
+        for key in harvester_config:
+            data_dir_key = harvester_config[key].get("directory")
+            if not data_dir_key:
+                raise IDKConfigMissing("Harvester config missing 'directory'")
+
+            if not os.path.exists(data_dir_key):
+                log.debug("Creating data dir: %s", data_dir_key)
+                os.makedirs(data_dir_key)
+
+            elif not os.path.isdir(data_dir_key):
+                raise IDKException("%s is not a directory" % data_dir_key)
+            data_dir.append(data_dir_key)
+
+        return data_dir
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('second.DAT', 'E0000001.DAT')
+        self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_LIVE, 'E0000001.DAT')
+        self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, 'E0000002.DAT')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # NOTE: If the processing is not slowed down here, the engineering samples are
@@ -169,13 +300,20 @@ class QualificationTest(DataSetQualificationTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get one sample
+        #self.assert_initialize(
+
+
         try:
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 4)
-            log.debug("RESULT: %s", result)
+            resulta = self.data_subscribers.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 4)
+            resultb = self.data_subscribers.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 4)
+            log.debug("RESULT: %s", resulta)
+            log.debug("RESULT: %s", resultb)
 
             # Verify values
-            self.assert_data_values(result, 'second.result.yml')
+            self.assert_data_values(resulta, 'second.result.yml')
+            self.assert_data_values(resultb, 'secondRecovered.result.yml')
+
+
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -184,22 +322,27 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test importing a large number of samples from the file at once
         """
-        self.create_sample_data('E0000303.DAT')
-        self.create_sample_data('E0000427.DAT')
+        self.create_sample_data_set_dir('E0000303.DAT', DIR_FLORT_KN_LIVE)
+        self.create_sample_data_set_dir('E0000427.DAT',  DIR_FLORT_KN_LIVE)
+        self.create_sample_data_set_dir('E0000303.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED)
+        self.create_sample_data_set_dir('E0000427.DAT',  DIR_FLORT_KN_INSTRUMENT_RECOVERED)
         self.assert_initialize()
 
         # get results for each of the data particle streams
-        result2 = self.get_samples(SAMPLE_STREAM,64,40)
+        self.data_subscribers.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED,64,40)
+        self.data_subscribers.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED,64,40)
 
     def test_status_in_middle(self):
         """
         This file has status particles in the middle and at the end
         """
-        self.create_sample_data('E0000039.DAT')
+        self.create_sample_data_set_dir('E0000039.DAT', DIR_FLORT_KN_LIVE)
+        self.create_sample_data_set_dir('E0000039.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED)
         self.assert_initialize()
 
         # get results for each of the data particle streams
-        result2 = self.get_samples(SAMPLE_STREAM,53,40)
+        self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 53, 40)
+        self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 53, 40)
 
     def test_stop_start(self):
         """
@@ -207,7 +350,8 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('first.DAT', "E0000001.DAT")
+        self.create_sample_data_set_dir('first.DAT',  DIR_FLORT_KN_LIVE, "E0000001.DAT")
+        self.create_sample_data_set_dir('first.DAT',  DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000001.DAT")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -218,28 +362,36 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            resulta = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 1, 5)
+            resultb = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 1, 5)
+            log.debug("RESULT: %s", resulta)
+            log.debug("RESULT: %s", resultb)
 
-            # Verify values
-            self.assert_data_values(result, 'first.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
 
-            self.create_sample_data('second.DAT', "E0000002.DAT")
+            self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_LIVE, "E0000002.DAT")
+            self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000002.DAT")
             # Now read the first two records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 2)
-            log.debug("got result 1 %s", result)
+            resulta = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 2)
+            resultb = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 2)
+            log.debug("got result 1 %s", resulta)
+            log.debug("got result 1 %s", resultb)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
 
-            # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result2 = self.get_samples(SAMPLE_STREAM, 2)
-            log.debug("got result 2 %s", result2)
-            result.extend(result2)
-            self.assert_data_values(result, 'second.result.yml')
+            result2a = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 2)
+            result2b = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 2)
+            log.debug("got result 2 %s", result2a)
+            resulta.extend(result2a)
+            resultb.extend(result2b)
+            self.assert_data_values(resulta, 'second.result.yml')
+            self.assert_data_values(resultb, 'secondRecovered.result.yml')
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -250,7 +402,8 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('first.DAT', "E0000001.DAT")
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_LIVE, "E0000001.DAT")
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, "E0000001.DAT")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -258,22 +411,29 @@ class QualificationTest(DataSetQualificationTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            resulta = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED)
+            resultb = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED)
+            log.debug("RESULT: %s", resulta)
+            log.debug("RESULT: %s", resultb)
 
             # Verify values
-            self.assert_data_values(result, 'first.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_data_values(resulta, 'first.result.yml')
+            self.assert_data_values(resultb, 'firstRecovered.result.yml')
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
 
-            self.create_sample_data('second.DAT', "E0000002.DAT")
+            self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_LIVE,  "E0000002.DAT")
+            self.create_sample_data_set_dir('second.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED,  "E0000002.DAT")
             # Now read the first two records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 2)
-            log.debug("got result 1 %s", result)
+            resulta = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 2)
+            resultb = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 2)
+            log.debug("RESULT: %s", resulta)
+            log.debug("RESULT: %s", resultb)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
 
             # stop the agent
             self.stop_dataset_agent_client()
@@ -284,12 +444,16 @@ class QualificationTest(DataSetQualificationTestCase):
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
             
-            result2 = self.get_samples(SAMPLE_STREAM, 2)
-            log.debug("got result 2 %s", result2)
-            result.extend(result2)
-            self.assert_data_values(result, 'second.result.yml')
-
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            result2a = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 2)
+            result2b = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 2)
+            log.debug("got result 2 %s", result2a)
+            resulta.extend(result2a)
+            log.debug("got result 2 %s", result2b)
+            resultb.extend(result2b)
+            self.assert_data_values(resulta, 'second.result.yml')
+            self.assert_data_values(resultb, 'secondRecovered.result.yml')
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+            self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -300,15 +464,19 @@ class QualificationTest(DataSetQualificationTestCase):
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('bad.DAT', 'E0000001.DAT')
-        self.create_sample_data('first.DAT', 'E0000002.DAT')
-
+        self.create_sample_data_set_dir('bad.DAT', DIR_FLORT_KN_LIVE, 'E0000001.DAT')
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_LIVE, 'E0000002.DAT')
+        self.create_sample_data_set_dir('bad.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, 'E0000001.DAT')
+        self.create_sample_data_set_dir('first.DAT', DIR_FLORT_KN_INSTRUMENT_RECOVERED, 'E0000002.DAT')
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 1)
-        self.assert_data_values(result, 'first.result.yml')
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        resulta = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 1)
+        resultb = self.get_samples(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 1)
+        self.assert_data_values(resulta, 'first.result.yml')
+        self.assert_data_values(resultb, 'firstRecovered.result.yml')
+        self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED, 0)
+        self.assert_sample_queue_size(DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED, 0)
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)

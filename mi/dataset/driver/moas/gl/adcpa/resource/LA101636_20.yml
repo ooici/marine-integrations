@@ -1,0 +1,2424 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202174.300000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 9
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 297
+    transmit_pulse_length: 197
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 22
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 1
+    real_time_clock: [12, 1, 10, 16, 36, 14, 30]
+    ensemble_start_time: 3535202174.3000001907348633
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1520
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 2100
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [23, 23, 45, 110, 68, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-62, -62, -53, -27, -17, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [84, 84, 84, 86, 53, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [106, 126, 106, 89, 66, 49, 40, 34, 24, 17, 15, 12, 0, 0, 0]
+    correlation_magnitude_beam2: [98, 128, 110, 92, 77, 59, 38, 37, 24, 20, 16, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [105, 112, 73, 43, 18, 13, 11, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [106, 106, 121, 105, 65, 41, 44, 36, 29, 29, 19, 17, 15, 14, 13]
+    echo_intensity_beam1: [114, 96, 84, 74, 73, 71, 68, 68, 68, 68, 67, 67, 67, 66, 66]
+    echo_intensity_beam2: [116, 104, 93, 76, 73, 73, 71, 69, 69, 69, 68, 68, 68, 68, 67]
+    echo_intensity_beam3: [110, 83, 73, 68, 64, 63, 62, 60, 60, 60, 59, 60, 61, 59, 59]
+    echo_intensity_beam4: [107, 81, 73, 65, 62, 62, 62, 61, 61, 60, 61, 60, 61, 60, 60]
+    percent_good_3beam: [0, 0, 20, 100, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 60, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 2
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202175.940000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 2
+    real_time_clock: [12, 1, 10, 16, 36, 15, 94]
+    ensemble_start_time: 3535202175.9400000572204590
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-94, -94, -167, -454, -176, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [252, 252, 222, 105, 41, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-339, -339, -341, -348, -136, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [105, 121, 101, 99, 65, 51, 40, 33, 29, 19, 15, 13, 0, 0, 0]
+    correlation_magnitude_beam2: [104, 122, 105, 86, 64, 61, 41, 30, 21, 18, 15, 15, 0, 0, 0]
+    correlation_magnitude_beam3: [107, 102, 72, 46, 25, 16, 15, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [108, 108, 119, 103, 67, 51, 43, 36, 28, 28, 19, 24, 19, 18, 17]
+    echo_intensity_beam1: [113, 95, 81, 76, 72, 71, 70, 68, 68, 68, 68, 67, 67, 66, 67]
+    echo_intensity_beam2: [113, 99, 85, 76, 73, 72, 71, 70, 69, 69, 69, 68, 68, 68, 68]
+    echo_intensity_beam3: [105, 80, 71, 67, 64, 63, 61, 61, 61, 60, 60, 60, 59, 59, 59]
+    echo_intensity_beam4: [103, 82, 72, 65, 64, 62, 62, 62, 61, 61, 61, 61, 61, 60, 60]
+    percent_good_3beam: [0, 0, 20, 100, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 3
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202177.480000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 3
+    real_time_clock: [12, 1, 10, 16, 36, 17, 48]
+    ensemble_start_time: 3535202177.4800000190734863
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 1
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-42, -42, -76, -184, -121, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [111, 111, 97, 42, 28, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-150, -150, -151, -141, -93, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [106, 118, 105, 97, 72, 52, 45, 38, 22, 21, 20, 16, 0, 0, 0]
+    correlation_magnitude_beam2: [111, 123, 100, 84, 65, 55, 42, 29, 21, 14, 13, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [97, 101, 71, 36, 17, 14, 12, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [102, 102, 126, 103, 81, 57, 46, 34, 23, 23, 22, 15, 20, 17, 15]
+    echo_intensity_beam1: [117, 93, 82, 77, 74, 72, 69, 69, 68, 68, 68, 67, 67, 67, 67]
+    echo_intensity_beam2: [121, 105, 83, 75, 73, 72, 70, 71, 69, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [107, 82, 71, 66, 64, 62, 61, 60, 60, 60, 59, 59, 60, 59, 59]
+    echo_intensity_beam4: [104, 88, 73, 67, 63, 63, 62, 61, 61, 60, 61, 61, 60, 60, 60]
+    percent_good_3beam: [0, 0, 20, 80, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 20, 50, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 4
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202179.120000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 4
+    real_time_clock: [12, 1, 10, 16, 36, 19, 12]
+    ensemble_start_time: 3535202179.1199998855590820
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 1
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-95, -95, -151, -456, -639, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [253, 253, 230, 106, 151, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-341, -341, -342, -350, -494, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [112, 111, 105, 105, 52, 43, 43, 31, 24, 17, 16, 14, 0, 0, 0]
+    correlation_magnitude_beam2: [103, 121, 100, 92, 63, 58, 52, 25, 18, 17, 15, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [101, 119, 78, 37, 25, 16, 14, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [102, 102, 123, 97, 82, 63, 42, 37, 25, 25, 22, 14, 16, 16, 15]
+    echo_intensity_beam1: [116, 97, 83, 77, 75, 70, 69, 68, 68, 68, 68, 68, 67, 67, 66]
+    echo_intensity_beam2: [124, 111, 83, 77, 75, 72, 71, 70, 69, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [110, 82, 78, 67, 64, 62, 61, 60, 61, 60, 59, 59, 59, 59, 59]
+    echo_intensity_beam4: [108, 84, 71, 66, 64, 62, 61, 61, 61, 61, 60, 60, 60, 60, 60]
+    percent_good_3beam: [0, 0, 10, 100, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 5
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202180.670000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 5
+    real_time_clock: [12, 1, 10, 16, 36, 20, 67]
+    ensemble_start_time: 3535202180.6700000762939453
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [215, 215, 610, 941, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-575, -575, -414, -279, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [774, 774, 784, 792, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [113, 116, 109, 92, 52, 50, 42, 34, 16, 15, 12, 12, 0, 0, 0]
+    correlation_magnitude_beam2: [95, 106, 105, 87, 55, 47, 33, 17, 17, 15, 12, 14, 0, 0, 0]
+    correlation_magnitude_beam3: [124, 100, 60, 42, 18, 13, 12, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [108, 108, 104, 100, 78, 64, 44, 34, 25, 25, 16, 16, 19, 14, 12]
+    echo_intensity_beam1: [125, 104, 85, 76, 71, 70, 69, 69, 68, 67, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [116, 93, 84, 75, 73, 71, 70, 69, 69, 68, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [117, 94, 71, 66, 63, 61, 62, 61, 60, 59, 60, 59, 60, 59, 59]
+    echo_intensity_beam4: [115, 83, 72, 67, 64, 63, 62, 62, 61, 61, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 60, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 40, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 6
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202182.520000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 6
+    real_time_clock: [12, 1, 10, 16, 36, 22, 52]
+    ensemble_start_time: 3535202182.5199999809265137
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-54, -54, -97, -258, -230, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [143, 143, 125, 59, 54, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-192, -192, -193, -197, -177, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [116, 121, 111, 93, 62, 51, 37, 31, 27, 19, 17, 15, 0, 0, 0]
+    correlation_magnitude_beam2: [110, 122, 106, 94, 63, 49, 39, 23, 21, 17, 17, 11, 0, 0, 0]
+    correlation_magnitude_beam3: [115, 110, 68, 37, 24, 15, 15, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [103, 103, 113, 95, 76, 53, 46, 34, 28, 28, 19, 19, 17, 18, 14]
+    echo_intensity_beam1: [117, 97, 84, 76, 74, 70, 70, 69, 72, 68, 68, 67, 67, 67, 67]
+    echo_intensity_beam2: [112, 93, 81, 76, 74, 71, 71, 70, 73, 69, 69, 68, 68, 68, 68]
+    echo_intensity_beam3: [107, 83, 71, 67, 64, 63, 61, 61, 68, 61, 60, 60, 60, 59, 59]
+    echo_intensity_beam4: [106, 82, 72, 67, 64, 63, 62, 62, 66, 62, 62, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 40, 100, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 80, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 7
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202184.060000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 7
+    real_time_clock: [12, 1, 10, 16, 36, 24, 6]
+    ensemble_start_time: 3535202184.0599999427795410
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [118, 118, 300, 461, 685, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-316, -316, -241, -171, -156, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [425, 425, 429, 428, 523, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [113, 108, 103, 83, 62, 43, 43, 32, 27, 22, 15, 15, 0, 0, 0]
+    correlation_magnitude_beam2: [98, 115, 105, 101, 69, 50, 38, 27, 20, 20, 15, 13, 0, 0, 0]
+    correlation_magnitude_beam3: [120, 99, 70, 43, 18, 16, 10, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [105, 105, 115, 100, 74, 48, 45, 30, 21, 21, 21, 20, 18, 14, 11]
+    echo_intensity_beam1: [123, 96, 79, 74, 72, 71, 70, 69, 68, 67, 67, 68, 67, 67, 67]
+    echo_intensity_beam2: [118, 89, 80, 78, 74, 72, 71, 69, 69, 69, 68, 68, 68, 67, 68]
+    echo_intensity_beam3: [113, 92, 71, 66, 64, 62, 62, 62, 59, 60, 59, 59, 59, 59, 59]
+    echo_intensity_beam4: [112, 83, 73, 67, 63, 62, 62, 62, 61, 61, 61, 61, 61, 61, 60]
+    percent_good_3beam: [0, 0, 40, 70, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 10, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 60, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 8
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202185.810000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 8
+    real_time_clock: [12, 1, 10, 16, 36, 25, 81]
+    ensemble_start_time: 3535202185.8099999427795410
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [44, 44, 70, 211, 364, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-117, -117, -106, -48, -82, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [157, 157, 158, 161, 277, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [121, 120, 105, 96, 48, 43, 44, 32, 20, 21, 18, 14, 0, 0, 0]
+    correlation_magnitude_beam2: [97, 108, 108, 91, 54, 54, 46, 28, 24, 21, 13, 15, 0, 0, 0]
+    correlation_magnitude_beam3: [127, 103, 73, 38, 19, 14, 11, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [113, 113, 105, 101, 78, 54, 40, 33, 28, 28, 25, 22, 17, 17, 13]
+    echo_intensity_beam1: [125, 103, 82, 76, 73, 70, 69, 70, 67, 68, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [118, 87, 81, 76, 73, 71, 71, 71, 69, 68, 69, 69, 68, 68, 68]
+    echo_intensity_beam3: [119, 92, 71, 67, 64, 61, 61, 61, 60, 60, 60, 59, 60, 59, 60]
+    echo_intensity_beam4: [115, 83, 72, 66, 64, 63, 62, 62, 61, 61, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 20, 100, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 9
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202187.340000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 9
+    real_time_clock: [12, 1, 10, 16, 36, 27, 34]
+    ensemble_start_time: 3535202187.3400001525878906
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-57, -57, -129, -274, -237, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [152, 152, 122, 63, 55, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-204, -204, -206, -209, -182, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [114, 107, 100, 96, 60, 50, 45, 30, 21, 26, 21, 16, 0, 0, 0]
+    correlation_magnitude_beam2: [100, 110, 111, 99, 60, 54, 40, 27, 24, 18, 20, 16, 0, 0, 0]
+    correlation_magnitude_beam3: [127, 104, 66, 46, 24, 13, 10, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [110, 110, 106, 95, 86, 67, 37, 39, 23, 23, 21, 20, 18, 18, 16]
+    echo_intensity_beam1: [123, 95, 80, 76, 72, 71, 69, 69, 67, 68, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [118, 88, 83, 77, 73, 71, 71, 70, 69, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [119, 95, 71, 66, 63, 62, 61, 61, 60, 60, 60, 60, 59, 59, 59]
+    echo_intensity_beam4: [111, 81, 70, 67, 65, 62, 62, 61, 61, 61, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 30, 100, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 80, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 10
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202189.000000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 10
+    real_time_clock: [12, 1, 10, 16, 36, 29, 0]
+    ensemble_start_time: 3535202189.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [82, 82, 275, 397, 711, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-220, -220, -141, -91, -164, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [296, 296, 301, 304, 545, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [114, 120, 103, 93, 66, 50, 51, 26, 21, 21, 19, 16, 0, 0, 0]
+    correlation_magnitude_beam2: [113, 107, 105, 86, 59, 43, 33, 24, 17, 19, 17, 13, 0, 0, 0]
+    correlation_magnitude_beam3: [122, 96, 69, 38, 17, 15, 15, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [108, 108, 113, 101, 72, 71, 41, 30, 27, 27, 18, 19, 16, 15, 16]
+    echo_intensity_beam1: [123, 100, 81, 75, 74, 71, 70, 69, 68, 68, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [117, 89, 81, 75, 73, 71, 70, 69, 70, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [119, 91, 70, 66, 64, 62, 61, 61, 60, 60, 60, 60, 60, 59, 59]
+    echo_intensity_beam4: [111, 83, 72, 66, 65, 63, 62, 62, 61, 62, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 50, 100, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 11
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202190.590000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 11
+    real_time_clock: [12, 1, 10, 16, 36, 30, 59]
+    ensemble_start_time: 3535202190.5900001525878906
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-50, -50, -80, -232, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [134, 134, 122, 54, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-181, -181, -181, -178, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [111, 117, 105, 87, 52, 46, 38, 30, 23, 19, 20, 20, 0, 0, 0]
+    correlation_magnitude_beam2: [108, 115, 116, 83, 68, 53, 41, 27, 22, 17, 15, 13, 0, 0, 0]
+    correlation_magnitude_beam3: [127, 103, 72, 43, 24, 15, 13, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [105, 105, 114, 98, 86, 59, 45, 34, 25, 25, 19, 18, 14, 14, 13]
+    echo_intensity_beam1: [123, 102, 82, 76, 72, 70, 69, 69, 67, 68, 68, 67, 67, 67, 67]
+    echo_intensity_beam2: [124, 94, 84, 75, 75, 73, 70, 70, 69, 68, 69, 68, 68, 68, 68]
+    echo_intensity_beam3: [111, 90, 70, 67, 65, 63, 61, 61, 61, 60, 60, 60, 60, 60, 59]
+    echo_intensity_beam4: [113, 82, 72, 67, 65, 63, 62, 62, 62, 61, 61, 61, 61, 61, 60]
+    percent_good_3beam: [0, 0, 20, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 10, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 12
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202192.130000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 12
+    real_time_clock: [12, 1, 10, 16, 36, 32, 13]
+    ensemble_start_time: 3535202192.1300001144409180
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [9, 9, 45, 102, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-25, -25, -10, -23, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [33, 33, 34, 77, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [111, 115, 114, 95, 49, 48, 52, 35, 17, 22, 15, 14, 0, 0, 0]
+    correlation_magnitude_beam2: [115, 110, 105, 79, 58, 44, 38, 28, 18, 13, 16, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [123, 107, 79, 41, 17, 15, 10, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [115, 115, 105, 97, 77, 54, 36, 31, 24, 24, 21, 15, 20, 18, 12]
+    echo_intensity_beam1: [126, 100, 85, 77, 73, 69, 70, 69, 68, 67, 68, 68, 67, 67, 67]
+    echo_intensity_beam2: [120, 96, 83, 75, 74, 71, 70, 69, 69, 68, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [119, 95, 74, 66, 65, 62, 61, 60, 60, 60, 60, 61, 59, 59, 59]
+    echo_intensity_beam4: [112, 86, 70, 66, 63, 62, 62, 62, 61, 61, 61, 61, 61, 60, 60]
+    percent_good_3beam: [0, 0, 30, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 30, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 13
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202193.690000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 13
+    real_time_clock: [12, 1, 10, 16, 36, 33, 69]
+    ensemble_start_time: 3535202193.6900000572204590
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [108, 108, 354, 524, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-289, -289, -189, -119, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [389, 389, 395, 400, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [110, 115, 112, 97, 55, 56, 42, 41, 25, 17, 11, 14, 0, 0, 0]
+    correlation_magnitude_beam2: [111, 111, 108, 96, 56, 40, 35, 26, 22, 17, 16, 13, 0, 0, 0]
+    correlation_magnitude_beam3: [120, 99, 64, 36, 22, 16, 10, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [108, 108, 106, 101, 72, 56, 52, 31, 24, 24, 25, 19, 21, 16, 14]
+    echo_intensity_beam1: [128, 100, 83, 77, 72, 71, 70, 69, 68, 67, 67, 68, 67, 66, 67]
+    echo_intensity_beam2: [119, 93, 81, 77, 74, 71, 70, 69, 68, 68, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [120, 97, 71, 68, 64, 62, 61, 61, 61, 60, 60, 60, 59, 60, 59]
+    echo_intensity_beam4: [113, 80, 71, 65, 64, 63, 62, 61, 61, 61, 61, 61, 60, 60, 60]
+    percent_good_3beam: [0, 0, 60, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 14
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202195.230000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 14
+    real_time_clock: [12, 1, 10, 16, 36, 35, 23]
+    ensemble_start_time: 3535202195.2300000190734863
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-99, -99, -205, -454, -457, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [265, 265, 222, 104, 105, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-357, -357, -360, -347, -350, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [111, 107, 97, 90, 57, 43, 39, 30, 19, 18, 18, 12, 0, 0, 0]
+    correlation_magnitude_beam2: [114, 113, 113, 90, 67, 50, 35, 28, 20, 19, 18, 15, 0, 0, 0]
+    correlation_magnitude_beam3: [124, 103, 68, 39, 20, 14, 11, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [109, 109, 109, 92, 73, 55, 44, 31, 20, 20, 18, 16, 16, 15, 15]
+    echo_intensity_beam1: [122, 92, 79, 75, 70, 70, 69, 69, 68, 68, 68, 67, 67, 67, 67]
+    echo_intensity_beam2: [113, 92, 83, 77, 73, 72, 70, 70, 69, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [118, 92, 71, 66, 63, 62, 62, 61, 60, 60, 60, 60, 60, 59, 59]
+    echo_intensity_beam4: [108, 82, 70, 66, 64, 63, 61, 62, 61, 62, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 30, 80, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 20, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 15
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202196.880000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 15
+    real_time_clock: [12, 1, 10, 16, 36, 36, 88]
+    ensemble_start_time: 3535202196.8800001144409180
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [125, 125, 301, 585, 421, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-333, -333, -261, -135, -96, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [448, 448, 453, 448, 321, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [108, 114, 117, 89, 56, 49, 43, 27, 18, 19, 11, 15, 0, 0, 0]
+    correlation_magnitude_beam2: [114, 110, 113, 102, 63, 48, 35, 24, 18, 13, 14, 15, 0, 0, 0]
+    correlation_magnitude_beam3: [119, 114, 70, 39, 18, 13, 10, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [111, 111, 104, 93, 73, 47, 45, 29, 23, 23, 19, 16, 18, 12, 14]
+    echo_intensity_beam1: [127, 97, 85, 76, 72, 70, 70, 69, 68, 67, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [124, 99, 84, 80, 75, 72, 70, 69, 69, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [120, 94, 79, 68, 64, 62, 62, 61, 60, 60, 59, 59, 60, 59, 60]
+    echo_intensity_beam4: [114, 85, 70, 66, 63, 63, 62, 62, 61, 61, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 40, 90, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 10, 70, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 16
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202198.470000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 16
+    real_time_clock: [12, 1, 10, 16, 36, 38, 47]
+    ensemble_start_time: 3535202198.4700002670288086
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-3, -3, -1, 0, -48, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [9, 9, 10, 4, 11, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-12, -12, -12, -4, -37, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [107, 111, 117, 97, 65, 62, 55, 32, 19, 18, 14, 12, 0, 0, 0]
+    correlation_magnitude_beam2: [120, 109, 105, 99, 64, 49, 35, 23, 24, 16, 17, 13, 0, 0, 0]
+    correlation_magnitude_beam3: [114, 107, 61, 54, 28, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [115, 115, 114, 81, 70, 48, 43, 30, 36, 36, 29, 23, 18, 15, 13]
+    echo_intensity_beam1: [125, 97, 83, 78, 72, 71, 71, 70, 68, 68, 68, 68, 67, 67, 67]
+    echo_intensity_beam2: [127, 100, 80, 77, 74, 72, 71, 70, 69, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [119, 88, 71, 67, 63, 62, 62, 61, 61, 60, 60, 59, 60, 59, 59]
+    echo_intensity_beam4: [114, 87, 69, 65, 63, 63, 62, 62, 62, 61, 61, 61, 61, 60, 61]
+    percent_good_3beam: [0, 0, 60, 70, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 20, 80, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 40, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 17
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202200.010000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 17
+    real_time_clock: [12, 1, 10, 16, 36, 40, 1]
+    ensemble_start_time: 3535202200.0100002288818359
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-98, -98, -168, -475, -553, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [262, 262, 234, 109, 127, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-353, -353, -355, -363, -423, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [107, 114, 116, 93, 56, 56, 43, 33, 21, 20, 15, 13, 0, 0, 0]
+    correlation_magnitude_beam2: [120, 117, 110, 103, 72, 56, 38, 25, 20, 17, 18, 16, 0, 0, 0]
+    correlation_magnitude_beam3: [118, 110, 71, 50, 17, 13, 13, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [111, 111, 114, 97, 74, 52, 43, 36, 27, 27, 17, 19, 18, 15, 17]
+    echo_intensity_beam1: [126, 99, 83, 76, 72, 70, 69, 69, 69, 69, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [124, 100, 84, 79, 74, 72, 71, 70, 70, 70, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [126, 101, 77, 68, 64, 63, 62, 61, 62, 63, 60, 60, 59, 59, 59]
+    echo_intensity_beam4: [112, 87, 72, 66, 63, 62, 62, 62, 62, 63, 61, 61, 60, 61, 60]
+    percent_good_3beam: [0, 0, 20, 100, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 80, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 18
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202201.690000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 18
+    real_time_clock: [12, 1, 10, 16, 36, 41, 69]
+    ensemble_start_time: 3535202201.6900000572204590
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [91, 91, 263, 415, 670, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-243, -243, -173, -95, -152, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [327, 327, 332, 317, 510, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [90, 115, 107, 85, 52, 53, 43, 24, 22, 18, 15, 11, 0, 0, 0]
+    correlation_magnitude_beam2: [112, 112, 112, 81, 56, 44, 29, 22, 19, 20, 14, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [117, 102, 69, 39, 18, 17, 13, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [104, 104, 112, 90, 68, 53, 51, 37, 33, 33, 20, 20, 18, 12, 12]
+    echo_intensity_beam1: [126, 90, 82, 74, 71, 70, 70, 69, 69, 68, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [124, 95, 82, 75, 72, 71, 70, 69, 68, 69, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [120, 98, 75, 66, 64, 63, 61, 61, 62, 60, 60, 59, 60, 60, 60]
+    echo_intensity_beam4: [110, 81, 69, 65, 63, 63, 62, 62, 62, 62, 62, 61, 62, 61, 61]
+    percent_good_3beam: [0, 0, 40, 90, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 10, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 19
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202203.280000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 19
+    real_time_clock: [12, 1, 10, 16, 36, 43, 28]
+    ensemble_start_time: 3535202203.2799997329711914
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 938
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [28, 28, 74, 191, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-76, -76, -57, -44, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [102, 102, 103, 146, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [95, 116, 110, 92, 65, 66, 50, 35, 18, 16, 14, 13, 0, 0, 0]
+    correlation_magnitude_beam2: [118, 110, 104, 95, 56, 47, 34, 23, 16, 14, 15, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [118, 109, 69, 40, 19, 13, 13, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [108, 108, 103, 89, 70, 47, 44, 32, 26, 26, 22, 25, 20, 17, 15]
+    echo_intensity_beam1: [127, 92, 82, 76, 71, 71, 70, 70, 68, 68, 67, 67, 67, 67, 67]
+    echo_intensity_beam2: [125, 101, 80, 77, 76, 71, 70, 69, 69, 69, 69, 68, 68, 68, 68]
+    echo_intensity_beam3: [118, 96, 76, 67, 64, 62, 61, 61, 60, 60, 60, 59, 59, 59, 60]
+    echo_intensity_beam4: [113, 81, 70, 65, 63, 63, 62, 62, 62, 62, 61, 61, 61, 61, 61]
+    percent_good_3beam: [0, 0, 20, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 20, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 20
+    particle_object: AdcpaMGliderInstrumentParticle
+    particle_type: adcpa_m_glider_instrument
+    internal_timestamp: 3535202204.980000
+    firmware_version: 34
+    firmware_revision: 11
+    sysconfig_frequency: 600
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 2
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 13
+    num_beams: 4
+    num_cells: 15
+    pings_per_ensemble: 10
+    cell_length: 200
+    blank_after_transmit: 88
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 10
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 0.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 0
+    sensor_source_depth: 0
+    sensor_source_heading: 0
+    sensor_source_pitch: 0
+    sensor_source_roll: 0
+    sensor_source_conductivity: 1
+    sensor_source_temperature: 0
+    sensor_available_speed: 0
+    sensor_available_depth: 0
+    sensor_available_heading: 0
+    sensor_available_pitch: 0
+    sensor_available_roll: 0
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 0
+    bin_1_distance: 307
+    transmit_pulse_length: 216
+    reference_layer_start: 80
+    reference_layer_stop: 160
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 21
+    system_bandwidth: 0
+    serial_number: 223
+    ensemble_number: 20
+    real_time_clock: [12, 1, 10, 16, 36, 44, 98]
+    ensemble_start_time: 3535202204.9800000190734863
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1483
+    transducer_depth: 0
+    heading: 33710
+    pitch: 2739
+    roll: -149
+    salinity: 32
+    temperature: 931
+    mpt_minutes: 51
+    mpt_seconds: 0.9500000000000000
+    heading_stdev: 0
+    pitch_stdev: 31
+    roll_stdev: 15
+    adc_transmit_current: 0
+    adc_transmit_voltage: 10
+    adc_ambient_temp: 0
+    adc_pressure_plus: 0
+    adc_pressure_minus: 0
+    adc_attitude_temp: 0
+    adc_attitude: 0
+    adc_contamination_sensor: 0
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 0
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 0
+    pressure: 0
+    pressure_variance: 0
+    water_velocity_east: [-23, -23, -1, -35, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [62, 62, 71, 8, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-84, -84, -83, -27, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [0, 0, 0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [95, 115, 110, 83, 54, 51, 42, 30, 24, 14, 17, 12, 0, 0, 0]
+    correlation_magnitude_beam2: [114, 112, 103, 96, 73, 47, 38, 20, 18, 14, 18, 12, 0, 0, 0]
+    correlation_magnitude_beam3: [117, 101, 64, 42, 19, 17, 14, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [111, 111, 113, 94, 60, 47, 42, 34, 22, 22, 18, 15, 16, 12, 15]
+    echo_intensity_beam1: [135, 93, 83, 75, 72, 70, 70, 69, 68, 68, 67, 67, 67, 66, 67]
+    echo_intensity_beam2: [123, 101, 81, 77, 74, 73, 71, 69, 69, 68, 68, 68, 68, 68, 68]
+    echo_intensity_beam3: [119, 100, 77, 68, 64, 62, 61, 60, 60, 60, 60, 59, 59, 59, 59]
+    echo_intensity_beam4: [113, 84, 71, 64, 63, 63, 62, 61, 61, 61, 61, 60, 61, 60, 60]
+    percent_good_3beam: [0, 0, 40, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 10, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [100, 100, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

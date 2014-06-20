@@ -30,11 +30,11 @@ class DataParticleType(BaseEnum):
     SAMPLE = 'adcps_jln_sio_mule_instrument'
 
 class AdcpsParserDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = 'controller_timestamp'
-    ADCPS_JLN_NUMBER = 'adcps_jln_number'
-    ADCPS_JLN_UNIT_ID = 'adcps_jln_unit_id'
-    ADCPS_JLN_FW_VERS = 'adcps_jln_fw_vers'
-    ADCPS_JLN_FW_REV = 'adcps_jln_fw_rev'
+    CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
+    ENSEMBLE_NUMBER = 'ensemble_number'
+    UNIT_ID = 'unit_id'
+    FIRMWARE_VERSION = 'firmware_version'
+    FIRMWARE_REVISION = 'firmware_revision'
     ADCPS_JLN_YEAR = 'adcps_jln_year'
     ADCPS_JLN_MONTH = 'adcps_jln_month'
     ADCPS_JLN_DAY = 'adcps_jln_day'
@@ -54,10 +54,10 @@ class AdcpsParserDataParticleKey(BaseEnum):
     SUBSAMPLING_PARAMETER = 'subsampling_parameter'
     ADCPS_JLN_STARTBIN = 'adcps_jln_startbin'
     ADCPS_JLN_BINS = 'adcps_jln_bins'
-    ADCPS_JLN_VEL_EAST = 'adcps_jln_vel_east'
-    ADCPS_JLN_VEL_NORTH = 'adcps_jln_vel_north'
-    ADCPS_JLN_VEL_UP = 'adcps_jln_vel_up'
-    ADCPS_JLN_VEL_ERROR = 'adcps_jln_vel_error'
+    ADCPS_JLN_ERR = 'adcps_jln_vel_error' 
+    ADCPS_JLN_UP = 'adcps_jln_vel_up' 
+    ADCPS_JLN_NORTH = 'adcps_jln_vel_north' 
+    ADCPS_JLN_EAST = 'adcps_jln_vel_east'
 
 DATA_WRAPPER_REGEX = b'<Executing/>\x0d\x0a<SampleData ID=\'0x[0-9a-f]+\' LEN=\'[0-9]+\' ' \
                      'CRC=\'(0x[0-9a-f]+)\'>([\x00-\xFF]+)</SampleData>\x0d\x0a<Executed/>\x0d\x0a'
@@ -66,6 +66,9 @@ DATA_FAIL_REGEX = b'<ERROR type=(.+) msg=(.+)/>\x0d\x0a'
 DATA_FAIL_MATCHER = re.compile(DATA_FAIL_REGEX)
 DATA_REGEX = b'\x6e\x7f[\x00-\xFF]{32}([\x00-\xFF]+)([\x00-\xFF]{2})'
 DATA_MATCHER = re.compile(DATA_REGEX)
+
+SIO_HEADER_BYTES = 33
+STARTING_BYTES = 34
 
 CRC_TABLE = [0, 1996959894, 3993919788, 2567524794, 124634137, 1886057615, 3915621685, 2657392035,
 249268274, 2044508324, 3772115230, 2547177864, 162941995, 2125561021, 3887607047, 2428444049,
@@ -141,7 +144,7 @@ class AdcpsParserDataParticle(DataParticle):
         if self._data_match:
             match = self._data_match
             try:
-                fields = struct.unpack('<HHIBBBdHhhhIbBB', match.group(0)[0:34])
+                fields = struct.unpack('<HHIBBBdHhhhIbBB', match.group(0)[0:STARTING_BYTES])
                 num_bytes = fields[1]
                 if len(match.group(0)) - 2 != num_bytes:
                     raise ValueError('num bytes %d does not match data length %d'
@@ -158,12 +161,16 @@ class AdcpsParserDataParticle(DataParticle):
                     struct_format = struct_format + 'h'
     
                 bin_len = nbins*2
-                vel_err = struct.unpack(struct_format, match.group(0)[34:(34+bin_len)])
-                vel_up = struct.unpack(struct_format, match.group(0)[(34+bin_len):(34+(bin_len*2))])
-                vel_north = struct.unpack(struct_format, match.group(0)[(34+(bin_len*2)):(34+(bin_len*3))])
-                vel_east = struct.unpack(struct_format, match.group(0)[(34+(bin_len*3)):(34+(bin_len*4))])
+                vel_err = struct.unpack(struct_format,
+                                        match.group(0)[STARTING_BYTES:(STARTING_BYTES+bin_len)])
+                vel_up = struct.unpack(struct_format,
+                                       match.group(0)[(STARTING_BYTES+bin_len):(STARTING_BYTES+(bin_len*2))])
+                vel_north = struct.unpack(struct_format,
+                                          match.group(0)[(STARTING_BYTES+(bin_len*2)):(STARTING_BYTES+(bin_len*3))])
+                vel_east = struct.unpack(struct_format,
+                                         match.group(0)[(STARTING_BYTES+(bin_len*3)):(STARTING_BYTES+(bin_len*4))])
     
-                checksum = struct.unpack('<H', match.group(0)[(34+(bin_len*4)):(36+(bin_len*4))])
+                checksum = struct.unpack('<H', match.group(0)[(STARTING_BYTES+(bin_len*4)):(36+(bin_len*4))])
                 calculated_checksum = self.calc_inner_checksum(match.group(0)[:-2])
                 if checksum[0] != calculated_checksum:
                     raise ValueError("Inner checksum %s does not match %s" % (checksum[0], calculated_checksum))
@@ -175,10 +182,10 @@ class AdcpsParserDataParticle(DataParticle):
     
             result = [self._encode_value(AdcpsParserDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[0:8],
                                          AdcpsParserDataParticle.encode_int_16),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_NUMBER, fields[2], int),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_UNIT_ID, fields[3], int),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_FW_VERS, fields[4], int),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_FW_REV, fields[5], int),
+                      self._encode_value(AdcpsParserDataParticleKey.ENSEMBLE_NUMBER, fields[2], int),
+                      self._encode_value(AdcpsParserDataParticleKey.UNIT_ID, fields[3], int),
+                      self._encode_value(AdcpsParserDataParticleKey.FIRMWARE_VERSION, fields[4], int),
+                      self._encode_value(AdcpsParserDataParticleKey.FIRMWARE_REVISION, fields[5], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_YEAR, date_fields[0], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_MONTH, date_fields[1], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_DAY, date_fields[2], int),
@@ -198,10 +205,10 @@ class AdcpsParserDataParticle(DataParticle):
                       self._encode_value(AdcpsParserDataParticleKey.SUBSAMPLING_PARAMETER, (fields[12]&240) >> 4, int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_STARTBIN, fields[13], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_BINS, fields[14], int),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_ERROR, vel_err, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_UP, vel_up, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_NORTH, vel_north, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_EAST, vel_east, list)]
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_ERR, vel_err, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_UP, vel_up, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_NORTH, vel_north, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_EAST, vel_east, list)]
 
         log.trace('AdcpsParserDataParticle: particle=%s', result)
         return result
@@ -263,7 +270,6 @@ class AdcpsParser(SioMuleParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
-        (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
         (timestamp, chunk) = self._chunker.get_next_data()
 
         sample_count = 0
@@ -273,9 +279,9 @@ class AdcpsParser(SioMuleParser):
             sample_count = 0
             if header_match.group(1) == 'AD':
                 log.debug("matched chunk header %s", chunk[1:32])
-                # start at 33
-                chunk_idx = 33
-                end_idx_okay = 33
+                # start after sio header
+                chunk_idx = SIO_HEADER_BYTES
+                end_idx_okay = SIO_HEADER_BYTES
                 while chunk_idx <= len(chunk):
                     data_fail_match = DATA_FAIL_MATCHER.match(chunk[chunk_idx:])
                     data_wrapper_match = DATA_WRAPPER_MATCHER.match(chunk[chunk_idx:])
@@ -323,7 +329,6 @@ class AdcpsParser(SioMuleParser):
                         chunk_idx += 1
             self._chunk_sample_count.append(sample_count)
 
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
             (timestamp, chunk) = self._chunker.get_next_data()
 
         return result_particles
