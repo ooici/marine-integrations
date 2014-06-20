@@ -658,7 +658,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _remove_heater_timeout(self):
         """
-        Clean up the leveling timer
+        Clean up the heater timer
         """
         try:
             self._remove_scheduler(ScheduledJob.HEATER_TIMEOUT)
@@ -667,9 +667,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _schedule_heater_timeout(self):
         """
-        Set up a leveling timer to make sure we don't stay in leveling state forever if something goes wrong
+        Set up a timer to set HEATER_ON to false around the time the heater shuts off
         """
-        self._remove_leveling_timeout()
+        self._remove_heater_timeout()
         dt = datetime.datetime.now() + datetime.timedelta(hours=self._param_dict.get(Parameter.HEAT_DURATION))
         job_name = ScheduledJob.HEATER_TIMEOUT
         config = {
