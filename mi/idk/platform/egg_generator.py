@@ -22,6 +22,7 @@ import mi.idk.egg_generator
 from mi.idk.egg_generator import DependencyList
 
 from mi.idk.exceptions import ValidationFailure
+from mi.idk.exceptions import InvalidParameters
 from mi.idk.config import Config
 
 from mi.idk.dataset.metadata import Metadata
@@ -74,6 +75,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             raise InvalidParameters("missing working_repo configuration")
 
         self.generator = DriverGenerator(self.metadata)
+        log.debug("importing test module: %s", self._test_module())
         test_import = __import__(self._test_module())
 
     def _build_name(self):
