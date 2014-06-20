@@ -50,6 +50,17 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
+botpt_startup_config = {
+        DriverConfigKey.PARAMETERS: {
+            Parameter.AUTO_RELEVEL: True,
+            Parameter.LEVELING_TIMEOUT: 600,
+            Parameter.XTILT_TRIGGER: 300.0,
+            Parameter.YTILT_TRIGGER: 300.0,
+            Parameter.HEAT_DURATION: 1,
+            Parameter.OUTPUT_RATE: 40,
+        }
+}
+
 # ##
 # Driver parameters for the tests
 # ##
@@ -59,16 +70,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='1D644T',
     instrument_agent_name='noaa_botpt_ooicore',
     instrument_agent_packet_config=particles.DataParticleType(),
-    driver_startup_config={
-        DriverConfigKey.PARAMETERS: {
-            Parameter.AUTO_RELEVEL: True,
-            Parameter.LEVELING_TIMEOUT: 600,
-            Parameter.XTILT_TRIGGER: 300.0,
-            Parameter.YTILT_TRIGGER: 300.0,
-            Parameter.HEAT_DURATION: 1,
-            Parameter.OUTPUT_RATE: 40,
-        }
-    }
+    driver_startup_config=botpt_startup_config
 )
 
 GO_ACTIVE_TIMEOUT = 180
