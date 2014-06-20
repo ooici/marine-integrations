@@ -50,6 +50,17 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
+botpt_startup_config = {
+        DriverConfigKey.PARAMETERS: {
+            Parameter.AUTO_RELEVEL: True,
+            Parameter.LEVELING_TIMEOUT: 600,
+            Parameter.XTILT_TRIGGER: 300.0,
+            Parameter.YTILT_TRIGGER: 300.0,
+            Parameter.HEAT_DURATION: 1,
+            Parameter.OUTPUT_RATE: 40,
+        }
+}
+
 # ##
 # Driver parameters for the tests
 # ##
@@ -59,16 +70,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='1D644T',
     instrument_agent_name='noaa_botpt_ooicore',
     instrument_agent_packet_config=particles.DataParticleType(),
-    driver_startup_config={
-        DriverConfigKey.PARAMETERS: {
-            Parameter.AUTO_RELEVEL: True,
-            Parameter.LEVELING_TIMEOUT: 600,
-            Parameter.XTILT_TRIGGER: 300.0,
-            Parameter.YTILT_TRIGGER: 300.0,
-            Parameter.HEAT_DURATION: 1,
-            Parameter.OUTPUT_RATE: 40,
-        }
-    }
+    driver_startup_config=botpt_startup_config
 )
 
 GO_ACTIVE_TIMEOUT = 180
@@ -424,7 +426,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BotptTestMixinSub):
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
-        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol.set_init_params(botpt_startup_config)
         driver._connection.send.side_effect = self.send_side_effect(driver)
         driver._protocol._protocol_fsm.on_event_actual = driver._protocol._protocol_fsm.on_event
         driver._protocol._protocol_fsm.on_event = Mock()
