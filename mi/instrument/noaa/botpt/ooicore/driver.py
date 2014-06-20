@@ -1044,4 +1044,5 @@ class Protocol(CommandResponseInstrumentProtocol):
         Heater should be finished.  Set HEATER_ON to false.
         """
         self._param_dict.set_value(Parameter.HEATER_ON, False)
+        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         return None, None
