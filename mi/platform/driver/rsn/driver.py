@@ -58,7 +58,7 @@ class RSNPlatformDriverCapability(BaseEnum):
     SET_OVER_CURRENT          = RSNPlatformDriverEvent.SET_OVER_CURRENT
 
 
-class RSNPlatformDriver(PlatformDriver):
+class PlatformDriver(PlatformDriver):
     """
     The main RSN OMS platform driver class.
     """
