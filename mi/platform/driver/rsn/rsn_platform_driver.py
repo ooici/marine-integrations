@@ -17,15 +17,15 @@ import logging
 
 from copy import deepcopy
 
-from mi.platform.platform_driver import PlatformDriver
-from mi.platform.platform_driver import PlatformDriverState
-from mi.platform.platform_driver import PlatformDriverEvent
-from mi.platform.platform_driver_event import ExternalEventDriverEvent
-from mi.platform.exceptions import PlatformException
-from mi.platform.exceptions import PlatformDriverException
-from mi.platform.exceptions import PlatformConnectionException
-from mi.platform.rsn.oms_client_factory import CIOMSClientFactory
-from mi.platform.responses import InvalidResponse
+from ion.agents.platform.platform_driver import PlatformDriver
+from ion.agents.platform.platform_driver import PlatformDriverState
+from ion.agents.platform.platform_driver import PlatformDriverEvent
+from ion.agents.platform.platform_driver_event import ExternalEventDriverEvent
+from ion.agents.platform.exceptions import PlatformException
+from ion.agents.platform.exceptions import PlatformDriverException
+from ion.agents.platform.exceptions import PlatformConnectionException
+from ion.agents.platform.rsn.oms_client_factory import CIOMSClientFactory
+from ion.agents.platform.responses import InvalidResponse
 
 from ion.agents.platform.util import ion_ts_2_ntp
 
@@ -58,7 +58,7 @@ class RSNPlatformDriverCapability(BaseEnum):
     SET_OVER_CURRENT          = RSNPlatformDriverEvent.SET_OVER_CURRENT
 
 
-class PlatformDriver(PlatformDriver):
+class RSNPlatformDriver(PlatformDriver):
     """
     The main RSN OMS platform driver class.
     """
