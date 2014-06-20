@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 """
-@file coi-services/mi.idk.dataset/egg_generator.py
+@file coi-services/mi.idk.platform/egg_generator.py
 @author Emily Hahn
-@brief Generate egg for a dataset agent driver.  
+@brief Generate egg for a platform agent driver.
 """
 
 __author__ = 'Emily Hahn'
@@ -14,6 +14,7 @@ from mi.core.log import get_logger ; log = get_logger()
 import string
 import re
 import os
+import sys
 import shutil
 from os.path import exists, dirname
 from shutil import copytree
@@ -25,8 +26,7 @@ from mi.idk.exceptions import ValidationFailure
 from mi.idk.exceptions import InvalidParameters
 from mi.idk.config import Config
 
-from mi.idk.dataset.metadata import Metadata
-from mi.idk.dataset.driver_generator import DriverGenerator
+from mi.idk.platform.driver_generator import DriverGenerator
 
 class DriverFileList(mi.idk.egg_generator.DriverFileList):
     """
@@ -67,6 +67,8 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         self.metadata = metadata
         self._bdir = None
         self._repodir = mi.idk.egg_generator.REPODIR
+        sys.path.insert(0, self._repodir)
+        log.debug(sys.path)
 
         if not self._tmp_dir():
             raise InvalidParameters("missing tmp_dir configuration")
@@ -77,6 +79,13 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         self.generator = DriverGenerator(self.metadata)
         log.debug("importing test module: %s", self._test_module())
         test_import = __import__(self._test_module())
+
+    def template_dir(self):
+        """
+        @brief path to the driver template dir
+        @retval driver test code template path
+        """
+        return os.path.join(Config().template_dir(), 'platform')
 
     def _build_name(self):
         return self.metadata.driver_name_versioned
@@ -89,7 +98,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         return os.path.join(self._build_dir(), 'setup.py' )
 
     def _setup_template_path(self):
-        return os.path.join(Config().template_dir(), 'dsa', 'setup.tmpl' )
+        return os.path.join(Config().template_dir(), 'platform', 'setup.tmpl' )
 
     def _versioned_dir(self):
         return os.path.join(self._build_dir(),
@@ -105,6 +114,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         setup_file = self._setup_path()
         setup_template = self._get_template(self._setup_template_path())
 
+        log.debug("setup.py template: %s" % self._setup_template_path())
         log.debug("Create setup.py file: %s" % setup_file )
         log.debug("setup.py template file: %s" % self._setup_template_path())
         log.debug("setup.py template data: %s" % self._setup_template_data())
@@ -118,14 +128,14 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         return {
            'name': self.metadata.driver_name_versioned,
            'version': self.metadata.version,
-           'description': 'ooi dataset agent driver',
+           'description': 'ooi platform agent driver',
            'author': self.metadata.author,
            'email': self.metadata.email,
            'url': 'http://www.oceanobservatories.org',
            'entry_point_group': self.metadata.entry_point_group,
            'versioned_constructor': self.metadata.versioned_constructor,
            'driver_path': self.metadata.driver_path,
-           'short_name': 'dsd_' + self.metadata.driver_name
+           'short_name': 'platform_' + self.metadata.driver_name
         }
         
     def _stage_files(self, files):
@@ -219,7 +229,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
 
             # python filters out '__' from the egg name and turns it into '_', so if we have those in our
             # driver name need to fix the egg name
-            egg_file = "%s/dist/dsd_%s-%s-py2.7.egg" % (self._build_dir(),
+            egg_file = "%s/dist/platform_%s-%s-py2.7.egg" % (self._build_dir(),
                                                         self.metadata.driver_name.replace('__', '_'),
                                                         self.metadata.version)
             
