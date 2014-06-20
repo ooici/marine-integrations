@@ -66,6 +66,7 @@ class ScheduledJob(BaseEnum):
     Instrument scheduled jobs
     """
     LEVELING_TIMEOUT = 'botpt_leveling_timeout'
+    HEATER_TIMEOUT = 'botpt_heater_timeout'
     NANO_TIME_SYNC = 'botpt_nano_time_sync'
     ACQUIRE_STATUS = 'botpt_acquire_status'
 
@@ -101,6 +102,7 @@ class ProtocolEvent(BaseEnum):
     START_HEATER = 'PROTOCOL_EVENT_START_HEATER'
     STOP_HEATER = 'PROTOCOL_EVENT_STOP_HEATER'
     LEVELING_TIMEOUT = 'PROTOCOL_EVENT_LEVELING_TIMEOUT'
+    HEATER_TIMEOUT = 'PROTOCOL_EVENT_HEATER_TIMEOUT'
 
 
 class Capability(BaseEnum):
@@ -272,6 +274,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_HEATER, self._handler_start_heater),
                 (ProtocolEvent.STOP_HEATER, self._handler_stop_heater),
                 (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout),
+                (ProtocolEvent.HEATER_TIMEOUT, self._handler_heater_timeout),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -287,6 +290,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_HEATER, self._handler_start_heater),
                 (ProtocolEvent.STOP_HEATER, self._handler_stop_heater),
                 (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout),
+                (ProtocolEvent.HEATER_TIMEOUT, self._handler_heater_timeout),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
@@ -652,6 +656,36 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.set_init_params(config)
         self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.LEVELING_TIMEOUT)
 
+    def _remove_heater_timeout(self):
+        """
+        Clean up the leveling timer
+        """
+        try:
+            self._remove_scheduler(ScheduledJob.HEATER_TIMEOUT)
+        except KeyError:
+            log.debug('Unable to remove HEATER_TIMEOUT scheduled job, job does not exist.')
+
+    def _schedule_heater_timeout(self):
+        """
+        Set up a leveling timer to make sure we don't stay in leveling state forever if something goes wrong
+        """
+        self._remove_leveling_timeout()
+        dt = datetime.datetime.now() + datetime.timedelta(hours=self._param_dict.get(Parameter.HEAT_DURATION))
+        job_name = ScheduledJob.HEATER_TIMEOUT
+        config = {
+            DriverConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
+                        DriverSchedulerConfigKey.DATE: dt
+                    },
+                }
+            }
+        }
+
+        self.set_init_params(config)
+        self._add_scheduler_event(ScheduledJob.HEATER_TIMEOUT, ProtocolEvent.HEATER_TIMEOUT)
+
     def _stop_autosample(self):
         """
         Stop autosample, leveling if in progress.
@@ -987,6 +1021,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                               self._param_dict.get(Parameter.HEAT_DURATION),
                               response_regex=RegexResponse.HEAT)
             self._param_dict.set_value(Parameter.HEATER_ON, True)
+            self._schedule_heater_timeout()
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         return None, (None, None)
 
@@ -1000,5 +1035,15 @@ class Protocol(CommandResponseInstrumentProtocol):
                               0,
                               response_regex=RegexResponse.HEAT)
             self._param_dict.set_value(Parameter.HEATER_ON, False)
+            self._remove_heater_timeout()
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         return None, (None, None)
+
+    def _handler_heater_timeout(self):
+        """
+        Leveling has timed out, disable auto-relevel and mark leveling as failed.
+        handler_stop_leveling will raise the config change event.
+        @throws InstrumentProtocolException
+        """
+        self._param_dict.set_value(Parameter.HEATER_ON, False)
+        return None, None
