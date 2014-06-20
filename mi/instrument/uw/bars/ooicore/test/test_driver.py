@@ -62,9 +62,6 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
 from mi.instrument.uw.bars.ooicore.driver import Protocol, MENU, BarsStatusParticleKey, BarsStatusParticle
 from mi.instrument.uw.bars.ooicore.driver import InstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import ProtocolState
@@ -492,10 +489,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_state_change(ProtocolState.COMMAND, 3)
-        #self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+
         self.assert_driver_command(ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 3)
-        #self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
         self.assert_driver_command(ProtocolEvent.STOP_DIRECT)
         self.assert_state_change(ProtocolState.COMMAND, 3)
 
@@ -505,8 +501,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_state_change(ProtocolState.COMMAND, 3)
-        #self.assert_driver_command(ProtocolEvent.DISCOVER)
-        #self.assert_state_change(ProtocolState.COMMAND, 3)
 
         # Test transition to auto sample
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
@@ -514,7 +508,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
 
         # Test transition back to command state
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-        self.assert_state_change(ProtocolState.COMMAND, 3)
+        self.assert_state_change(ProtocolState.COMMAND, 10)
 
         # Test transition to direct access state
         self.assert_driver_command(ProtocolEvent.START_DIRECT)
@@ -537,6 +531,17 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         # verify we can set read/write parameters
         self.assert_set(Parameter.CYCLE_TIME, 30)
 
+    def test_out_of_range(self):
+        """
+        Verify setting driver parameters with out of range values will cause
+        instrument parameter exceptions.
+        """
+        self.assert_initialize_driver()
+        self.assert_set_exception(Parameter.CYCLE_TIME, 14)
+        self.assert_set_exception(Parameter.CYCLE_TIME, 3601)
+
+        # verify we can set read/write parameters
+        self.assert_set(Parameter.CYCLE_TIME, 30)
 
     def test_readonly_set(self):
         # verify we cannot set read only parameters
@@ -711,17 +716,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.assert_particle_async(DataParticleType.TRHPH_PARSED, self.assert_particle_sample, timeout=60)
 
         self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle,
-                                    DataParticleType.TRHPH_STATUS, timeout=200)
+                                    DataParticleType.TRHPH_STATUS, timeout=180)
 
-        # time.sleep(50)
-        # self.assert_stop_autosample()
-        # # verify status particle in command state
-        #
-        #
-        # self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle,
-        #                           DataParticleType.TRHPH_STATUS,timeout=200)
-        #
-        # self.assert_start_autosample()
+        time.sleep(50)
+        self.assert_stop_autosample()
+        # verify status particle in command state
+
+        self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle,
+                                  DataParticleType.TRHPH_STATUS,timeout=200)
+
+        self.assert_start_autosample()
+        # verify all particles in autosample
+        self.assert_particle_async(DataParticleType.TRHPH_PARSED, self.assert_particle_sample, timeout=70)
+
 
     def test_get_capabilities(self):
         """
@@ -743,6 +750,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.START_DIRECT,
+                ProtocolEvent.ACQUIRE_STATUS,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -756,6 +764,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.ACQUIRE_STATUS,
         ]
 
         self.assert_start_autosample()
