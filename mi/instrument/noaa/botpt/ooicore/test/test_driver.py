@@ -426,7 +426,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BotptTestMixinSub):
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
-        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol.set_init_params(botpt_startup_config)
         driver._connection.send.side_effect = self.send_side_effect(driver)
         driver._protocol._protocol_fsm.on_event_actual = driver._protocol._protocol_fsm.on_event
         driver._protocol._protocol_fsm.on_event = Mock()
