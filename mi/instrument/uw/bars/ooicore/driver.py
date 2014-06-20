@@ -418,7 +418,6 @@ class BarsDataParticle(DataParticle):
         
         @throw SampleException If there is a problem with sample creation
         """
-        #log.debug("_build_parsed_values")
 
         match = BarsDataParticle.regex_compiled().match(self.raw_data)
 
@@ -754,7 +753,6 @@ class Protocol(MenuInstrumentProtocol):
         for (key, val) in params.iteritems():
             #log.debug(" KEY = %s VALUE = %s", key, val)
             if not Parameter.has(key):
-                #log.debug("Param %s not in Parameter keys", key)
                 raise InstrumentParameterException()
 
             # restrict operations to just the read/write parameters
@@ -946,7 +944,7 @@ class Protocol(MenuInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (None, (None, None))
+        return (next_state, (next_agent_state, None))
 
     ########################################################################
     # Autosample handlers
@@ -982,12 +980,15 @@ class Protocol(MenuInstrumentProtocol):
         Stop autosample mode
         @retval return (next state, (next_agent_state, result))
         """
+        next_state = None
+        next_agent_state = None
+        result = None
 
         if (self._send_break()):
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
 
-        return (None, (None, None))
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Command builders
@@ -1304,7 +1305,7 @@ class Protocol(MenuInstrumentProtocol):
             a number of minutes where the seconds are rounded down to the
             nearest minute.
         """
-        #log.debug('_from_seconds')
+
         if (value < 15) or (value > 3600):
             raise InstrumentParameterException("Invalid seconds value: %s" % value)
 
