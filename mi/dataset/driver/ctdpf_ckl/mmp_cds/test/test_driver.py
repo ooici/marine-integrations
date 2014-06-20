@@ -15,22 +15,21 @@ USAGE:
 __author__ = 'Mark Worden'
 __license__ = 'Apache 2.0'
 
-import unittest
-
-from nose.plugins.attrib import attr
-from mock import Mock
-
 from mi.core.log import get_logger
 log = get_logger()
-from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DriverParameter, DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.ctdpf_ckl.mmp_cds.driver import CtdpfCklMmpCdsDataSetDriver
-from mi.dataset.parser.ctdpf_ckl_mmp_cds import CtdpfCklMmpCdsParserDataParticle
+
+from mi.dataset.parser.ctdpf_ckl_mmp_cds import CtdpfCklMmpCdsParserDataParticle, DataParticleType
+
+from nose.plugins.attrib import attr
+
+from pyon.agent.agent import ResourceAgentState
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -57,6 +56,7 @@ SAMPLE_STREAM = 'ctdpf_ckl_mmp_cds_parsed'
 # but may not be enough to fully test your driver. Additional tests should be
 # written as needed.
 
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 # Device specific integration tests are for                                   #
@@ -70,51 +70,100 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-
-        self.clear_sample_data()
+        # Clear the asynchronous callback results
+        self.clear_async_data()
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.clear_async_data()
-        self.create_sample_data('ctd_1_20131124T005004_458.mpk', "ctd_1_20131124T005004_458.mpk")
+        self.create_sample_data('ctd_1_20131124T005004_458.mpk', "test_get.mpk")
+
         self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'first.yml', count=1, timeout=10)
 
-        # # Read the remaining values in first.DAT
-        # self.assert_data(CtdpfCklMmpCdsParserDataParticle, None, count=682, timeout=100)
-        #
-        # self.clear_async_data()
-        # self.create_sample_data('ctd_1_20131124T005004_458.mpk', "ctd_1_20131124T005004_458.mpk")
-        # self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'six_samples.yml', count=6, timeout=10)
-        #
-        # # Read the remaining values in second.DAT
-        # self.assert_data(CtdpfCklMmpCdsParserDataParticle, None, count=677, timeout=100)
-        #
-        # self.clear_async_data()
-        # self.create_sample_data('ctd_1_20131124T005004_458.mpk', "ctd_1_20131124T005004_458.mpk")
-        # # start is the same particle here, just use the same results
-        # self.assert_data(CtdpfCklMmpCdsParserDataParticle, count=30, timeout=10)
-
+        self.get_samples(CtdpfCklMmpCdsParserDataParticle, count=85, timeout=10)
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        pass
+        # Clear the asynchronous callback results
+        self.clear_async_data()
+
+        # Notify the driver to start sampling
+        self.driver.start_sampling()
+
+        self.create_sample_data('ctd_1_20131124T005004_458.mpk', "test_stop_resume.mpk")
+        self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'first.yml', count=1, timeout=10)
+
+        # Stop the driver from taking processing new samples
+        self.driver.stop_sampling()
+
+        # Notify the driver to re-start sampling
+        self.driver.start_sampling()
+
+        self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'second.yml', count=1, timeout=10)
 
     def test_stop_start_resume(self):
         """
         Test the ability to stop and restart sampling, ingesting files in the
         correct order
         """
-        pass
+        # Clear the asynchronous callback results
+        self.clear_async_data()
+
+        # Notify the driver to start sampling
+        self.driver.start_sampling()
+
+        self.create_sample_data('ctd_1_20131124T005004_459.mpk', "test_stop_start_resume_001.mpk")
+        self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'first2.yml', count=1, timeout=10)
+
+        self.create_sample_data('ctd_1_20131124T005004_458.mpk', "test_stop_start_resume_000.mpk")
+        self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'first.yml', count=1, timeout=10)
+
+        # Retrieve all remaining samples
+        self.get_samples(CtdpfCklMmpCdsParserDataParticle, count=85, timeout=10)
+
+        # Stop the driver from taking processing new samples
+        self.driver.stop_sampling()
+
+        # Clear the sample file data
+        self.clear_sample_data()
+
+        # Notify the driver to re-start sampling
+        self.driver.start_sampling()
+
+        self.create_sample_data('ctd_1_20131124T005004_459.mpk', "test_stop_start_resume_010.mpk")
+        self.create_sample_data('ctd_1_20131124T005004_458.mpk', "test_stop_start_resume_009.mpk")
+        self.assert_data(CtdpfCklMmpCdsParserDataParticle, 'first.yml', count=1, timeout=10)
 
     def test_sample_exception(self):
         """
         Test a case that should produce a sample exception and confirm the
         sample exception occurs
         """
-        pass
+        # Clear the asynchronous callback results
+        self.clear_async_data()
+
+        self.create_sample_data('not-msg-pack.mpk', "test_sample_exception_001.mpk")
+
+        # Notify the driver to start sampling
+        self.driver.start_sampling()
+
+        self.assert_event('ResourceAgentErrorEvent')
+
+        # Notify the driver to stop sampling
+        self.driver.stop_sampling()
+
+        # Clear the sample file data
+        self.clear_sample_data()
+
+        self.create_sample_data('ctd_1_20131124T005004_BAD.mpk', "test_sample_exception_002.mpk")
+
+        # Notify the driver to start sampling
+        self.driver.start_sampling()
+
+        self.assert_event('ResourceAgentErrorEvent')
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -129,20 +178,98 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        self.create_sample_data('ctd_1_20131124T005004_458.mpk', 'test_publish_path.mpk')
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second otherwise samples come in the wrong order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 1)
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2)
+            result.extend(result2)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'first_three.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Unexpected Exception trapped.")
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
         """
-        pass
+        self.create_sample_data('large_import.mpk', 'test_large_import.mpk')
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second otherwise samples come in the wrong order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 10})
+        self.assert_start_sampling()
+
+        # Verify we can retrieve 1000 samples
+        try:
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 1000, 1000)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'large_import.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Unexpected Exception trapped.")
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.info("CONFIG: %s", self._agent_config())
+
+        self.create_sample_data('stop_start1.mpk', 'stop_start1.mpk')
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'stop_start1.yml')
+
+            self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
+
+            self.create_sample_data('stop_start2.mpk', 'stop_start2.mpk')
+
+            # Now read the first three records of the second file then stop
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            log.debug("got result %s", result2)
+
+            self.assert_stop_sampling()
+
+            self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
+
+            # Restart sampling and ensure we get the last 3 records of the file
+            self.assert_start_sampling()
+
+            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            log.debug("got result 3 %s", result3)
+            result2.extend(result3)
+            self.assert_data_values(result2, 'stop_start2.yml')
+
+            self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
+
+        except Exception as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Unexpected Exception trapped.")
 
     def test_shutdown_restart(self):
         """

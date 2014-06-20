@@ -10,6 +10,7 @@
 import os
 import numpy
 import yaml
+import copy
 
 from nose.plugins.attrib import attr
 
@@ -17,14 +18,17 @@ from mi.core.log import get_logger
 from mi.idk.config import Config
 
 log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, DatasetParserException
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.dataset.parser.ctdpf_ckl_mmp_cds import CtdpfCklMmpCdsParser, StateKey
+from mi.dataset.parser.ctdpf_ckl_mmp_cds import CtdpfCklMmpCdsParser
+from mi.dataset.parser.mmp_cds_base import StateKey
 
 # Resource path for ctdpf ckl mmp cds
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'ctdpf_ckl', 'mmp_cds', 'resource')
+
+MSGPACK_TEST_FILE_LENGTH = 5278
 
 # The list of generated tests are the suggested tests, but there may
 # be other tests needed to fully test your parser
@@ -57,8 +61,6 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
 
-        self.start_state = {StateKey.POSITION: 0}
-
     def test_simple(self):
         """
         This test reads in a small number of particles and verifies the result of one of the particles.
@@ -67,7 +69,9 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        parser = CtdpfCklMmpCdsParser(self.config, self.start_state, stream_handle,
+        state = {StateKey.POSITION: 0}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(6)
@@ -89,10 +93,12 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        self.parser = CtdpfCklMmpCdsParser(self.config, self.start_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        state = {StateKey.POSITION: 0}
 
-        particles = self.parser.get_records(20)
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(20)
 
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
@@ -100,7 +106,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         test_data = self.get_dict_from_yml('get_many_one.yml')
         self.assert_result(test_data['data'][0], particles[19])
 
-        particles = self.parser.get_records(30)
+        particles = parser.get_records(30)
 
         # Should end up with 30 particles
         self.assertTrue(len(particles) == 30)
@@ -119,11 +125,13 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_concat.mpk')
         stream_handle = open(file_path, 'rb')
 
-        self.parser = CtdpfCklMmpCdsParser(self.config, self.start_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        state = {StateKey.POSITION: 0}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
         # Attempt to retrieve 200 particles, but we will retrieve less
-        particles = self.parser.get_records(200)
+        particles = parser.get_records(200)
 
         log.info(len(particles))
 
@@ -139,65 +147,116 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         """
 
         # Using two concatenated msgpack files to simulate two chunks.
-        file_path = os.path.join(RESOURCE_PATH, 'ctd_concat.mpk')
+        file_path = os.path.join(RESOURCE_PATH, 'set_state.mpk')
         stream_handle = open(file_path, 'rb')
 
+        stat_info = os.stat(file_path)
+
         # Moving the file position to the end of the first chunk
-        new_state = {StateKey.POSITION: 5278}
+        state = {StateKey.POSITION: stat_info.st_size, StateKey.PARTICLES_RETURNED: 20}
 
-        self.parser = CtdpfCklMmpCdsParser(self.config, new_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
-        particles = self.parser.get_records(4)
+        particles = parser.get_records(4)
 
         log.info(len(particles))
 
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        test_data = self.get_dict_from_yml('mid_state_start.yml')
-        self.assert_result(test_data['data'][0], particles[3])
+        test_data = self.get_dict_from_yml('set_state.yml')
+        self.assert_result(test_data['data'][23], particles[3])
 
         stream_handle.close()
 
     def test_set_state(self):
         """
         This test exercises setting the state past one chunk, retrieving particles, verifying one
-        of the particles, and then setting the state back to the begging, retrieving a few particles, and
+        of the particles, and then setting the state back to the beginning, retrieving a few particles, and
         verifying one of the particles.
         """
 
-        # Using two concatenated msgpack files to simulate two chunks.
-        filepath = os.path.join(RESOURCE_PATH, 'ctd_concat.mpk')
-        stream_handle = open(filepath, 'rb')
+        # Using the default mspack test file.
+        file_path = os.path.join(RESOURCE_PATH, 'set_state.mpk')
+        stream_handle = open(file_path, 'rb')
 
-        # Moving the file position past the first chunk
-        new_state = {StateKey.POSITION: 5278}
+        # Moving the file position to the beginning
+        state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 0}
 
-        self.parser = CtdpfCklMmpCdsParser(self.config, new_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
-        particles = self.parser.get_records(4)
+        self.assertEqual(parser._read_state[StateKey.POSITION], 0)
+        self.assertEqual(parser._state[StateKey.POSITION], 0)
+
+        particles = parser.get_records(4)
 
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        test_data = self.get_dict_from_yml('mid_state_start.yml')
-        self.assert_result(test_data['data'][0], particles[3])
+        log.info(parser._read_state)
+        log.info(parser._state)
 
-        # Moving the file position past the header and three records
-        new_state = {StateKey.POSITION: 0}
+        stat_info = os.stat(file_path)
 
-        self.parser = CtdpfCklMmpCdsParser(self.config, new_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        self.assertEqual(parser._read_state[StateKey.POSITION], stat_info.st_size)
+        self.assertEqual(parser._state[StateKey.POSITION], stat_info.st_size)
 
-        particles = self.parser.get_records(20)
+        test_data = self.get_dict_from_yml('set_state.yml')
+        self.assert_result(test_data['data'][3], particles[3])
 
-        # Should end up with 20 particles
-        self.assertTrue(len(particles) == 20)
+        state = copy.copy(parser._state)
 
-        test_data = self.get_dict_from_yml('get_many_one.yml')
-        self.assert_result(test_data['data'][0], particles[19])
+        log.info(state)
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(4)
+
+        # Should end up with 4 particles
+        self.assertTrue(len(particles) == 4)
+
+        log.info(parser._read_state[StateKey.POSITION])
+        log.info(parser._state[StateKey.POSITION])
+
+        self.assertEqual(parser._read_state[StateKey.POSITION], stat_info.st_size)
+        self.assertEqual(parser._state[StateKey.POSITION], stat_info.st_size)
+
+        self.assert_result(test_data['data'][7], particles[3])
+
+        # Give a bad position which will be ignored
+        state = {StateKey.POSITION: 5, StateKey.PARTICLES_RETURNED: 0}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(1)
+
+        self.assertTrue(len(particles) == 1)
+
+        # Give a bad position which will be ignored
+        state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 0}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(1000)
+
+        self.assertTrue(len(particles) == 30)
+
+        self.assert_result(test_data['data'][29], particles[29])
+
+        # Provide a bad particles returned
+        state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 80}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(1)
+
+        self.assertTrue(len(particles) == 0)
 
         stream_handle.close()
 
@@ -206,10 +265,12 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         This test verifies that a SampleException is raised when msgpack data is malformed.
         """
 
-        file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_458-BAD.mpk')
+        file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        parser = CtdpfCklMmpCdsParser(self.config, self.start_state, stream_handle,
+        state = {StateKey.POSITION: 0}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
@@ -225,7 +286,9 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        parser = CtdpfCklMmpCdsParser(self.config, self.start_state, stream_handle,
+        state = {StateKey.POSITION: 0}
+
+        parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):

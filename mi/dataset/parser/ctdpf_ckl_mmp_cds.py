@@ -27,15 +27,9 @@ class DataParticleType(BaseEnum):
 
 
 class CtdpfCklMmpCdsParserDataParticleKey(BaseEnum):
-    RAW_TIME_SECONDS = 'raw_time_seconds'
-    RAW_TIME_MICROSECONDS = 'raw_time_microseconds'
     CONDUCTIVITY = 'conductivity'
     TEMPERATURE = 'temperature'
     PRESSURE = 'pressure'
-
-
-class StateKey(BaseEnum):
-    POSITION = 'position'  # holds the file position
 
 
 class CtdpfCklMmpCdsParserDataParticle(MmpCdsParserDataParticle):
@@ -48,7 +42,8 @@ class CtdpfCklMmpCdsParserDataParticle(MmpCdsParserDataParticle):
     def _get_mmp_cds_subclass_particle_params(self, dict_data):
         """
         This method is required to be implemented by classes that extend the MmpCdsParserDataParticle class.
-        This implementation returns the particle parameters specific for CtdpfCklMmpCds.
+        This implementation returns the particle parameters specific for CtdpfCklMmpCds.  As noted in the
+        base, it is okay to allow the following exceptions to propagate: ValueError, TypeError, IndexError.
         @returns a list of particle params specific to CtdpfCklMmpCds
         """
 
@@ -60,6 +55,8 @@ class CtdpfCklMmpCdsParserDataParticle(MmpCdsParserDataParticle):
                                       dict_data['preswat'], float)
 
         subclass_particle_params = [conductivity, temperature, pressure]
+
+        log.info(subclass_particle_params)
 
         return subclass_particle_params
 

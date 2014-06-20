@@ -35,6 +35,7 @@ NUM_MMP_CDS_UNPACKED_ITEMS = 3
 
 class StateKey(BaseEnum):
     POSITION = 'position'  # holds the file position
+    PARTICLES_RETURNED = 'particles_returned'  # holds the number of particles returned
 
 
 class MmpCdsParserDataParticleKey(BaseEnum):
@@ -50,7 +51,8 @@ class MmpCdsParserDataParticle(DataParticle):
 
     def _get_mmp_cds_subclass_particle_params(self, dict_data):
         """
-        This method is expected to be implemented by subclasses.
+        This method is expected to be implemented by subclasses.  It is okay to let the implemented method to
+        allow the following exceptions to propagate: ValueError, TypeError, IndexError
         @param dict_data the dictionary data containing the specific particle parameter name value pairs
         @return a list of particle params specific to the subclass
         """
@@ -114,7 +116,7 @@ class MmpCdsParser(BufferLoadingParser):
         self._record_buffer = []
 
         # Initialize the read state to the POSITION being 0
-        self._read_state = {StateKey.POSITION: 0}
+        self._read_state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 0}
 
         # Pop off the kwargs the key value pairs associated with the DataSetDriverConfigKeys.PARTICLE_CLASS key
         self._particle_class = kwargs.pop(DataSetDriverConfigKeys.PARTICLE_CLASS)
@@ -140,29 +142,87 @@ class MmpCdsParser(BufferLoadingParser):
         log.debug("Attempting to set state to: %s", state_obj)
         # First need to make sure the state type is a dict
         if not isinstance(state_obj, dict):
+            log.debug("Invalid state structure")
             raise DatasetParserException("Invalid state structure")
         # Then we need to make sure that the provided state includes position information
         if not (StateKey.POSITION in state_obj):
+            log.debug("Invalid state keys")
             raise DatasetParserException("Invalid state keys")
 
         # Clear out any pre-existing chunks
         self._chunker.clean_all_chunks()
-        # Clear the record buffer
+
         self._record_buffer = []
 
         # Set the state and read state to the provide state
         self._state = state_obj
         self._read_state = state_obj
 
-        # Change the pointer into the stream to the position specified within the provided state
-        self._stream_handle.seek(state_obj[StateKey.POSITION])
+        # Always seek to the beginning of the buffer to read all records
+        self._stream_handle.seek(0)
 
-    def _increment_state(self, increment):
+    def _yank_particles(self, num_records):
+        """
+        Get particles out of the buffer and publish them. Update the state
+        of what has been published, too.
+        @param num_records The number of particles to remove from the buffer
+        @retval A list with num_records elements from the buffer. If num_records
+        cannot be collected (perhaps due to an EOF), the list will have the
+        elements it was able to collect.
+        """
+        particles_returned = 0
+
+        if self._state is not None and StateKey.PARTICLES_RETURNED in self._state and \
+                self._state[StateKey.PARTICLES_RETURNED] > 0:
+            particles_returned = self._state[StateKey.PARTICLES_RETURNED]
+
+        total_num_records = len(self._record_buffer)
+        log.info(total_num_records)
+        log.info(particles_returned)
+
+        if total_num_records < num_records:
+            num_to_fetch = len(self._record_buffer)
+        else:
+            num_to_fetch = num_records
+
+        log.debug("Yanking %s records of %s requested",
+                  num_to_fetch,
+                  num_records)
+
+        return_list = []
+
+        end_range = particles_returned + num_to_fetch
+
+        records_to_return = self._record_buffer[particles_returned:end_range]
+        if len(records_to_return) > 0:
+            # Get the state of the last tuple entry
+            self._state = records_to_return[-1][1]
+
+            # Update the number of particles returned
+            self._state[StateKey.PARTICLES_RETURNED] = particles_returned+num_to_fetch
+            self._read_state = self._state
+
+            # strip the state info off of them now that we have what we need
+            for item in records_to_return:
+                log.debug("Record to return: %s", item)
+                return_list.append(item[0])
+
+            self._publish_sample(return_list)
+            log.trace("Sending parser state [%s] to driver", self._state)
+            file_ingested = False
+            if self.file_complete and total_num_records == self._state[StateKey.PARTICLES_RETURNED]:
+                # file has been read completely and all records pulled out of the record buffer
+                file_ingested = True
+            self._state_callback(self._state, file_ingested)  # push new state to driver
+
+        return return_list
+
+    def _set_position(self, position):
         """
         Increment the parser state (i.e. position into the read state)
         @param increment The updated offset into the read state
         """
-        self._read_state[StateKey.POSITION] += increment
+        self._read_state[StateKey.POSITION] = position
 
     def get_block(self, size=1024):
         """
@@ -172,11 +232,10 @@ class MmpCdsParser(BufferLoadingParser):
         @throws EOFError when the end of the file is reached.
         """
         # Read in data in blocks so as to not tie up the CPU.
-        block_size = 1024
         eof = False
         data = ''
         while not eof:
-            next_block = self._stream_handle.read(block_size)
+            next_block = self._stream_handle.read(size)
             if next_block:
                 data = data + next_block
                 gevent.sleep(0)
@@ -185,6 +244,7 @@ class MmpCdsParser(BufferLoadingParser):
 
         if data != '':
             self._timestamp = float(ntplib.system_to_ntp_time(time.time()))
+            log.info("Calculated current time timestamp %.10f", self._timestamp)
             self._chunker.add_chunk(data, self._timestamp)
             self.file_complete = True
             return len(data)
@@ -203,9 +263,7 @@ class MmpCdsParser(BufferLoadingParser):
         # The raw_data provided as input is considered the full recovered file byte stream, and will be
         # considered a single chunk.  In a file containing msgpack serialized data, there are not multiple
         # headers and records.
-        return_list = [(0, len(raw_data))]
-
-        return return_list
+        return [(0, len(raw_data))]
 
     def parse_chunks(self):
         """
@@ -219,11 +277,11 @@ class MmpCdsParser(BufferLoadingParser):
         # Obtain the next chunk to process
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
-        # Process each chunk as long as one exists
-        while chunk is not None:
+        # We need to use the msgpack library and instantiate an Unpacker to process the chunk of data
+        unpacker = msgpack.Unpacker()
 
-            # We need to use the msgpack library and instantiate an Unpacker to process the chunk of data
-            unpacker = msgpack.Unpacker()
+        # Process each chunk as long as one exists
+        if chunk is not None:
 
             # Feed the Unpacker instance the chunk of data
             unpacker.feed(chunk)
@@ -244,6 +302,8 @@ class MmpCdsParser(BufferLoadingParser):
                         # Attempt to convert the raw time in seconds (unpacked_data[0]) and raw time in microseconds
                         # (unpacked_data[1]) to an NTP 64 timestamp
                         timestamp = ntplib.system_to_ntp_time(unpacked_data[0] + unpacked_data[1]/1000000.0)
+
+                        log.info("Calculated timestamp from raw %.10f", timestamp)
 
                         # Extract the sample an provide the particle class which could be different for each
                         # derived MmpCdsParser
@@ -267,14 +327,11 @@ class MmpCdsParser(BufferLoadingParser):
                 raise SampleException("Invalid ctdpf_ckl_mmp_cds msgpack contents")
 
             # We're done with this chunk, let's offset the state
-            self._increment_state(len(chunk))
+            self._set_position(len(chunk))
 
             # For each sample we retrieved in the chunk, let's create a tuple containing the sample, and the parser's
             # current read state
             for sample in samples:
                 result_particles.append((sample, copy.copy(self._read_state)))
-
-            # Let's attempt to retrieve another chunk
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
         return result_particles
