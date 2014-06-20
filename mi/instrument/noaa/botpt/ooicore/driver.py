@@ -1041,9 +1041,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_heater_timeout(self):
         """
-        Leveling has timed out, disable auto-relevel and mark leveling as failed.
-        handler_stop_leveling will raise the config change event.
-        @throws InstrumentProtocolException
+        Heater should be finished.  Set HEATER_ON to false.
         """
         self._param_dict.set_value(Parameter.HEATER_ON, False)
         return None, None
