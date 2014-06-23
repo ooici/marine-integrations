@@ -1414,7 +1414,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
-
     def _handler_command_start_autosample(self):
         """
         Start autosampling
@@ -1424,31 +1423,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
-    def _handler_command_get(self, params=None):
+    def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter(s)
         @param params List of parameters to get
         """
-        result = {}
-
-        if params == Parameter.ALL or params == [Parameter.ALL]:
-            result = self._param_dict.get_all()
-        elif not params or not isinstance(params, list):
-            raise InstrumentParameterException("Params must be a list")
-        else:
-            old_config = self._param_dict.get_config()
-
-            for param in params:
-                if not Parameter.has(param):
-                    raise InstrumentParameterException("%s is not a parameter" % param)
-                result[param] = self._param_dict.get(param)
-
-            new_config = self._param_dict.get_config()
-
-            if new_config != old_config:
-                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-        return None, result
+        return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, params, *args):
         """
@@ -1723,15 +1703,29 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Helpers
     ########################################################################
+    def _update_params(self):
+        """
+        Update the parameter dictionary by getting new values from the instrument. The response
+        is saved to the param dictionary.
+        """
+        params = self._param_dict.get_keys()
+        for param in params:
+            if param in [Parameter.NUM_LIGHT_SAMPLES, Parameter.TIME_LIGHT_SAMPLE]:
+                #do nothing, cannot update this parameter via the instrument
+                pass
+            else:
+                val = _get_from_instrument(param)
+                self._param_dict.set_value(param, val)
+
     def _get_from_instrument(self, param):
         """
-        instruct the instrument to get a parameter value from the instrument
+        Instruct the instrument to get a parameter value from the instrument
         @param param: name of the parameter
         @return: value read from the instrument.  None otherwise.
         @raise: InstrumentProtocolException when fail to get a response from the instrument
         """
         for attempt in xrange(RETRY):
-            # retry up to RETRY times
+            #try up to RETRY times
             try:
                 val = self._do_cmd_resp(InstrumentCommand.GET, param,
                                         timeout=TIMEOUT,
