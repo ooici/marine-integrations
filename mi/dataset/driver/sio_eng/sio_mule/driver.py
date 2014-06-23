@@ -30,8 +30,8 @@ class DataSourceKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    SIO_ENG_SIO_TELEMETERED = 'sio_eng_sio_telemetered'
-    SIO_ENG_SIO_RECOVERED = 'sio_eng_sio_recovered'
+    SIO_ENG_SIO_MULE_TELEMETERED = 'sio_eng_sio_mule_telemetered'
+    SIO_ENG_SIO_MULE_RECOVERED = 'sio_eng_sio_mule_recovered'
 
 class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
     
@@ -42,10 +42,10 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
     
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.SIO_ENG_SIO_TELEMETERED, DataSourceKey.SIO_ENG_SIO_RECOVERED]
+        data_keys = [DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED, DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
         # link the data keys to the harvester type, multiple or single file harvester
-        harvester_type = {DataSourceKey.SIO_ENG_SIO_TELEMETERED: HarvesterType.SINGLE_FILE,
-                          DataSourceKey.SIO_ENG_SIO_RECOVERED: HarvesterType.SINGLE_DIRECTORY}
+        harvester_type = {DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: HarvesterType.SINGLE_FILE,
+                          DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED: HarvesterType.SINGLE_DIRECTORY}
         super(SioEngSioMuleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                      exception_callback, data_keys, harvester_type=harvester_type)
         
@@ -54,34 +54,40 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         Build the telemetered or the recovered parser according to
         which data source is appropriate
         """
-        if data_key == DataSourceKey.SIO_ENG_SIO_TELEMETERED:
+        parser = None
+        if data_key == DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED:
             parser = self._build_telemetered_parser(parser_state, stream_in)
-            log.debug("_build_parser::::  BIULDING TELEMETERED PARSER")
+            log.debug("_build_parser::::  BUILT TELEMETERED PARSER, %s",type(parser) )
             
-        elif data_key == DataSourceKey.SIO_ENG_SIO_RECOVERED:
+        elif data_key == DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED:
             parser = self._build_recovered_parser(parser_state, stream_in)
             log.debug("_build_parser::::  BIULDING RECOVERED PARSER")
+        return parser
+        
+        
     def _build_telemetered_parser(self, parser_state, stream_in):
         """
         Build and return the telemetered parser
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
         """
-        config = self._parser_config[DataSourceKey.SIO_ENG_SIO_TELEMETERED]
+        #log.debug("_build_parser::::  In _build_telemetered_parser")
+        config = self._parser_config[DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED]
         config.update({
             'particle_module': 'mi.dataset.parser.sio_eng_sio_mule',
             'particle_class': 'SioEngSioMuleParserDataParticle'
         })
-        log.debug("My Config: %s", config)
-        self._parser = SioEngSioMuleParser(
+        log.debug("My Config in _build_telemetered_parser: %s", config)
+        parser = SioEngSioMuleParser(
             config,
             parser_state,
             stream_in,
-            lambda state: self._save_parser_state(state, DataSourceKey.SIO_ENG_SIO_TELEMETERED),
+            lambda state: self._save_parser_state(state, DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED),
             self._data_callback,
             self._sample_exception_callback
         )
-        return self._parser
+        log.debug("_build_parser::::   Built parser, returning %s", type(parser))
+        return parser
     
     def _build_recovered_parser(self, parser_state, stream_in):
         """
@@ -89,13 +95,13 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
         """
-        config = self._parser_config[DataSourceKey.SIO_ENG_SIO_RECOVERED]
+        config = self._parser_config[DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
         config.update({
             'particle_module': 'mi.dataset.parser.sio_eng_sio_mule',
             'particle_class': 'SioEngSioMuleParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._parser = SioEngSioMuleParser(
+        parser = SioEngSioMuleParser(
             config,
             parser_state,
             infile,
@@ -103,7 +109,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
             self._data_callback,
             self._sample_exception_callback 
         )
-        return self._parser
+        return parser
     
     def _build_harvester(self, driver_state):
         """
@@ -111,12 +117,12 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         """
         # *** Replace the following with harvester in   ialization ***
         self._harvester = []
-        if DataSourceKey.SIO_ENG_SIO_TELEMETERED in self._harvester_config:
+        if DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED in self._harvester_config:
             telemetered_harvester = SingleFileHarvester(
-                self._harvester_config.get(DataSourceKey.SIO_ENG_SIO_TELEMETERED),
-                driver_state[DataSourceKey.SIO_ENG_SIO_TELEMETERED],
+                self._harvester_config.get(DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED),
+                driver_state[DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED],
                 lambda file_state: self._file_changed_callback(file_state,
-                DataSourceKey.SIO_ENG_SIO_TELEMETERED),
+                    DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED),
                 self._exception_callback
             )
             self._harvester.append(telemetered_harvester)
