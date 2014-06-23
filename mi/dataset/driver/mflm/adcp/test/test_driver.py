@@ -15,7 +15,6 @@ USAGE:
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import unittest
 import os
 
 from nose.plugins.attrib import attr
@@ -24,7 +23,9 @@ from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
@@ -34,18 +35,24 @@ from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKe
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 
 from mi.dataset.driver.mflm.adcp.driver import MflmADCPSDataSetDriver, DataSourceKey
-from mi.dataset.parser.adcps import AdcpsParserDataParticle
+from mi.dataset.parser.adcps import \
+    AdcpsParserDataParticle, \
+    DataParticleType as AdcpsSioMuleDataParticleType
+from mi.dataset.parser.adcps_jln import \
+    DataParticleType as AdcpsJlnDataParticleType, \
+    AdcpsJlnParticle
 
-TELEM_DIR = '/tmp/dsatest'
+TELEM_DIR = '/tmp/adcps_sio_telem/dsatest'
+RECOV_DIR = '/tmp/adcps_sio_recov/dsatest'
 
 # Fill in the blanks to initialize data set test case
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.mflm.adcp.driver',
     driver_class='MflmADCPSDataSetDriver',
-    agent_resource_id = '123xyz',
-    agent_name = 'Agent007',
-    agent_packet_config = MflmADCPSDataSetDriver.stream_config(),
-    startup_config = {
+    agent_resource_id='123xyz',
+    agent_name='Agent007',
+    agent_packet_config=MflmADCPSDataSetDriver.stream_config(),
+    startup_config={
         DataSourceConfigKey.RESOURCE_ID: 'adcps',
         DataSourceConfigKey.HARVESTER:
         {
@@ -54,19 +61,29 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
                 DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 5
+            },
+            DataSourceKey.ADCPS_JLN: {
+                DataSetDriverConfigKeys.DIRECTORY: RECOV_DIR,
+                DataSetDriverConfigKeys.PATTERN: '*.PD0',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER: { DataSourceKey.ADCPS_JLN_SIO_MULE: {} }
+        DataSourceConfigKey.PARSER: {
+            DataSourceKey.ADCPS_JLN_SIO_MULE: {},
+            DataSourceKey.ADCPS_JLN: {}
+        }
     }
 )
 
-SAMPLE_STREAM='adcps_jln_sio_mule_instrument'
+SAMPLE_STREAM = AdcpsSioMuleDataParticleType.SAMPLE
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 # Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
+
+
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
 
@@ -90,6 +107,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir("node59p1_step4.dat", TELEM_DIR, "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, count=2, timeout=10)
 
+        self.create_sample_data_set_dir('ADCP_CCE1T_20.000',
+                                        RECOV_DIR,
+                                        "ADCP_CCE1T_20.PD0")
+        self.assert_data(AdcpsJlnParticle, 'ADCP_CCE1T_20.yml',
+                         count=20, timeout=10)
+
         self.driver.stop_sampling()
 
     def test_harvester_new_file_exception(self):
@@ -97,26 +120,45 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test an exception raised after the driver is started during
         the file read.  Should call the exception callback.
         """
-        # create the file so that it is unreadable
-        self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat", mode=000)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.assert_exception(ValueError)
+        # create the file so that it is unreadable
+        self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat", mode=000)
+
+        self.assert_exception(IOError)
+        self.clear_async_data()
 
         # At this point the harvester thread is dead.  The agent
         # exception handle should handle this case.
         
+        # create the file so that it is unreadable
+        self.create_sample_data_set_dir('ADCP_CCE1T_20.000',
+                                        RECOV_DIR,
+                                        "ADCP_CCE1T_20.PD0",
+                                        mode=000)
+
+        # Start sampling and watch for an exception
+
+        self.assert_exception(IOError)
+
+        # At this point the harvester thread is dead.  The agent
+        # exception handle should handle this case.
+
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
+
+        log.info("### START INTEG TEST STOP RESUME ###")
+
         self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat")
+
         driver_config = self._driver_config()['startup_config']
-        adcps_jln_sio_mule_config = driver_config['harvester'][DataSourceKey.ADCPS_JLN_SIO_MULE]
-        fullfile = os.path.join(adcps_jln_sio_mule_config['directory'],
-                                adcps_jln_sio_mule_config['pattern'])
+        adcps_jln_sio_mule_config = driver_config[DataSetDriverConfigKeys.HARVESTER][DataSourceKey.ADCPS_JLN_SIO_MULE]
+        fullfile = os.path.join(adcps_jln_sio_mule_config[DataSetDriverConfigKeys.DIRECTORY],
+                                adcps_jln_sio_mule_config[DataSetDriverConfigKeys.PATTERN])
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
@@ -127,13 +169,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_CHECKSUM: 'e56e28e6bd67c6b00c6702c9f9a13f93',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
                     DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                  'unprocessed_data':[[0,32], [607,678], [1254,1300]],
+                                                  'unprocessed_data': [[0, 32], [607, 678], [1254, 1300]],
                                                   }
                 }
             }
         }
 
-        self.driver = self._get_driver_object(config=driver_config)
+        self.driver = self._get_driver_object()
 
         # create some data to parse
         self.clear_async_data()
@@ -156,20 +198,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # separately in other tests
         self.clear_async_data()
         self.create_sample_data_set_dir("node59p1_step2.dat", TELEM_DIR, "node59p1.dat",
-                                copy_metadata=False)
+                                        copy_metadata=False)
         self.assert_data(AdcpsParserDataParticle, 'test_data_1-2.txt.result.yml',
                          count=3, timeout=10)
 
         # This file has had a section of AD data replaced with 0s
         self.create_sample_data_set_dir('node59p1_step3.dat', TELEM_DIR, "node59p1.dat",
-                                copy_metadata=False)
+                                        copy_metadata=False)
         self.assert_data(AdcpsParserDataParticle, 'test_data_3.txt.result.yml',
                          count=4, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data with a new sequence flag
         self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat",
-                                copy_metadata=False)
+                                        copy_metadata=False)
         self.assert_data(AdcpsParserDataParticle, 'test_data_4.txt.result.yml',
                          count=1, timeout=10)
 
@@ -185,7 +227,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat",
-                                copy_metadata=False)
+                                        copy_metadata=False)
         self.assert_data(AdcpsParserDataParticle, 'test_data_1-4.txt.result.yml',
                          count=8, timeout=10)
 
@@ -194,6 +236,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 # Device specific qualification tests are for                                 #
 # testing device specific capabilities                                        #
 ###############################################################################
+
+
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
         
@@ -227,18 +271,45 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data_set_dir('node59p1_step1.dat', TELEM_DIR,
-                                        "node59p1.dat")
+
+        log.info("### START QUAL TEST PUBLISH PATH ###")
+
+        # create telemetered data
+        self.create_sample_data_set_dir('node59p1_step1.dat',
+                                         TELEM_DIR,
+                                         "node59p1.dat")
+
+        #create recovered data
+        self.create_sample_data_set_dir('ADCP_CCE1T_20.000',
+                                        RECOV_DIR,
+                                        'ADCP_CCE1T_20.PD0')
 
         self.assert_initialize()
 
         try:
-            # Verify we get one sample
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 2)
-            log.info("RESULT: %s", result)
+            # Verify we get 2 samples
+            log.debug('#### attempting to get particles on stream %s', AdcpsSioMuleDataParticleType.SAMPLE)
+            result = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 2)
+
+            log.info("#### RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
+
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+        try:
+            # Verify that we get 20  samples
+            log.debug('#### attempting to get particles on stream %s', AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT)
+
+            result = self.data_subscribers.get_samples(
+                AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT, 20, 100)
+
+            log.info("#### RESULT: %s", result)
+            self.assert_data_values(result, 'ADCP_CCE1T_20.yml')
+
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -250,7 +321,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('node59p1.dat', TELEM_DIR)
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,2000,400)
+        self.get_samples(SAMPLE_STREAM, 2000, 400)
 
     def test_stop_start(self):
         """
@@ -362,7 +433,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 28, 30)
+        self.get_samples(SAMPLE_STREAM, 28, 30)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
