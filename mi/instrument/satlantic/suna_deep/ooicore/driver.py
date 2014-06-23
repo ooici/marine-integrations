@@ -48,6 +48,12 @@ NEWLINE = '\r\n'
 TIMEOUT = 15
 POLL_TIMEOUT = 100
 
+MIN_TIME_SAMPLE = 0
+MIN_LIGHT_SAMPLE = 0
+
+MAX_TIME_SAMPLE = 60
+MAX_LIGHT_SAMPLE = 15
+
 # default number of retries for a command
 RETRY = 3
 
@@ -230,7 +236,6 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    #POLL = DriverProtocolState.POLL
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
 
 
@@ -834,27 +839,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_POLL, self._handler_command_start_poll)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
+        # POLL Commands in the COMMAND State
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
 
         # DIRECT ACCESS State
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_generic_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-
-        # POLL State
-        # self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.ENTER, self._handler_generic_enter)
-        # self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.EXIT, self._handler_generic_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
-        #self._protocol_fsm.add_handler(ProtocolState.POLL, ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
 
         # AUTOSAMPLE State
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_generic_enter)
@@ -1479,8 +1479,17 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("KEY = %s VALUE = %s", key, val)
             # check for driver parameters
             if key in [Parameter.NUM_LIGHT_SAMPLES, Parameter.TIME_LIGHT_SAMPLE]:
-                #todo - do a range check before setting them
-                self._param_dict.set_value(key, params[key])
+                if key == Parameter.NUM_LIGHT_SAMPLES:
+                    if key >= MIN_LIGHT_SAMPLE or key <= MAX_LIGHT_SAMPLE:
+                        self._param_dict.set_value(key, params[key])
+                    else:
+                        raise InstrumentParameterException('Parameter value is outside constraints!')
+
+                if key == Parameter.TIME_LIGHT_SAMPLE:
+                    if key >= MIN_TIME_SAMPLE or key <= MAX_TIME_SAMPLE:
+                        self._param_dict.set_value(key, params[key])
+                    else:
+                        raise InstrumentParameterException('Parameter value is outside constraints!')
             else:
                 try:
                     str_val = self._param_dict.format(key, params[key])
@@ -1561,7 +1570,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Start polling
         """
         self._do_cmd_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED,
-                          expected_prompt=[Prompt.OK, Prompt.ERROR])
+                          expected_prompt=[Prompt.OK, Prompt.ERROR, Prompt.POLLED])
         self._do_cmd_resp(InstrumentCommand.EXIT, expected_prompt=Prompt.POLLED)
 
         #return ProtocolState.POLL, (ResourceAgentState.BUSY, None)

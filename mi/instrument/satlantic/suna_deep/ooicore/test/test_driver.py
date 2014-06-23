@@ -6,12 +6,18 @@
 
 USAGE:
  Make tests verbose and provide stdout
-   * From the IDK
+    * From the IDK
        $ bin/test_driver
        $ bin/test_driver -u [-t testname]
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
+    * From pyon
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a UNIT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a INT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a QUAL
 """
+
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
@@ -32,8 +38,7 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.common import BaseEnum
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey, DriverEvent, \
-    DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey, DriverEvent
 
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, TIMEOUT, \
     SUNATestDataParticle, InstrumentCommandArgs, SUNASampleDataParticleKey, SUNAStatusDataParticleKey, \
@@ -154,8 +159,6 @@ class ParameterConstraints(BaseEnum):
     INTEG_TIME_FACTOR = (Parameter.INTEG_TIME_FACTOR, int, 1, 20)
     INTEG_TIME_STEP = (Parameter.INTEG_TIME_STEP, int, 1, 20)
     INTEG_TIME_MAX = (Parameter.INTEG_TIME_MAX, int, 1, 20)
-    NUM_LIGHT_SAMPLES = (Parameter.NUM_LIGHT_SAMPLES, int, 0, 15)
-    TIME_LIGHT_SAMPLE = (Parameter.TIME_LIGHT_SAMPLE, int, 0, 60)
 
 
 ###############################################################################
@@ -483,11 +486,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                                           ProtocolEvent.SET,
                                           ProtocolEvent.TEST,
                                           ProtocolEvent.CLOCK_SYNC,
-                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                           ProtocolEvent.MEASURE_N,
                                           ProtocolEvent.MEASURE_0,
                                           ProtocolEvent.TIMED_N],
-                                          #ProtocolEvent.STOP_POLL],
             ProtocolState.DIRECT_ACCESS: [ProtocolEvent.EXECUTE_DIRECT,
                                           ProtocolEvent.STOP_DIRECT],
             ProtocolState.AUTOSAMPLE:    [ProtocolEvent.STOP_AUTOSAMPLE]
@@ -533,10 +534,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
                 self.assert_set_exception(param_name, minimum - 0.1, exception_class=InstrumentProtocolException)
                 self.assert_set_exception(param_name, maximum + 0.1, exception_class=InstrumentProtocolException)
                 self.assert_set_exception(param_name, 'badString', exception_class=InstrumentProtocolException)
-            #TODO
-            # elif type_class is bool:
-            #     self.assert_set_exception(param_name, 7, exception_class=InstrumentParameterException)
-            #     self.assert_set_exception(param_name, 'badString', exception_class=InstrumentParameterException)
 
     def test_get_set(self):
         """
@@ -619,7 +616,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         Verify polled acquisition of samples in auto-sample mode
         """
         self.assert_initialize_driver()
-        #self.assert_driver_command(ProtocolEvent.START_POLL, state=ProtocolState.POLL, delay=1)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
                                          self.assert_data_particle_sample, delay=TIMEOUT)
@@ -629,8 +625,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
         self.assert_particle_generation(ProtocolEvent.TIMED_N, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=TIMEOUT)
-
-        #self.assert_driver_command(ProtocolEvent.STOP_POLL, state=ProtocolState.COMMAND, delay=10)
 
     def test_start_stop_auto_sample(self):
         """
@@ -701,7 +695,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
     def test_discover(self):
         """
-        Override - instrument will always start up in Command mode.  Instrument will instruct instrument into
+        Override method- instrument will always start up in Command mode.  Instrument will instruct instrument into
         Command mode as well.
 
         Verify when the instrument is either in autosample or command state, the instrument will always discover
@@ -872,14 +866,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_SAMPLE,
                                           ProtocolEvent.ACQUIRE_STATUS,
-                                          ProtocolEvent.START_DIRECT,
-                                          #ProtocolEvent.START_POLL,
                                           ProtocolEvent.START_AUTOSAMPLE,
                                           ProtocolEvent.GET,
                                           ProtocolEvent.SET,
                                           ProtocolEvent.TEST,
                                           ProtocolEvent.CLOCK_SYNC,
-                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                           ProtocolEvent.MEASURE_N,
                                           ProtocolEvent.MEASURE_0,
                                           ProtocolEvent.TIMED_N],
@@ -894,21 +885,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
         self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
-
-        # ##################
-        # #  Polled Mode
-        # ##################
-        # capabilities[AgentCapabilityType.AGENT_COMMAND] = []
-        # capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-        #     ProtocolEvent.ACQUIRE_SAMPLE,
-        #     ProtocolEvent.STOP_POLL,
-        #     ProtocolEvent.MEASURE_N,
-        #     ProtocolEvent.MEASURE_0,
-        #     ProtocolEvent.TIMED_N]
-        #
-        # self.assert_switch_driver_state(ProtocolEvent.START_POLL, DriverProtocolState.POLL)
-        # self.assert_capabilities(capabilities)
-        # self.assert_switch_driver_state(ProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
 
         ##################
         #  Streaming Mode
