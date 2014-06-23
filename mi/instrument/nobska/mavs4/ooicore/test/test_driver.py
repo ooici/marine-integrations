@@ -25,7 +25,7 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 # Ensure the test class is monkey patched for gevent
-from gevent import monkey;
+from gevent import monkey
 
 monkey.patch_all()
 import gevent
@@ -90,7 +90,7 @@ from mi.idk.unit_test import GO_ACTIVE_TIMEOUT
 from mi.core.instrument.chunker import StringChunker
 
 # MI logger
-from mi.core.log import get_logger;
+from mi.core.log import get_logger
 
 log = get_logger()
 
@@ -127,9 +127,9 @@ DEFAULT = ParameterTestConfigKey.DEFAULT
 
 
 class Mavs4Mixin(DriverTestMixin):
-    '''
+    """
     Mixin class used for storing data particle constants and common data assertion methods.
-    '''
+    """
 
     ###
     #  Parameter and Type Definitions
@@ -143,7 +143,7 @@ class Mavs4Mixin(DriverTestMixin):
             TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '3', VALUE: '3'},
         InstrumentParameters.MONITOR: {TYPE: bool, READONLY: False, DA: False, STARTUP: False},
         InstrumentParameters.LOG_DISPLAY_TIME: {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND: {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES: {
             TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES_FORMAT: {
@@ -161,7 +161,7 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.BURST_INTERVAL_SECONDS: {
             TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
         InstrumentParameters.SI_CONVERSION: {TYPE: float, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.WARM_UP_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'f'},
+        InstrumentParameters.WARM_UP_INTERVAL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'F'},
         InstrumentParameters.THREE_AXIS_COMPASS: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True},
         InstrumentParameters.SOLID_STATE_TILT: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True},
         InstrumentParameters.THERMISTOR: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True},
@@ -348,20 +348,20 @@ class Mavs4Mixin(DriverTestMixin):
         self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
 
     def assert_particle_sample(self, data_particle, verify_values=False):
-        '''
+        """
         Verify a take sample data particle
         @param data_particle:  SBE26plusTideSampleDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_header(data_particle, DataParticleType.SAMPLE)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
     def assert_particle_status(self, data_particle, verify_values=False):
-        '''
+        """
         Verify a status data particle
         @param data_particle:  status data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_status_data_particle_header(data_particle, DataParticleType.STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
@@ -400,8 +400,6 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 
         Create a port agent packet, send it through got_data, then finally grab the data particle
         from the data particle queue and verify it using the passed in assert method.
-        @param driver: instrument driver with mock port agent client
-        @param sample_data: the byte string we want to send to the driver
         @param particle_assert_method: assert method to validate the data particle.
         @param verify_values: Should we validate values?
         """
@@ -411,7 +409,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
             particle_dict = json.loads(p)
             stream_type = particle_dict.get('stream_name')
             self.assertIsNotNone(stream_type)
-            if (stream_type == DataParticleType.STATUS):
+            if stream_type == DataParticleType.STATUS:
                 particles.append(p)
 
         log.debug("status particles: %s ", particles)
@@ -423,7 +421,6 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
     def test_driver_enums(self):
         """
         Verify that all driver enumerations have no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(InstrumentPrompts())
@@ -633,13 +630,15 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
     def driver_class():
         return 'mavs4InstrumentDriver'
 
+    def setup(self):
+        time.sleep(10)
+        InstrumentDriverIntegrationTestCase.setUp()
 
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
         self.assert_initialize_driver()
-
 
     def test_get_parameters(self):
         """
@@ -650,7 +649,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
-
 
     def test_set(self):
         """
@@ -670,10 +668,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
     def test_set_clock(self):
         self.assert_initialize_driver()
 
-        new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.SYS_CLOCK] = self.TIME_TO_SET
-        new_parameter_list = []
-        new_parameter_list.append(InstrumentParameters.SYS_CLOCK)
+        new_parameter_values = {InstrumentParameters.SYS_CLOCK: self.TIME_TO_SET}
+        new_parameter_list = [InstrumentParameters.SYS_CLOCK]
 
         # Set parameters and verify.
         self.driver_client.cmd_dvr('set_resource', new_parameter_values)
@@ -709,7 +705,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.assert_set_readonly(InstrumentParameters.SENSOR_ORIENTATION)
         self.assert_set_readonly(InstrumentParameters.SERIAL_NUMBER)
 
-    def test_instrumment_start_stop_autosample(self):
+    def test_instrument_start_stop_autosample(self):
         """
         @brief Test for start/stop of instrument autosample, puts instrument in 'command' state first
         """
@@ -728,7 +724,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
-
 
     def test_instrument_autosample_samples(self):
         """
@@ -756,7 +751,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
                 log.debug('sample_dict: %s\nvalues: %s', sample_dict, values)
                 # pull timestamp out of particle
                 ntp_timestamp = sample_dict[DataParticleKey.INTERNAL_TIMESTAMP]
-                #ntp_timestamp = [item for item in values if item["value_id"] == Mavs4SampleDataParticleKey.TIMESTAMP][0]['value']
+                # ntp_timestamp = [item for item in values if item["value_id"] ==
+                #                                             Mavs4SampleDataParticleKey.TIMESTAMP][0]['value']
                 float_timestamp = ntplib.ntp_to_system_time(ntp_timestamp)
                 log.debug('dt=%s' % time.ctime(float_timestamp))
         self.assertTrue(len(sample_events) >= 2)
@@ -765,7 +761,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
         self.assert_current_state(ProtocolStates.COMMAND)
-
 
     def test_polled_particle_generation(self):
         """
@@ -784,10 +779,10 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.assert_initialize_driver()
 
         json_result = self.driver_client.cmd_dvr("get_config_metadata")
-        self.assert_(json_result != None)
+        self.assert_(json_result is not None)
         self.assert_(len(json_result) > 100)  # just make sure we have something...
         result = json.loads(json_result)
-        self.assert_(result != None)
+        self.assert_(result is not None)
         self.assert_(isinstance(result, dict))
         self.assertFalse(result[ConfigMetadataKey.COMMANDS])
 
@@ -818,7 +813,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         # both set to valid values
         new_parameter_values = {
-            InstrumentParameters.QUERY_MODE: 'n',
+            InstrumentParameters.QUERY_MODE: False,
             InstrumentParameters.BURST_INTERVAL_DAYS: 1,
             InstrumentParameters.BURST_INTERVAL_HOURS: 1,
             InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
@@ -826,7 +821,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         }
         self.driver_client.cmd_dvr('set_resource', new_parameter_values)
         reply = self.driver_client.cmd_dvr('get_resource', read_values)
-        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'n')
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], False)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_DAYS], 1)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_HOURS], 1)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_MINUTES], 1)
@@ -834,14 +829,14 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         # both set to invalid combo
         new_parameter_values = {
-            InstrumentParameters.QUERY_MODE: 'y',
+            InstrumentParameters.QUERY_MODE: True,
             InstrumentParameters.BURST_INTERVAL_DAYS: 1,
             InstrumentParameters.BURST_INTERVAL_HOURS: 1,
             InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
             InstrumentParameters.BURST_INTERVAL_SECONDS: 1
         }
 
-        # try assert_ion_exception() generic call   
+        # try assert_ion_exception() generic call
         #self.assertRaises(BadRequest,
         #                  self.driver_client.cmd_dvr,
         #                  'set_resource', new_parameter_values)
@@ -851,11 +846,11 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         # just one set in invalid mode (query mode already set)
         new_parameter_values = {
-            InstrumentParameters.QUERY_MODE: 'y',
+            InstrumentParameters.QUERY_MODE: True,
         }
         self.driver_client.cmd_dvr('set_resource', new_parameter_values)
         reply = self.driver_client.cmd_dvr('get_resource', read_values)
-        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'y')
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], True)
         new_parameter_values = {
             InstrumentParameters.BURST_INTERVAL_DAYS: 1,
             InstrumentParameters.BURST_INTERVAL_HOURS: 1,
@@ -869,24 +864,23 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         # just one set in valid mode
         new_parameter_values = {
-            InstrumentParameters.QUERY_MODE: 'n',
+            InstrumentParameters.QUERY_MODE: False,
         }
         self.driver_client.cmd_dvr('set_resource', new_parameter_values)
         reply = self.driver_client.cmd_dvr('get_resource', read_values)
-        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'n')
-        new_parameter_values = {
-            InstrumentParameters.BURST_INTERVAL_DAYS: 1,
-            InstrumentParameters.BURST_INTERVAL_HOURS: 1,
-            InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
-            InstrumentParameters.BURST_INTERVAL_SECONDS: 1
-        }
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], False)
+        # new_parameter_values = {
+        #     InstrumentParameters.BURST_INTERVAL_DAYS: 1,
+        #     InstrumentParameters.BURST_INTERVAL_HOURS: 1,
+        #     InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
+        #     InstrumentParameters.BURST_INTERVAL_SECONDS: 1
+        # }
         reply = self.driver_client.cmd_dvr('get_resource', read_values)
-        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'n')
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], False)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_DAYS], 1)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_HOURS], 1)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_MINUTES], 1)
         self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_SECONDS], 1)
-
 
     def test_related_parameters(self):
         """
@@ -1002,7 +996,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         #self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
 
         # Check the clock until it is set correctly (by a scheduled event)
-        #self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
+        # self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout,
+        #                       tolerance=10)
 
 
 ###############################################################################
@@ -1014,6 +1009,10 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 @attr('QUAL', group='mi')
 class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
     """Qualification Test Container"""
+
+    def setup(self):
+        time.sleep(15)
+        self.InstrumentDriverQualificationTestCase.setUp()
 
     def assert_sample_async(self, sampleDataAssert, sampleQueue,
                             timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
@@ -1123,7 +1122,6 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
         lt = time.strftime("%m/%d/%Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assert_clock_set(lt, rcvd_time)
 
-
     def test_sample_autosample(self):
         self.assert_enter_command_mode()
         self.assert_start_autosample()
@@ -1155,7 +1153,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
-# Device specific pulication tests are for                                    #
+# Device specific publication tests are for                                    #
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('PUB', group='mi')
@@ -1177,4 +1175,3 @@ class Testmavs4_PUB(InstrumentDriverPublicationTestCase):
                                             log.debug,
                                             DataParticleType.STATUS,
                                             timeout=450)
-    

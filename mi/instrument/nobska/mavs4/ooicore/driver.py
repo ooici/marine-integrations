@@ -73,6 +73,11 @@ DISABLED = 'Disabled'
 # default timeout.
 INSTRUMENT_TIMEOUT = 5
 
+common_matches = {
+    'float': r'[-+]?\d*\.?\d+',
+    'int': r'[-+]?\d+'
+}
+
 
 class ScheduledJob(BaseEnum):
     CLOCK_SYNC = 'clock_sync'
@@ -876,7 +881,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
-        @throw InstrumentProtocolExecption on timeout
+        @throw InstrumentProtocolException on timeout
         """
         # Grab time for timeout and wait for prompt.
 
@@ -1108,7 +1113,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         Exit command state.
         """
-        pass
 
     def _set_query_mode_parameter(self, params_to_set):
         """
@@ -1116,7 +1120,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         depend on it.
         @param params_to_set the parameters to set
         """
-
 
     def _set_parameter_sub_parameters(self, params_to_set):
         parameters_handled = []
@@ -1220,17 +1223,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if len(target) <= 1:
             return list(params)
 
-        if ((len(target) == 2) and ((InstrumentParameters.FREQUENCY in target) and \
-                                            (InstrumentParameters.MEASUREMENTS_PER_SAMPLE in target))):
+        if ((len(target) == 2) and ((InstrumentParameters.FREQUENCY in target) and
+                                        (InstrumentParameters.MEASUREMENTS_PER_SAMPLE in target))):
             return_list.remove(InstrumentParameters.FREQUENCY)
             return_list.remove(InstrumentParameters.MEASUREMENTS_PER_SAMPLE)
             return_list.extend([InstrumentParameters.FREQUENCY,
                                 InstrumentParameters.MEASUREMENTS_PER_SAMPLE])
             return return_list
 
-        if ((len(target) == 3) and (target[InstrumentParameters.SAMPLE_PERIOD] * \
-                                            target[InstrumentParameters.FREQUENCY] == \
-                                            target[InstrumentParameters.MEASUREMENTS_PER_SAMPLE])):
+        if ((len(target) == 3) and (target[InstrumentParameters.SAMPLE_PERIOD] *
+                                        target[InstrumentParameters.FREQUENCY] ==
+                                        target[InstrumentParameters.MEASUREMENTS_PER_SAMPLE])):
             return_list.remove(InstrumentParameters.FREQUENCY)
             return_list.remove(InstrumentParameters.MEASUREMENTS_PER_SAMPLE)
             return_list.remove(InstrumentParameters.SAMPLE_PERIOD)
@@ -1285,7 +1288,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             false otherwise
         @retval (next_state, result) tuple, (None, None).
         @throws InstrumentParameterException if missing set parameters, if set
-        parameters not ALL and not a dict, or if paramter can't be properly
+        parameters not ALL and not a dict, or if parameter can't be properly
         formatted.
         @throws InstrumentTimeoutException if device cannot be woken for set
         command.
@@ -1323,7 +1326,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._navigate_and_execute(InstrumentCmds.DEPLOY_GO,
                                    dest_submenu=SubMenues.DEPLOY,
                                    timeout=20,
-                                   *args, **kwargs)
+                                   **kwargs)
 
         next_state = ProtocolStates.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1558,15 +1561,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.SAMPLE, status)
 
     def _send_control_c(self, count):
-        # spoon feed the control-c characters so instrument doesn't drop them
-        # if they are sent too fast
+        """
+        Spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
+        """
         for n in range(count):
             self._connection.send(InstrumentCmds.CONTROL_C)
             time.sleep(.1)
 
     def _go_to_root_menu(self):
-        # try to get root menu presuming the instrument is not sleeping by
-        # sending single control-c
+        """
+        Try to get root menu presuming the instrument is not sleeping by sending single control-C
+        """
         for attempt in range(0, 2):
             self._linebuf = ''
             self._promptbuf = ''
@@ -1576,15 +1581,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                                       expected_prompt=[InstrumentPrompts.MAIN_MENU,
                                                                        InstrumentPrompts.SLEEPING])
             except:
-                log.trace('_go_to_root_menu: TIMED_OUT WAITING FOR ROOT MENU FROM ONE CONTROL-C !')
+                log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR ROOT MENU FROM ONE CONTROL-C !')
                 pass
             else:
                 if prompt == InstrumentPrompts.MAIN_MENU:
-                    log.trace("_go_to_root_menu: got root menu prompt")
+                    log.debug("_go_to_root_menu: got root menu prompt")
                     return
                 if prompt == InstrumentPrompts.SLEEPING:
                     # instrument says it is sleeping, so try to wake it up
-                    log.trace("_go_to_root_menu: GOT SLEEPING PROMPT !")
+                    log.debug("_go_to_root_menu: GOT SLEEPING PROMPT !")
                     break
         # instrument acts like it's asleep, so try to wake it up and get to root menu
         count = 3  # send 3 control-c characters to get the instruments attention
@@ -1841,7 +1846,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.FREQUENCY,
-                           r'.*4\| Measurement Frequency\s+(\d+.\d+)\s+\[Hz\].*',
+                           r'4\| Measurement Frequency\s+(%(float)s)\s+\[Hz\]' % common_matches,
                            lambda match: float(match.group(1)),
                            self._float_to_string,
                            regex_flags=re.DOTALL,
@@ -1858,7 +1863,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-                           r'.*5\| Measurements/Sample\s+(\d+)\s+\[M/S\].*',
+                           r'5\| Measurements/Sample\s+(%(int)s)\s+\[M/S\]' % common_matches,
                            lambda match: int(match.group(1)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
@@ -1874,7 +1879,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.SAMPLE_PERIOD,
-                           '.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*',
+                           '6\| Sample Period\s+(%(float)s)' % common_matches,
                            lambda match: float(match.group(1)),
                            self._float_to_string,
                            regex_flags=re.DOTALL,
@@ -1890,7 +1895,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.SAMPLES_PER_BURST,
-                           r'.*7\| Samples/Burst\s+(\d+)\s+\[S/B\].*',
+                           r'7\| Samples/Burst\s+(%(int)s)\s+\[S/B\]' % common_matches,
                            lambda match: int(match.group(1)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
@@ -1905,7 +1910,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.BURST_INTERVAL_DAYS,
-                           r'.*8\| Burst Interval\s+(\d+)\s+.*',
+                           r'8\| Burst Interval\s+(%(int)s)\s+(%(int)s):(%(int)s):(%(int)s)' % common_matches,
                            lambda match: int(match.group(1)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
@@ -1922,8 +1927,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.BURST_INTERVAL_HOURS,
-                           r'.*8\| Burst Interval\s+\d+\s+(\d+):.*',
-                           lambda match: int(match.group(1)),
+                           r'8\| Burst Interval\s+(%(int)s)\s+(%(int)s):(%(int)s):(%(int)s)' % common_matches,
+                           lambda match: int(match.group(2)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
                            default_value=0,
@@ -1935,8 +1940,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.BURST_INTERVAL_MINUTES,
-                           r'.*8\| Burst Interval\s+\d+\s+\d+:(\d+):.*',
-                           lambda match: int(match.group(1)),
+                           r'8\| Burst Interval\s+(%(int)s)\s+(%(int)s):(%(int)s):(%(int)s)' % common_matches,
+                           lambda match: int(match.group(3)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
                            default_value=0,
@@ -1948,8 +1953,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.BURST_INTERVAL_SECONDS,
-                           r'.*8\| Burst Interval\s+\d+\s+\d+:\d+:(\d+)\s+.*',
-                           lambda match: int(match.group(1)),
+                           r'8\| Burst Interval\s+(%(int)s)\s+(%(int)s):(%(int)s):(%(int)s)' % common_matches,
+                           lambda match: int(match.group(4)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
                            default_value=0,
@@ -1961,7 +1966,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.SI_CONVERSION,
-                           r'.*<C> Binary to SI Conversion\s+(\d+.\d+)\s+.*',
+                           r'<C> Binary to SI Conversion\s+(%(float)s)' % common_matches,
                            lambda match: float(match.group(1)),
                            self._float_to_string,
                            regex_flags=re.DOTALL,
@@ -2225,7 +2230,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.COMPASS_OFFSET_0,
-                           r'.*Current compass offsets:\s+([-+]?\d+)\s+.*',
+                           r'Current compass offsets:\s+(%(float)s)\s+(%(float)s)\s+(%(float)s)' % common_matches,
                            lambda match: int(match.group(1)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
@@ -2240,8 +2245,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.COMPASS_OFFSET_1,
-                           r'.*Current compass offsets:\s+[-+]?\d+\s+([-+]?\d+)\s+.*',
-                           lambda match: int(match.group(1)),
+                           r'Current compass offsets:\s+(%(float)s)\s+(%(float)s)\s+(%(float)s)' % common_matches,
+                           lambda match: int(match.group(2)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
@@ -2255,8 +2260,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.COMPASS_OFFSET_2,
-                           r'.*Current compass offsets:\s+[-+]?\d+\s+[-+]?\d+\s+([-+]?\d+)\s+.*',
-                           lambda match: int(match.group(1)),
+                           r'Current compass offsets:\s+(%(float)s)\s+(%(float)s)\s+(%(float)s)' % common_matches,
+                           lambda match: int(match.group(3)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
@@ -2270,7 +2275,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.COMPASS_SCALE_FACTORS_0,
-                           r'.*Current compass scale factors:\s+(\d+.\d+)\s+.*',
+                           r'Current compass scale factors:\s+(%(float)s)\s+(%(float)s)\s+(%(float)s)' % common_matches,
                            lambda match: float(match.group(1)),
                            self._float_to_string,
                            regex_flags=re.DOTALL,
@@ -2285,8 +2290,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.COMPASS_SCALE_FACTORS_1,
-                           r'.*Current compass scale factors:\s+\d+.\d+\s+(\d+.\d+)\s+.*',
-                           lambda match: float(match.group(1)),
+                           r'Current compass scale factors:\s+(%(float)s)\s+(%(float)s)\s+(%(float)s)\s+' % common_matches,
+                           lambda match: float(match.group(2)),
                            self._float_to_string,
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
@@ -2300,8 +2305,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.COMPASS_SCALE_FACTORS_2,
-                           r'.*Current compass scale factors:\s+\d+.\d+\s+\d+.\d+\s+(\d+.\d+)\s+.*',
-                           lambda match: float(match.group(1)),
+                           r'Current compass scale factors:\s+(%(float)s)\s+(%(float)s)\s+(%(float)s)\s+' % common_matches,
+                           lambda match: float(match.group(3)),
                            self._float_to_string,
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
@@ -2315,7 +2320,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.TILT_PITCH_OFFSET,
-                           r'.*Current tilt offsets:\s+(\d+)\s+.*',
+                           r'Current tilt offsets:\s+(%(int)s)\s+(%(int)s)\s+' % common_matches,
                            lambda match: int(match.group(1)),
                            self._int_to_string,
                            regex_flags=re.DOTALL,
@@ -2332,8 +2337,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.TILT_ROLL_OFFSET,
-                           r'.*Current tilt offsets:\s+\d+\s+(\d+)\s+.*',
-                           lambda match: int(match.group(1)),
+                           r'Current tilt offsets:\s+(%(int)s)\s+(%(int)s)\s+' % common_matches,
+                           lambda match: int(match.group(2)),
                            self._int_to_string,
                            value=-1,  # to indicate that the parameter has not been read from the instrument
                            regex_flags=re.DOTALL,
