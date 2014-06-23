@@ -61,7 +61,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
     instrument_agent_resource_id='IN2N03',
     instrument_agent_name='harvard_massp_mcu',
-    instrument_agent_packet_config=DataParticleType,
+    instrument_agent_packet_config=DataParticleType(),
     driver_startup_config=mcu_startup_config
 )
 
@@ -222,18 +222,21 @@ class DriverTestMixinSub(DriverTestMixin):
         InstrumentCommand.START2: Prompt.OK,
         InstrumentCommand.SAMPLE + '10': Prompt.SAMPLE_START,
         InstrumentCommand.CAL: Prompt.OK,
-        InstrumentCommand.STANDBY: Prompt.OK + NEWLINE + Prompt.STANDBY,
+        # instrument only sends one or the other (STANDBY or ONLINE) but for testing we can send both
+        InstrumentCommand.STANDBY: Prompt.OK + NEWLINE + Prompt.STANDBY + NEWLINE + Prompt.ONLINE,
         InstrumentCommand.BEAT: Prompt.BEAT,
         InstrumentCommand.NAFREG: Prompt.OK,
         InstrumentCommand.IONREG: Prompt.OK,
         InstrumentCommand.SET_TELEGRAM_INTERVAL + '00010000': Prompt.OK,
-        InstrumentCommand.SET_MINUTE + '01000': Prompt.SET_MINUTE
+        InstrumentCommand.SET_MINUTE + '01000': Prompt.SET_MINUTE,
+        InstrumentCommand.SET_WATCHDOG: Prompt.OK,
     }
 
     _driver_parameters = {
         Parameter.TELEGRAM_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10000},
         Parameter.ONE_MINUTE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 1000},
         Parameter.SAMPLE_TIME: {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
+        Parameter.ERROR_REASON: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: ''},
     }
 
     _driver_capabilities = {
@@ -285,7 +288,8 @@ class DriverTestMixinSub(DriverTestMixin):
                                       'PROTOCOL_EVENT_STANDBY',
                                       'PROTOCOL_EVENT_ERROR'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR']
+        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR',
+                              'PROTOCOL_EVENT_STANDBY']
     }
 
     """
@@ -511,39 +515,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
-    def test_already_in_sequence(self):
-        """
-        Verify handling when driver is initiated with MCU already in sequence.
-        """
-        sent = []
-        def wait(s, timeout=10):
-            end_time = time.time() + timeout
-            while not s in sent:
-                if time.time() > end_time:
-                    self.fail('Failed to receive expected response')
-                log.debug('test_already_in_sequence: waiting for %r', s)
-                time.sleep(.1)
-            sent.remove(s)
-
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-        driver._connection.send.side_effect = lambda x: sent.append(x)
-        driver._protocol.set_init_params(mcu_startup_config)
-
-        driver._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
-        driver._protocol._async_raise_fsm_event(ProtocolEvent.DISCOVER)
-        wait(InstrumentCommand.BEAT + NEWLINE)
-        self._send_port_agent_packet(driver, Prompt.BEAT + NEWLINE)
-        wait(InstrumentCommand.SET_MINUTE + '01000' + NEWLINE)
-        self._send_port_agent_packet(driver, Prompt.SET_MINUTE + NEWLINE)
-        wait(InstrumentCommand.STANDBY + NEWLINE)
-        self._send_port_agent_packet(driver, Prompt.IN_SEQUENCE + NEWLINE)
-        wait(InstrumentCommand.ABORT + NEWLINE)
-        self._send_port_agent_packet(driver, Prompt.ABORTED + NEWLINE)
-        wait(InstrumentCommand.STANDBY + NEWLINE)
-        self._send_port_agent_packet(driver, Prompt.STANDBY + NEWLINE)
-        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
-
     def test_regen(self):
         """
         Verify we can start/stop the regen states
@@ -663,21 +634,21 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         Test data particle generation
         """
         self.assert_enter_command_mode()
-        self.assert_particle_async(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=60)
+        self.assert_particle_async(DataParticleType.MCU_STATUS, self.assert_mcu_status_particle, timeout=90)
 
     def test_direct_access_telnet_mode(self):
         """
         This test manually tests that the Instrument Driver properly supports
         direct access to the physical instrument. (telnet mode)
         """
-        self.assert_direct_access_start_telnet()
+        self.assert_direct_access_start_telnet(session_timeout=180)
         self.assertTrue(self.tcp_client)
 
         self.tcp_client.send_data(InstrumentCommand.BEAT + NEWLINE)
         self.assertTrue(self.tcp_client.expect(Prompt.BEAT))
         self.tcp_client.send_data(InstrumentCommand.START1 + NEWLINE)
         self.assertTrue(self.tcp_client.expect(Prompt.OK))
-        self.assertTrue(self.tcp_client.expect(Prompt.START1, max_retries=60))
+        self.assertTrue(self.tcp_client.expect(Prompt.START1, max_retries=90))
         self.tcp_client.send_data(InstrumentCommand.STANDBY + NEWLINE)
         self.assertTrue(self.tcp_client.expect(Prompt.OK))
 
@@ -704,7 +675,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_reset()
 
         self.assert_enter_command_mode()
-        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_direct_access_start_telnet(session_timeout=180)
         self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
@@ -758,3 +729,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_direct_access_telnet_closed(self):
+        """
+        Test that we can properly handle the situation when a direct access
+        session is launched, the telnet is closed, then direct access is stopped.
+        OVERRIDDEN to extend timeout period to return to command.
+        """
+        self.assert_enter_command_mode()
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, DriverProtocolState.COMMAND, 90)

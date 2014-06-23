@@ -240,6 +240,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Capability.NAFREG: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
         Capability.STANDBY: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
         Capability.STOP_REGEN: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
+        Capability.GET_SLAVE_STATES: {STATES: [ProtocolState.MANUAL_OVERRIDE]},
     }
 
 

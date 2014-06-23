@@ -36,7 +36,7 @@ __license__ = 'Apache 2.0'
 
 log = get_logger()
 
-METALOGGER = get_logging_metaclass('trace')
+METALOGGER = get_logging_metaclass()
 
 # newline.
 NEWLINE = '\r'
@@ -118,6 +118,7 @@ class Parameter(DriverParameter):
     TELEGRAM_INTERVAL = 'mcu_telegram_interval'
     ONE_MINUTE = 'mcu_one_minute'
     SAMPLE_TIME = 'mcu_sample_time'
+    ERROR_REASON = 'mcu_error_reason'
 
     @classmethod
     def reverse_dict(cls):
@@ -145,7 +146,6 @@ class Prompt(BaseEnum):
     SAMPLE_START = "M Sampling time set to"
     SAMPLE_FINISHED = "M Sampling Finished"
     STANDBY = "M STANDBY mode activated"
-    ONLINE = "M Main Module Online"
     BEAT = "M BEAT"
     POWEROFF = "M POWEROFF mode activated"
     CAL_FINISHED = "M CAL end"
@@ -154,6 +154,7 @@ class Prompt(BaseEnum):
     ABORTED = "M ABORTED"
     IN_SEQUENCE = 'E001 already in sequence'
     SET_MINUTE = 'M set minutes to'
+    ONLINE = 'M MainModule Online'
 
 
 class InstrumentCommand(BaseEnum):
@@ -174,6 +175,7 @@ class InstrumentCommand(BaseEnum):
     RESETP = 'U SETRESETP'
     SET_TELEGRAM_INTERVAL = 'U SETRATEDLR'
     SET_MINUTE = 'U SETMINUTE'
+    SET_WATCHDOG = 'U SETWDTON'
 
 
 # ##############################################################################
@@ -310,7 +312,7 @@ class McuDataParticle(DataParticle):
             segments = [[x.split('.')[0] for x in row.split(':')[1:]] for row in self.raw_data.split(',')[1:-1]]
 
             powers, pressures, internals, externals, external_statuses, power_statuses, \
-            solenoid_statuses, calibration_statuses, heater_statuses = segments
+                solenoid_statuses, calibration_statuses, heater_statuses = segments
 
             for index, value in enumerate(calibration_statuses):
                 if value == '':
@@ -539,6 +541,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ProtocolState.ERROR: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
+                (ProtocolEvent.STANDBY, self._handler_error_standby),
                 (ProtocolEvent.CLEAR, self._handler_stop),
             ],
         }
@@ -576,6 +579,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._chunker = StringChunker(Protocol.sieve_function)
 
+        self.resetting = False
+
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -602,7 +607,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              '',
                              None,
                              None,
-                             visibility=ParameterDictVisibility.READ_WRITE,
                              type=ParameterDictType.INT,
                              startup_param=True,
                              display_name='Data Telegram Interval in Sample',
@@ -613,7 +617,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              '',
                              None,
                              None,
-                             visibility=ParameterDictVisibility.READ_WRITE,
                              type=ParameterDictType.INT,
                              startup_param=True,
                              display_name='Sample Cycle Time',
@@ -626,9 +629,19 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              type=ParameterDictType.INT,
                              startup_param=True,
+                             default_value=60000,
                              display_name='Length of One Minute',
                              units=Prefixes.MILLI + Units.SECOND,
                              description='MCU timing constant representing the number of seconds per minute')
+        self._param_dict.add(Parameter.ERROR_REASON,
+                             '',
+                             None,
+                             None,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.STRING,
+                             value='',
+                             display_name='Reason for Error State',
+                             description='Reason for Error State')
 
     def _build_command_dict(self):
         """
@@ -714,6 +727,15 @@ class Protocol(CommandResponseInstrumentProtocol):
             event = ProtocolEvent.STANDBY
         elif chunk == Prompt.ERROR:
             event = ProtocolEvent.ERROR
+            self._param_dict.set_value(Parameter.ERROR_REASON, 'Error prompt received from instrument.')
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        elif chunk == Prompt.ONLINE:
+            if not self.resetting:
+                # This is an unexpected reset, ignore if we are in command or error
+                if current_state not in [ProtocolState.COMMAND, ProtocolState.ERROR]:
+                    event = ProtocolEvent.ERROR
+                    self._param_dict.set_value(Parameter.ERROR_REASON, 'MCU reset during sequence.')
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         else:
             log.error('Unhandled chunk: %r in state: %s', chunk, current_state)
 
@@ -784,13 +806,34 @@ class Protocol(CommandResponseInstrumentProtocol):
                     'Attempted to set unknown parameter: %s value: %s' % (key, val))
         new_config = self._param_dict.get_all()
 
-        # only program this parameter on startup
-        if startup and new_config[Parameter.ONE_MINUTE] is not None:
-            self._do_cmd_resp(InstrumentCommand.SET_MINUTE, expected_prompt=Prompt.SET_MINUTE)
-
         # If we changed anything, raise a CONFIG_CHANGE event
         if old_config != new_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _reset_mcu(self):
+        """
+        Reset the MCU via the watchdog timer
+        """
+        try:
+            self.resetting = True
+            # set the watchdog timer
+            self._do_cmd_resp(InstrumentCommand.SET_WATCHDOG, expected_prompt=Prompt.OK, timeout=60)
+            # try to put the MCU in standby, if successful watchdog will reset MCU
+            result = self._do_cmd_resp(InstrumentCommand.STANDBY,
+                                       expected_prompt=[Prompt.ONLINE, Prompt.IN_SEQUENCE], timeout=60)
+            # MCU was in sequence, abort it and then go standby to reset MCU
+            if result == Prompt.IN_SEQUENCE:
+                self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=60)
+                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.ONLINE, timeout=60)
+            # MCU expects a BEAT after reset, send it
+            self._do_cmd_resp(InstrumentCommand.BEAT, expected_prompt=Prompt.BEAT)
+            # set the MINUTE value
+            self._do_cmd_resp(InstrumentCommand.SET_MINUTE, expected_prompt=Prompt.SET_MINUTE)
+            # This should actually put us in standby
+            self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=60)
+        finally:
+            self.resetting = False
+
 
     ########################################################################
     # Unknown handlers.
@@ -811,19 +854,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.  Break out of any currently running sequence and return the MCU to STANDBY
         """
-        self._do_cmd_resp(InstrumentCommand.BEAT, expected_prompt=Prompt.BEAT, timeout=30)
-
         self._init_params()
 
         try:
-            result = self._do_cmd_resp(InstrumentCommand.STANDBY,
-                                       expected_prompt=[Prompt.STANDBY, Prompt.IN_SEQUENCE],
-                                       timeout=40)
-            if result == Prompt.IN_SEQUENCE:
-                self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=40)
-                self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=40)
+            self._reset_mcu()
         except InstrumentTimeoutException:
             # something else is wrong, pass the buck to the operator
+            self._param_dict.set_value(Parameter.ERROR_REASON, 'Timeout communicating with instrument.')
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
 
         # Tell driver superclass to send a state change event.
@@ -855,6 +893,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Send the start1 command and move to the start1 state
         @return next_state, (next_agent_state, result)
         """
+        self._reset_mcu()
         return ProtocolState.START1, (ResourceAgentState.BUSY, self._do_cmd_resp(InstrumentCommand.START1))
 
     def _handler_command_nafreg(self):
@@ -964,24 +1003,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         Error detected, move to error state.
         @return next_state, (next_agent_state, result)
         """
-        current_state = self.get_current_state()
-        non_sequence_states = [ProtocolState.WAITING_TURBO,
-                               ProtocolState.WAITING_RGA,
-                               ProtocolState.STOPPING]
-        if current_state not in non_sequence_states:
-            # instrument is in a sequence, send abort first
-            self._do_cmd_resp(InstrumentCommand.ABORT, expected_prompt=Prompt.ABORTED, timeout=30)
-        self._do_cmd_resp(InstrumentCommand.STANDBY, expected_prompt=Prompt.STANDBY, timeout=30)
-        self._do_cmd_resp(InstrumentCommand.POWEROFF, expected_prompt=Prompt.POWEROFF, timeout=30)
-
         return ProtocolState.ERROR, (ResourceAgentState.BUSY, None)
 
     def _handler_stop(self):
         """
         Return to COMMAND
-        @return next_state, (next_agent_state, result)
         """
+        if self._param_dict.get(Parameter.ERROR_REASON):
+            self._param_dict.set_value(Parameter.ERROR_REASON, '')
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    def _handler_error_standby(self):
+        """
+        Move instrument to STANDBY, stay in error state
+        """
+        self._reset_mcu()
 
     ########################################################################
     # GENERIC handlers.

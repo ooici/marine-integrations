@@ -552,7 +552,7 @@ class Protocol(InstrumentProtocol):
         elif turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.SPINNING_DOWN]:
             self._send_event_to_slave(TURBO, turbo.ProtocolEvent.STOP_TURBO)
         # Turbo and RGA must be in COMMAND or ERROR, stop the MCU
-        elif mcu_state in [mcu.ProtocolState.WAITING_TURBO, mcu.ProtocolState.WAITING_RGA, mcu.ProtocolState.STOPPING]:
+        elif mcu_state != mcu.ProtocolState.COMMAND:
             self._send_event_to_slave(MCU, mcu.ProtocolEvent.STANDBY)
 
     def _got_chunk(self, chunk):
