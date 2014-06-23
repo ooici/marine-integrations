@@ -14,17 +14,20 @@ __license__ = 'Apache 2.0'
 import time
 import ntplib
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException
+from mi.core.exceptions import RecoverableSampleException, SampleEncodingException
 from mi.core.exceptions import NotImplementedException, UnexpectedDataException
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
+
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback = None):
+                 state_callback, publish_callback, exception_callback=None):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -49,24 +52,26 @@ class Parser(object):
         self._publish_callback = publish_callback
         self._exception_callback = exception_callback
         self._config = config
-        #self._new_sequence = True
 
         # It was originally thought that we wanted to start a new sequence for every new file
         # But that has changed.  If we want this behavior back then we need to change
         # this back to true
         self._new_sequence = False
 
-        #build class from module and class name, then set the state
-        if config.get("particle_module"):
-            self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
-            # if there is more than one particle class for this parser, this cannot be used, need to hard code the
-            # particle class in the driver
-            try:
-                self._particle_class = getattr(self._particle_module, config.get("particle_class"))
-            except TypeError:
-                self._particle_class = None
-        else:
-            log.warn("No particle module specified in config")
+        # Build class from module and class name, then set the state
+        if config.get(DataSetDriverConfigKeys.PARTICLE_CLASS) is not None:
+            if config.get(DataSetDriverConfigKeys.PARTICLE_MODULE):
+                self._particle_module = __import__(config.get(DataSetDriverConfigKeys.PARTICLE_MODULE),
+                                                   fromlist=[config.get(DataSetDriverConfigKeys.PARTICLE_CLASS)])
+                # if there is more than one particle class for this parser, this cannot be used, need to hard code the
+                # particle class in the driver
+                try:
+                    self._particle_class = getattr(self._particle_module,
+                                                   config.get(DataSetDriverConfigKeys.PARTICLE_CLASS))
+                except TypeError:
+                    self._particle_class = None
+            else:
+                log.warn("Particle class is specified in config, but no particle module is specified in config")
 
     def start_new_sequence(self):
         """
@@ -138,6 +143,7 @@ class Parser(object):
 
         return particle
 
+
 class BufferLoadingParser(Parser):
     """
     This class loads data values into a record buffer, then offers up
@@ -147,7 +153,7 @@ class BufferLoadingParser(Parser):
     """
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback = None):
+                 state_callback, publish_callback, exception_callback=None):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -197,10 +203,10 @@ class BufferLoadingParser(Parser):
         """
         (nd_timestamp, non_data) = self._chunker.get_next_non_data()
         (timestamp, chunk) = self._chunker.get_next_data()
-        if (non_data and len(non_data) > 0):
+        if non_data and len(non_data) > 0:
             log.warn("Have extra unexplained non-data bytes at the end of the file:%s", non_data)
             raise UnexpectedDataException("Have extra unexplained non-data bytes at the end of the file:%s" % non_data)
-        elif (chunk and len(chunk) > 0):
+        elif chunk and len(chunk) > 0:
             log.warn("Have extra unexplained data chunk bytes at the end of the file:%s", chunk)
             raise UnexpectedDataException("Have extra unexplained data chunk bytes at the end of the file:%s" % chunk)
 
@@ -225,7 +231,7 @@ class BufferLoadingParser(Parser):
         records_to_return = self._record_buffer[:num_to_fetch]
         self._record_buffer = self._record_buffer[num_to_fetch:]
         if len(records_to_return) > 0:
-            self._state = records_to_return[-1][1] # state side of tuple of last entry
+            self._state = records_to_return[-1][1]  # state side of tuple of last entry
             # strip the state info off of them now that we have what we need
             for item in records_to_return:
                 log.debug("Record to return: %s", item)
@@ -236,7 +242,7 @@ class BufferLoadingParser(Parser):
             if self.file_complete and len(self._record_buffer) == 0:
                 # file has been read completely and all records pulled out of the record buffer
                 file_ingested = True
-            self._state_callback(self._state, file_ingested) # push new state to driver
+            self._state_callback(self._state, file_ingested)  # push new state to driver
 
         return return_list
 
@@ -261,7 +267,7 @@ class BufferLoadingParser(Parser):
         if data:
             self._chunker.add_chunk(data, ntplib.system_to_ntp_time(time.time()))
             return len(data)
-        else: # EOF
+        else:  # EOF
             self.file_complete = True
             raise EOFError
 

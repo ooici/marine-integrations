@@ -569,14 +569,17 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         if not filename in last_state or not last_state[filename]['ingested']:
             self.fail("File %s was not ingested" % filename)
 
-    def assert_file_not_ingested(self, filename):
+    def assert_file_not_ingested(self, filename, data_source_key=None):
         """
         Assert that a particular file was not ingested (useable by Single Directory driver, not Single File driver),
         If the ingested flag is set in the driver state for this file, fail the test
         @ param filename name of the file to check that it was ingested using the ingested flag
         """
         log.debug("last state callback result %s", self.state_callback_result[-1])
-        last_state = self.state_callback_result[-1]
+        if data_source_key is None:
+            last_state = self.state_callback_result[-1]
+        else:
+            last_state = self.state_callback_result[-1][data_source_key]
         if filename in last_state and last_state[filename]['ingested']:
             self.fail("File %s was ingested when we expected it not to be" % filename)
 

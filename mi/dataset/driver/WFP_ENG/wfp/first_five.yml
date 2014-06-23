@@ -1,0 +1,48 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: WfpEngWfpSioMuleParserDataStartTimeParticle
+    particle_type: wfp_eng_wfp_sio_mule_start_time
+    internal_timestamp: 3583825326.0
+    sio_controller_timestamp: 1374837724
+    wfp_profile_start: 1374836526
+    wfp_sensor_start: 1374836403
+  - _index: 2
+    particle_object: WfpEngWfpSioMuleParserDataStatusParticle
+    particle_type: wfp_eng_wfp_sio_mule_status
+    internal_timestamp: 3583826263.0
+    sio_controller_timestamp: 1374837724
+    wfp_indicator: -1
+    wfp_ramp_status: 0
+    wfp_profile_status: 14
+    wfp_sensor_stop: 1374837591
+    wfp_profile_stop: 1374837463
+    wfp_decimation_factor: !!null
+  - _index: 3
+    particle_object: WfpEngWfpSioMuleParserDataEngineeringParticle
+    particle_type: wfp_eng_wfp_sio_mule_engineering
+    internal_timestamp: 3583826259.0
+    wfp_timestamp: 1374837459
+    wfp_prof_current: 66.01226043701172
+    wfp_prof_voltage: 11.162799835205078
+    wfp_prof_pressure: 2205.239990234375
+  - _index: 4
+    particle_object: WfpEngWfpSioMuleParserDataEngineeringParticle
+    particle_type: wfp_eng_wfp_sio_mule_engineering
+    internal_timestamp: 3583825649.0
+    wfp_timestamp: 1374836849
+    wfp_prof_current: 71.75637817382812
+    wfp_prof_voltage: 11.319999694824219
+    wfp_prof_pressure: 2028.1700439453125
+  - _index: 5
+    particle_object: WfpEngWfpSioMuleParserDataEngineeringParticle
+    particle_type: wfp_eng_wfp_sio_mule_engineering
+    internal_timestamp: 3583825326.0
+    wfp_timestamp: 1374836526
+    wfp_prof_current: 0.0
+    wfp_prof_voltage: 11.584400177001953
+    wfp_prof_pressure: 0.0
+
