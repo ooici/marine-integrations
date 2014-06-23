@@ -31,13 +31,15 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         return "platform_%s" % self.metadata.driver_name
 
     def get_metadata(self):
-        # get which dataset agent is selected from the current metadata, use
+        # get which platform agent is selected from the current metadata, use
         # this to get metadata from the cloned repo
         tmp_metadata = Metadata()
+        log.debug("Current Metadata: %s", tmp_metadata.serialize())
 
         # read metadata from the cloned repo
-        self.metadata = Metadata(tmp_metadata.driver_name,
+        self.metadata = Metadata(tmp_metadata.driver_path,
                                  REPODIR + '/marine-integrations')
+        log.debug("Result Metadata: %s", self.metadata.serialize())
 
         return self.metadata
 

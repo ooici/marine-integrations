@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.agents.platform.platform_driver_event
-@file    ion/agents/platform/platform_driver_event.py
+@package mi.platform.platform_driver_event
+@file    mi/platform/platform_driver_event.py
 @author  Carlos Rueda
 @brief   Classes for platform driver events. These classes are for internal
          coordination within the platform agent framework (they are not

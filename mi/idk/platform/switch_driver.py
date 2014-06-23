@@ -102,7 +102,7 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
         output = subprocess.check_output(cmd, shell=True)
         version_list = ['master']
         if len(output) > 0:
-            tag_regex = re.compile(r'release_dsd_[a-z0-9_]+(\d+_\d+_\d+)')
+            tag_regex = re.compile(r'release_platform_[a-z0-9_]+(\d+_\d+_\d+)')
             tag_iter = tag_regex.finditer(output)
             for tag_match in tag_iter:
                 version_list.append(tag_match.group(1))
