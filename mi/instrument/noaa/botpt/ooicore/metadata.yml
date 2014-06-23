@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Peter Cable
+  driver_make: noaa
+  driver_model: botpt 
+  driver_name: ooicore
+  email: petercable@gmail.com
+  release_notes: Driver for the RSN-BOTPT instrument (v.6)
+  version: 0.3.0
