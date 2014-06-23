@@ -63,7 +63,7 @@ class AntelopeOrbPacketParticleKey(BaseEnum):
     PF = 'pf'
     SRCNAME = 'srcname'
     STRING = 'string'
-    TIME = 'time'
+    TIME = 'packet_time'
     TYPE = 'type'
     VERSION = 'version'
 
@@ -86,7 +86,7 @@ class AntelopeOrbPacketParticleChannelKey(BaseEnum):
     SAMPRATE = 'samprate'
     SEGTYPE = 'segtype'
     STA = 'sta'
-    TIME = 'time'
+    TIME = 'channel_time'
 
 
 class AntelopeOrbPacketParticle(DataParticle):
