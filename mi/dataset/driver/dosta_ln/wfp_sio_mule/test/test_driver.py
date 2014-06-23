@@ -247,12 +247,11 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
+        self.create_sample_data('node58p1_1stWE.dat', 'node58p1.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        
         self.assert_start_sampling()
     
         try:
@@ -260,16 +259,21 @@ class QualificationTest(DataSetQualificationTestCase):
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
             self.assert_data_values(result, 'firstA.result.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+            
             # Read the second file, get the next sample, then stop
-            self.create_sample_data('node58p1_10kBytes.dat', 'node58p1.dat')
+            self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
+            log.debug("      ********************     RESULT 1: %s", result2)
             self.assert_data_values(result2, 'firstB.result.yml')
+            
             self.assert_stop_sampling()
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
 
             # Restart sampling and ensure we get the next record, first record
             # of the 2nd WE sio mule header.
             self.assert_start_sampling()
             result3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
+            log.debug("      ********************     RESULT 3: %s", result3)
             self.assert_data_values(result3, 'second.result.yml')
             
         except SampleTimeout as e:
@@ -282,7 +286,8 @@ class QualificationTest(DataSetQualificationTestCase):
         and confirm it restarts at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
+        self.create_sample_data('node58p1_1stWE.dat', 'node58p1.dat')
+        
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -292,25 +297,31 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             # Read the first file, get 2 samples, and verify the data
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT: %s", result)
+
+            # verify the data
             self.assert_data_values(result, 'firstA.result.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             
             # Read the second file, get the next record, then stop
-            self.create_sample_data('node58p1_10kBytes.dat', 'node58p1.dat')
+            self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
+            
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
+            log.debug("RESULT 2: %s", result2)
             self.assert_stop_sampling()
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
             
             # stop the agent
             self.stop_dataset_agent_client()
             # re-start the agent
             self.init_dataset_agent_client()
             #re-initialize
-            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+            self.assert_initialize()
 
             # Restart sampling and ensure we get the next record
-            self.assert_start_sampling()
             result3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
             self.assert_data_values(result3, 'second.result.yml')
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
             
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
@@ -336,7 +347,7 @@ class QualificationTest(DataSetQualificationTestCase):
         exception callback called.
         """
         # need to put data in the file, not just make an empty file for this to work
-        self.create_sample_data('node58p1_1st6k.dat', "node58p1.dat")
+        self.create_sample_data('node58p1_1st6k.dat', "node58p1.dat", mode=000)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -345,6 +356,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
+        self.clear_sample_data()
         self.create_sample_data('node58p1_1st6k.dat', "node58p1.dat")
 
         # Should automatically retry connect and transition to streaming
