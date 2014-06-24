@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Bill French
-  constructor: PlatformDriver
-  driver_name: Demo
-  driver_path: demo
-  email: wfrench@ucsd.edu
-  release_notes: test driver
-  version: 0.0.1

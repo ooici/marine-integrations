@@ -16,7 +16,8 @@ from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn__stc_imodemParser, Flort_kn__stc_imodemParserDataParticle, StateKey
+from mi.dataset.parser.flort_kn__stc_imodem import Flort_kn_stc_imodemParser, \
+                                                   Flort_kn_stc_imodemParserDataParticleTelemetered, StateKey
 
 @attr('UNIT', group='mi')
 class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
@@ -78,7 +79,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_kn__stc_imodem',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn__stc_imodemParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'Flort_kn_stc_imodemParserDataParticleTelemetered'
             }
 
 	self.start_state = {StateKey.POSITION: 0}
@@ -88,27 +89,27 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         self.timestamp1_eng = self.timestamp_to_ntp('R\x9d\xac\x1d')
         log.debug("Converted timestamp #1: %s",self.timestamp1_eng)
-        self.particle_a_eng = Flort_kn__stc_imodemParserDataParticle(b'R\x9d\xac\x1d' \
+        self.particle_a_eng = Flort_kn_stc_imodemParserDataParticleTelemetered(b'R\x9d\xac\x1d' \
             '\x00\x00\x00\x00A:6\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x01\x03\x00h\x00N',
             internal_timestamp=self.timestamp1_eng)
 
         self.timestamp2_eng = self.timestamp_to_ntp('R\x9d\xac!')
-        self.particle_b_eng = Flort_kn__stc_imodemParserDataParticle(b'R\x9d\xac!C\t' \
+        self.particle_b_eng = Flort_kn_stc_imodemParserDataParticleTelemetered(b'R\x9d\xac!C\t' \
             '\xf2\xf7A9A!\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf2\x00c\x00O',
             internal_timestamp=self.timestamp2_eng)
 
         self.timestamp3_eng = self.timestamp_to_ntp('R\x9d\xac&')
-        self.particle_c_eng = Flort_kn__stc_imodemParserDataParticle(b"R\x9d\xac&C\xbc" \
+        self.particle_c_eng = Flort_kn_stc_imodemParserDataParticleTelemetered(b"R\x9d\xac&C\xbc" \
             "\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00O",
             internal_timestamp=self.timestamp3_eng)
 
         self.timestamp4_eng = self.timestamp_to_ntp('R\x9d\xac*')
-        self.particle_d_eng = Flort_kn__stc_imodemParserDataParticle(b'R\x9d\xac' \
+        self.particle_d_eng = Flort_kn_stc_imodemParserDataParticleTelemetered(b'R\x9d\xac' \
             '*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O',
             internal_timestamp=self.timestamp4_eng)
 
         self.timestamp_last_eng = self.timestamp_to_ntp('R\x9d\xac\xcf')
-        self.particle_last_eng = Flort_kn__stc_imodemParserDataParticle(b'R\x9d\xac\xcfA' \
+        self.particle_last_eng = Flort_kn_stc_imodemParserDataParticleTelemetered(b'R\x9d\xac\xcfA' \
             '\xfa\xb2:A5\x0b\x0fA\xf2\x8f\\\x00\x00\x00\x00\x00\xaf\x00m\x00P',
             internal_timestamp=self.timestamp_last_eng)
 
@@ -161,7 +162,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_SHORT) #turn into a data stream to look like file ingestion
-        self.parser =  Flort_kn__stc_imodemParser(self.config, self.start_state, self.stream_handle,
+        self.parser =  Flort_kn_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback) # last one is the link to the data source
         # next get engineering records
         result = self.parser.get_records(1)
@@ -187,7 +188,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 	Assert that the results are those we expected.
 	"""
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Flort_kn__stc_imodemParser(self.config, self.start_state, self.stream_handle,
+        self.parser = Flort_kn_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
         # start with the start time record
@@ -206,7 +207,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         Test a long stream of data
         """
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA)
-        self.parser = Flort_kn__stc_imodemParser(self.config, self.start_state, self.stream_handle,
+        self.parser = Flort_kn_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
         result = self.parser.get_records(32)
@@ -222,7 +223,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.POSITION:24}
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Flort_kn__stc_imodemParser(self.config, new_state, self.stream_handle,
+        self.parser = Flort_kn_stc_imodemParser(self.config, new_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
         # get engineering records
@@ -241,7 +242,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.POSITION:76}
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Flort_kn__stc_imodemParser(self.config, new_state, self.stream_handle,
+        self.parser = Flort_kn_stc_imodemParser(self.config, new_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 102, self.particle_c_eng, False)
@@ -256,7 +257,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.POSITION:76}
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
-        self.parser = Flort_kn__stc_imodemParser(self.config, self.start_state, self.stream_handle,
+        self.parser = Flort_kn_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
         # set the new state, the essentially skips engineering a and b
@@ -272,7 +273,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         with self.assertRaises(SampleException):
             self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_BAD_FLAGS)
-            self.parser = Flort_kn__stc_imodemParser(self.config, self.start_state, self.stream_handle,
+            self.parser = Flort_kn_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                     self.state_callback, self.pub_callback)
 
     def test_bad_data(self):
@@ -280,7 +281,7 @@ class Flort_kn__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data causes us to miss records.
         """
         self.stream_handle = StringIO(Flort_kn__stc_imodemParserUnitTestCase.TEST_DATA_BAD_ENG)
-        self.parser = Flort_kn__stc_imodemParser(self.config, self.start_state, self.stream_handle,
+        self.parser = Flort_kn_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
 	# next get engineering records

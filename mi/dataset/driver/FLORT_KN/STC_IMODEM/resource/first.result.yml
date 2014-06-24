@@ -1,6 +1,6 @@
 header:
-  particle_object: Flort_kn__stc_imodemParserDataParticle
-  particle_type: flort_kn__stc_imodem_instrument
+  particle_object: Flort_kn_stc_imodemParserDataParticleTelemetered
+  particle_type: flort_kn_stc_imodem_instrument
 
 data:
   - _index: 1
