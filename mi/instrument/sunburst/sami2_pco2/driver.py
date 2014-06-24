@@ -153,6 +153,7 @@ class Pco2wParameter(SamiParameter):
     PUMP_100ML_CYCLES = 'pump_100ml_cycles'
     DEIONIZED_WATER_FLUSH_DURATION = 'deionized_water_flush_duration'
 
+
 class Pco2wInstrumentCommand(SamiInstrumentCommand):
     """
     Extend base class with instrument specific functionality.

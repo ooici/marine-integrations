@@ -500,7 +500,7 @@ class Protocol(Pco2wProtocol):
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Run external pump handlers.
