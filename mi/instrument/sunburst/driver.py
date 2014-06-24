@@ -1668,8 +1668,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval The command to be sent to the device.
         """
 
-        log.debug('SamiProtocol._build_simple_command')
-
         return cmd + SAMI_NEWLINE
 
     ########################################################################
@@ -1680,7 +1678,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Parse get battery voltage instrument command response
         """
-        log.debug('SamiProtocol._parse_response_get_battery_voltage')
 
         try:
             self._extract_sample(SamiBatteryVoltageDataParticle,
@@ -1696,7 +1693,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Parse get thermistor voltage instrument command response
         """
-        log.debug('SamiProtocol._parse_response_get_thermistor_voltage')
 
         try:
             self._extract_sample(SamiThermistorVoltageDataParticle,
@@ -1712,35 +1708,31 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Parse get status instrument command response
         """
-        log.debug('SamiProtocol._parse_response_get_status: response = %r', response)
         return response
 
     def _parse_response_stop_status(self, response, prompt):
         """
         Parse stop status instrument command response
         """
-        log.debug('SamiProtocol._parse_response_stop_status: response = %r', response)
-        log.debug('SamiProtocol._parse_response_stop_status: prompt   = %r', prompt)
         return response
 
     def _parse_response_get_config(self, response, prompt):
         """
         Parse get config instrument command response
         """
-        log.debug('SamiProtocol._parse_response_get_config')
         return response
 
     def _parse_response_erase_all(self, response, prompt):
         """
         Parse erase all instrument command response
         """
-        log.debug('SamiProtocol._parse_response_erase_all')
+        return response
 
     def _parse_response_sample_sami(self, response, prompt):
         """
         Parse take sample instrument command response
         """
-        log.debug('SamiProtocol._parse_response_sample_sami')
+        return response
 
     def _parse_response_newline(self, response, prompt):
         """
@@ -2116,9 +2108,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Compare values here to send config change event
         if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
             log.debug("Configuration has changed.")
-            if self.get_current_state() == SamiProtocolState.COMMAND:
-                log.debug("Configuration has changed and in command state.  Send driver event.")
-                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         else:
             log.debug("Configuration has not changed.")
 
@@ -2147,6 +2137,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         raise a CONFIG_CHANGE event.
         @param params of parameters to check for engineering
         """
+
+        config_change = False
         for engineering_parameter in self._engineering_parameters:
             if engineering_parameter in params:
                 old_value = self._param_dict.get(engineering_parameter)
@@ -2157,7 +2149,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                     self._param_dict.set_value(engineering_parameter,
                                                new_value)
                     log.debug('SamiProtocol.check_for_engineering_parameters(): Updated %s', engineering_parameter)
-                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                    config_change = True
                 else:
                     log.debug('SamiProtocol.check_for_engineering_parameters(): %s not updated', engineering_parameter)
 
@@ -2166,6 +2158,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
                 log.debug('SamiProtocol.check_for_engineering_parameters(): Removed %s, params = %s',
                           engineering_parameter, params)
+
+        if config_change:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
 
     def _verify_checksum(self, chunk, matcher):
         """
