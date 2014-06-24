@@ -1065,7 +1065,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         self._wakeup()
 
-        for cycle_num in range(cycles):
+        for cycle_num in xrange(cycles):
             for command_num in range(command_count):
                 self._do_cmd_resp_no_wakeup(command, duration, timeout=timeout,
                                             response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
@@ -1202,11 +1202,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._do_cmd_resp(SamiInstrumentCommand.SAMI_GET_THERMISTOR_VOLTAGE,
                               timeout=SAMI_DEFAULT_TIMEOUT,
                               response_regex=SAMI_THERMISTOR_VOLTAGE_REGEX_MATCHER)
-
-            configuration_string_regex = self._get_configuration_string_regex_matcher()
             self._do_cmd_resp(SamiInstrumentCommand.SAMI_GET_CONFIG,
                               timeout=SAMI_DEFAULT_TIMEOUT,
-                              response_regex=configuration_string_regex)
+                              response_regex=self._get_configuration_string_regex_matcher())
 
         except InstrumentTimeoutException:
 
@@ -1296,7 +1294,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         while count <= SAMI_DISCOVERY_RETRY_COUNT:
             log.debug("_handler_waiting_discover: starting discover")
             (next_state, next_agent_state) = self._discover()
-            if next_state is SamiProtocolState.COMMAND:
+            if next_state == SamiProtocolState.COMMAND:
                 log.debug("_handler_waiting_discover: discover succeeded")
                 log.debug("_handler_waiting_discover: next agent state: %s", next_agent_state)
                 return next_state, (next_agent_state, result)
@@ -1365,8 +1363,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result) tuple, (None, None).
         @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
         not a dict, or if paramter can't be properly formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set command.
-        @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
 
         next_state = None
