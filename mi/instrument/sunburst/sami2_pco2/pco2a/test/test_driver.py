@@ -331,8 +331,6 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
 
         self.assert_parameters(current_parameters, self._driver_parameters,
                                verify_values)
-        #self.assert_parameters(current_parameters, self._driver_parameters,
-        #                       False)
 
     def assert_particle_sami_sample(self, data_particle, verify_values=False):
         """
