@@ -189,6 +189,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Parameter.MF: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
         Parameter.FL: {TYPE: float, READONLY: False, DA: False, STARTUP: True},
         Parameter.FL_ACTUAL: {TYPE: float, READONLY: True, DA: False, STARTUP: True},
+        Parameter.ERROR_REASON: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
     }
 
     _driver_capabilities = {
@@ -209,7 +210,7 @@ class DriverTestMixinSub(DriverTestMixin):
                              'PROTOCOL_EVENT_TIMEOUT',
                              'PROTOCOL_EVENT_ERROR'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR']
+        ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR', 'DRIVER_EVENT_GET']
     }
 
     def _send_port_agent_packet(self, driver, data):

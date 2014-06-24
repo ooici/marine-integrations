@@ -11,7 +11,8 @@ MCU driver for the MASSP in-situ mass spectrometer
 import re
 import functools
 
-from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentTimeoutException
+from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentTimeoutException, \
+    InstrumentProtocolException
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 from mi.core.log import get_logger
@@ -155,6 +156,8 @@ class Prompt(BaseEnum):
     IN_SEQUENCE = 'E001 already in sequence'
     SET_MINUTE = 'M set minutes to'
     ONLINE = 'M MainModule Online'
+    NAFTEMP_NOT_ACHIEVED = 'E005 Nafion regeneration: temp not achieved'
+    IONTEMP_NOT_ACHIEVED = 'E008 Ion regeneration: temp not achieved'
 
 
 class InstrumentCommand(BaseEnum):
@@ -178,7 +181,7 @@ class InstrumentCommand(BaseEnum):
     SET_WATCHDOG = 'U SETWDTON'
 
 
-# ##############################################################################
+###############################################################################
 # Data Particles
 ###############################################################################
 
@@ -592,6 +595,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         matchers.append(McuDataParticle.regex_compiled())
         matchers.append(re.compile(r'(M .*?)(?=\r)'))
+        matchers.append(re.compile(r'(E\d{3}.*?)(?=\r)'))
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -698,6 +702,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param ts - timestamp
         """
         event = None
+        exception = None
         sample = self._extract_sample(McuDataParticle, McuDataParticle.regex_compiled(), chunk, ts)
         if sample:
             return
@@ -732,15 +737,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif chunk == Prompt.ONLINE:
             if not self.resetting:
                 # This is an unexpected reset, ignore if we are in command or error
-                if current_state not in [ProtocolState.COMMAND, ProtocolState.ERROR]:
+                if current_state == ProtocolState.ERROR:
                     event = ProtocolEvent.ERROR
                     self._param_dict.set_value(Parameter.ERROR_REASON, 'MCU reset during sequence.')
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        elif chunk in [Prompt.NAFTEMP_NOT_ACHIEVED, Prompt.IONTEMP_NOT_ACHIEVED]:
+            # regeneration temperature not achieved, move to COMMAND and raise an exception
+            event = ProtocolEvent.STANDBY
+            exception = InstrumentProtocolException('Failed to achieve regen temperature')
         else:
             log.error('Unhandled chunk: %r in state: %s', chunk, current_state)
+            exception = InstrumentProtocolException('Unhandled chunk: %r in state: %s' % (chunk, current_state))
 
         if event is not None:
             self._async_raise_fsm_event(event)
+        if exception:
+            self._driver_event(DriverAsyncEvent.ERROR, exception)
 
     def _filter_capabilities(self, events):
         """
@@ -752,7 +764,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _wakeup(self, *args, **kwargs):
         """
-        Not needed.
+        Not needed, the MCU never sleeps...
         """
 
     def _generic_response_handler(self, result, prompt, command=None):

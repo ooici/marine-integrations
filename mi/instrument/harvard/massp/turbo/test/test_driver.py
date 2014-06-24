@@ -203,6 +203,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Parameter.MIN_SPEED: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
         Parameter.TARGET_SPEED: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
         Parameter.UPDATE_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
+        Parameter.ERROR_REASON: {TYPE: str, READONLY: True, DA: False, STARTUP: False},
     }
 
     _driver_capabilities = {
@@ -516,9 +517,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def test_out_of_range(self):
         self.assert_initialize_driver()
         constraints = ParameterConstraints.dict()
+        parameters = Parameter.dict()
         log.debug(constraints)
-        for parameter in constraints:
-            _, minimum, maximum = constraints[parameter]
+        for each in constraints:
+            parameter = parameters[each]
+            _, minimum, maximum = constraints[each]
             self.assert_set_exception(parameter, minimum - 1)
             self.assert_set_exception(parameter, maximum + 1)
             self.assert_set_exception(parameter, "strings aren't valid here!")

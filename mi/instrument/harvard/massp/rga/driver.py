@@ -139,6 +139,7 @@ class Parameter(DriverParameter):
     AP = 'rga_readings_per_scan'
     FL = 'rga_filament_emission_set'
     FL_ACTUAL = 'rga_filament_emission_actual'
+    ERROR_REASON = 'rga_error_reason'
 
     @classmethod
     def reverse_dict(cls):
@@ -244,13 +245,13 @@ class RGAStatusParticleKey(BaseEnum):
     IE = 'massp_rga_ion_energy'
     VF = 'massp_rga_focus_voltage'
     FL = 'massp_rga_filament_emission_set'
-    FL_ACTUAL = 'massp_rga_filament_emission_actual'
     NF = 'massp_rga_noise_floor'
     ER = 'massp_rga_error_status'
     SA = 'massp_rga_steps_per_amu'
     MI = 'massp_rga_initial_mass'
     MF = 'massp_rga_final_mass'
     AP = 'massp_rga_readings_per_scan'
+    FL_ACTUAL = 'massp_rga_filament_emission_actual'
 
 
 class RGAStatusParticle(DataParticle):
@@ -263,6 +264,8 @@ class RGAStatusParticle(DataParticle):
     def _build_parsed_values(self):
         result = []
         for key, value in self.raw_data.items():
+            if key == Parameter.ERROR_REASON:
+                continue
             key = 'massp_%s' % key
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
@@ -359,6 +362,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.CLEAR, self._handler_error_clear),
+                (ProtocolEvent.GET, self._handler_command_get),
             ]
         }
 
@@ -489,12 +493,16 @@ class Protocol(CommandResponseInstrumentProtocol):
                 desc: 'Bit-mapped value representing any errors detected by the RGA',
                 val_desc: '0 indicates no errors detected.  See the RGA manual if this value is non-zero.',
             },
+            Parameter.ERROR_REASON: {
+                name: 'RGA Error Reason',
+                desc: 'Reason for RGA error state'
+            }
         }
 
         constraints = ParameterConstraints.dict()
-        read_only = [Parameter.ID, Parameter.AP, Parameter.ER, Parameter.FL_ACTUAL]
+        read_only = [Parameter.ID, Parameter.AP, Parameter.ER, Parameter.FL_ACTUAL, Parameter.ERROR_REASON]
         floats = [Parameter.FL, Parameter.FL_ACTUAL]
-        strings = [Parameter.ID]
+        strings = [Parameter.ID, Parameter.ERROR_REASON]
 
         for param in parameters:
             visibility = ParameterDictVisibility.READ_WRITE
@@ -711,7 +719,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             error_string = error_string[-1]
         if int(error_string):
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
-            raise exceptions.InstrumentStateException('RGA Error byte set: %s' % error_string)
+            error = 'RGA Error byte set: %s' % error_string
+            self._param_dict.set_value(Parameter.ERROR_REASON, error)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            raise exceptions.InstrumentStateException(error)
 
     def _set_instrument_parameter(self, command):
         """
@@ -762,7 +773,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         the chunker.  This should happen during the configuration phase.
         """
         num_points = int(self._param_dict.get(Parameter.AP))
-        matcher = re.compile(r'(?<=%s)(.{%d})' % (SCAN_START_SENTINEL, (num_points + 1) * 4), re.DOTALL)
+        match_string = r'(?<=%s)(.{%d})' % (SCAN_START_SENTINEL, (num_points + 1) * 4)
+        matcher = re.compile(match_string, re.DOTALL)
 
         def my_sieve(raw_data):
             return_list = []
@@ -796,8 +808,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         filament_difference = abs(1 - self._param_dict.get(Parameter.FL_ACTUAL))
         if filament_difference > CLOSE_ENOUGH:
             self._async_raise_fsm_event(ProtocolEvent.ERROR)
-            raise exceptions.InstrumentProtocolException('Filament power not withing tolerance (%.2f): %.2f'
-                                                         % (CLOSE_ENOUGH, filament_difference))
+            error = 'Filament power not withing tolerance (%.2f): %.2f' % (CLOSE_ENOUGH, filament_difference)
+            self._param_dict.set_value(Parameter.ERROR_REASON, error)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            raise exceptions.InstrumentProtocolException(error)
 
     def _stop_instrument(self):
         """
@@ -907,7 +921,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             except exceptions.InstrumentTimeoutException:
                 log.error('Failed to configure the RGA - attempt %d', attempt)
         self._async_raise_fsm_event(ProtocolEvent.ERROR)
-        raise exceptions.InstrumentTimeoutException('Failed to configure RGA and start scanning.')
+        error = 'Failed to configure RGA and start scanning.'
+        self._param_dict.set_value(Parameter.ERROR_REASON, error)
+        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        raise exceptions.InstrumentTimeoutException(error)
 
     def _handler_scan_exit(self, *args, **kwargs):
         """
@@ -1009,6 +1026,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         Leave the error state, return to COMMAND.
         @return next_state, (next_agent_state, None)
         """
+        self._param_dict.set_value(Parameter.ERROR_REASON, '')
+        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################

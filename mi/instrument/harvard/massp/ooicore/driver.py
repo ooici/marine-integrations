@@ -15,7 +15,7 @@ import mi.core.log
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.port_agent_client import PortAgentClient
-from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -41,7 +41,7 @@ __author__ = 'Peter Cable'
 __license__ = 'Apache 2.0'
 
 log = mi.core.log.get_logger()
-META_LOGGER = mi.core.log.get_logging_metaclass('trace')
+META_LOGGER = mi.core.log.get_logging_metaclass()
 
 
 ###
@@ -103,6 +103,7 @@ class ProtocolEvent(mcu.ProtocolEvent, turbo.ProtocolEvent, rga.ProtocolEvent):
     START_MANUAL = 'PROTOCOL_EVENT_START_MANUAL_OVERRIDE'
     STOP_MANUAL = 'PROTOCOL_EVENT_STOP_MANUAL_OVERRIDE'
     GET_SLAVE_STATES = 'PROTOCOL_EVENT_GET_SLAVE_STATES'
+    REGEN_COMPLETE = 'PROTOCOL_EVENT_REGEN_COMPLETE'
 
 
 class Capability(mcu.Capability, turbo.Capability, rga.Capability):
@@ -368,6 +369,7 @@ class Protocol(InstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_generic_enter),
                 (ProtocolEvent.EXIT, self._handler_generic_exit),
                 (ProtocolEvent.STOP_REGEN, self._handler_stop_regen),
+                (ProtocolEvent.REGEN_COMPLETE, self._handler_regen_complete),
                 (ProtocolEvent.ERROR, self._handler_error),
             ],
             ProtocolState.DIRECT_ACCESS: [
@@ -411,6 +413,7 @@ class Protocol(InstrumentProtocol):
 
     def _build_override_handler(self, slave, event):
         log.debug('Building event handler for protocol: %s event: %s', slave, event)
+
         def inner():
             return None, self._slave_protocols[slave]._protocol_fsm.on_event(event)
         return inner
@@ -450,7 +453,6 @@ class Protocol(InstrumentProtocol):
         """
         self._param_dict.add(Parameter.SAMPLE_INTERVAL, '', None, int,
                              type=ParameterDictType.INT,
-                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='Autosample Interval',
                              description='Interval between sample starts during autosample state',
                              units=Units.SECOND)
@@ -489,6 +491,9 @@ class Protocol(InstrumentProtocol):
 
         if MASSP_STATE_ERROR in slave_states:
             return self._error()
+
+        if state == ProtocolState.REGEN and slave_states[0] == ProtocolState.COMMAND:
+            self._async_raise_fsm_event(ProtocolEvent.REGEN_COMPLETE)
 
         # these actions are only applicable in POLL, AUTOSAMPLE or CALIBRATE states
         if state not in [ProtocolState.POLL, ProtocolState.AUTOSAMPLE, ProtocolState.CALIBRATE]:
@@ -1030,6 +1035,13 @@ class Protocol(InstrumentProtocol):
         @return next_state, (next_agent_state, result)
         """
         self._send_event_to_slave(MCU, mcu.Capability.STANDBY)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+
+    def _handler_regen_complete(self):
+        """
+        Regeneration sequence is complete, return to COMMAND
+        @return next_state, (next_agent_state, result)
+        """
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     def _handler_manual_override_stop(self):

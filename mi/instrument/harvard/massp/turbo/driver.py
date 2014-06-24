@@ -53,7 +53,7 @@ FALSE = '000000'
 TURBO_RESPONSE = re.compile('^(\d*)\r')
 MAX_RETRIES = 5
 CURRENT_STABILIZE_RETRIES = 5
-META_LOGGER = get_logging_metaclass('trace')
+META_LOGGER = get_logging_metaclass()
 
 
 class ScheduledJob(BaseEnum):
@@ -136,6 +136,7 @@ class Parameter(DriverParameter):
     MAX_DRIVE_CURRENT = 'turbo_max_drive_current'
     MIN_SPEED = 'turbo_min_speed'
     TARGET_SPEED = 'turbo_target_speed'
+    ERROR_REASON = 'turbo_error_reason'
 
     @classmethod
     def reverse_dict(cls):
@@ -412,46 +413,64 @@ class Protocol(CommandResponseInstrumentProtocol):
         All turbo parameters have the same signature, add them in a loop...
         """
         parameters = {
-            'UPDATE_INTERVAL': {
+            Parameter.UPDATE_INTERVAL: {
                 'display_name': 'Acquire Status Interval',
                 'description': 'Interval between automatic acquire status calls',
                 'units': Units.SECOND,
+                'type': ParameterDictType.INT,
+                'startup_param': True,
             },
-            'MAX_DRIVE_CURRENT': {
+            Parameter.MAX_DRIVE_CURRENT: {
                 'display_name': 'Maximum Allowable Drive Current',
                 'description': 'Maximum allowable drive current (at speed)',
                 'units': Prefixes.CENTI + Units.AMPERE,
+                'type': ParameterDictType.INT,
+                'startup_param': True,
             },
-            'MAX_TEMP_MOTOR': {
+            Parameter.MAX_TEMP_MOTOR: {
                 'display_name': 'Maximum Allowable Motor Temperature',
                 'description': 'Maximum allowable motor temperature',
                 'units': Units.DEGREE_CELSIUS,
+                'type': ParameterDictType.INT,
+                'startup_param': True,
             },
-            'MAX_TEMP_BEARING': {
+            Parameter.MAX_TEMP_BEARING: {
                 'display_name': 'Maximum Allowable Bearing Temperature',
                 'description': 'Maximum allowable bearing temperature',
                 'units': Units.DEGREE_CELSIUS,
+                'type': ParameterDictType.INT,
+                'startup_param': True,
             },
-            'MIN_SPEED': {
+            Parameter.MIN_SPEED: {
                 'display_name': 'Minimum Allowable Turbo Speed',
                 'description': 'Minimum allowable turbo speed before RGA is shutdown',
                 'units': Units.REVOLUTION_PER_MINUTE,
+                'type': ParameterDictType.INT,
+                'startup_param': True,
             },
-            'TARGET_SPEED': {
+            Parameter.TARGET_SPEED: {
                 'display_name': 'Target Turbo Speed',
                 'description': 'Target turbo speed before RGA is initialized',
                 'units': Units.REVOLUTION_PER_MINUTE,
+                'type': ParameterDictType.INT,
+                'startup_param': True,
             },
+            Parameter.ERROR_REASON: {
+                'display_name': 'Reason for Turbo Error Condition',
+                'description': 'Reason for turbo error condition',
+                'visibility': ParameterDictVisibility.READ_ONLY,
+                'type': ParameterDictType.STRING,
+            }
         }
 
-        for param in parameters:
-            name = getattr(Parameter, param)
-            val_description = '%s value from %d - %d' % getattr(ParameterConstraints, param)
-            self._param_dict.add(name, '', None, int, type=ParameterDictType.INT,
-                                 startup_param=True,
-                                 visibility=ParameterDictVisibility.READ_WRITE,
-                                 value_description=val_description,
-                                 **parameters[param])
+        reverse_param = Parameter.reverse_dict()
+        constraints = ParameterConstraints.dict()
+
+        for name in parameters:
+            kwargs = parameters[name]
+            if name in constraints:
+                kwargs['val_description'] = '%s value from %d - %d' % constraints[name]
+            self._param_dict.add(name, '', None, None, **kwargs)
 
     def _build_command_dict(self):
         """
@@ -632,6 +651,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.error('Error sending command: %s, attempt %d', command, attempt)
                 time.sleep(sleep_time)
 
+        # set the error reason
+        self._param_dict.set_value(Parameter.ERROR_REASON, 'Unable to command the turbo')
+        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
         self._async_raise_fsm_event(ProtocolEvent.ERROR)
         raise exceptions.InstrumentTimeoutException('Failed to command the turbo: %s' % command)
 
@@ -673,39 +696,39 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # check the current driver state
         current_state = self.get_current_state()
+        error = None
 
         # Check for over temperature conditions
         if responses[InstrumentCommand.TEMP_MOTOR] > self._param_dict.get(Parameter.MAX_TEMP_MOTOR) or \
                 responses[InstrumentCommand.TEMP_BEARING] > self._param_dict.get(Parameter.MAX_TEMP_BEARING):
-            self._async_raise_fsm_event(ProtocolEvent.ERROR)
-            raise exceptions.InstrumentStateException('Over temp error - Motor: %d Bearing: %d' %
-                                                      (responses[InstrumentCommand.TEMP_MOTOR],
-                                                       responses[InstrumentCommand.TEMP_BEARING]))
+            error = 'Over temp error - Motor: %d Bearing: %d' % (responses[InstrumentCommand.TEMP_MOTOR],
+                                                                 responses[InstrumentCommand.TEMP_BEARING])
 
         # Check if we were up to speed but have dipped below MIN_SPEED
-        if current_state == ProtocolState.AT_SPEED:
+        elif current_state == ProtocolState.AT_SPEED:
             if responses[InstrumentCommand.ROTATION_SPEED_ACTUAL] < self._param_dict.get(Parameter.MIN_SPEED):
-                self._async_raise_fsm_event(ProtocolEvent.ERROR)
-                raise exceptions.InstrumentStateException('Fell below min speed: %d' %
-                                                          responses[InstrumentCommand.ROTATION_SPEED_ACTUAL])
+                error = 'Fell below min speed: %d' % responses[InstrumentCommand.ROTATION_SPEED_ACTUAL]
 
             # or if we're up to speed and we have exceeded MAX_DRIVE_CURRENT more than 3 subsequent intervals
             if responses[InstrumentCommand.DRIVE_CURRENT] > self._param_dict.get(Parameter.MAX_DRIVE_CURRENT):
                 self._max_current_count += 1
                 if self._max_current_count > CURRENT_STABILIZE_RETRIES:
-                    self._async_raise_fsm_event(ProtocolEvent.ERROR)
-                    raise exceptions.InstrumentStateException('Turbo current draw to high: %d' %
-                                                              responses[InstrumentCommand.DRIVE_CURRENT])
+                    error = 'Turbo current draw to high: %d' % responses[InstrumentCommand.DRIVE_CURRENT]
             else:
                 self._max_current_count = 0
 
+        if error:
+            self._param_dict.set_value(Parameter.ERROR_REASON, error)
+            self._async_raise_fsm_event(ProtocolEvent.ERROR)
+            self._driver_event(DriverAsyncEvent.ERROR, error)
+
         # now check if up to speed when spinning up
-        if current_state == ProtocolState.SPINNING_UP:
+        elif current_state == ProtocolState.SPINNING_UP:
             if responses[InstrumentCommand.ROTATION_SPEED_ACTUAL] >= self._param_dict.get(Parameter.TARGET_SPEED):
                 self._async_raise_fsm_event(ProtocolEvent.AT_SPEED)
 
         # or maybe we've stopped while spinning down (we'll consider < MIN_SPEED as stopped...)
-        if current_state == ProtocolState.SPINNING_DOWN:
+        elif current_state == ProtocolState.SPINNING_DOWN:
             if responses[InstrumentCommand.ROTATION_SPEED_ACTUAL] <= self._param_dict.get(Parameter.MIN_SPEED):
                 self._async_raise_fsm_event(ProtocolEvent.STOPPED)
 
@@ -857,4 +880,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         User requests error state be cleared, go to COMMAND.
         @returns: next_state, (next_agent_state, result)
         """
+        self._param_dict.set_value(Parameter.ERROR_REASON, '')
+        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)

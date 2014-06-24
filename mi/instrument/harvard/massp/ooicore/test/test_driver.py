@@ -18,6 +18,7 @@ import json
 import time
 from pprint import pformat
 from collections import Counter
+import unittest
 
 import ntplib
 import gevent
@@ -189,7 +190,9 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.POLL: ['PROTOCOL_EVENT_STOP', 'PROTOCOL_EVENT_ERROR'],
         ProtocolState.CALIBRATE: ['PROTOCOL_EVENT_STOP', 'PROTOCOL_EVENT_ERROR'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
-        ProtocolState.REGEN: ['PROTOCOL_EVENT_STOP_REGEN', 'PROTOCOL_EVENT_ERROR'],
+        ProtocolState.REGEN: ['PROTOCOL_EVENT_STOP_REGEN',
+                              'PROTOCOL_EVENT_ERROR',
+                              'PROTOCOL_EVENT_REGEN_COMPLETE'],
         ProtocolState.MANUAL_OVERRIDE: ['PROTOCOL_EVENT_STOP_MANUAL_OVERRIDE',
                                         'PROTOCOL_EVENT_GET_SLAVE_STATES',
                                         'DRIVER_EVENT_CALIBRATE',
@@ -775,6 +778,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
     def test_nafreg(self):
         """
         Verify Nafion Regeneration sequence
+        This runs about 2 hours with "normal" timing, should be a few minutes as configured.
+        May throw an exception due to short run time, as the target temperature may not be achieved.
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_NAFION)
@@ -784,6 +789,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
     def test_ionreg(self):
         """
         Verify Ion Chamber Regeneration sequence
+        This runs about 2 hours with "normal" timing, should be a few minutes as configured.
+        May throw an exception due to short run time, as the target temperature may not be achieved.
         """
         self.assert_initialize_driver()
         self.assert_driver_command(Capability.START_ION)
@@ -838,6 +845,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_slave_state('turbo', turbo.ProtocolState.COMMAND, command_ok=True)
         self.assert_slave_state('mcu', mcu.ProtocolState.COMMAND, command_ok=True)
 
+    @unittest.skip('Test runs approximately 1 hour')
     def test_full_sample(self):
         """
         Run a sample with the "normal" timing
