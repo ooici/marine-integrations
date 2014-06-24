@@ -1010,8 +1010,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp_no_wakeup: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
-                  repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
+        log.debug('_do_cmd_resp_no_wakeup: %r, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
+                  cmd_line, timeout, write_delay, expected_prompt, response_regex)
 
         if write_delay == 0:
             self._connection.send(cmd_line)
@@ -1057,11 +1057,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         current_state = self.get_current_state()
 
         log.debug(
-            'SamiProtocol._execute_pump_sequence(): %s: command=%s, duration=%s, timeout=%s' %
-            (current_state, command, duration, timeout))
+            'SamiProtocol._execute_pump_sequence(): %s: command=%s, duration=%s, timeout=%s',
+            current_state, command, duration, timeout)
         log.debug(
-            'SamiProtocol._execute_pump_sequence(): delay=%s, command_count=%s, cycles=%s' %
-            (delay, command_count, cycles))
+            'SamiProtocol._execute_pump_sequence(): delay=%s, command_count=%s, cycles=%s',
+            delay, command_count, cycles)
 
         self._wakeup()
 
@@ -1102,7 +1102,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Enter state.
         """
 
-        log.debug('SamiProtocol._execution_state_enter: %s' % self.get_current_state())
+        log.debug('SamiProtocol._execution_state_enter: %s', self.get_current_state())
 
         self._async_raise_fsm_event(SamiProtocolEvent.EXECUTE)
 
@@ -1115,14 +1115,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Exit state.
         """
 
-        log.debug('SamiProtocol._execution_state_exit: %s' % self.get_current_state())
+        log.debug('SamiProtocol._execution_state_exit: %s', self.get_current_state())
 
     def _execution_success_to_command_state(self, *args, **kwargs):
         """
         Successfully received a sample from SAMI
         """
 
-        log.debug('SamiProtocol._execution_success_to_command_states: %s' % self.get_current_state())
+        log.debug('SamiProtocol._execution_success_to_command_states: %s', self.get_current_state())
 
         next_state = SamiProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -1136,7 +1136,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Successfully received a sample from SAMI
         """
 
-        log.debug('SamiProtocol._execution_success_to_autosample_state: %s' % self.get_current_state())
+        log.debug('SamiProtocol._execution_success_to_autosample_state: %s', self.get_current_state())
 
         next_state = SamiProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1150,7 +1150,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Sample timeout occurred.
         """
 
-        log.error('SamiProtocol._execution_timeout_to_command_state(): %s: Timeout occurred' % self.get_current_state())
+        log.error('SamiProtocol._execution_timeout_to_command_state(): %s: Timeout occurred', self.get_current_state())
 
         self._driver_event(DriverAsyncEvent.ERROR, InstrumentTimeoutException("in %s" % self.get_current_state()))
 
@@ -1166,7 +1166,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Sample timeout occurred.
         """
 
-        log.error('SamiProtocol._execution_timeout_to_autosample_state(): %s: Timeout occurred' %
+        log.error('SamiProtocol._execution_timeout_to_autosample_state(): %s: Timeout occurred',
                   self.get_current_state())
 
         self._driver_event(DriverAsyncEvent.ERROR, InstrumentTimeoutException("in %s" % self.get_current_state()))
@@ -1598,7 +1598,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Acquire sample
         """
 
-        log.debug('SamiProtocol._handler_take_sample(): %s' % self.get_current_state())
+        log.debug('SamiProtocol._handler_take_sample(): %s', self.get_current_state())
 
         try:
             self._take_regular_sample()
@@ -1773,7 +1773,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @raise InstrumentParameterException If attempt to set init value in any state but command
         """
 
-        log.debug('SamiProtocol.apply_startup_params: CURRENT STATE: %s' % self.get_current_state())
+        log.debug('SamiProtocol.apply_startup_params: CURRENT STATE: %s', self.get_current_state())
         if self.get_current_state() != SamiProtocolState.COMMAND:
             raise InstrumentProtocolException("Not in command. Unable to apply startup params")
 
@@ -2151,21 +2151,21 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             if engineering_parameter in params:
                 old_value = self._param_dict.get(engineering_parameter)
                 new_value = params.pop(engineering_parameter)
-                log.debug('SamiProtocol.check_for_engineering_parameters(): %s old/new = %s/%s' %
-                          (engineering_parameter, old_value, new_value))
+                log.debug('SamiProtocol.check_for_engineering_parameters(): %s old/new = %s/%s',
+                          engineering_parameter, old_value, new_value)
                 if new_value != old_value:
                     self._param_dict.set_value(engineering_parameter,
                                                new_value)
-                    log.debug('SamiProtocol.check_for_engineering_parameters(): Updated %s' % engineering_parameter)
+                    log.debug('SamiProtocol.check_for_engineering_parameters(): Updated %s', engineering_parameter)
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
                 else:
-                    log.debug('SamiProtocol.check_for_engineering_parameters(): %s not updated' % engineering_parameter)
+                    log.debug('SamiProtocol.check_for_engineering_parameters(): %s not updated', engineering_parameter)
 
-                log.debug('SamiProtocol.check_for_engineering_parameters(): %s = %s' %
-                          (engineering_parameter, str(self._param_dict.get(engineering_parameter))))
+                log.debug('SamiProtocol.check_for_engineering_parameters(): %s = %s',
+                          engineering_parameter, self._param_dict.get(engineering_parameter))
 
-                log.debug('SamiProtocol.check_for_engineering_parameters(): Removed %s, params = %s' %
-                          (engineering_parameter, str(params)))
+                log.debug('SamiProtocol.check_for_engineering_parameters(): Removed %s, params = %s',
+                          engineering_parameter, params)
 
     def _verify_checksum(self, chunk, matcher):
         """
@@ -2183,15 +2183,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         sample_string = chunk.rstrip()
         checksum = sample_string[-2:]
         checksum_int = int(checksum, 16)
-        log.debug('Checksum = %s hex, %d dec' % (checksum, checksum_int))
+        log.debug('Checksum = %s hex, %d dec', checksum, checksum_int)
         calculated_checksum_string = sample_string[3:-2]
-        log.debug('Checksum String = %s' % calculated_checksum_string)
+        log.debug('Checksum String = %s', calculated_checksum_string)
         calculated_checksum = self.calc_crc(calculated_checksum_string)
-        log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int, calculated_checksum))
+        log.debug('Checksum/Calculated Checksum = %d/%d', checksum_int, calculated_checksum)
 
         if checksum_int != calculated_checksum:
-            log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int, calculated_checksum))
-            raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int, calculated_checksum))
+            log.error("Sample Check Sum Invalid %d/%d, throwing exception.", checksum_int, calculated_checksum)
+            raise SampleException("Sample Check Sum Invalid %d/%d", checksum_int, calculated_checksum)
 
     @staticmethod
     def calc_crc(s):
@@ -2212,17 +2212,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param s: string for check-sum analysis.
         """
 
-        log.debug('SamiProtocol.calc_crc')
-
-        # num_points: number of bytes (each byte is 2-chars).
-        num_points = len(s) / 2
-
         cs = 0
-        k = 0
-        for i in range(num_points):
-            value = int(s[k:k + 2], 16)  # 2-chars per data point
-            cs += value
-            k += 2
+        for index in xrange(0, len(s), 2):
+            cs += int(s[index:index+2], 16)
         cs &= 0xFF
         return cs
 

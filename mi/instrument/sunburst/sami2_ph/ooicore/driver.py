@@ -652,14 +652,14 @@ class Protocol(SamiProtocol):
         try:
 
             flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
-            log.debug('Pco2wProtocol._handler_seawater_flush_execute_2750ml(): flush cycles = %s' % flush_cycles)
+            log.debug('Pco2wProtocol._handler_seawater_flush_execute_2750ml(): flush cycles = %s', flush_cycles)
 
             flush_duration = PHSEN_PUMP_DURATION_SEAWATER_2750ML
             flush_duration_str = self._param_dict.format(Parameter.SEAWATER_FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug(
-                'Pco2wProtocol._handler_seawater_flush_execute_2750mll(): flush duration param = %s, seconds = %s' %
-                (flush_duration, flush_duration_seconds))
+                'Pco2wProtocol._handler_seawater_flush_execute_2750mll(): flush duration param = %s, seconds = %s',
+                flush_duration, flush_duration_seconds)
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -691,13 +691,13 @@ class Protocol(SamiProtocol):
         try:
 
             flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
-            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush cycles = %s' % flush_cycles)
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush cycles = %s', flush_cycles)
 
             flush_duration = PHSEN_PUMP_DURATION_REAGENT_50ML
             flush_duration_str = self._param_dict.format(Parameter.REAGENT_FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
-            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush duration param = %s, seconds = %s' %
-                      (flush_duration, flush_duration_seconds))
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush duration param = %s, seconds = %s',
+                      flush_duration, flush_duration_seconds)
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -743,8 +743,8 @@ class Protocol(SamiProtocol):
             flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
-            log.debug('Protocol._handler_seawater_flush_execute(): flush duration param = %s, seconds = %s' %
-                      (flush_duration, flush_duration_seconds))
+            log.debug('Protocol._handler_seawater_flush_execute(): flush duration param = %s, seconds = %s',
+                      flush_duration, flush_duration_seconds)
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -780,8 +780,8 @@ class Protocol(SamiProtocol):
             flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
-            log.debug('Protocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' %
-                      (flush_duration, flush_duration_seconds))
+            log.debug('Protocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s',
+                      flush_duration, flush_duration_seconds)
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET

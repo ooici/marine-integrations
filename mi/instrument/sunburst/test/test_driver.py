@@ -459,8 +459,6 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
                 log.debug('Found %d samples, elapsed time: %d, approx data rate: %d seconds/sample',
                           num_samples, elapsed, rate)
                 break
-            # else:
-            #    log.debug('Found %d samples of %d expected, elapsed time: %d', num_samples, particle_count, elapsed)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(1)
 
@@ -501,11 +499,11 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("elapsed_time_config = %s", elapsed_time_config)
         log.debug("current_sami_time = %s", current_sami_time)
         time_difference = current_sami_time - elapsed_time_config
-        log.debug("time difference = %s" % time_difference)
+        log.debug("time difference = %s", time_difference)
         sami_now_seconds = current_sami_time - SAMI_UNIX_OFFSET.total_seconds()
         sami_now = datetime.datetime.utcfromtimestamp(sami_now_seconds)
-        log.debug('utc time = %s' % datetime.datetime.utcnow())
-        log.debug('sami_now = %s' % sami_now)
+        log.debug('utc time = %s', datetime.datetime.utcnow())
+        log.debug('sami_now = %s', sami_now)
 
         self.assertTrue(time_difference <= TIME_THRESHOLD,
                         "Time threshold exceeded, time_difference = %s, time_threshold = %s" % (

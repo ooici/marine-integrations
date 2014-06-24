@@ -549,15 +549,15 @@ class Pco2wProtocol(SamiProtocol):
         try:
 
             pump_100ml_cycles = self._param_dict.get(Pco2wParameter.PUMP_100ML_CYCLES)
-            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump 100ml cycles = %s' %
+            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): pump 100ml cycles = %s',
                       pump_100ml_cycles)
 
             flush_duration = PCO2W_PUMP_DURATION_50ML
             flush_duration_str = self._param_dict.format(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
             log.debug(
-                'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): duration param = %s, seconds = %s' %
-                (flush_duration, flush_duration_seconds))
+                'Pco2wProtocol._handler_deionized_water_flush_execute_100ml(): duration param = %s, seconds = %s',
+                flush_duration, flush_duration_seconds)
 
             # Add offset to timeout make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -589,15 +589,15 @@ class Pco2wProtocol(SamiProtocol):
         try:
 
             pump_100ml_cycles = self._param_dict.get(Pco2wParameter.PUMP_100ML_CYCLES)
-            log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): pump 100ml cycles = %s' %
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): pump 100ml cycles = %s',
                       pump_100ml_cycles)
 
             flush_duration = PCO2W_PUMP_DURATION_50ML
             flush_duration_str = self._param_dict.format(Pco2wParameter.REAGENT_FLUSH_DURATION, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
-            log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s' %
-                      (flush_duration,
-                       flush_duration_seconds))
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_100ml(): flush duration param = %s, seconds = %s',
+                      flush_duration,
+                      flush_duration_seconds)
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -634,9 +634,9 @@ class Pco2wProtocol(SamiProtocol):
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
             log.debug(
-                'Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' %
-                (flush_duration,
-                 flush_duration_seconds))
+                'Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s',
+                flush_duration,
+                flush_duration_seconds)
 
             # Add offset to timeout make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
@@ -671,9 +671,9 @@ class Pco2wProtocol(SamiProtocol):
             flush_duration_str = self._param_dict.format(param, flush_duration)
             flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
 
-            log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' %
-                      (flush_duration,
-                       flush_duration_seconds))
+            log.debug('SamiProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s',
+                      flush_duration,
+                      flush_duration_seconds)
 
             # Add offset to timeout to make sure pump completes.
             flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
