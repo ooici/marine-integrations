@@ -74,7 +74,11 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER:
+        {
+            DataTypeKey.PARAD_K_STC: {},
+            DataTypeKey.PARAD_K_STC_RECOVERED: {}
+        }
     }
 )
 
@@ -95,7 +99,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         sampling can be started and stopped
         """
         log.info("================ START INTEG TEST GET =====================")
-        self.clear_sample_data()
 
         key_rec = DataTypeKey.PARAD_K_STC_RECOVERED
         key_tel = DataTypeKey.PARAD_K_STC
@@ -207,7 +210,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         test that an empty file generates a sample exception
         """
-        self.clear_sample_data()
         self.clear_async_data()
 
         filename = 'FOO'
@@ -281,7 +283,6 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         log.info("========== START QUAL TEST NAN INPUT TELEMETERED ==========")
 
-        self.clear_sample_data()
         self.event_subscribers.clear_events()
         self.assert_initialize()
         self.create_sample_data_set_dir('NaN.DAT', DIR_TEL, FILE3_TEL)
@@ -299,7 +300,6 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         log.info("========== START QUAL TEST NAN INPUT RECOVERED ==========")
 
-        self.clear_sample_data()
         self.event_subscribers.clear_events()
         self.assert_initialize()
         self.create_sample_data_set_dir('NaN.DAT', DIR_REC, FILE2_REC)
@@ -468,7 +468,6 @@ class QualificationTest(DataSetQualificationTestCase):
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        self.clear_sample_data()
         self.create_sample_data_set_dir('bad.DAT', DIR_TEL, FILE1_TEL)
         self.create_sample_data_set_dir('first.DAT', DIR_TEL, FILE2_TEL)
 
@@ -488,7 +487,6 @@ class QualificationTest(DataSetQualificationTestCase):
         Test an exception is raised after the driver is started during
         record parsing for recovered data.
         """
-        self.clear_sample_data()
         self.create_sample_data_set_dir('bad.DAT', DIR_REC, FILE1_REC)
         self.create_sample_data_set_dir('first.DAT', DIR_REC, FILE2_REC)
 

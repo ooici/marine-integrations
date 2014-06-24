@@ -15,7 +15,6 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-#from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.dataset.parser.parad_k_stc_imodem import \
     Parad_k_stc_imodemParser,\

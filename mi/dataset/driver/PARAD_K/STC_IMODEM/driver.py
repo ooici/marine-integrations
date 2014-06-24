@@ -13,6 +13,7 @@ __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
+from mi.core.exceptions import ConfigurationException
 
 from mi.dataset.dataset_driver import \
     DataSetDriverConfigKeys, \
@@ -63,7 +64,7 @@ class PARAD_K_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
         # If the key is PARAD_K_STC, build the telemetered parser.
         #
         if data_key == DataTypeKey.PARAD_K_STC:
-            config = self._parser_config
+            config = self._parser_config[data_key]
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE:
                     'mi.dataset.parser.parad_k_stc_imodem',
@@ -84,7 +85,7 @@ class PARAD_K_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
         # If the key is PARAD_K_STC_RECOVERED, build the recovered parser.
         #
         elif data_key == DataTypeKey.PARAD_K_STC_RECOVERED:
-            config = self._parser_config
+            config = self._parser_config[data_key]
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE:
                     'mi.dataset.parser.parad_k_stc_imodem',
@@ -105,7 +106,8 @@ class PARAD_K_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
         # If the key is one that we're not expecting, don't build any parser.
         #
         else:
-            parser = None
+            raise ConfigurationException('Parser configuration incorrect %s',
+                                         data_key)
 
         return parser
 
@@ -132,6 +134,13 @@ class PARAD_K_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
 
             if recovered_harvester is not None:
                 harvesters.append(recovered_harvester)
+            else:
+                log.warn('Unable to build Harvester %s',
+                         DataTypeKey.PARAD_K_STC_RECOVERED)
+
+        else:
+            log.warn('Harvester configuration missing key %s',
+                     DataTypeKey.PARAD_K_STC_RECOVERED)
 
         #
         # Verify that the Telemetered harvester has been configured.
@@ -149,5 +158,12 @@ class PARAD_K_STC_IMODEM_DataSetDriver(MultipleHarvesterDataSetDriver):
 
             if telemetered_harvester is not None:
                 harvesters.append(telemetered_harvester)
+            else:
+                log.warn('Unable to build Harvester %s',
+                         DataTypeKey.PARAD_K_STC)
+
+        else:
+            log.warn('Harvester configuration missing key %s',
+                     DataTypeKey.PARAD_K_STC)
 
         return harvesters
