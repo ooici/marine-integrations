@@ -1,34 +1,33 @@
 """
 @package mi.instrument.satlantic.suna_deep.ooicore.test.test_driver
 @file marine-integrations/mi/instrument/satlantic/suna_deep/ooicore/driver.py
-@author Anton Kueltz
+@author Rachel Manoni
 @brief Test cases for ooicore driver
 
 USAGE:
  Make tests verbose and provide stdout
-   * From the IDK
+    * From the IDK
        $ bin/test_driver
        $ bin/test_driver -u [-t testname]
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
+    * From pyon
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a UNIT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a INT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a QUAL
 """
 
-__author__ = 'Anton Kueltz'
+__author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
-import unittest
 
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
-import struct
-import json
-import time
-import traceback
-
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -36,19 +35,14 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
+from mi.core.common import BaseEnum
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState, DriverConfigKey, DriverEvent
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
-from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver
+from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentDriver, SUNAStatusDataParticle, TIMEOUT, \
+    SUNATestDataParticle, InstrumentCommandArgs, SUNASampleDataParticleKey, SUNAStatusDataParticleKey, \
+    SUNATestDataParticleKey
 from mi.instrument.satlantic.suna_deep.ooicore.driver import DataParticleType
 from mi.instrument.satlantic.suna_deep.ooicore.driver import InstrumentCommand
 from mi.instrument.satlantic.suna_deep.ooicore.driver import ProtocolState
@@ -60,14 +54,8 @@ from mi.instrument.satlantic.suna_deep.ooicore.driver import Prompt
 from mi.instrument.satlantic.suna_deep.ooicore.driver import NEWLINE
 from mi.instrument.satlantic.suna_deep.ooicore.driver import SUNASampleDataParticle
 
-from mi.core.exceptions import SampleException
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
-from mi.core.exceptions import InstrumentTimeoutException
-
-from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
-from pyon.core.exception import Conflict
+from mi.core.exceptions import SampleException, InstrumentCommandException, InstrumentParameterException, \
+    InstrumentProtocolException
 
 ###
 #   Driver parameters for the tests
@@ -76,11 +64,19 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.suna_deep.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '1BQY0H',
-    instrument_agent_name = 'satlantic_suna_deep_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
+    instrument_agent_resource_id='1BQY0H',
+    instrument_agent_name='satlantic_suna_deep_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config={DriverConfigKey.PARAMETERS: {
+            Parameter.OPERATION_MODE: InstrumentCommandArgs.POLLED,
+            Parameter.OPERATION_CONTROL: "Samples",
+            Parameter.LIGHT_SAMPLES: 5,
+            Parameter.DARK_SAMPLES: 1,
+            Parameter.LIGHT_DURATION: 10,
+            Parameter.DARK_DURATION: 5,
+            Parameter.NUM_LIGHT_SAMPLES: 1,
+            Parameter.TIME_LIGHT_SAMPLE: 5}}
 )
 
 #################################### RULES ####################################
@@ -95,61 +91,6 @@ InstrumentDriverTestCase.initialize(
 # Qualification tests are driven through the instrument_agent                 #
 #                                                                             #
 ###############################################################################
-
-###
-#   Driver constant definitions
-###
-spectrum_channels_bin = ""
-i = 0
-while i < 256:
-    # i = 10 is evil because it is ASCII newline and and "." does not match \n in a regex (so just mod by 10)
-    spectrum_channels_bin += struct.pack('2B', (i % 10), 0x00)
-    i += 1
-
-SUNA_BINARY_SAMPLE = struct.pack('47B',
-0x53, 0x41, 0x54, #'SAT'
-0x53, 0x44, 0x42, #'SDB'
-0x31, 0x32, 0x33, 0x34, #1234
-0x41, 0x42, 0x43, 0x44, #'ABCD'
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb0, 0x40, #4096.0
-0x00, 0x00, 0x00, 0x40, #2.0
-0x00, 0x00, 0x80, 0x40, #4.0
-0x00, 0x00, 0x00, 0x41, #8.0
-0x00, 0x00, 0x80, 0x41, #16.0
-0x00, 0x00, 0x00, 0x42, #32.0
-0x03, 0x00, #3
-0x05, 0x00, #5
-0x07) #7
-
-SUNA_BINARY_SAMPLE += spectrum_channels_bin
-
-SUNA_BINARY_SAMPLE += struct.pack('73B', 0x00, 0x00, 0x80, 0x42, #64.0
-0x00, 0x00, 0x00, 0x43, #128.0
-0x00, 0x00, 0x80, 0x43, #256.0
-0x0B, 0x00, 0x00, 0x00, #11
-0x00, 0x00, 0x00, 0x44, #512.0
-0x00, 0x00, 0x80, 0x44, #1024.0
-0x00, 0x00, 0x00, 0x45, #2048.0
-0x00, 0x00, 0x80, 0x45, #4096.0
-0x00, 0x00, 0x00, 0x46, #8192.0
-0x00, 0x00, 0x80, 0x46, #16384.0
-0x00, 0x00, 0x00, 0x47, #32768.0
-0x00, 0x00, 0x80, 0x47, #65536.0
-0x00, 0x00, 0x00, 0x48, #131072.0
-0x00, 0x00, 0x80, 0x48, #262144.0
-0x0D, 0x00, 0x00, 0x00, #13
-0x00, 0x00, 0x00, 0x49, #524288.0
-0x00, 0x00, 0x80, 0x49, #1048576.0
-0x00, 0x00, 0x00, 0x4a, #2097152.0
-0x11 #17
-)
-
-print len(SUNA_BINARY_SAMPLE)
-
-spectrum_channels_str = ""
-for i in range (256):
-    spectrum_channels_str += (str(i % 10) + ",")
-
 SUNA_ASCII_SAMPLE = "SATSDF0344,2014125,21.278082,0.00,0.0000,0.0000,0.0000,0.00,476,0,1,475,483,494,465,487,490,488," \
                     "477,465,471,477,476,475,469,477,482,485,485,481,481,474,467,484,472,469,483,489,488,484,497,488," \
                     "482,484,474,461,455,485,469,495,481,485,474,487,464,491,477,464,485,492,492,475,485,478,479,477," \
@@ -163,7 +104,6 @@ SUNA_ASCII_SAMPLE = "SATSDF0344,2014125,21.278082,0.00,0.0000,0.0000,0.0000,0.00
                     "485,484,470,489,482,481,474,471,479,479,468,479,481,484,480,491,468,479,474,474,468,471,477,480," \
                     "490,484,493,480,485,464,469,477,276,0.0,0.0,-99.0,172578,6.2,12.0,0.1,5.0,54,0.00,0.00,0.0000," \
                     "0.000000,0.000000,,,,,203\r\n"
-
 
 
 SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nINTWIPER Available\r\nEXTPPORT Missing\r\n" \
@@ -184,7 +124,9 @@ SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nINTWIPER Av
                     "LGTDURAT 58\r\nTEMPCOMP Off\r\nSALINFIT On\r\nBRMTRACE Off\r\nBL_ORDER 1\r\nFITCONCS 3\r\n" \
                     "DRKCORMT SpecAverage\r\nDRKCOEFS Missing\r\nDAVGPRM0 500.000\r\nDAVGPRM1 0.00000\r\n" \
                     "DAVGPRM2 0.00000\r\nDAVGPRM3 0.000000\r\nA_CUTOFF 1.3000\r\nINTPRADJ On\r\nINTPRFAC 1\r\n" \
-                    "INTADSTP 20\r\nINTADMAX 20\r\nWFIT_LOW 217.00\r\nWFIT_HGH 240.00\r\nLAMPTIME 172577\r"
+                    "INTADSTP 20\r\nINTADMAX 20\r\nWFIT_LOW 217.00\r\nWFIT_HGH 240.00\r\nLAMPTIME 172577\r\n" \
+                    "$Ok \r\nSUNA> get activecalfile\r\nget activecalfile\r\n$Ok SNA0234H.cal"
+
 
 SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
                   "Intrn Disk Size; Free , 2043904; 1956864\r\n" \
@@ -197,34 +139,57 @@ SUNA_ASCII_TEST = "Extrn Disk Size; Free , 1960968192; 1956216832\r\n" \
                   "Spec Lght av sd mi ma , 22308 (+/- 12009) [  455:52004]\r\n" \
                   "$Ok"
 
+
+class ParameterConstraints(BaseEnum):
+    OPERATION_MODE = (Parameter.OPERATION_MODE, str, InstrumentCommandArgs.CONTINUOUS, InstrumentCommandArgs.POLLED)
+    OPERATION_CONTROL = (Parameter.OPERATION_CONTROL, str, 'Samples', 'Duration')
+    LIGHT_SAMPLES = (Parameter.LIGHT_SAMPLES, int, 1, 65535)
+    DARK_SAMPLES = (Parameter.DARK_SAMPLES, int, 1, 65535)
+    LIGHT_DURATION = (Parameter.LIGHT_DURATION, int, 1, 65535)
+    DARK_DURATION = (Parameter.DARK_DURATION, int, 1, 65535)
+    COUNTDOWN = (Parameter.COUNTDOWN, int, 0, 3600)
+    TEMP_COMPENSATION = (Parameter.TEMP_COMPENSATION, bool, True, False)
+    FIT_WAVELENGTH_BOTH = (Parameter.FIT_WAVELENGTH_BOTH, str, '210,210', '350,350')
+    CONCENTRATIONS_IN_FIT = (Parameter.CONCENTRATIONS_IN_FIT, int, 1, 3)
+    DARK_CORRECTION_METHOD = (Parameter.DARK_CORRECTION_METHOD, str, 'SpecAverage', 'SWAverage')
+    SALINITY_FITTING = (Parameter.SALINITY_FITTING, bool, True, False)
+    BROMIDE_TRACING = (Parameter.BROMIDE_TRACING, bool, True, False)
+    ABSORBANCE_CUTOFF = (Parameter.ABSORBANCE_CUTOFF, float, 0.01, 10.0)
+    INTEG_TIME_ADJUSTMENT = (Parameter.INTEG_TIME_ADJUSTMENT, bool, True, False)
+    INTEG_TIME_FACTOR = (Parameter.INTEG_TIME_FACTOR, int, 1, 20)
+    INTEG_TIME_STEP = (Parameter.INTEG_TIME_STEP, int, 1, 20)
+    INTEG_TIME_MAX = (Parameter.INTEG_TIME_MAX, int, 1, 20)
+
+
 ###############################################################################
-#                        DATA PARTICLE TEST MIXIN      		                  #
+#                        DATA PARTICLE TEST MIXIN      	                  #
 #     Defines a set of constants and assert methods used for data particle    #
-#     verification 														      #
+#     verification      #
 #                                                                             #
 #  In python mixin classes are classes designed such that they wouldn't be    #
 #  able to stand on their own, but are inherited by other classes generally   #
 #  using multiple inheritance.                                                #
 #                                                                             #
 # This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.									  #
+# methods for validating data particles.	  #
 ###############################################################################
+# noinspection PyPep8
 class DriverTestMixinSub(DriverTestMixin):
 
     _reference_sample_parameters = {
-        "frame_type" : {'type': unicode, 'value': "SDF"},
-        "serial_number" : {'type': unicode, 'value': "0344"},
-        "date_of_sample" : {'type': int, 'value': 2014125},
-        "time_of_sample" : {'type': float, 'value': 21.278082},
-        "nitrate_concentration" : {'type': float, 'value': 0.00},
-        "nutnr_nitrogen_in_nitrate" : {'type': float, 'value': 0.0000},
-        "nutnr_absorbance_at_254_nm" : {'type': float, 'value': 0.0000},
-        "nutnr_absorbance_at_350_nm" : {'type': float, 'value': 0.0000},
-        "nutnr_bromide_trace" : {'type': float, 'value': 0.00},
-        "nutnr_spectrum_average" : {'type': int, 'value': 476},
-        "nutnr_dark_value_used_for_fit" : {'type': int, 'value': 0},
-        "nutnr_integration_time_factor" : {'type': int, 'value': 1},
-        "spectral_channels" : {'type': list, 'value': [475,483,494,465,487,490,488,
+        SUNASampleDataParticleKey.FRAME_TYPE: {'type': unicode, 'value': "SDF"},
+        SUNASampleDataParticleKey.SERIAL_NUM: {'type': unicode, 'value': "0344"},
+        SUNASampleDataParticleKey.SAMPLE_DATE: {'type': int, 'value': 2014125},
+        SUNASampleDataParticleKey.SAMPLE_TIME: {'type': float, 'value': 21.278082},
+        SUNASampleDataParticleKey.NITRATE_CONCEN: {'type': float, 'value': 0.00},
+        SUNASampleDataParticleKey.NITROGEN: {'type': float, 'value': 0.0000},
+        SUNASampleDataParticleKey.ABSORB_254: {'type': float, 'value': 0.0000},
+        SUNASampleDataParticleKey.ABSORB_350: {'type': float, 'value': 0.0000},
+        SUNASampleDataParticleKey.BROMIDE_TRACE: {'type': float, 'value': 0.00},
+        SUNASampleDataParticleKey.SPECTRUM_AVE: {'type': int, 'value': 476},
+        SUNASampleDataParticleKey.FIT_DARK_VALUE: {'type': int, 'value': 0},
+        SUNASampleDataParticleKey.TIME_FACTOR: {'type': int, 'value': 1},
+        SUNASampleDataParticleKey.SPECTRAL_CHANNELS: {'type': list, 'value': [475,483,494,465,487,490,488,
                     477,465,471,477,476,475,469,477,482,485,485,481,481,474,467,484,472,469,483,489,488,484,497,488,
                     482,484,474,461,455,485,469,495,481,485,474,487,464,491,477,464,485,492,492,475,485,478,479,477,
                     465,455,471,482,486,482,480,486,478,484,488,480,485,485,473,480,481,485,462,469,466,455,487,488,
@@ -236,154 +201,151 @@ class DriverTestMixinSub(DriverTestMixin):
                     469,473,463,477,466,473,485,489,486,476,471,475,470,455,471,456,459,467,457,467,477,467,475,489,
                     485,484,470,489,482,481,474,471,479,479,468,479,481,484,480,491,468,479,474,474,468,471,477,480,
                     490,484,493,480,485,464,469,477,276]},
-        "temp_interior" : {'type': float, 'value': 0.0},
-        "temp_spectrometer" : {'type': float, 'value': 0.0},
-        "temp_lamp" : {'type': float, 'value': -99.0},
-        "lamp_time" : {'type': int, 'value': 172578},
-        "humidity" : {'type': float, 'value': 6.2},
-        "voltage_main" : {'type': float, 'value': 12.0},
-        "voltage_lamp" : {'type': float, 'value': 0.1},
-        "nutnr_voltage_int" : {'type': float, 'value': 5.0},
-        "nutnr_current_main" : {'type': float, 'value': 54.0},
-        "aux_fitting_1" : {'type': float, 'value': 0.00},
-        "aux_fitting_2" : {'type': float, 'value': 0.00},
-        "nutnr_fit_base_1" : {'type': float, 'value': 0.0000},
-        "nutnr_fit_base_2" : {'type': float, 'value': 0.000000},
-        "nutnr_fit_rmse" : {'type': float, 'value': 0.0000000},
-        #"ctd_time" : {'type': int, 'value': 13},
-        #"ctd_salinity" : {'type': float, 'value': 524288.0},
-        #"ctd_temperature" : {'type': float, 'value': 1048576.0},
-        #"ctd_pressure" : {'type': float, 'value': 2097152.0},
-        "checksum" : {'type': int, 'value': 203}
+        SUNASampleDataParticleKey.TEMP_INTERIOR: {'type': float, 'value': 0.0},
+        SUNASampleDataParticleKey.TEMP_SPECTROMETER: {'type': float, 'value': 0.0},
+        SUNASampleDataParticleKey.TEMP_LAMP: {'type': float, 'value': -99.0},
+        SUNASampleDataParticleKey.LAMP_TIME: {'type': int, 'value': 172578},
+        SUNASampleDataParticleKey.HUMIDITY: {'type': float, 'value': 6.2},
+        SUNASampleDataParticleKey.VOLTAGE_MAIN: {'type': float, 'value': 12.0},
+        SUNASampleDataParticleKey.VOLTAGE_LAMP: {'type': float, 'value': 0.1},
+        SUNASampleDataParticleKey.VOLTAGE_INT: {'type': float, 'value': 5.0},
+        SUNASampleDataParticleKey.CURRENT_MAIN: {'type': float, 'value': 54.0},
+        SUNASampleDataParticleKey.FIT_1: {'type': float, 'value': 0.00},
+        SUNASampleDataParticleKey.FIT_2: {'type': float, 'value': 0.00},
+        SUNASampleDataParticleKey.FIT_BASE_1: {'type': float, 'value': 0.0000},
+        SUNASampleDataParticleKey.FIT_BASE_2: {'type': float, 'value': 0.000000},
+        SUNASampleDataParticleKey.FIT_RMSE: {'type': float, 'value': 0.0000000},
+        SUNASampleDataParticleKey.CHECKSUM: {'type': int, 'value': 203}
     }
 
     _reference_status_parameters = {
-        "nutnr_sensor_type" : {'type': unicode, 'value': "SUNA"},
-        "nutnr_sensor_version" : {'type': unicode, 'value': "V2"},
-        "serial_number" : {'type': int, 'value': 344} ,
-        "nutnr_integrated_wiper" : {'type': unicode, 'value': "Available"},
-        "nutnr_ext_power_port" : {'type': unicode, 'value': "Missing"},
-        "nutnr_lamp_shutter" : {'type': unicode, 'value': "Missing"},
-        "nutnr_reference_detector" : {'type': unicode, 'value': "Missing"},
-        "protectr" : {'type': unicode, 'value': "Available"},
-        "nutnr_super_capacitors" : {'type': unicode, 'value': "Available"},
-        "nutnr_psb_supervisor" : {'type': unicode, 'value': "Available"},
-        "nutnr_usb_communication" : {'type': unicode, 'value': "Available"},
-        "nutnr_relay_module" : {'type': unicode, 'value': "Available"},
-        "nutnr_sdi12_interface" : {'type': unicode, 'value': "Available"},
-        "nutnr_analog_output" : {'type': unicode, 'value': "Available"},
-        "nutnr_int_data_logging" : {'type': unicode, 'value': "Available"},
-        "nutnr_apf_interface" : {'type': unicode, 'value': "Available"},
-        "nutnr_scheduling" : {'type': unicode, 'value': "Available"},
-        "nutnr_lamp_fan" : {'type': unicode, 'value': "Available"},
-        "nutnr_sensor_address_lamp_temp" : {'type': unicode, 'value': '10d0fda4020800eb'},
-        "nutnr_sensor_address_spec_temp" : {'type': unicode, 'value': '1086818d020800d8'},
-        "nutnr_sensor_address_hous_temp" : {'type': unicode, 'value': '10707b6a020800cc'},
-        "nutnr_serial_number_spec" : {'type': int, 'value': 86746},
-        "nutnr_serial_number_lamp" : {'type': unicode, 'value': "C3.D01.1590"},
-        "stupstus" : {'type': unicode, 'value': "Done"},
-        "brnhours" : {'type': int, 'value': 0},
-        "brnnumbr" : {'type': int, 'value': 0},
-        "drkhours" : {'type': int, 'value': 0},
-        "drknumbr" : {'type': int, 'value': 0},
-        "chrldura" : {'type': int, 'value': 600},
-        "chrddura" : {'type': int, 'value': 0},
-        "baud_rate" : {'type': int, 'value': 57600},
-        "nutnr_msg_level" : {'type': unicode, 'value': "Info"},
-        "nutnr_msg_file_size" : {'type': int, 'value': 2},
-        "nutnr_data_file_size" : {'type': int, 'value': 5},
-        "nutnr_output_frame_type" : {'type': unicode, 'value': "Full_ASCII"},
-        "nutnr_logging_frame_type" : {'type': unicode, 'value': "Full_ASCII"},
-        "nutnr_output_dark_frame" : {'type': unicode, 'value': "Output"},
-        "nutnr_logging_dark_frame" : {'type': unicode, 'value': "Output"},
-        "timeresl" : {'type': unicode, 'value': "Fractsec"},
-        "nutnr_log_file_type" : {'type': unicode, 'value': "Acquisition"},
-        "acqcount" : {'type': int, 'value': 10},
-        "cntcount" : {'type': int, 'value': 130},
-        "nutnr_dac_nitrate_min" : {'type': float, 'value': -5.000},
-        "nutnr_dac_nitrate_max" : {'type': float, 'value': 100.000},
-        "nutnr_data_wavelength_low" : {'type': float, 'value': 217.00},
-        "nutnr_data_wavelength_high" : {'type': float, 'value': 250.00},
-        "nutnr_sdi12_address" : {'type': int, 'value': 48},
-        "datamode" : {'type': unicode, 'value': "Real"},
-        "operating_mode" : {'type': unicode, 'value': "Polled"},
-        "nutnr_operation_ctrl" : {'type': unicode, 'value': "Duration"},
-        "nutnr_extl_dev" : {'type': unicode, 'value': "None"},
-        "nutnr_ext_dev_prerun_time" : {'type': int, 'value': 0},
-        "nutnr_ext_dev_during_acq" : {'type': unicode, 'value': "Off"},
-        "nutnr_watchdog_timer" : {'type': unicode, 'value': "On"},
-        "nutnr_countdown" : {'type': int, 'value': 15},
-        "nutnr_fixed_time_duration" : {'type': int, 'value': 60},
-        "nutnr_periodic_interval" : {'type': unicode, 'value': "1m"},
-        "nutnr_periodic_offset" : {'type': int, 'value': 0},
-        "nutnr_periodic_duration" : {'type': int, 'value': 5},
-        "nutnr_periodic_samples" : {'type': int, 'value': 5},
-        "nutnr_polled_timeout" : {'type': int, 'value': 15},
-        "nutnr_apf_timeout" : {'type': float, 'value': 10.0000},
-        "nutnr_satbility_time" : {'type': int, 'value': 5},
-        "nutnr_ref_min_lamp_on" : {'type': int, 'value': 0},
-        "nutnr_skip_sleep" : {'type': unicode, 'value': "Off"},
-        "nutnr_lamp_switchoff_temp" : {'type': int, 'value': 35},
-        "nutnr_spec_integration_period" : {'type': int, 'value': 450},
-        "drkavers" : {'type': int, 'value': 1},
-        "lgtavers" : {'type': int, 'value': 1},
-        "refsmpls" : {'type': int, 'value': 20},
-        "nutnr_dark_samples" : {'type': int, 'value': 2},
-        "nutnr_light_samples" : {'type': int, 'value': 58},
-        "nutnr_dark_duration" : {'type': int, 'value': 2},
-        "nutnr_light_duration" : {'type': int, 'value': 58},
-        "nutnr_temp_comp" : {'type': unicode, 'value': "Off"},
-        "nutnr_salinity_fit" : {'type': unicode, 'value': "On"},
-        "nutnr_bromide_tracing" : {'type': unicode, 'value': "Off"},
-        "nutnr_baseline_order" : {'type': int, 'value': 1},
-        "nutnr_concentrations_fit" : {'type': int, 'value': 3},
-        "nutnr_dark_corr_method" : {'type': unicode, 'value': "SpecAverage"},
-        "drkcoefs" : {'type': unicode, 'value': "Missing"},
-        "davgprm0" : {'type': float, 'value': 500.000},
-        "davgprm1" : {'type': float, 'value': 0.00000},
-        "davgprm2" : {'type': float, 'value': 0.00000},
-        "davgprm3" : {'type': float, 'value': 0.000000},
-        "nutnr_absorbance_cutoff" : {'type': float, 'value': 1.3000},
-        "nutnr_int_time_adj" : {'type': unicode, 'value': "On"},
-        "nutnr_int_time_factor" : {'type': int, 'value': 1},
-        "nutnr_int_time_step" : {'type': int, 'value': 20},
-        "nutnr_int_time_max" : {'type': int, 'value': 20},
-        "nutnr_fit_wavelength_low" : {'type': float, 'value': 217.00},
-        "nutnr_fit_wavelength_high" : {'type': float, 'value': 240.00},
-        "lamp_time" : {'type': int, 'value': 172577}
+        SUNAStatusDataParticleKey.SENSOR_TYPE: {'type': unicode, 'value': "SUNA"},
+        SUNAStatusDataParticleKey.SENSOR_VERSION: {'type': unicode, 'value': "V2"},
+        SUNAStatusDataParticleKey.SERIAL_NUMBER: {'type': unicode, 'value': '344'},
+        SUNAStatusDataParticleKey.INTEGRATED_WIPER: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.EXT_POWER_PORT: {'type': unicode, 'value': "Missing"},
+        SUNAStatusDataParticleKey.LAMP_SHUTTER: {'type': unicode, 'value': "Missing"},
+        SUNAStatusDataParticleKey.REF_DETECTOR: {'type': unicode, 'value': "Missing"},
+        SUNAStatusDataParticleKey.PROTECTR: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.SUPER_CAPACITORS: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.PSB_SUPERVISOR: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.USB_COMM: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.RELAY_MODULE: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.SDII2_INTERFACE: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.ANALOG_OUTPUT: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.DATA_LOGGING: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.APF_INTERFACE: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.SCHEDULING: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.LAMP_FAN: {'type': unicode, 'value': "Available"},
+        SUNAStatusDataParticleKey.ADDR_LAMP_TEMP: {'type': unicode, 'value': '10d0fda4020800eb'},
+        SUNAStatusDataParticleKey.ADDR_SPEC_TEMP: {'type': unicode, 'value': '1086818d020800d8'},
+        SUNAStatusDataParticleKey.SENSOR_ADDR_HOUS_TEMP: {'type': unicode, 'value': '10707b6a020800cc'},
+        SUNAStatusDataParticleKey.SERIAL_NUM_SPECT: {'type': unicode, 'value': '86746'},
+        SUNAStatusDataParticleKey.SERIAL_NUM_LAMP: {'type': unicode, 'value': "C3.D01.1590"},
+        SUNAStatusDataParticleKey.STUPSTUS: {'type': unicode, 'value': "Done"},
+        SUNAStatusDataParticleKey.BRNHOURS: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.BRNNUMBER: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.DARK_HOURS: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.DARK_NUM: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.CHRLDURA: {'type': int, 'value': 600},
+        SUNAStatusDataParticleKey.CHRDDURA: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.BAUD_RATE: {'type': int, 'value': 57600},
+        SUNAStatusDataParticleKey.MSG_LEVEL: {'type': unicode, 'value': "Info"},
+        SUNAStatusDataParticleKey.MSG_FILE_SIZE: {'type': int, 'value': 2},
+        SUNAStatusDataParticleKey.DATA_FILE_SIZE: {'type': int, 'value': 5},
+        SUNAStatusDataParticleKey.OUTPUT_FRAME_TYPE: {'type': unicode, 'value': "Full_ASCII"},
+        SUNAStatusDataParticleKey.LOGGING_FRAME_TYPE: {'type': unicode, 'value': "Full_ASCII"},
+        SUNAStatusDataParticleKey.OUTPUT_DARK_FRAME: {'type': unicode, 'value': "Output"},
+        SUNAStatusDataParticleKey.LOGGING_DARK_FRAME: {'type': unicode, 'value': "Output"},
+        SUNAStatusDataParticleKey.TIMERESL: {'type': unicode, 'value': "Fractsec"},
+        SUNAStatusDataParticleKey.LOG_FILE_TYPE: {'type': unicode, 'value': "Acquisition"},
+        SUNAStatusDataParticleKey.ACQCOUNT: {'type': int, 'value': 10},
+        SUNAStatusDataParticleKey.CNTCOUNT: {'type': int, 'value': 130},
+        SUNAStatusDataParticleKey.NITRATE_MIN: {'type': float, 'value': -5.000},
+        SUNAStatusDataParticleKey.NITRATE_MAX: {'type': float, 'value': 100.000},
+        SUNAStatusDataParticleKey.WAVELENGTH_LOW: {'type': float, 'value': 217.00},
+        SUNAStatusDataParticleKey.WAVELENGTH_HIGH: {'type': float, 'value': 250.00},
+        SUNAStatusDataParticleKey.SDI12_ADDR: {'type': int, 'value': 48},
+        SUNAStatusDataParticleKey.DATAMODE: {'type': unicode, 'value': "Real"},
+        SUNAStatusDataParticleKey.OPERATING_MODE: {'type': unicode, 'value': "Polled"},
+        SUNAStatusDataParticleKey.OPERATION_CTRL: {'type': unicode, 'value': "Duration"},
+        SUNAStatusDataParticleKey.EXTL_DEV: {'type': unicode, 'value': "None"},
+        SUNAStatusDataParticleKey.PRERUN_TIME: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.DEV_DURING_ACQ: {'type': unicode, 'value': "Off"},
+        SUNAStatusDataParticleKey.WATCHDOG_TIME: {'type': unicode, 'value': "On"},
+        SUNAStatusDataParticleKey.COUNTDOWN: {'type': int, 'value': 15},
+        SUNAStatusDataParticleKey.FIXED_TIME: {'type': int, 'value': 60},
+        SUNAStatusDataParticleKey.PERIODIC_INTERVAL: {'type': unicode, 'value': "1m"},
+        SUNAStatusDataParticleKey.PERIODIC_OFFSET: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.PERIODIC_DURATION: {'type': int, 'value': 5},
+        SUNAStatusDataParticleKey.PERIODIC_SAMPLES: {'type': int, 'value': 5},
+        SUNAStatusDataParticleKey.POLLED_TIMEOUT: {'type': int, 'value': 15},
+        SUNAStatusDataParticleKey.APF_TIMEOUT: {'type': float, 'value': 10.0000},
+        SUNAStatusDataParticleKey.STABILITY_TIME: {'type': int, 'value': 5},
+        SUNAStatusDataParticleKey.MIN_LAMP_ON: {'type': int, 'value': 0},
+        SUNAStatusDataParticleKey.SKIP_SLEEP: {'type': unicode, 'value': "Off"},
+        SUNAStatusDataParticleKey.SWITCHOFF_TEMP: {'type': int, 'value': 35},
+        SUNAStatusDataParticleKey.SPEC_PERIOD: {'type': int, 'value': 450},
+        SUNAStatusDataParticleKey.DRKAVERS: {'type': int, 'value': 1},
+        SUNAStatusDataParticleKey.LGTAVERS: {'type': int, 'value': 1},
+        SUNAStatusDataParticleKey.REFSAMPLES: {'type': int, 'value': 20},
+        SUNAStatusDataParticleKey.DARK_SAMPLES: {'type': int, 'value': 2},
+        SUNAStatusDataParticleKey.LIGHT_SAMPLES: {'type': int, 'value': 58},
+        SUNAStatusDataParticleKey.DARK_DURATION: {'type': int, 'value': 2},
+        SUNAStatusDataParticleKey.LIGHT_DURATION: {'type': int, 'value': 58},
+        SUNAStatusDataParticleKey.TEMP_COMP: {'type': unicode, 'value': "Off"},
+        SUNAStatusDataParticleKey.SALINITY_FIT: {'type': unicode, 'value': "On"},
+        SUNAStatusDataParticleKey.BROMIDE_TRACING: {'type': unicode, 'value': "Off"},
+        SUNAStatusDataParticleKey.BASELINE_ORDER: {'type': int, 'value': 1},
+        SUNAStatusDataParticleKey.CONCENTRATIONS_FIT: {'type': int, 'value': 3},
+        SUNAStatusDataParticleKey.DARK_CORR_METHOD: {'type': unicode, 'value': "SpecAverage"},
+        SUNAStatusDataParticleKey.DRKCOEFS: {'type': unicode, 'value': "Missing"},
+        SUNAStatusDataParticleKey.DAVGPRM_0: {'type': float, 'value': 500.000},
+        SUNAStatusDataParticleKey.DAVGPRM_1: {'type': float, 'value': 0.00000},
+        SUNAStatusDataParticleKey.DAVGPRM_2: {'type': float, 'value': 0.00000},
+        SUNAStatusDataParticleKey.DAVGPRM_3: {'type': float, 'value': 0.000000},
+        SUNAStatusDataParticleKey.ABSORBANCE_CUTOFF: {'type': float, 'value': 1.3000},
+        SUNAStatusDataParticleKey.TIME_ADJ: {'type': unicode, 'value': "On"},
+        SUNAStatusDataParticleKey.TIME_FACTOR: {'type': int, 'value': 1},
+        SUNAStatusDataParticleKey.TIME_STEP: {'type': int, 'value': 20},
+        SUNAStatusDataParticleKey.TIME_MAX: {'type': int, 'value': 20},
+        SUNAStatusDataParticleKey.FIT_WAVE_LOW: {'type': float, 'value': 217.00},
+        SUNAStatusDataParticleKey.FIT_WAVE_HIGH: {'type': float, 'value': 240.00},
+        SUNAStatusDataParticleKey.LAMP_TIME: {'type': int, 'value': 172577},
+        SUNAStatusDataParticleKey.CALIBRATION_FILE: {'type': unicode, 'value': 'SNA0234H.cal'}
     }
 
     _reference_test_parameters = {
-        "nutnr_external_disk_size" : {'type': int, 'value': 1960968192},
-        "nutnr_external_disk_free" : {'type': int, 'value': 1956216832},
-        "nutnr_internal_disk_size" : {'type': int, 'value': 2043904},
-        "nutnr_internal_disk_free" : {'type': int, 'value': 1956864},
-        "nutnr_fiberlite_odometer" : {'type': unicode, 'value': "0048:10:05"},
-        "nutnr_temperatures_hs" : {'type': float, 'value': 22.3},
-        "nutnr_temperatures_sp" : {'type': float, 'value': 21.7},
-        "nutnr_temperatures_lm" : {'type': float, 'value': 21.6},
-        "nutnr_humidity" : {'type': float, 'value': 5.8},
-        "nutnr_electrical_mn" : {'type': float, 'value': 12.0},
-        "nutnr_electrical_bd" : {'type': float, 'value': 12.0},
-        "nutnr_electrical_pr" : {'type': float, 'value': 5.0},
-        "nutnr_electrical_c" : {'type': float, 'value': 25.8},
-        "nutnr_lamp_power" : {'type': int, 'value': 5505},
-        "nutnr_spec_dark_av" : {'type': int, 'value': 471},
-        "nutnr_spec_dark_sd" : {'type': int, 'value': 9},
-        "nutnr_spec_dark_mi" : {'type': int, 'value': 444},
-        "nutnr_spec_dark_ma" : {'type': int, 'value': 494},
-        "nutnr_spec_lght_av" : {'type': int, 'value': 22308},
-        "nutnr_spec_lght_sd" : {'type': int, 'value': 12009},
-        "nutnr_spec_lght_mi" : {'type': int, 'value': 455},
-        "nutnr_spec_lght_ma" : {'type': int, 'value': 52004},
-        "nutnr_test_result" : {'type': unicode, 'value': "Ok"}
+        SUNATestDataParticleKey.EXT_DISK_SIZE: {'type': int, 'value': 1960968192},
+        SUNATestDataParticleKey.EXT_DISK_FREE: {'type': int, 'value': 1956216832},
+        SUNATestDataParticleKey.INT_DISK_SIZE: {'type': int, 'value': 2043904},
+        SUNATestDataParticleKey.INT_DISK_FREE: {'type': int, 'value': 1956864},
+        SUNATestDataParticleKey.TEMP_HS: {'type': float, 'value': 22.3},
+        SUNATestDataParticleKey.TEMP_SP: {'type': float, 'value': 21.7},
+        SUNATestDataParticleKey.TEMP_LM: {'type': float, 'value': 21.6},
+        SUNATestDataParticleKey.LAMP_TIME: {'type': int, 'value': 173405},
+        SUNATestDataParticleKey.HUMIDITY: {'type': float, 'value': 5.8},
+        SUNATestDataParticleKey.ELECTRICAL_MN: {'type': float, 'value': 12.0},
+        SUNATestDataParticleKey.ELECTRICAL_BD: {'type': float, 'value': 12.0},
+        SUNATestDataParticleKey.ELECTRICAL_PR: {'type': float, 'value': 5.0},
+        SUNATestDataParticleKey.ELECTRICAL_C: {'type': float, 'value': 25.8},
+        SUNATestDataParticleKey.LAMP_POWER: {'type': int, 'value': 5505},
+        SUNATestDataParticleKey.SPEC_DARK_AV: {'type': int, 'value': 471},
+        SUNATestDataParticleKey.SPEC_DARK_SD: {'type': int, 'value': 9},
+        SUNATestDataParticleKey.SPEC_DARK_MI: {'type': int, 'value': 444},
+        SUNATestDataParticleKey.SPEC_DARK_MA: {'type': int, 'value': 494},
+        SUNATestDataParticleKey.SPEC_LIGHT_AV: {'type': int, 'value': 22308},
+        SUNATestDataParticleKey.SPEC_LIGHT_SD: {'type': int, 'value': 12009},
+        SUNATestDataParticleKey.SPEC_LIGHT_MI: {'type': int, 'value': 455},
+        SUNATestDataParticleKey.SPEC_LIGHT_MA: {'type': int, 'value': 52004},
+        SUNATestDataParticleKey.TEST_RESULT: {'type': unicode, 'value': "Ok"}
     }
 
     def assert_data_particle_sample(self, data_particle, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify values.
         @param data_particle: driver parameters read from the driver instance
-        @param verify_values: should we verify values against definition?
+        @param verify_values:bool,  False = do not verify values against definition
         """
         self.assert_data_particle_parameters(data_particle, self._reference_sample_parameters, verify_values)
 
@@ -391,7 +353,7 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         Verify a SUNA status data particle
         @param data_particle: a SUNA status data particle
-        @param verify_values: bool, should we verify values against definition?
+        @param verify_values: bool,  False = do not verify values against definition
         """
         self.assert_data_particle_parameters(data_particle, self._reference_status_parameters, verify_values)
 
@@ -399,9 +361,10 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         Verify a SUNA test data particle
         @param data_particle: a SUNA test data particle
-        @param verify_values: bool, should we verify values against definition?
+        @param verify_values: bool, False = do not verify values against definition
         """
         self.assert_data_particle_parameters(data_particle, self._reference_test_parameters, verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -424,7 +387,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -432,7 +395,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -457,12 +420,19 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, SUNA_ASCII_TEST)
         self.assert_chunker_combined_sample(chunker, SUNA_ASCII_TEST)
 
-    def test_corrupt_data_sample(self):
+    def test_corrupt_data_particles(self):
         """
         test with data partially replaced by garbage value
         """
         particle = SUNASampleDataParticle(SUNA_ASCII_SAMPLE.replace("SAT", "FOO"))
+        with self.assertRaises(SampleException):
+            particle.generate()
 
+        particle = SUNAStatusDataParticle(SUNA_ASCII_STATUS.replace('SENSTYPE', 'BLAH!'))
+        with self.assertRaises(SampleException):
+            particle.generate()
+
+        particle = SUNATestDataParticle(SUNA_ASCII_TEST.replace('5505 mW', '5505f.1 mW'))
         with self.assertRaises(SampleException):
             particle.generate()
 
@@ -499,31 +469,29 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
+    # noinspection PyPep8,PyPep8,PyPep8,PyPep8
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN:       ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                          'DRIVER_EVENT_ACQUIRE_STATUS',
-                                          'DRIVER_EVENT_START_DIRECT',
-                                          'DRIVER_EVENT_START_POLL',
-                                          'DRIVER_EVENT_START_AUTOSAMPLE',
-                                          'DRIVER_EVENT_GET',
-                                          'DRIVER_EVENT_SET',
-                                          'DRIVER_EVENT_TEST'],
-            ProtocolState.DIRECT_ACCESS: ['EXECUTE_DIRECT',
-                                          'DRIVER_EVENT_STOP_DIRECT'],
-            ProtocolState.POLL:          ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                          'DRIVER_EVENT_MEASURE_0',
-                                          'DRIVER_EVENT_MEASURE_N',
-                                          'DRIVER_EVENT_TIMED_N',
-                                          'DRIVER_EVENT_RESET',
-                                          'DRIVER_EVENT_STOP_POLL'],
-            ProtocolState.AUTOSAMPLE:    ['DRIVER_EVENT_RESET',
-                                          'DRIVER_EVENT_STOP_AUTOSAMPLE']
+            ProtocolState.UNKNOWN:       [ProtocolEvent.DISCOVER],
+            ProtocolState.COMMAND:       [ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.ACQUIRE_STATUS,
+                                          ProtocolEvent.START_DIRECT,
+                                          #ProtocolEvent.START_POLL,
+                                          ProtocolEvent.START_AUTOSAMPLE,
+                                          ProtocolEvent.GET,
+                                          ProtocolEvent.SET,
+                                          ProtocolEvent.TEST,
+                                          ProtocolEvent.CLOCK_SYNC,
+                                          ProtocolEvent.MEASURE_N,
+                                          ProtocolEvent.MEASURE_0,
+                                          ProtocolEvent.TIMED_N],
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.EXECUTE_DIRECT,
+                                          ProtocolEvent.STOP_DIRECT],
+            ProtocolState.AUTOSAMPLE:    [ProtocolEvent.STOP_AUTOSAMPLE]
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -542,327 +510,176 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_connect(self):
+    def test_out_of_range(self):
         """
-        Test configuring and connecting to the device through the port
-        agent. Discover device state.
+        Verify when the instrument receives a set param with value out of range or invalid string,
+        the instrument throws an exception
         """
-        log.info("test_connect test started")
+        self.assert_initialize_driver()
 
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        constraints = ParameterConstraints.dict()
+        for param in constraints:
+            param_name, type_class, minimum, maximum = constraints[param]
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+            log.debug("PARAM NAME %s", param_name)
 
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+            if type_class is int:
+                self.assert_set_exception(param_name, minimum - 1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, maximum + 1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, 'badString', exception_class=InstrumentProtocolException)
+            elif type_class is str:
+                self.assert_set_exception(param_name, 'invalidvalue', exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, 1, exception_class=InstrumentProtocolException)
+            elif type_class is float:
+                self.assert_set_exception(param_name, minimum - 0.1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, maximum + 0.1, exception_class=InstrumentProtocolException)
+                self.assert_set_exception(param_name, 'badString', exception_class=InstrumentProtocolException)
 
     def test_get_set(self):
         """
-        Test device parameter access.
+        Verify device parameter access.
         """
-
         self.assert_initialize_driver()
 
-        # assert that getting param values works
-        self.assert_get(Parameter.OPERATION_MODE)
-        self.assert_get(Parameter.FIT_WAVELENGTH_HIGH)
-        self.assert_get(Parameter.FIT_WAVELENGTH_LOW)
-        self.assert_get(Parameter.SPECTROMETER_INTEG_PERIOD)
-        self.assert_get(Parameter.REF_MIN_AT_LAMP_ON)
-        self.assert_get(Parameter.COUNTDOWN)
+        #set read/write params
+        self.assert_set(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
+        self.assert_set(Parameter.OPERATION_CONTROL, "Duration")
+        self.assert_set(Parameter.LIGHT_SAMPLES, 57)
+        self.assert_set(Parameter.DARK_SAMPLES, 3)
+        self.assert_set(Parameter.LIGHT_DURATION, 11)
+        self.assert_set(Parameter.DARK_DURATION, 6)
+        self.assert_set(Parameter.COUNTDOWN, 16)
+        self.assert_set(Parameter.TEMP_COMPENSATION, True)
+        self.assert_set(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
+        self.assert_set(Parameter.CONCENTRATIONS_IN_FIT, 3)
+        self.assert_set(Parameter.DARK_CORRECTION_METHOD, "SWAverage")
+        self.assert_set(Parameter.SALINITY_FITTING, False)
+        self.assert_set(Parameter.BROMIDE_TRACING, True)
+        self.assert_set(Parameter.ABSORBANCE_CUTOFF, 1.4)
+        self.assert_set(Parameter.INTEG_TIME_ADJUSTMENT, False)
+        self.assert_set(Parameter.INTEG_TIME_FACTOR, 2)
+        self.assert_set(Parameter.INTEG_TIME_STEP, 19)
+        self.assert_set(Parameter.INTEG_TIME_MAX, 19)
 
-        # assert that setting works, then set back to default values
-        self.assert_set(Parameter.OPERATION_CONTROL, "Duration") # default = Samples
-        self.assert_set(Parameter.OPERATION_CONTROL, "Samples")
-        self.assert_set(Parameter.LIGHT_SAMPLES, 57) # default = 58
-        self.assert_set(Parameter.LIGHT_SAMPLES, 58)
-        self.assert_set(Parameter.DARK_SAMPLES, 3)  # default = 2
-        self.assert_set(Parameter.DARK_SAMPLES, 2)
-        self.assert_set(Parameter.COUNTDOWN, 14)    # default = 15
-        self.assert_set(Parameter.COUNTDOWN, 15)
-
-        # set read-only parameters with bogus values (should not be allowed)
+        #set read-only parameters with bogus values, should throw exception
+        self.assert_set_readonly(Parameter.POLLED_TIMEOUT, 9001)
+        self.assert_set_readonly(Parameter.SKIP_SLEEP_AT_START, False)
+        self.assert_set_readonly(Parameter.REF_MIN_AT_LAMP_ON, 9001)
+        self.assert_set_readonly(Parameter.LAMP_STABIL_TIME, 6)
+        self.assert_set_readonly(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 34)
         self.assert_set_readonly(Parameter.SPECTROMETER_INTEG_PERIOD, 9001)
-        self.assert_set_readonly(Parameter.REF_MIN_AT_LAMP_ON, 9002)
-        self.assert_set_readonly(Parameter.LAMP_STABIL_TIME, 9003)
-        self.assert_set_readonly(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 9004)
+        self.assert_set_readonly(Parameter.MESSAGE_LEVEL, "Warn")
+        self.assert_set_readonly(Parameter.MESSAGE_FILE_SIZE, 5)
+        self.assert_set_readonly(Parameter.DATA_FILE_SIZE, 10)
+        self.assert_set_readonly(Parameter.OUTPUT_FRAME_TYPE, "Full_Binary")
+        self.assert_set_readonly(Parameter.OUTPUT_DARK_FRAME, "Suppress")
+        self.assert_set_readonly(Parameter.FIT_WAVELENGTH_LOW, 9002)
+        self.assert_set_readonly(Parameter.FIT_WAVELENGTH_HIGH, 9003)
+        self.assert_set_readonly(Parameter.BASELINE_ORDER, 2)
 
-    def test_single_sample(self):
+    def test_clock_sync(self):
         """
-        Test acquiring a sample in polled mode
+        Verify instrument can synchronize the clock
         """
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
 
+    def test_acquire_sample(self):
+        """
+        Verify instrument can acquire a sample in command mode
+        """
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=20)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
-    def test_status(self):
+    def test_acquire_status(self):
         """
-        Test acquiring status (in command mode)
+        Verify instrument can acquire status (in command mode)
         """
-
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.SUNA_STATUS,
-                                        self.assert_data_particle_status, delay=30)
+                                         self.assert_data_particle_status, delay=TIMEOUT)
 
-    def test_test(self):
+    def test_selftest(self):
         """
-        Test doing a self test
+        Verify instrument can perform a self test
         """
-
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.TEST, DataParticleType.SUNA_TEST,
-                                        self.assert_data_particle_test, delay=15)
+                                        self.assert_data_particle, delay=TIMEOUT)
 
-    def test_polled_sample(self):
+    def test_start_stop_polled(self):
         """
-        Test Polled acquisition of samples in auto-sample mode
+        Verify polled acquisition of samples in auto-sample mode
         """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_POLL)
-
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.POLL)
+        self.assert_initialize_driver()
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
-                                         self.assert_data_particle_sample, delay=20)
+                                         self.assert_data_particle_sample, delay=TIMEOUT)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_N, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=20)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
         self.assert_particle_generation(ProtocolEvent.TIMED_N, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=20)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
-        # Return to command mode. Catch timeouts and retry if necessary.
-        try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_POLL)
-        except InstrumentTimeoutException:
-            self.fail('Could not wakeup device to leave autosample mode.')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Verify command mode by issuing a SET
-        self.assert_get(Parameter.OPERATION_MODE)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-    def test_auto_sample(self):
+    def test_start_stop_auto_sample(self):
         """
-        Test Continuous acquisition of samples in auto-sample mode
+        Verify continuous acquisition of samples in auto-sample mode
         """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
+        self.assert_initialize_driver()
 
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=5)
 
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
-
-        # Return to command mode. Catch timeouts and retry if necessary.
-        try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-        except InstrumentTimeoutException:
-            self.fail('Could not wakeup device to leave autosample mode.')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
+        #Stop autosample
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         # transition back to auto to test countdown logic
         self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=22)
 
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
+        # Return to command mode.
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-        # Return to command mode. Catch timeouts and retry if necessary.
-        try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-        except InstrumentTimeoutException:
-            self.fail('Could not wakeup device to leave autosample mode.')
+    def test_errors(self):
+        """
+        Verify response to erroneous commands and setting bad parameters.
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
+        #Assert an invalid command
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-        # Verify command mode by issuing a GET/SET
-        self.assert_get(Parameter.OPERATION_MODE)
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
+        # Assert set fails with a bad parameter (not ALL or a list).
+        self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
 
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        #Assert set fails with bad parameter and bad value
+        self.assert_set_exception('I am a bogus param.', value='bogus value', exception_class=InstrumentParameterException)
 
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
+        # put driver in disconnected state.
+        self.driver_client.cmd_dvr('disconnect')
 
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
 
-    def test_reset(self):
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        # Test that the driver is in state disconnected.
+        self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('initialize')
 
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        # Test that the driver is in state unconfigured.
+        self.assert_state_change(DriverConnectionState.UNCONFIGURED, timeout=TIMEOUT)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.SUNA_SAMPLE,
-                                        self.assert_data_particle_sample, delay=5)
-
-        # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
-
-        # reset the device
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.RESET)
-        time.sleep(20)  #give some time to reboot
-
-        # Test the driver is in polled mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.POLL)
-
-        #reset the device
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.RESET)
-        time.sleep(20)  #give some time to reboot
-
-        # Test the driver is in polled mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.POLL)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        # Assert we forgot the comms parameter.
+        self.assert_driver_command_exception('configure', exception_class=InstrumentParameterException)
 
 
 ###############################################################################
@@ -872,252 +689,230 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def assertSampleDataParticle(self, val):
-        """
-        Verify the value for a SUNA sample data particle
-        """
-
-        if (isinstance(val, SUNASampleDataParticle)):
-            sample_dict = json.loads(val.generate())
-        else:
-            sample_dict = val
-
-        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleType.SUNA_SAMPLE)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-            list))
-        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in [
-                "frame_type", "serial_number", "date_of_sample",
-                "time_of_sample", "nitrate_concentration", "nutnr_nitrogen_in_nitrate",
-                "nutnr_absorbance_at_254_nm", "nutnr_absorbance_at_350_nm", "nutnr_bromide_trace",
-                "nutnr_spectrum_average", "nutnr_dark_value_used_for_fit", "nutnr_integration_time_factor",
-                "spectral_channels", "temp_interior", "temp_spectrometer",
-                "temp_lamp", "lamp_time", "humidity",
-                "voltage_main", "voltage_lamp", "nutnr_voltage_int", "nutnr_current_main",
-                "aux_fitting_1", "aux_fitting_2", "nutnr_fit_base_1", "nutnr_fit_base_2", "nutnr_fit_rmse",
-                "checksum"
-            ])
-
-            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
-
-            if(x['value_id'] == 'frame_type'): self.assertTrue(isinstance(x['value'], str))
-            elif(x['value_id'] == 'serial_number'): self.assertTrue(isinstance(x['value'], str))
-            elif(x['value_id'] == 'date_of_sample'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'time_of_sample'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nitrate_concentration'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_nitrogen_in_nitrate'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_absorbance_at_254_nm'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_absorbance_at_350_nm'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_bromide_trace'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_spectrum_average'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'nutnr_dark_value_used_for_fit'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'nutnr_integration_time_factor'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'spectral_channels'): self.assertTrue(isinstance(x['value'], list))
-            elif(x['value_id'] == 'temp_interior'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'temp_spectrometer'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'temp_lamp'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'lamp_time'): self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'humidity'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'voltage_main'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'voltage_lamp'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_voltage_int'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_current_main'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'aux_fitting_1'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'aux_fitting_2'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_fit_base_1'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_fit_base_2'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'nutnr_fit_rmse'): self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'checksum'): self.assertTrue(isinstance(x['value'], int))
-            else: self.assertFalse(True) # Shouldn't get here.  If we have then we aren't checking a parameter
-
-    # override common unit tests that have been tested already or don't apply
-    @unittest.skip("SKIP")
-    def test_instrument_agent_common_state_model_lifecycle(self):
-        pass
-
-    @unittest.skip("SKIP")
-    def test_reset(self):
-        pass # done in Integration Testing
-
-    @unittest.skip("SKIP")
-    def test_direct_access_telnet_closed(self):
-        pass # tested in direct access
-
-    @unittest.skip("SKIP")
-    def test_agent_save_and_restore(self):
-        pass # skip for now
-
-    @unittest.skip("SKIP")
-    def test_direct_access_exit_from_autosample(self):
-        pass # no D/A from auto-sample
-
-    @unittest.skip("SKIP")
-    def test_driver_notification_messages(self, timeout=15):
-        pass
-
-    @unittest.skip("SKIP")
-    def test_get_device_signature(self):
-        pass
-
-    @unittest.skip("SKIP")
-    def test_transaction_management_messages(self):
-        pass
-
-    @unittest.skip("SKIP")
     def test_discover(self):
-        pass # discover only ever discovers to command mode
-    """
+        """
+        Override method- instrument will always start up in Command mode.  Instrument will instruct instrument into
+        Command mode as well.
+
+        Verify when the instrument is either in autosample or command state, the instrument will always discover
+        to COMMAND state
+        """
+
+        self.assert_enter_command_mode()
+        # Now reset and try to discover.  This will stop the driver which holds the current
+        # instrument state.
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+        # Now put the instrument in streaming and reset the driver again.
+        self.assert_start_autosample()
+        self.assert_reset()
+
+        # When the driver reconnects it should be streaming
+        self.assert_discover(ResourceAgentState.COMMAND)
+
     def test_direct_access_telnet_mode(self):
-        '''
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the
-               physical instrument. (telnet mode)
-        '''
+        """
+        Verify while in Direct Access, we can manually set DA parameters.
+        After stopping DA, the instrument will enter Command State and any
+        parameters set during DA are reset to previous values.
+        Also verifying timeouts with inactivity, with activity, and without activity.
+        """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
         ###
-        #   Add instrument specific code here.
+        # In DA mode, set the DA parameters to different values
         ###
-        self.tcp_client.send_data("get opermode\r\n")
+        self.tcp_client.send_data("set opermode Continuous" + NEWLINE)
         self.tcp_client.expect("SUNA>")
 
-        self.tcp_client.send_data("set opermode Continuous\r\n")
+        self.tcp_client.send_data("set polltout 60000" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set outfrtyp Full_Binary" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set spintper 600" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set salinfit Off" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set brmtrace On" + NEWLINE)
+        self.tcp_client.expect("SUNA>")
+
+        self.tcp_client.send_data("set intadstp 19" + NEWLINE)
         self.tcp_client.expect("SUNA>")
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, TIMEOUT)
 
+        #DA param should change back to pre-DA val
+        self.assert_get_parameter(Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED)
+        self.assert_get_parameter(Parameter.POLLED_TIMEOUT, 65535)
+        self.assert_get_parameter(Parameter.SKIP_SLEEP_AT_START, True)
+        self.assert_get_parameter(Parameter.COUNTDOWN, 15)
+        self.assert_get_parameter(Parameter.LAMP_STABIL_TIME, 5)
+        self.assert_get_parameter(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 35)
+        self.assert_get_parameter(Parameter.MESSAGE_LEVEL, "Info")
+        self.assert_get_parameter(Parameter.MESSAGE_FILE_SIZE, 0)
+        self.assert_get_parameter(Parameter.DATA_FILE_SIZE, 5)
+        self.assert_get_parameter(Parameter.OUTPUT_FRAME_TYPE, "Full_ASCII")
+        self.assert_get_parameter(Parameter.OUTPUT_DARK_FRAME, "Output")
+        self.assert_get_parameter(Parameter.TEMP_COMPENSATION, False)
+        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_BOTH, "217,240")
+        self.assert_get_parameter(Parameter.CONCENTRATIONS_IN_FIT, 1)
+        self.assert_get_parameter(Parameter.BASELINE_ORDER, 1)
+        self.assert_get_parameter(Parameter.DARK_CORRECTION_METHOD, "SpecAverage")
+        self.assert_get_parameter(Parameter.SALINITY_FITTING, True)
+        self.assert_get_parameter(Parameter.BROMIDE_TRACING, False)
+        self.assert_get_parameter(Parameter.ABSORBANCE_CUTOFF, 1.3)
+        self.assert_get_parameter(Parameter.INTEG_TIME_ADJUSTMENT, True)
+        self.assert_get_parameter(Parameter.INTEG_TIME_FACTOR, 1)
+        self.assert_get_parameter(Parameter.INTEG_TIME_STEP, 20)
+        self.assert_get_parameter(Parameter.INTEG_TIME_MAX, 20)
+
+    def test_acquire_status(self):
+        """
+        Verify the driver can command an acquire status from the instrument
+        """
         self.assert_enter_command_mode()
+        self.assert_particle_polled(DriverEvent.ACQUIRE_STATUS, self.assert_data_particle_status,
+                                    DataParticleType.SUNA_STATUS, timeout=TIMEOUT, sample_count=1)
 
-        # assert that getting param values works
-        self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")   #DA param should change back to pre-DA val
-    """
+    def test_execute_test(self):
+        """
+        Verify the instrument can perform a self test
+        """
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(DriverEvent.TEST, self.assert_data_particle, DataParticleType.SUNA_TEST,
+                                    timeout=TIMEOUT, sample_count=1)
 
     def test_poll(self):
-        '''
-        Poll for a single sample
-        '''
-        self.assert_sample_polled(self.assertSampleDataParticle, DataParticleType.SUNA_SAMPLE)
+        """
+        Verify the driver can collect a sample from the COMMAND state
+        """
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_data_particle_sample,
+                                    DataParticleType.SUNA_SAMPLE, timeout=TIMEOUT, sample_count=1)
 
     def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-        self.assert_sample_autosample(self.assertSampleDataParticle, DataParticleType.SUNA_SAMPLE)
-
-        #self.assert_stop_autosample()  # in case something goes wrong ensure to NOT STAY IN AUTO
+        """
+        Verify the driver can start and stop autosample and verify data particle
+        """
+        self.assert_sample_autosample(self.assert_data_particle_sample, DataParticleType.SUNA_SAMPLE)
 
     def test_get_set_parameters(self):
-        '''
-        verify that all parameters can be get set properly, this includes
+        """
+        Verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
-        '''
+        """
         self.assert_enter_command_mode()
 
-        # assert that getting param values works
-        self.assert_get_parameter(Parameter.OPERATION_MODE, "Polled")
-        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_HIGH, 240.00)
-        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_LOW, 217.00)
-        self.assert_get_parameter(Parameter.SPECTROMETER_INTEG_PERIOD, 450)
-        self.assert_get_parameter(Parameter.REF_MIN_AT_LAMP_ON, 0)
-        self.assert_get_parameter(Parameter.COUNTDOWN, 15)
+        #read only params
+        self.assert_get_parameter(Parameter.POLLED_TIMEOUT, 65535)
+        self.assert_get_parameter(Parameter.SKIP_SLEEP_AT_START, True)
+        self.assert_get_parameter(Parameter.LAMP_STABIL_TIME, 5)
+        self.assert_get_parameter(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, 35)
+        self.assert_get_parameter(Parameter.MESSAGE_LEVEL, "Info")
+        self.assert_get_parameter(Parameter.MESSAGE_FILE_SIZE, 0)
+        self.assert_get_parameter(Parameter.DATA_FILE_SIZE, 5)
+        self.assert_get_parameter(Parameter.OUTPUT_FRAME_TYPE, "Full_ASCII")
+        self.assert_get_parameter(Parameter.OUTPUT_DARK_FRAME, "Output")
+        self.assert_get_parameter(Parameter.BASELINE_ORDER, 1)
 
-        # assert that setting works, then set back to default values
-        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration") # default = Samples
-        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Samples")
-        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57) # default = 58
-        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 58)
-        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)  # default = 2
-        self.assert_set_parameter(Parameter.DARK_SAMPLES, 2)
-        self.assert_set_parameter(Parameter.COUNTDOWN, 14)    # default = 15
-        self.assert_set_parameter(Parameter.COUNTDOWN, 15)
+        #NOTE: THESE ARE READ_ONLY PARMS WITH NO DEFAULT VALUES, THE VALUES ARE DEPENDANT ON THE INSTRUMENT BEING TESTED
+        #self.assert_get_parameter(Parameter.REF_MIN_AT_LAMP_ON, 9001)
+        #self.assert_get_parameter(Parameter.SPECTROMETER_INTEG_PERIOD, 9001)
+        #self.assert_get_parameter(Parameter.FIT_WAVELENGTH_LOW, 9002)
+        #self.assert_get_parameter(Parameter.FIT_WAVELENGTH_HIGH, 9003)
+
+        #read/write params
+        self.assert_set_parameter(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
+        self.assert_set_parameter(Parameter.OPERATION_CONTROL, "Duration")
+        self.assert_set_parameter(Parameter.LIGHT_SAMPLES, 57)
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
+        self.assert_set_parameter(Parameter.LIGHT_DURATION, 11)
+        self.assert_set_parameter(Parameter.DARK_DURATION, 6)
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
+        self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
+        self.assert_set_parameter(Parameter.COUNTDOWN, 16)
+        self.assert_set_parameter(Parameter.TEMP_COMPENSATION, True)
+        self.assert_set_parameter(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
+        self.assert_set_parameter(Parameter.CONCENTRATIONS_IN_FIT, 3)
+        self.assert_set_parameter(Parameter.DARK_CORRECTION_METHOD, "SWAverage")
+        self.assert_set_parameter(Parameter.SALINITY_FITTING, False)
+        self.assert_set_parameter(Parameter.BROMIDE_TRACING, True)
+        self.assert_set_parameter(Parameter.ABSORBANCE_CUTOFF, 1.4)
+        self.assert_set_parameter(Parameter.INTEG_TIME_ADJUSTMENT, False)
+        self.assert_set_parameter(Parameter.INTEG_TIME_FACTOR, 2)
+        self.assert_set_parameter(Parameter.INTEG_TIME_STEP, 19)
+        self.assert_set_parameter(Parameter.INTEG_TIME_MAX, 19)
 
     def test_get_capabilities(self):
-        '''
-        @brief Walk through all driver protocol states and verify capabilities
-        returned by get_current_capabilities
-        '''
-        self.assert_enter_command_mode()
-
+        """
+        Verify that the correct capabilities are returned from get_capabilities at various driver/agent states.
+        """
         ##################
         #  Command Mode
         ##################
-
         capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: [
-                ResourceAgentEvent.CLEAR,
-                ResourceAgentEvent.RESET,
-                ResourceAgentEvent.GO_DIRECT_ACCESS,
-                ResourceAgentEvent.GO_INACTIVE,
-                ResourceAgentEvent.PAUSE
-            ],
-            AgentCapabilityType.AGENT_PARAMETER: ['example'],
-            AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.SET, ProtocolEvent.ACQUIRE_SAMPLE, ProtocolEvent.GET, ProtocolEvent.ACQUIRE_STATUS,
-                ProtocolEvent.START_POLL, ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.TEST
-            ],
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_SAMPLE,
+                                          ProtocolEvent.ACQUIRE_STATUS,
+                                          ProtocolEvent.START_AUTOSAMPLE,
+                                          ProtocolEvent.GET,
+                                          ProtocolEvent.SET,
+                                          ProtocolEvent.TEST,
+                                          ProtocolEvent.CLOCK_SYNC,
+                                          ProtocolEvent.MEASURE_N,
+                                          ProtocolEvent.MEASURE_0,
+                                          ProtocolEvent.TIMED_N],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: [
-                Parameter.ABSORBANCE_CUTOFF, Parameter.BASELINE_ORDER, Parameter.BROMIDE_TRACING, Parameter.COUNTDOWN,
-                Parameter.DATA_FILE_SIZE, Parameter.DARK_CORRECTION_METHOD, Parameter.DARK_DURATION,
-                Parameter.DARK_SAMPLES, Parameter.CONCENTRATIONS_IN_FIT, Parameter.INTEG_TIME_MAX,
-                Parameter.INTEG_TIME_STEP, Parameter.INTEG_TIME_ADJUSTMENT, Parameter.INTEG_TIME_FACTOR,
-                Parameter.LAMP_SWITCH_OFF_TEMPERATURE, Parameter.LIGHT_DURATION, Parameter.LIGHT_SAMPLES,
-                Parameter.MESSAGE_FILE_SIZE, Parameter.MESSAGE_LEVEL, Parameter.OPERATION_CONTROL,
-                Parameter.OPERATION_MODE, Parameter.OUTPUT_DARK_FRAME, Parameter.OUTPUT_FRAME_TYPE,
-                Parameter.POLLED_TIMEOUT, Parameter.REF_MIN_AT_LAMP_ON, Parameter.SALINITY_FITTING,
-                Parameter.SKIP_SLEEP_AT_START, Parameter.SPECTROMETER_INTEG_PERIOD, Parameter.LAMP_STABIL_TIME,
-                Parameter.TEMP_COMPENSATION, Parameter.FIT_WAVELENGTH_HIGH, Parameter.FIT_WAVELENGTH_LOW,
-                Parameter.FIT_WAVELENGTH_BOTH
-            ]
-        }
+            AgentCapabilityType.RESOURCE_PARAMETER: ['a_cutoff', 'bl_order', 'brmtrace', 'countdwn', 'datfsize',
+                                                     'drkcormt', 'drkdurat', 'drksmpls', 'fitconcs', 'intadmax',
+                                                     'intadstp', 'intpradj', 'intprfac', 'lamptoff', 'lgtdurat',
+                                                     'lgtsmpls', 'msgfsize', 'msglevel', 'nmlgtspl', 'operctrl',
+                                                     'opermode', 'outdrkfr', 'outfrtyp', 'polltout', 'reflimit',
+                                                     'salinfit', 'skpsleep', 'spintper', 'stbltime', 'tempcomp',
+                                                     'tlgtsmpl', 'wfit_hgh', 'wfit_low', 'wfitboth']}
 
+        self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
-
-        ##################
-        #  Polled Mode
-        ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
-            ResourceAgentEvent.CLEAR,
-            ResourceAgentEvent.RESET,
-            ResourceAgentEvent.GO_DIRECT_ACCESS,
-            ResourceAgentEvent.GO_INACTIVE,
-            ResourceAgentEvent.PAUSE,
-        ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.ACQUIRE_SAMPLE, ProtocolEvent.STOP_POLL, ProtocolEvent.MEASURE_N, ProtocolEvent.MEASURE_0,
-            ProtocolEvent.TIMED_N
-        ]
-
-        self.assert_switch_driver_state(ProtocolEvent.START_POLL, DriverProtocolState.POLL)
-
-        self.assert_capabilities(capabilities)
-
-        self.assert_switch_driver_state(ProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
 
         ##################
         #  Streaming Mode
         ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            ProtocolEvent.STOP_AUTOSAMPLE
-        ]
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_AUTOSAMPLE]
 
         self.assert_start_autosample()
-
         self.assert_capabilities(capabilities)
-
         self.assert_stop_autosample()
+
+        ##################
+        #  DA Mode
+        ##################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
