@@ -25,7 +25,12 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
-from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
+from mi.core.exceptions import \
+    SampleException, \
+    DatasetParserException, \
+    UnexpectedDataException, \
+    ConfigurationException
+
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
@@ -199,10 +204,15 @@ class MopakODclParser(BufferLoadingParser):
         local_seconds = time.mktime(file_datetime.timetuple())
         self._start_time_utc = local_seconds - time.timezone
 
-        # Get the particle classes to publish from the configuration
-        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-        self._accel_particle_class = particle_classes_dict.get(MopakParticleClassType.ACCEL_PARTCICLE_CLASS)
-        self._rate_particle_class = particle_classes_dict.get(MopakParticleClassType.RATE_PARTICLE_CLASS)
+        try:
+            # Get the particle classes to publish from the configuration
+            particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
+            self._accel_particle_class = particle_classes_dict.get(MopakParticleClassType.ACCEL_PARTCICLE_CLASS)
+            self._rate_particle_class = particle_classes_dict.get(MopakParticleClassType.RATE_PARTICLE_CLASS)
+
+        except Exception as e:
+            log.error('Parser configuration missing or incorrect')
+            raise ConfigurationException
 
         super(MopakODclParser, self).__init__(config,
                                               stream_handle,
