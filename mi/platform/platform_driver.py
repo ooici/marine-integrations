@@ -16,17 +16,16 @@ import logging
 
 from copy import deepcopy
 
-from ion.agents.platform.platform_driver_event import StateChangeDriverEvent
-from ion.agents.platform.platform_driver_event import AsyncAgentEvent
-from ion.agents.platform.exceptions import PlatformDriverException
-from ion.agents.platform.platform_agent_enums import PlatformAgentEvent
+from mi.platform.platform_driver_event import StateChangeDriverEvent
+from mi.platform.platform_driver_event import AsyncAgentEvent
+from mi.platform.exceptions import PlatformDriverException
+from mi.platform.platform_agent_enums import PlatformAgentEvent
 
-from pyon.agent.common import BaseEnum
-from pyon.agent.instrument_fsm import ThreadSafeFSM
-from pyon.agent.instrument_fsm import FSMError
-from ion.agents.platform.exceptions import PlatformConnectionException
-from ion.agents.platform.util.network_util import NetworkUtil
-
+from mi.core.common import BaseEnum
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
+from mi.core.instrument.instrument_fsm import FSMError
+from mi.platform.exceptions import PlatformConnectionException
+from mi.platform.util.network_util import NetworkUtil
 
 class PlatformDriverState(BaseEnum):
     """
@@ -271,6 +270,20 @@ class PlatformDriver(object):
         this verification completes OK.
 
         @retval "PONG"
+
+        @raise PlatformConnectionException  If the connection to the external
+               platform is lost.
+        """
+        raise NotImplementedError()  #pragma: no cover
+
+    def get_attributes(self):
+        """
+        To be implemented by subclass.
+        Returns the attributes of this platform. This is used by the agent
+        for attribute monitoring purposes.
+
+        @retval {attr_id: dict, ...}
+                dict indexed by attribute ID with associated properties.
 
         @raise PlatformConnectionException  If the connection to the external
                platform is lost.
