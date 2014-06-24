@@ -840,7 +840,7 @@ class Protocol(SamiProtocol):
         self._extract_sample(PhsenConfigDataParticle, PHSEN_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
         sample = self._extract_sample(PhsenSamiSampleDataParticle, PHSEN_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+        log.debug('Protocol._got_chunk(): get_current_state() == %s', self.get_current_state())
 
         if sample:
             self._verify_checksum(chunk, PHSEN_SAMPLE_REGEX_MATCHER)

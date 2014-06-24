@@ -548,7 +548,7 @@ class Protocol(Pco2wProtocol):
 
         dev1_timeout = self._param_dict.get(Parameter.EXTERNAL_PUMP_SETTINGS)
 
-        log.debug('Protocol._take_dev1_sample(): Dev1 Timeout = ' + str(dev1_timeout))
+        log.debug('Protocol._take_dev1_sample(): Dev1 Timeout = %s', dev1_timeout)
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(InstrumentCommand.PCO2WB_ACQUIRE_SAMPLE_DEV1,
@@ -557,7 +557,7 @@ class Protocol(Pco2wProtocol):
 
         sample_time = time.time() - start_time
 
-        log.debug('Protocol._take_dev1_sample(): Dev1 Sample took ' + str(sample_time) + ' to FINISH')
+        log.debug('Protocol._take_dev1_sample(): Dev1 Sample took %s to FINISH', sample_time)
 
     def _pre_sample_processing(self):
         """
@@ -608,7 +608,7 @@ class Protocol(Pco2wProtocol):
                                            timestamp)
         sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+        log.debug('Protocol._got_chunk(): get_current_state() == %s', self.get_current_state())
 
         if sami_sample:
             self._verify_checksum(chunk, PCO2W_SAMPLE_REGEX_MATCHER)

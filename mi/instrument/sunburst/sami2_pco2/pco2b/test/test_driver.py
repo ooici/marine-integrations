@@ -1027,8 +1027,8 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         receive_sample = time.time()
         sample_time = receive_sample - request_sample
 
-        log.debug("dev1_sample_time = " + str(dev1_sample_time))
-        log.debug("sample_time = " + str(sample_time))
+        log.debug("dev1_sample_time = %s", dev1_sample_time)
+        log.debug("sample_time = %s", sample_time)
 
         self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE,
                                       timeout=14400)

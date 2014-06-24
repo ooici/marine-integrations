@@ -498,8 +498,8 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         status_dict = self.get_data_particle_values_as_dict(status_particle)
         elapsed_time_config = status_dict.get(SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG)
         current_sami_time = SamiProtocol._current_sami_time()
-        log.debug("elapsed_time_config = " + str(elapsed_time_config))
-        log.debug("current_sami_time = " + str(current_sami_time))
+        log.debug("elapsed_time_config = %s", elapsed_time_config)
+        log.debug("current_sami_time = %s", current_sami_time)
         time_difference = current_sami_time - elapsed_time_config
         log.debug("time difference = %s" % time_difference)
         sami_now_seconds = current_sami_time - SAMI_UNIX_OFFSET.total_seconds()
@@ -525,7 +525,7 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_async_particle_generation(SamiDataParticleType.REGULAR_STATUS, self.assert_time_sync, timeout=10)
         receive_status_time = time.time()
         status_time = receive_status_time - request_status_time
-        log.debug("status_time = " + str(status_time))
+        log.debug("status_time = %s", status_time)
 
 
 ###############################################################################

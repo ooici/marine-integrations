@@ -368,9 +368,6 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         record_type = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TYPE)
         required_record_type = 4
-        log.debug('assert_particle_sami_data_sample(): record_type:required_record_type = ' +
-                  str(record_type) + ":" +
-                  str(required_record_type))
         self.assertEquals(record_type, required_record_type)
 
     def assert_particle_sami_blank_sample(self, data_particle, verify_values=False):
@@ -395,9 +392,6 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         record_type = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TYPE)
         required_record_type = 5
-        log.debug('assert_particle_sami_blank_sample(): record_type:required_record_type = ' +
-                  str(record_type) + ":" +
-                  str(required_record_type))
         self.assertEquals(record_type, required_record_type)
 
     def assert_particle_configuration(self, data_particle, verify_values=False):

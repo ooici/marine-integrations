@@ -523,7 +523,7 @@ class Pco2wProtocol(SamiProtocol):
         """
 
         log.debug('Pco2wProtocol._handler_take_blank_sample() ENTER')
-        log.debug('Pco2wProtocol._handler_take_blank_sample(): CURRENT_STATE == ' + self.get_current_state())
+        log.debug('Pco2wProtocol._handler_take_blank_sample(): CURRENT_STATE == %s', self.get_current_state())
 
         try:
             self._take_blank_sample()
@@ -725,7 +725,7 @@ class Pco2wProtocol(SamiProtocol):
 
         sample_time = time.time() - start_time
 
-        log.debug('Pco2wProtocol._take_blank_sample(): Blank Sample took ' + str(sample_time) + ' to FINISH')
+        log.debug('Pco2wProtocol._take_blank_sample(): Blank Sample took %s to FINISH', sample_time)
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries

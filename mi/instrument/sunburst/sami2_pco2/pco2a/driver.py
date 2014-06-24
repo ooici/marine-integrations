@@ -394,7 +394,7 @@ class Protocol(Pco2wProtocol):
         self._extract_sample(Pco2waConfigurationDataParticle, PCO2WA_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
         sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+        log.debug('Protocol._got_chunk(): get_current_state() == %s', self.get_current_state())
 
         if sample:
             self._verify_checksum(chunk, PCO2W_SAMPLE_REGEX_MATCHER)
