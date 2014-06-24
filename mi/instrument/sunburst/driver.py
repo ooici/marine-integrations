@@ -48,7 +48,6 @@ from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.instrument_protocol import DEFAULT_WRITE_DELAY
@@ -2162,7 +2161,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         if config_change:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-
     def _verify_checksum(self, chunk, matcher):
         """
         Verify checksum of sample returned from instrument
@@ -2187,7 +2185,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         if checksum_int != calculated_checksum:
             log.error("Sample Check Sum Invalid %d/%d, throwing exception.", checksum_int, calculated_checksum)
-            raise SampleException("Sample Check Sum Invalid %d/%d", checksum_int, calculated_checksum)
+            raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int, calculated_checksum))
 
     @staticmethod
     def calc_crc(s):
