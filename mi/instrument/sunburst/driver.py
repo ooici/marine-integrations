@@ -2042,7 +2042,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         configuration_string += f_padding
         config_string_length_0_and_f_padding = len(configuration_string)
         log.debug('Protocol._add_config_str_padding(): config_string_length_0_and_f_padding = %s',
-                 config_string_length_0_and_f_padding)
+                  config_string_length_0_and_f_padding)
 
         return configuration_string
 
@@ -2232,8 +2232,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug('SamiProtocol._build_param_dict()')
-
-        self._param_dict = ProtocolParameterDict()
 
         configuration_string_regex = self._get_configuration_string_regex()
 
