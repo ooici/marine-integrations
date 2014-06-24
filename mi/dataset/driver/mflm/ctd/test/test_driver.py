@@ -1,7 +1,7 @@
 """
 @package mi.dataset.driver.mflm.ctd.test.test_driver
 @file marine-integrations/mi/dataset/driver/mflm/ctd/driver.py
-@author Emily Hahn
+@author Emily Hahn (original telemetered), Steve Myerson (recovered)
 @brief Test cases for mflm_ctd driver
 
 USAGE:
@@ -37,31 +37,63 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver, DataSourceKey
-from mi.dataset.parser.ctdmo import CtdmoParserDataParticle, DataParticleType
-from mi.dataset.parser.ctdmo import CtdmoOffsetDataParticle
 
-TELEM_DIR = '/tmp/dsatest'
+from mi.dataset.parser.sio_mule_common import StateKey
+
+from mi.dataset.driver.mflm.ctd.driver import \
+    MflmCtdmoDataSetDriver, \
+    DataTypeKey
+
+from mi.dataset.parser.ctdmo import \
+    CtdmoRecoveredCoParser, \
+    CtdmoRecoveredCtParser, \
+    CtdmoTelemeteredParser, \
+    CtdmoRecoveredInstrumentDataParticle, \
+    CtdmoRecoveredOffsetDataParticle, \
+    CtdmoTelemeteredInstrumentDataParticle, \
+    CtdmoTelemeteredOffsetDataParticle, \
+    CtdmoStateKey, \
+    DataParticleType
+
+REC_DIR = '/tmp/dsatest_rec'
+TEL_DIR = '/tmp/dsatest_tel'
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.mflm.ctd.driver',
-    driver_class="MflmCTDMODataSetDriver",
+    driver_class="MflmCtdmoDataSetDriver",
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = MflmCTDMODataSetDriver.stream_config(),
+    agent_packet_config = MflmCtdmoDataSetDriver.stream_config(),
     startup_config = {
         DataSourceConfigKey.HARVESTER:
         {
-            DataSourceKey.CTDMO_GHQR_SIO_MULE:
+            DataTypeKey.CTDMO_GHQR_CO:
             {
-                DataSetDriverConfigKeys.DIRECTORY: TELEM_DIR,
+                DataSetDriverConfigKeys.DIRECTORY: REC_DIR,
+                DataSetDriverConfigKeys.PATTERN: 'CTD*.DAT',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+                DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
+            },
+            DataTypeKey.CTDMO_GHQR_CT:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: REC_DIR,
+                DataSetDriverConfigKeys.PATTERN: 'SBE-37-IM_*.hex',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+                DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
+            },
+            DataTypeKey.CTDMO_GHQR_SIO_MULE:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: TEL_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
                 DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
             }
         },
         DataSourceConfigKey.PARSER: {
-            DataSourceKey.CTDMO_GHQR_SIO_MULE: {'inductive_id': 55}
+            DataTypeKey.CTDMO_GHQR_CO: {CtdmoStateKey.INDUCTIVE_ID: 55},
+            DataTypeKey.CTDMO_GHQR_CT: {CtdmoStateKey.INDUCTIVE_ID: 55,
+                                        CtdmoStateKey.SERIAL_NUMBER: 03710261},
+            DataTypeKey.CTDMO_GHQR_SIO_MULE: {CtdmoStateKey.INDUCTIVE_ID: 55}
         }
     }
 )
@@ -77,28 +109,30 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_get(self):
 
-        self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step1.dat", TEL_DIR, "node59p1.dat")
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
-                         count=4, timeout=10)
+        self.assert_data(CtdmoTelemeteredInstrumentDataParticle,
+                         'test_data_1.txt.result.yml', count=4, timeout=10)
 
         # there is only one file we read from, this example 'appends' data to
         # the end of the node59p1.dat file, and the data from the new append
         # is returned (not including the original data from _step1)
         self.clear_async_data()
-        self.create_sample_data_set_dir("node59p1_step2.dat", TELEM_DIR, "node59p1.dat")
-        self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=2, timeout=10)
+        self.create_sample_data_set_dir("node59p1_step2.dat", TEL_DIR, "node59p1.dat")
+        self.assert_data(CtdmoTelemeteredInstrumentDataParticle,
+                         'test_data_2.txt.result.yml', count=2, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
         self.clear_async_data()
-        self.create_sample_data_set_dir("node59p1_step4.dat", TELEM_DIR, "node59p1.dat")
-        self.assert_data((CtdmoParserDataParticle, CtdmoOffsetDataParticle),
-            count=4, timeout=10)
+        self.create_sample_data_set_dir("node59p1_step4.dat",
+                                        TEL_DIR, "node59p1.dat")
+        self.assert_data((CtdmoTelemeteredInstrumentDataParticle,
+                          CtdmoTelemeteredOffsetDataParticle),
+                         count=4, timeout=10)
 
         self.driver.stop_sampling()
 
@@ -109,7 +143,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         # create the file so that it is unreadable
-        self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat", mode=000)
+        self.create_sample_data_set_dir("node59p1_step1.dat", TEL_DIR, "node59p1.dat", mode=000)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -123,27 +157,31 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step1.dat", TEL_DIR, "node59p1.dat")
         driver_config = self._driver_config()['startup_config']
-        fullfile = os.path.join(driver_config['harvester'][DataSourceKey.CTDMO_GHQR_SIO_MULE]['directory'],
-                            driver_config['harvester'][DataSourceKey.CTDMO_GHQR_SIO_MULE]['pattern'])
+        fullfile = os.path.join(
+            driver_config['harvester'][DataTypeKey.CTDMO_GHQR_SIO_MULE]['directory'],
+            driver_config['harvester'][DataTypeKey.CTDMO_GHQR_SIO_MULE]['pattern'])
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
         self.memento = {
-            DataSourceKey.CTDMO_GHQR_SIO_MULE: {
+            DataTypeKey.CTDMO_GHQR_SIO_MULE: {
                 "node59p1.dat": {
                     DriverStateKey.FILE_SIZE: 6000,
                     DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
                     DriverStateKey.PARSER_STATE: {
-                        'in_process_data': [],
-                        'unprocessed_data':[[0, 12], [336, 394], [5924,6000]],                         
+                        StateKey.IN_PROCESS_DATA: [],
+                        StateKey.UNPROCESSED_DATA:
+                            [[0, 12], [336, 394], [5924,6000]],
                     }
                 }
-            }
+            },
+            DataTypeKey.CTDMO_GHQR_CO: {},
+            DataTypeKey.CTDMO_GHQR_CT: {}
         }
-        self.driver = MflmCTDMODataSetDriver(
+        self.driver = MflmCtdmoDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
@@ -153,13 +191,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data_set_dir("node59p1_step2.dat", TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step2.dat",
+                                        TEL_DIR, "node59p1.dat")
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=2, timeout=10)
+        self.assert_data(CtdmoTelemeteredInstrumentDataParticle,
+                         'test_data_2.txt.result.yml', count=2, timeout=10)
 
     def test_back_fill(self):
         """
@@ -168,27 +207,28 @@ class IntegrationTest(DataSetIntegrationTestCase):
         data can be added back later
         """
 
-        self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step1.dat", TEL_DIR, "node59p1.dat")
 
         self.driver.start_sampling()
 
         # step 1 contains 4 blocks, start with this and get both since we used them
         # separately in other tests
         self.clear_async_data()
-        self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
-                         count=4, timeout=10)
+        self.assert_data(CtdmoTelemeteredInstrumentDataParticle,
+                         'test_data_1.txt.result.yml', count=4, timeout=10)
 
         # This file has had a section of CT data replaced with 0s
         self.clear_async_data()
-        self.create_sample_data_set_dir('node59p1_step3.dat', TELEM_DIR, "node59p1.dat")
-        self.assert_data(CtdmoParserDataParticle, 'test_data_3.txt.result.yml',
-                         count=2, timeout=10)
+        self.create_sample_data_set_dir('node59p1_step3.dat', TEL_DIR, "node59p1.dat")
+        self.assert_data(CtdmoTelemeteredInstrumentDataParticle,
+                         'test_data_3.txt.result.yml', count=2, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data 
         self.clear_async_data()
-        self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat")
-        self.assert_data((CtdmoParserDataParticle, CtdmoOffsetDataParticle),
+        self.create_sample_data_set_dir('node59p1_step4.dat', TEL_DIR, "node59p1.dat")
+        self.assert_data((CtdmoTelemeteredInstrumentDataParticle,
+                          CtdmoTelemeteredOffsetDataParticle),
                         'test_data_4.txt.result.yml', count=4, timeout=10)
     
 ###############################################################################
@@ -205,17 +245,18 @@ class QualificationTest(DataSetQualificationTestCase):
         published out the agent
         """
 
-        self.create_sample_data_set_dir('node59p1_step1.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
 
         self.assert_initialize()
 
         try:
-            # Verify we get one sample
-            result = self.data_subscribers.get_samples(DataParticleType.CT, 4)
+            # Verify we get samples
+            result = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 4)
             log.info("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -224,11 +265,11 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test a large import
         """
-        self.create_sample_data_set_dir('node59p1.dat', TELEM_DIR)
+        self.create_sample_data_set_dir('node59p1.dat', TEL_DIR)
         self.assert_initialize()
 
-        result = self.data_subscribers.get_samples(DataParticleType.CT,2550,200)
-        result2 = self.data_subscribers.get_samples(DataParticleType.CO,200,60)
+        self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE,2550,200)
+        self.data_subscribers.get_samples(DataParticleType.TEL_CO_PARTICLE,200,60)
 
     def test_stop_start(self):
         """
@@ -236,7 +277,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.error("CONFIG: %s", self._agent_config())
-        self.create_sample_data_set_dir('node59p1_step1.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -247,30 +288,31 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.CT, 4)
+            result = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 4)
             log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
-            self.assert_sample_queue_size(DataParticleType.CT, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
 
-            self.create_sample_data_set_dir('node59p1_step2.dat', TELEM_DIR, "node59p1.dat")
+            self.create_sample_data_set_dir('node59p1_step2.dat', TEL_DIR, "node59p1.dat")
             # Now read the first record of the second file then stop
-            result1 = self.data_subscribers.get_samples(DataParticleType.CT, 1)
+            result1 = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 1)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(DataParticleType.CT, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
 
             # Restart sampling and ensure we get the last record of the file
             self.assert_start_sampling()
-            result2 = self.data_subscribers.get_samples(DataParticleType.CT, 1)
+            result2 = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 1)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
             log.debug("RESULT: %s", result)
             self.assert_data_values(result, 'test_data_2.txt.result.yml')
 
-            self.assert_sample_queue_size(DataParticleType.CT, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -281,7 +323,7 @@ class QualificationTest(DataSetQualificationTestCase):
         confirm it restarts at the correct spot.
         """
         log.error("CONFIG: %s", self._agent_config())
-        self.create_sample_data_set_dir('node59p1_step1.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -292,21 +334,21 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.CT, 4)
+            result = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 4)
             log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
-            self.assert_sample_queue_size(DataParticleType.CT, 0)
-            self.assert_sample_queue_size(DataParticleType.CO, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CO_PARTICLE, 0)
 
-            self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat")
+            self.create_sample_data_set_dir('node59p1_step4.dat', TEL_DIR, "node59p1.dat")
             # Now read the first record of the second file then stop
-            result1 = self.data_subscribers.get_samples(DataParticleType.CT, 3)
+            result1 = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 3)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(DataParticleType.CT, 0)
-            self.assert_sample_queue_size(DataParticleType.CO, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CO_PARTICLE, 0)
             
             # stop and re-start the agent
             self.stop_dataset_agent_client()
@@ -315,8 +357,8 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_initialize()
 
             # Restart sampling and ensure we get the last record of the file
-            result2 = self.data_subscribers.get_samples(DataParticleType.CT, 2)
-            result3 = self.data_subscribers.get_samples(DataParticleType.CO, 1)
+            result2 = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 2)
+            result3 = self.data_subscribers.get_samples(DataParticleType.TEL_CO_PARTICLE, 1)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
@@ -324,8 +366,9 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
             self.assert_data_values(result, 'test_data_2-4.txt.result.yml')
             # there are 3 more CT samples in this file
-            self.assert_sample_queue_size(DataParticleType.CT, 3)
-            self.assert_sample_queue_size(DataParticleType.CO, 0)
+            self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 3)
+            self.assert_sample_queue_size(DataParticleType.TEL_CO_PARTICLE, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -337,7 +380,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         exception callback called.
         """
-        self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat", mode=000)
+        self.create_sample_data_set_dir('node59p1_step4.dat', TEL_DIR, "node59p1.dat", mode=000)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -347,7 +390,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.clear_sample_data()
-        self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step4.dat', TEL_DIR, "node59p1.dat")
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)

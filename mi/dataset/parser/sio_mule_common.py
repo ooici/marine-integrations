@@ -3,7 +3,7 @@
 """
 @package mi.dataset.parser.sio_mule_common data set parser
 @file mi/dataset/parser/sio_mule_common.py
-@author Emily Hahn
+@author Emily Hahn (original SIO Mule), Steve Myerson (modified for Recovered)
 This module contains classes that handle parsing instruments which pass through
 sio which contain the common sio header.
 """
@@ -20,15 +20,47 @@ import ntplib
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.exceptions import DatasetParserException, NotImplementedException
-from mi.dataset.dataset_parser import Parser
+from mi.dataset.dataset_parser import BufferLoadingParser
 
-# SIO Main controller header and data for ctdmo in binary
-# groups: ID, Number of Data Bytes, POSIX timestamp, block number, data
-# some instruments have \x03 within the data, need to check if header is
-# followed by another header or not or zeros for blank data
-SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE|CO|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-zA-Z]' \
-               '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_([0-9A-Fa-f]{4})\x02'
+# SIO Main controller header and data in binary:
+#   Start of header
+#   Header
+#   End of header
+#   Data
+#   End of data
+
+# SIO block sentinels:
+SIO_HEADER_START = b'\x01'
+SIO_HEADER_END = b'\x02'
+SIO_BLOCK_END = b'\x03'
+
+# Supported Instrument IDs.
+INSTRUMENT_IDS = b'(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE|CO|PS|CS)'
+
+# SIO controller header:
+SIO_HEADER_REGEX = SIO_HEADER_START     # Start of SIO Header (also start of block)
+SIO_HEADER_REGEX += INSTRUMENT_IDS      # Instrument ID
+SIO_HEADER_REGEX += b'[0-9]{5}'         # Controller ID
+SIO_HEADER_REGEX += b'([0-9]{2})'       # Number of Instrument / Inductive ID
+SIO_HEADER_REGEX += b'_'                # Spacer (0x5F)
+SIO_HEADER_REGEX += b'([0-9a-fA-F]{4})' # Number of Data Bytes (hex)
+SIO_HEADER_REGEX += b'[0-9A-Za-z]'      # MFLM Processing Flag (coded value)
+SIO_HEADER_REGEX += b'([0-9a-fA-F]{8})' # POSIX Timestamp of Controller (hex)
+SIO_HEADER_REGEX += b'_'                # Spacer (0x5F)
+SIO_HEADER_REGEX += b'([0-9a-fA-F]{2})' # Block Number (hex)
+SIO_HEADER_REGEX += b'_'                # Spacer (0x5F)
+SIO_HEADER_REGEX += b'([0-9a-fA-F]{4})' # CRC Checksum (hex)
+SIO_HEADER_REGEX += SIO_HEADER_END      # End of SIO Header
+
 SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
+
+# The SIO_HEADER_MATCHER produces the following groups:
+SIO_HEADER_GROUP_ID = 1             # Instrument ID
+SIO_HEADER_GROUP_INDUCTIVE_ID = 2   # Number of Instrument / Inductive ID
+SIO_HEADER_GROUP_DATA_LENGTH = 3    # Number of Data Bytes
+SIO_HEADER_GROUP_TIMESTAMP = 4      # POSIX timestamp
+SIO_HEADER_GROUP_BLOCK_NUMBER = 5   # Block Number
+SIO_HEADER_GROUP_CHECKSUM = 6       # checksum
 
 # blocks can be uniquely identified a combination of block number and timestamp,
 # since block numbers roll over after 255
@@ -45,10 +77,15 @@ END_IDX = 1
 SAMPLES_PARSED = 2
 SAMPLES_RETURNED = 3
 
-class SioMuleParser(Parser):
+
+class SioParserStateKey(BaseEnum):
+    POSITION = 'position'             # file position for recovered data only
+
+
+class SioParser(BufferLoadingParser):
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback, recovered_flag=False):
+                 state_callback, publish_callback, exception_callback):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -64,70 +101,29 @@ class SioMuleParser(Parser):
            be published into ION
         @param exception_callback The callback from the agent driver to
            send an exception to
-        @param recovered_flag Flag to turn off escape characters present in telemetered
-            but not present in recovered data
         """
-        super(SioMuleParser, self).__init__(config,
-                                         stream_handle,
-                                         state,
-                                         self.sieve_function,
-                                         state_callback,
-                                         publish_callback,
-                                         exception_callback)
+        log.debug('AAAAAA ENTER SioParser')
+        super(SioParser, self).__init__(config,
+                                        stream_handle,
+                                        state,
+                                        self.sieve_function,
+                                        state_callback,
+                                        publish_callback,
+                                        exception_callback)
+
+        log.debug('BBBBBB Resume SioParser')
         self._position = [0,0] # store both the start and end point for this read of data within the file
         self._record_buffer = [] # holds list of records
-        self._recovered_flag = recovered_flag
         self.all_data = None
-        self._chunk_sample_count = []
-        self._samples_to_throw_out = None
-        self._mid_sample_packets = 0
+
+
         # use None flag in unprocessed data to initialize this we read the entire file and get the size of the data
-        self._read_state = {StateKey.UNPROCESSED_DATA: None,
-                            StateKey.IN_PROCESS_DATA:[]}
+        self._read_state = None    # sgm tbd
 
         if state:
             self.set_state(self._state)
 
-    def sieve_function(self, raw_data):
-        """
-        Sort through the raw data to identify new blocks of data that need processing.
-        This sieve identifies the SIO header and returns just the data block identified
-        inside the header.
-        @param raw_data The raw data to search
-        @retval list of matched start,end index found in raw_data
-        """
-        return_list = []
-
-        for match in SIO_HEADER_MATCHER.finditer(raw_data):
-            data_len = int(match.group(2), 16)
-            checksum = match.group(5)
-            end_packet_idx = match.end(0) + data_len
-            if end_packet_idx < len(raw_data):
-                end_packet = raw_data[end_packet_idx]
-                log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
-                          match.group(0)[1:32], match.end(0), end_packet_idx,
-                          match.start(0), data_len)
-                if end_packet == '\x03':
-                    packet_data = raw_data[match.end(0):end_packet_idx]
-                    chksum = self.calc_checksum(packet_data)
-                    if chksum == checksum:
-                        # even if this is not the right instrument, keep track that
-                        # this packet was processed
-                        if not self.packet_exists(match.start(0), end_packet_idx+1):
-                            self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0),
-                                                                               end_packet_idx+1,
-                                                                               None, 0])
-                        return_list.append((match.start(0), end_packet_idx+1))
-                    else:
-                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
-                                  chksum, checksum, match.group(0)[1:32], match.end(0), end_packet_idx)
-                else:
-                    log.debug('End packet at %d is not x03 for header %s',
-                              end_packet_idx, match.group(0)[1:32])
-        return return_list
-
-    @staticmethod
-    def calc_checksum(data):
+    def calc_checksum(self, data):
         """
         Calculate SIO header checksum of data
         """
@@ -159,148 +155,148 @@ class SioMuleParser(Parser):
         log.trace("calculated checksum %s", crc)
         return crc
 
-    def packet_exists(self, start, end):
+    def _increment_position(self, bytes_read):
         """
-        Determine if this packet is already in the in process data
+        Increment the parser position
+        @param bytes_read The number of bytes just read
         """
-        for packet in self._read_state[StateKey.IN_PROCESS_DATA]:
-            if packet[START_IDX] == start + self._position[START_IDX] and \
-            packet[END_IDX] == end + self._position[START_IDX]:
-                log.trace('Already added packet %s', packet)
-                return True
-        return False
+        self._read_state[SioParserStateKey.POSITION] += bytes_read
 
-    def set_state(self, state_obj):
+    def read_file(self):
         """
-        Set the value of the state object for this parser
-        @param state_obj The object to set the state to. Should be a list with
-        a StateKey.UNPROCESSED_DATA value, a StateKey.IN_PROCESS_DATA value.
-        The UNPROCESSED_DATA and IN_PROCESS_DATA
-        are both arrays which contain an array of start and end indicies for their
-        respective types of data.  The timestamp is an NTP4 format timestamp.
-        @throws DatasetParserException if there is a bad state structure
+        This function reads the entire input file.
+        Returns:
+            A string containing the contents of the entire file.
         """
-        log.debug("Setting state to: %s", state_obj)
-        if not isinstance(state_obj, dict):
-            raise DatasetParserException("Invalid state structure")
-        if not ((StateKey.UNPROCESSED_DATA in state_obj) and \
-            (StateKey.IN_PROCESS_DATA in state_obj)):
-            raise DatasetParserException("Invalid state keys")
+        log.debug("Reading in all data in smaller blocks")
+        input_buffer = ''
 
-        # store both the start and end point for this read of data within the file
-        if state_obj[StateKey.UNPROCESSED_DATA] == []:
-            self._position = [0, 0]
-        else:
-            self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX],
-                              state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX]]
-        self._record_buffer = []
-        self._state = state_obj
-        self._read_state = state_obj
-
-        # it is possible to be in the middle of processing a packet.  Since we have to
-        # process a whole packet, which may contain multiple samples, we have to
-        # re-read the entire packet, then throw out the already received samples
-        self._samples_to_throw_out = None
-        self._mid_sample_packets = len(state_obj[StateKey.IN_PROCESS_DATA])
-        if self._mid_sample_packets > 0 and state_obj[StateKey.IN_PROCESS_DATA][0][SAMPLES_RETURNED] > 0:
-            self._samples_to_throw_out = state_obj[StateKey.IN_PROCESS_DATA][0][SAMPLES_RETURNED]
-
-        # make sure we have cleaned the chunker out of old data so there are no wrap arounds
-        self._chunker.clean_all_chunks()
-
-    def _increment_state(self, returned_records = 0):
-        """
-        Increment which data packets have been processed, and which are still
-        unprocessed.  This keeps track of which data has been received,
-        since blocks may come out of order or appear at a later time in an already
-        processed file.
-        @param returned_records Number of records to return 
-        """
-        log.trace("Incrementing current state: %s", self._read_state)
-
-        while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
-            # if we were in the middle of processing, we need to drop the parsed
-            # packets sample count because that in process packet already exists
-            self._chunk_sample_count.pop(0)
-            # decrease the mid sample number remaining
-            self._mid_sample_packets -= 1
-
-        for packet_idx in range (0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
-            if self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][SAMPLES_PARSED] is None and \
-            len(self._chunk_sample_count) > 0:
-                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][SAMPLES_PARSED] = self._chunk_sample_count.pop(0)
-                # adjust for current file position, only do this once when filling in sample count
-                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][START_IDX] += self._position[START_IDX]
-                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][END_IDX] += self._position[START_IDX]
-
-        n_removed = 0
-        # need to adjust position to be relative to the entire file, not just the
-        # currently read section, so add the initial position to the in process packets
-        log.debug('records to be returned %d', returned_records)
-        total_remain = returned_records
-        adj_packets = []
-        for packet_idx in range(0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
-            adj_packet_idx = packet_idx - n_removed
-            this_packet = self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx]
-            if this_packet[SAMPLES_PARSED] > 0:
-                # this packet has data samples in it
-                this_packet_remain = this_packet[SAMPLES_PARSED] - this_packet[SAMPLES_RETURNED]
-                # increase the number of samples that have been pulled out
-                self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] += total_remain
-                # find out if packet is done, if so remove it
-                if this_packet[SAMPLES_RETURNED] >= this_packet[SAMPLES_PARSED]:
-                    # this packet has had all the samples pulled out from it, remove it from in process
-                    adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
-                    self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                    n_removed += 1
-                elif this_packet[SAMPLES_RETURNED] < 0:
-                    self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] = 0
-
-                total_remain -= this_packet_remain
-
+        while True:
+            # read data in small blocks in order to not block processing
+            next_data = self._stream_handle.read(1024)
+            if next_data:
+                input_buffer = input_buffer + next_data
+                gevent.sleep(0)
             else:
-                # this packet has no samples, no need to process further
-                adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
-                self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                n_removed += 1
+                break
 
-        if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
-            # this is the last of the in process data, now process unprocessed data, so
-            # go back to the beginning of the file
-            log.debug('Resetting position to the start')
-            self._position = [0,0]
-            # clear out the chunker so we don't wrap around data
-            self._chunker.clean_all_chunks()
+        log.debug("length of all data %d", len(input_buffer))
+        return input_buffer
 
-        log.trace('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
+    def sieve_function(self, raw_data):
+        """
+        Sort through the raw data to identify blocks of data that need processing.
+        This sieve identifies the SIO header, verifies the checksum,
+        calculates the end of the SIO block, and returns a list of
+        start,end indices.
+        @param raw_data The raw data to search
+        @retval list of matched start,end index found in raw_data
+        """
+        return_list = []
 
-        # first combine the in process data packet indicies
-        combined_packets = self._combine_adjacent_packets(adj_packets)
-        # loop over combined packets and remove them from unprocessed data
-        for packet in combined_packets:
-            # find which unprocessed section this packet is in
-            for unproc in self._read_state[StateKey.UNPROCESSED_DATA]:
-                if packet[START_IDX] >= unproc[START_IDX] and packet[END_IDX] <= unproc[END_IDX]:
-                    # packet is within this unprocessed data, remove it
-                    self._read_state[StateKey.UNPROCESSED_DATA].remove(unproc)
-                    # add back any data still unprocessed on either side
-                    if packet[START_IDX] > unproc[START_IDX]:
-                        self._read_state[StateKey.UNPROCESSED_DATA].append([unproc[START_IDX], packet[START_IDX]])
-                    if packet[END_IDX] < unproc[END_IDX]:
-                        self._read_state[StateKey.UNPROCESSED_DATA].append([packet[END_IDX], unproc[END_IDX]])
-                    # once we have found which unprocessed section this packet is in,
-                    # move on to next packet
-                    break
-            self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
-            self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
-                self._read_state[StateKey.UNPROCESSED_DATA])
+        #
+        # Search the entire input buffer to find all possible SIO headers.
+        #
+        for match in SIO_HEADER_MATCHER.finditer(raw_data):
+            #
+            # Calculate the expected end index of the SIO block.
+            # If there are enough bytes to comprise an entire SIO block,
+            # continue processing.
+            # If there are not enough bytes, we're done parsing this input.
+            #
+            data_len = int(match.group(SIO_HEADER_GROUP_DATA_LENGTH), 16)
+            end_packet_idx = match.end(0) + data_len
+
+            if end_packet_idx < len(raw_data):
+                # log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
+                #           match.group(0)[1:32], match.end(0), end_packet_idx,
+                #           match.start(0), data_len)
+                #
+                # Get the last byte of the SIO block
+                # and make sure it matches the expected value.
+                #
+                end_packet = raw_data[end_packet_idx]
+                if end_packet == SIO_BLOCK_END:
+                    #
+                    # Calculate the checksum on the data portion of the
+                    # SIO block (excludes start of header, header,
+                    # and end of header.
+                    #
+                    actual_checksum = self.calc_checksum(
+                        raw_data[match.end(0):end_packet_idx])
+
+                    expected_checksum = match.group(SIO_HEADER_GROUP_CHECKSUM)
+
+                    #
+                    # If the checksums match, add the start,end indices to
+                    # the list.  The end of SIO block byte is included.
+                    #
+                    if actual_checksum == expected_checksum:
+                        return_list.append((match.start(0), end_packet_idx+1))
+                    else:
+                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
+                                  actual_checksum, expected_checksum,
+                                  match.group(0)[1:32],
+                                  match.end(0), end_packet_idx)
+                else:
+                    log.debug('End packet at %d is not x03 for header %s',
+                              end_packet_idx, match.group(0)[1:32])
+        return return_list
+
+
+class SioMuleParser(SioParser):
+
+    def __init__(self, config, stream_handle, state, sieve_fn,
+                 state_callback, publish_callback, exception_callback,
+                 recovered_flag=False):
+        """
+        @param config The configuration parameters to feed into the parser
+        @param stream_handle An already open file-like filehandle
+        @param state The location in the file to start parsing from.
+           This reflects what has already been published.
+        @param sieve_fn A sieve function that might be added to a handler
+           to appropriate filter out the data
+        @param state_callback The callback method from the agent driver
+           (ultimately the agent) to call back when a state needs to be
+           updated
+        @param publish_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our sample particle to
+           be published into ION
+        @param exception_callback The callback from the agent driver to
+           send an exception to
+        @param recovered_flag Flag to turn off escape characters present in
+            telemetered but not present in recovered data
+        """
+        log.debug('ZZZZZ ENTER SioMuleParser')
+        super(SioMuleParser, self).__init__(config,
+                                         stream_handle,
+                                         state,
+                                         self.sieve_function,
+                                         state_callback,
+                                         publish_callback,
+                                         exception_callback)
+        log.debug('YYYYY Resume SioMuleParser')
+        # self._position = [0,0] # store both the start and end point for this read of data within the file
+        # self._record_buffer = [] # holds list of records
+        self._recovered_flag = recovered_flag
+        # self.all_data = None
+        self._chunk_sample_count = []
+        self._samples_to_throw_out = None
+        self._mid_sample_packets = 0
+
+        # use None flag in unprocessed data to initialize this we read the entire file and get the size of the data
+        self._read_state = {StateKey.UNPROCESSED_DATA: None,
+                            StateKey.IN_PROCESS_DATA:[]}
+
+        if state:
+            self.set_state(self._state)
 
     def _combine_adjacent_packets(self, packets):
         """
         Combine packets which are adjacent and have the same start/end into one packet
         i.e [[a,b], [b,c]] -> [[a,c]]
         @param packets An array of packets, with the form [[start, end], [next_start, next_end], ...]
-        @retval A new array of packets where adjacent packets will have their indicies combined into one 
+        @retval A new array of packets where adjacent packets will have their indicies combined into one
         """
         combined_packets = []
         idx = 0
@@ -318,6 +314,28 @@ class SioMuleParser(Parser):
             idx = idx + next_inc + 1
         return combined_packets
 
+    def _get_next_unprocessed_data(self, unproc):
+        """
+        Using the UNPROCESSED_DATA state, determine if there are any more unprocessed blocks,
+        and if there are read in the next one
+        @param unproc The unprocessed state
+        @retval The next unprocessed data packet, or [] if no more unprocessed data
+        """
+        # see if there is more unprocessed data at a later file position (don't go backwards)
+        next_idx = 0
+        log.trace('Getting next unprocessed from %s, last position %d', unproc, self._position[END_IDX])
+        while len(unproc) > next_idx and unproc[next_idx][END_IDX] <= self._position[END_IDX]:
+            next_idx = next_idx + 1
+
+        if len(unproc) > next_idx:
+            data = self.all_data[unproc[next_idx][START_IDX]:unproc[next_idx][END_IDX]]
+            self._position = unproc[next_idx]
+            log.debug('got %d bytes starting at %d', len(data), self._position[START_IDX])
+        else:
+            log.debug('Found no data, next_idx=%d', next_idx)
+            data = []
+        return data
+
     def get_num_records(self, num_records):
         """
         Loop through all the in process or unprocessed data until the requested number of records are found
@@ -326,23 +344,13 @@ class SioMuleParser(Parser):
         if self.all_data == None:
             # need to read in the entire data file first and store it because escape sequences shift position of
             # in process and unprocessed blocks
-            log.debug("Reading in all data in smaller blocks")
-            self.all_data = ''
+            self.all_data = self.read_file()
 
-            eof = False
-            while not eof:
-                # read data in small blocks in order to not block processing
-                next_data = self._stream_handle.read(1024)
-                if next_data:
-                    if not self._recovered_flag:
-                        # if this is telemetered, need to replace escape chars, recovered does not
-                        next_data = next_data.replace(b'\x18\x6b', b'\x2b')
-                        next_data = next_data.replace(b'\x18\x58', b'\x18')
-                    self.all_data = self.all_data + next_data
-                    gevent.sleep(0)
-                else:
-                    eof = True
-            log.debug("length of all data %d", len(self.all_data))
+            if not self._recovered_flag:
+                # if this is telemetered, need to replace escape chars, recovered does not
+                self.all_data = self.all_data.replace(b'\x18\x6b', b'\x2b')
+                self.all_data = self.all_data.replace(b'\x18\x58', b'\x18')
+            log.debug("length of all data after replace %d", len(self.all_data))
 
         # if unprocessed data has not been initialized yet, set it to the entire file
         if self._read_state[StateKey.UNPROCESSED_DATA] == None:
@@ -438,27 +446,181 @@ class SioMuleParser(Parser):
 
         return return_list
 
-    def _get_next_unprocessed_data(self, unproc):
+    def _increment_state(self, returned_records = 0):
         """
-        Using the UNPROCESSED_DATA state, determine if there are any more unprocessed blocks,
-        and if there are read in the next one
-        @param unproc The unprocessed state
-        @retval The next unprocessed data packet, or [] if no more unprocessed data
+        Increment which data packets have been processed, and which are still
+        unprocessed.  This keeps track of which data has been received,
+        since blocks may come out of order or appear at a later time in an already
+        processed file.
+        @param returned_records Number of records to return
         """
-        # see if there is more unprocessed data at a later file position (don't go backwards)
-        next_idx = 0
-        log.trace('Getting next unprocessed from %s, last position %d', unproc, self._position[END_IDX])
-        while len(unproc) > next_idx and unproc[next_idx][END_IDX] <= self._position[END_IDX]:
-            next_idx = next_idx + 1
+        log.trace("Incrementing current state: %s", self._read_state)
 
-        if len(unproc) > next_idx:
-            data = self.all_data[unproc[next_idx][START_IDX]:unproc[next_idx][END_IDX]]
-            self._position = unproc[next_idx]
-            log.debug('got %d bytes starting at %d', len(data), self._position[START_IDX])
+        while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
+            # if we were in the middle of processing, we need to drop the parsed
+            # packets sample count because that in process packet already exists
+            self._chunk_sample_count.pop(0)
+            # decrease the mid sample number remaining
+            self._mid_sample_packets -= 1
+
+        for packet_idx in range (0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
+            if self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][SAMPLES_PARSED] is None and \
+            len(self._chunk_sample_count) > 0:
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][SAMPLES_PARSED] = self._chunk_sample_count.pop(0)
+                # adjust for current file position, only do this once when filling in sample count
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][START_IDX] += self._position[START_IDX]
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][END_IDX] += self._position[START_IDX]
+
+        n_removed = 0
+        # need to adjust position to be relative to the entire file, not just the
+        # currently read section, so add the initial position to the in process packets
+        log.debug('records to be returned %d', returned_records)
+        total_remain = returned_records
+        adj_packets = []
+        for packet_idx in range(0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
+            adj_packet_idx = packet_idx - n_removed
+            this_packet = self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx]
+            if this_packet[SAMPLES_PARSED] > 0:
+                # this packet has data samples in it
+                this_packet_remain = this_packet[SAMPLES_PARSED] - this_packet[SAMPLES_RETURNED]
+                # increase the number of samples that have been pulled out
+                self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] += total_remain
+                # find out if packet is done, if so remove it
+                if this_packet[SAMPLES_RETURNED] >= this_packet[SAMPLES_PARSED]:
+                    # this packet has had all the samples pulled out from it, remove it from in process
+                    adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
+                    self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                    n_removed += 1
+                elif this_packet[SAMPLES_RETURNED] < 0:
+                    self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] = 0
+
+                total_remain -= this_packet_remain
+
+            else:
+                # this packet has no samples, no need to process further
+                adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
+                self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                n_removed += 1
+
+        if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
+            # this is the last of the in process data, now process unprocessed data, so
+            # go back to the beginning of the file
+            log.debug('Resetting position to the start')
+            self._position = [0,0]
+            # clear out the chunker so we don't wrap around data
+            self._chunker.clean_all_chunks()
+
+        log.trace('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
+
+        # first combine the in process data packet indicies
+        combined_packets = self._combine_adjacent_packets(adj_packets)
+        # loop over combined packets and remove them from unprocessed data
+        for packet in combined_packets:
+            # find which unprocessed section this packet is in
+            for unproc in self._read_state[StateKey.UNPROCESSED_DATA]:
+                if packet[START_IDX] >= unproc[START_IDX] and packet[END_IDX] <= unproc[END_IDX]:
+                    # packet is within this unprocessed data, remove it
+                    self._read_state[StateKey.UNPROCESSED_DATA].remove(unproc)
+                    # add back any data still unprocessed on either side
+                    if packet[START_IDX] > unproc[START_IDX]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([unproc[START_IDX], packet[START_IDX]])
+                    if packet[END_IDX] < unproc[END_IDX]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([packet[END_IDX], unproc[END_IDX]])
+                    # once we have found which unprocessed section this packet is in,
+                    # move on to next packet
+                    break
+            self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
+            self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
+                self._read_state[StateKey.UNPROCESSED_DATA])
+
+    def packet_exists(self, start, end):
+        """
+        Determine if this packet is already in the in process data
+        """
+        for packet in self._read_state[StateKey.IN_PROCESS_DATA]:
+            if packet[START_IDX] == start + self._position[START_IDX] and \
+            packet[END_IDX] == end + self._position[START_IDX]:
+                log.trace('Already added packet %s', packet)
+                return True
+        return False
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser
+        @param state_obj The object to set the state to. Should be a list with
+        a StateKey.UNPROCESSED_DATA value, a StateKey.IN_PROCESS_DATA value.
+        The UNPROCESSED_DATA and IN_PROCESS_DATA
+        are both arrays which contain an array of start and end indicies for their
+        respective types of data.  The timestamp is an NTP4 format timestamp.
+        @throws DatasetParserException if there is a bad state structure
+        """
+        log.debug("Setting state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not ((StateKey.UNPROCESSED_DATA in state_obj) and \
+            (StateKey.IN_PROCESS_DATA in state_obj)):
+            raise DatasetParserException("Invalid state keys")
+
+        # store both the start and end point for this read of data within the file
+        if state_obj[StateKey.UNPROCESSED_DATA] == []:
+            self._position = [0, 0]
         else:
-            log.debug('Found no data, next_idx=%d', next_idx)
-            data = []
-        return data
+            self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX],
+                              state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX]]
+        self._record_buffer = []
+        self._state = state_obj
+        self._read_state = state_obj
+
+        # it is possible to be in the middle of processing a packet.  Since we have to
+        # process a whole packet, which may contain multiple samples, we have to
+        # re-read the entire packet, then throw out the already received samples
+        self._samples_to_throw_out = None
+        self._mid_sample_packets = len(state_obj[StateKey.IN_PROCESS_DATA])
+        if self._mid_sample_packets > 0 and state_obj[StateKey.IN_PROCESS_DATA][0][SAMPLES_RETURNED] > 0:
+            self._samples_to_throw_out = state_obj[StateKey.IN_PROCESS_DATA][0][SAMPLES_RETURNED]
+
+        # make sure we have cleaned the chunker out of old data so there are no wrap arounds
+        self._chunker.clean_all_chunks()
+
+    def sieve_function(self, raw_data):
+        """
+        Sort through the raw data to identify new blocks of data that need processing.
+        This sieve identifies the SIO header and returns just the data block identified
+        inside the header.
+        @param raw_data The raw data to search
+        @retval list of matched start,end index found in raw_data
+        """
+        return_list = []
+
+        for match in SIO_HEADER_MATCHER.finditer(raw_data):
+            data_len = int(match.group(SIO_HEADER_GROUP_DATA_LENGTH), 16)
+            checksum = match.group(SIO_HEADER_GROUP_CHECKSUM)
+            end_packet_idx = match.end(0) + data_len
+            if end_packet_idx < len(raw_data):
+                end_packet = raw_data[end_packet_idx]
+                # log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
+                #           match.group(0)[1:32], match.end(0), end_packet_idx,
+                #           match.start(0), data_len)
+
+                if end_packet == SIO_BLOCK_END:
+                    packet_data = raw_data[match.end(0):end_packet_idx]
+                    chksum = self.calc_checksum(packet_data)
+                    if chksum == checksum:
+                        # even if this is not the right instrument, keep track that
+                        # this packet was processed
+                        if not self.packet_exists(match.start(0), end_packet_idx+1):
+                            self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0),
+                                                                               end_packet_idx+1,
+                                                                               None, 0])
+                        return_list.append((match.start(0), end_packet_idx+1))
+                    else:
+                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
+                                  chksum, checksum, match.group(0)[1:32],
+                                  match.end(0), end_packet_idx)
+                else:
+                    log.debug('End packet at %d is not x03 for header %s',
+                              end_packet_idx, match.group(0)[1:32])
+        return return_list
 
     def _yank_particles(self, num_to_fetch):
         """
@@ -489,15 +651,3 @@ class SioMuleParser(Parser):
             self._state_callback(self._state) # push new state to driver
 
         return return_list
-
-    def parse_chunks(self):
-        """
-        Parse out any pending data chunks in the chunker. If
-        it is a valid data piece, build a particle, update the position and
-        timestamp. Go until the chunker has no more valid data.
-        @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state (ie "(sample, state)"). An empty list of
-            nothing was parsed.
-        """            
-        raise NotImplementedException("Must write parse_chunks()!")
-
