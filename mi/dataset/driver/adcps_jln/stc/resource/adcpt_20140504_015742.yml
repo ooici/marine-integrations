@@ -1,0 +1,340 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: AdcpsJlnStcMetadataParserDataParticle
+    particle_type: adcps_jln_stc_metadata
+    internal_timestamp: 3608157462.000000
+    adcps_jln_timestamp: 20140504 015742
+    adcps_jln_id: 10
+    adcps_jln_serial_number: 70001671
+    adcps_jln_volts: 8.0000000000000000
+    adcps_jln_records: 12
+    adcps_jln_length: 3216
+    adcps_jln_events: 0
+    adcps_jln_samples_written: 12
+  - _index: 2
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608146800.000000
+    adcps_jln_record: 7850
+    adcps_jln_number: 1713
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 3
+    adcps_jln_hour: 23
+    adcps_jln_minute: 0
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33603
+    adcps_jln_pitch: -159
+    adcps_jln_roll: -128
+    adcps_jln_temp: 1122
+    adcps_jln_pressure: 107151
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-47, -60, -91, -111, -106, -130, -119, -111, -87, -79, -133, -159, -200, -234, -263, -241, -235, -230, -230, -226, -219, -222, -159, 648, 1150, 1153, 782, 524, 279]
+    adcps_jln_vel_up: [89, 103, 144, 159, 136, 155, 127, 98, 90, 103, 99, 116, 104, 67, 31, 42, 11, 7, 20, -5, -17, -25, -7, 276, 392, 346, 356, 198, 122]
+    adcps_jln_vel_north: [-8, -7, -8, -10, -8, -8, -7, -8, -8, -7, -8, -9, -12, -11, -13, -14, -12, -9, -10, -10, -7, -8, 3, 49, 12, 6, 53, 39, 23]
+    adcps_jln_vel_east: [5, 0, 12, -5, -1, -14, 13, -3, 6, -17, -8, -12, -9, -3, 5, 3, 11, 11, 12, 2, 11, 4, 4, 21, -19, -20, -119, -236, -99]
+  - _index: 3
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608147700.000000
+    adcps_jln_record: 7851
+    adcps_jln_number: 1714
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 3
+    adcps_jln_hour: 23
+    adcps_jln_minute: 15
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33637
+    adcps_jln_pitch: -166
+    adcps_jln_roll: -114
+    adcps_jln_temp: 1117
+    adcps_jln_pressure: 107148
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-69, -74, -97, -125, -138, -144, -137, -119, -106, -106, -147, -192, -235, -265, -246, -240, -218, -224, -224, -205, -218, -220, -157, 606, 1086, 1109, 1022, 628, 230]
+    adcps_jln_vel_up: [83, 109, 132, 129, 124, 122, 110, 70, 47, 72, 99, 113, 78, 31, 81, 64, 47, 38, 31, 33, 16, 12, 10, 290, 380, 343, 337, 231, 99]
+    adcps_jln_vel_north: [-5, -3, -5, -2, -1, -4, -7, 5, 0, -3, -3, 0, -4, -4, -6, -1, -2, -4, -2, -2, -8, -3, 4, 42, 32, 12, 18, 23, 18]
+    adcps_jln_vel_east: [0, -4, -2, 23, 4, 2, -9, -16, 2, 9, -7, -3, -3, 4, -3, 11, -2, 13, 6, 8, -8, -9, 7, 5, -64, -10, -293, -104, -19]
+  - _index: 4
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608148600.000000
+    adcps_jln_record: 7852
+    adcps_jln_number: 1715
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 3
+    adcps_jln_hour: 23
+    adcps_jln_minute: 30
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33626
+    adcps_jln_pitch: -165
+    adcps_jln_roll: -122
+    adcps_jln_temp: 1121
+    adcps_jln_pressure: 107439
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-66, -58, -65, -91, -103, -125, -117, -113, -109, -123, -150, -174, -191, -234, -243, -235, -225, -223, -225, -231, -220, -208, -162, 582, 984, 969, 921, 572, 253]
+    adcps_jln_vel_up: [89, 95, 124, 145, 149, 148, 152, 130, 112, 100, 145, 144, 128, 83, 68, 64, 46, 26, 19, 11, -18, -19, -19, 290, 459, 460, 289, 197, 56]
+    adcps_jln_vel_north: [-3, -5, -6, -9, -3, 0, -2, -3, -4, 3, 1, -2, -4, -2, 2, 3, -1, -1, -1, -4, -1, -3, 1, 31, 15, -4, 38, 35, 21]
+    adcps_jln_vel_east: [6, -4, -3, 1, 0, -2, -10, 0, -3, 0, 10, 3, 11, -7, -13, 10, 14, 8, 12, -9, 12, 15, -9, 14, -53, 4, 112, -136, -71]
+  - _index: 5
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608149500.000000
+    adcps_jln_record: 7853
+    adcps_jln_number: 1716
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 3
+    adcps_jln_hour: 23
+    adcps_jln_minute: 45
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33631
+    adcps_jln_pitch: -161
+    adcps_jln_roll: -106
+    adcps_jln_temp: 1119
+    adcps_jln_pressure: 107226
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-40, -71, -76, -89, -131, -130, -128, -132, -141, -159, -152, -177, -228, -263, -221, -227, -236, -207, -198, -209, -197, -176, -141, 565, 1104, 1089, 989, 508, 123]
+    adcps_jln_vel_up: [94, 90, 137, 131, 139, 130, 139, 145, 172, 182, 182, 153, 114, 69, 79, 57, 56, 43, 28, 29, 25, -8, -26, 246, 348, 348, 343, 167, 100]
+    adcps_jln_vel_north: [1, 1, -4, -3, -1, 6, 6, 7, 4, 2, 4, 2, 3, 10, 6, 3, 8, 5, 2, 1, -1, -1, 9, 47, 18, -6, -40, 47, 11]
+    adcps_jln_vel_east: [6, -10, -6, 4, 5, 1, 3, -3, -19, 8, 0, -4, -4, -10, -6, 1, 11, -3, 8, 13, 22, 6, 6, 3, -49, -35, 128, -180, -31]
+  - _index: 6
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608150400.000000
+    adcps_jln_record: 7854
+    adcps_jln_number: 1717
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 0
+    adcps_jln_minute: 0
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33634
+    adcps_jln_pitch: -171
+    adcps_jln_roll: -114
+    adcps_jln_temp: 1125
+    adcps_jln_pressure: 107272
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-31, -35, -56, -101, -110, -110, -107, -131, -156, -179, -146, -192, -252, -256, -225, -230, -209, -207, -202, -212, -227, -198, -142, 550, 1001, 1055, 858, 555, 139]
+    adcps_jln_vel_up: [78, 91, 111, 114, 112, 117, 129, 147, 179, 180, 142, 112, 99, 70, 91, 85, 57, 44, 45, 29, 17, 24, -3, 221, 392, 386, 393, 179, 132]
+    adcps_jln_vel_north: [-5, -6, -7, -8, -5, -7, -4, -11, -13, -10, -11, -15, -12, -12, -9, -10, -10, -11, -6, -7, -6, -5, -3, 39, 17, -5, -2, 21, 3]
+    adcps_jln_vel_east: [10, 7, -5, 5, -7, -7, -16, -18, -10, 11, -16, 6, -9, 6, 2, -14, 8, -5, -2, 5, 0, 11, -3, -4, -28, 30, -363, -199, -67]
+  - _index: 7
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608151300.000000
+    adcps_jln_record: 7855
+    adcps_jln_number: 1718
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 0
+    adcps_jln_minute: 15
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33660
+    adcps_jln_pitch: -169
+    adcps_jln_roll: -96
+    adcps_jln_temp: 1119
+    adcps_jln_pressure: 107251
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-50, -38, -74, -100, -105, -113, -116, -138, -188, -176, -138, -156, -211, -219, -194, -184, -186, -189, -186, -178, -173, -186, -128, 625, 1039, 1132, 1064, 696, 261]
+    adcps_jln_vel_up: [89, 108, 121, 114, 130, 141, 156, 188, 220, 214, 148, 122, 109, 79, 92, 80, 82, 59, 46, 40, 32, -4, -22, 266, 363, 375, 200, 207, 192]
+    adcps_jln_vel_north: [0, -3, 0, -1, 4, 11, 7, 5, 5, 2, 5, 5, 6, 5, 4, 1, 4, 2, 2, 0, 2, 5, 5, 46, 10, 11, -41, 13, -1]
+    adcps_jln_vel_east: [3, 6, 0, 2, -13, 6, -1, 5, 6, 2, -10, -3, 4, 0, 7, 3, 18, -6, -6, 3, -17, -7, 9, -31, -75, -48, 51, -123, -93]
+  - _index: 8
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608152200.000000
+    adcps_jln_record: 7856
+    adcps_jln_number: 1719
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 0
+    adcps_jln_minute: 30
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33622
+    adcps_jln_pitch: -154
+    adcps_jln_roll: -114
+    adcps_jln_temp: 1120
+    adcps_jln_pressure: 107277
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-46, -47, -55, -100, -109, -96, -113, -116, -131, -177, -177, -154, -166, -233, -252, -219, -224, -215, -198, -183, -192, -181, -140, 493, 977, 1005, 954, 651, 335]
+    adcps_jln_vel_up: [144, 127, 155, 159, 156, 164, 193, 200, 228, 250, 213, 175, 140, 119, 45, 45, 22, 24, -4, -11, 0, -32, -47, 271, 312, 356, 368, 243, 161]
+    adcps_jln_vel_north: [2, -2, -4, -1, 0, 5, 9, 8, 7, 4, 10, 6, 6, 4, 6, 9, 4, -1, 4, 5, 3, 2, 4, 26, 32, 16, 8, 30, 39]
+    adcps_jln_vel_east: [2, -3, 2, 0, 10, 24, 16, 5, 13, 8, 12, 7, 15, 13, 13, -2, 7, 1, 1, -12, -18, -5, 0, 15, 36, 31, -186, -149, -81]
+  - _index: 9
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608153100.000000
+    adcps_jln_record: 7857
+    adcps_jln_number: 1720
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 0
+    adcps_jln_minute: 45
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33604
+    adcps_jln_pitch: -149
+    adcps_jln_roll: -128
+    adcps_jln_temp: 1118
+    adcps_jln_pressure: 107453
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-12, -20, -37, -63, -79, -91, -88, -91, -106, -163, -207, -151, -152, -209, -283, -246, -234, -234, -223, -212, -209, -192, -152, 616, 1106, 1043, 1142, 562, 240]
+    adcps_jln_vel_up: [120, 147, 201, 167, 166, 182, 199, 219, 218, 234, 231, 169, 127, 106, 84, 1, -13, -6, 1, -22, -15, -6, -43, 322, 458, 458, 386, 240, 119]
+    adcps_jln_vel_north: [1, 2, 0, -3, -1, 0, 0, 3, -1, -2, 2, 1, -2, -4, -5, -3, -5, -4, 0, 0, -2, 0, 3, 49, 28, 7, -12, 17, 21]
+    adcps_jln_vel_east: [10, 8, -6, 3, 1, 2, -6, -15, -8, 3, -2, -2, 1, 6, -17, -26, -1, -5, 1, 1, 3, -3, 9, -36, -11, -4, -160, -152, -113]
+  - _index: 10
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608154000.000000
+    adcps_jln_record: 7858
+    adcps_jln_number: 1721
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 1
+    adcps_jln_minute: 0
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33598
+    adcps_jln_pitch: -159
+    adcps_jln_roll: -135
+    adcps_jln_temp: 1125
+    adcps_jln_pressure: 107604
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-5, -3, -18, -50, -65, -67, -98, -49, -72, -121, -182, -151, -120, -161, -231, -267, -241, -245, -228, -223, -239, -230, -181, 560, 989, 1103, 1075, 569, 194]
+    adcps_jln_vel_up: [140, 158, 186, 187, 166, 167, 185, 204, 209, 229, 227, 180, 150, 110, 112, 30, 9, -19, -17, -13, -44, -49, -59, 242, 420, 487, 463, 219, 99]
+    adcps_jln_vel_north: [-4, -5, -7, -10, -9, -6, -6, -3, -7, -12, -13, -11, -12, -11, -13, -13, -10, -7, -10, -7, -7, -3, 0, 39, 23, 4, 5, 15, 29]
+    adcps_jln_vel_east: [-8, -8, -12, -9, -1, -4, 7, -2, -4, -7, 0, -13, -5, 3, -7, -10, 0, 5, -2, -31, -18, 6, -24, 11, -77, -131, -133, -134, -123]
+  - _index: 11
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608154900.000000
+    adcps_jln_record: 7859
+    adcps_jln_number: 1722
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 1
+    adcps_jln_minute: 15
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33601
+    adcps_jln_pitch: -151
+    adcps_jln_roll: -122
+    adcps_jln_temp: 1127
+    adcps_jln_pressure: 107657
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [-2, -13, -13, -38, -61, -63, -81, -67, -77, -116, -157, -148, -114, -141, -216, -239, -207, -225, -210, -198, -226, -196, -170, 505, 877, 930, 911, 600, 220]
+    adcps_jln_vel_up: [165, 155, 189, 191, 191, 166, 180, 180, 230, 239, 212, 199, 142, 125, 126, 31, -4, -45, -25, -28, -32, -66, -85, 290, 442, 481, 505, 215, 106]
+    adcps_jln_vel_north: [-4, -4, -5, -8, -5, 0, 1, 1, -5, -6, -11, -4, -5, -8, -8, -3, -9, -5, -6, -5, -7, -8, -1, 39, 16, -2, -24, 12, 7]
+    adcps_jln_vel_east: [3, -12, -5, 14, 5, 1, 0, -3, -1, 3, 12, -8, -4, -5, -20, -15, -3, -1, -4, 1, -4, 21, 5, -6, -8, 52, 680, -45, -6]
+  - _index: 12
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608155800.000000
+    adcps_jln_record: 7860
+    adcps_jln_number: 1723
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 1
+    adcps_jln_minute: 30
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33610
+    adcps_jln_pitch: -160
+    adcps_jln_roll: -122
+    adcps_jln_temp: 1127
+    adcps_jln_pressure: 107681
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [16, 1, -3, -26, -59, -65, -66, -65, -95, -158, -157, -121, -117, -191, -263, -239, -223, -227, -215, -223, -220, -214, -192, 496, 946, 967, 1193, 444, 148]
+    adcps_jln_vel_up: [140, 151, 169, 166, 156, 167, 177, 189, 203, 212, 212, 166, 142, 143, 63, 29, 30, -10, 11, -1, 8, -21, -59, 248, 429, 417, 369, 234, 155]
+    adcps_jln_vel_north: [2, 1, -1, -3, 1, -3, 0, 3, -2, -4, -3, -4, -2, -3, -3, 0, -2, -5, -1, 0, -2, -3, 0, 37, 30, 6, -31, 14, 16]
+    adcps_jln_vel_east: [-13, -4, 5, -2, -3, -10, 3, 5, -1, 3, 13, 5, -3, 7, 5, -1, 6, 9, -13, -5, 0, -4, -3, -11, -50, -34, -466, -140, 10]
+  - _index: 13
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    internal_timestamp: 3608156700.000000
+    adcps_jln_record: 7861
+    adcps_jln_number: 1724
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2014
+    adcps_jln_month: 5
+    adcps_jln_day: 4
+    adcps_jln_hour: 1
+    adcps_jln_minute: 45
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 33622
+    adcps_jln_pitch: -162
+    adcps_jln_roll: -115
+    adcps_jln_temp: 1128
+    adcps_jln_pressure: 107827
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 29
+    adcps_jln_vel_error: [19, 21, 8, -31, -43, -68, -64, -47, -89, -138, -155, -122, -124, -187, -259, -233, -218, -237, -251, -225, -216, -202, -188, 499, 982, 1076, 1015, 494, 235]
+    adcps_jln_vel_up: [130, 159, 180, 169, 158, 171, 168, 180, 200, 217, 196, 167, 155, 153, 94, 37, 20, 21, 3, 12, 3, -21, -35, 304, 395, 445, 279, 204, 169]
+    adcps_jln_vel_north: [0, 0, -3, -2, -1, -3, -2, -6, -8, -13, -9, -6, -9, -5, -18, -12, -7, -10, -7, -1, -3, 0, 0, 35, 21, 4, 38, 57, 0]
+    adcps_jln_vel_east: [-17, 7, -1, -2, -3, 4, 27, 11, 10, -3, 1, 6, 5, 12, -3, 17, 10, 0, -3, 5, 2, 14, 13, -19, -9, -36, -1011, -99, -61]

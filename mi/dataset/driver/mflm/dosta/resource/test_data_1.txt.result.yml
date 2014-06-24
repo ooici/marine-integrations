@@ -1,15 +1,21 @@
 # Result data after parsing test_data_1.txt
 
 header:
-  particle_object: DostadParserDataParticle
-  particle_type: dosta_ln_wfp_instrument
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-23T23:15:01'
-    controller_timestamp: 1374621301
+    particle_object: DostadMetadataDataParticle
+    particle_type: dosta_abcdjm_sio_metadata
     product_number: 4831
     serial_number: 128
+  - _index: 2
+    internal_timestamp: '2013-07-23T23:15:01'
+    particle_object: DostadParserDataParticle
+    particle_type: dosta_abcdjm_sio_instrument
+    sio_controller_timestamp: 1374621301
     estimated_oxygen_concentration: 302.636
     estimated_oxygen_saturation: 98.918
     optode_temperature: 16.355

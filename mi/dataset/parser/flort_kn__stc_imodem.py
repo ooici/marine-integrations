@@ -4,7 +4,7 @@
 @package mi.dataset.parser.flort_kn__stc_imodem
 @file marine-integrations/mi/dataset/parser/flort_kn__stc_imodem.py
 @author Emily Hahn
-@brief Parser for the FLORT_KN__STC_IMODEM dataset driver
+@brief Parser for the FLORT_KN__STC_IMODEM dataset driver (both recovered and telemetered)
 Release notes:
 
 initial release
@@ -26,7 +26,8 @@ from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, SAMPLE
 
 
 class DataParticleType(BaseEnum):
-    FLORT_KN_INS = 'flort_kn__stc_imodem_instrument'
+    FLORT_KN_INSTRUMENT_TELEMETERED = 'flort_kn_stc_imodem_instrument'
+    FLORT_KN_INSTRUMENT_RECOVERED = 'flort_kn_stc_imodem_instrument_recovered'
 
 class Flort_kn__stc_imodemParserDataParticleKey(BaseEnum):
     TIMESTAMP = 'wfp_timestamp'
@@ -34,12 +35,15 @@ class Flort_kn__stc_imodemParserDataParticleKey(BaseEnum):
     RAW_SIGNAL_CHL = 'raw_signal_chl'
     RAW_SIGNAL_CDOM = 'raw_signal_cdom'
 
-class Flort_kn__stc_imodemParserDataParticle(DataParticle):
+
+
+class Flort_kn_stc_imodemParserDataParticleAbstract(DataParticle):
     """
-    Class for parsing data from the FLORT_KN__STC_IMODEM data set
+    Parent class for the recovered and instrument particles (Flort_kn__stc_imodemParserDataParticleRecovered and
+    Flort_kn__stc_imodemParserDataParticle respectively)
     """
 
-    _data_particle_type = DataParticleType.FLORT_KN_INS
+    _data_particle_type = None
     
     def _build_parsed_values(self):
         """
@@ -47,49 +51,32 @@ class Flort_kn__stc_imodemParserDataParticle(DataParticle):
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        if len(self.raw_data) < SAMPLE_BYTES:
-            raise SampleException("Flort_kn__stc_imodemParserDataParticleKey: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
-        try:
-            fields_prof = struct.unpack('>I f f f f h h h', self.raw_data)
-            time_stamp = int(fields_prof[0])
-            scatter = int(fields_prof[5])
-            chl = int(fields_prof[6])
-            CDOM = int(fields_prof[7])
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
-        
-        result = [{DataParticleKey.VALUE_ID: Flort_kn__stc_imodemParserDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: time_stamp},
-                  {DataParticleKey.VALUE_ID: Flort_kn__stc_imodemParserDataParticleKey.RAW_SIGNAL_BETA,
-                   DataParticleKey.VALUE: scatter},
-                  {DataParticleKey.VALUE_ID: Flort_kn__stc_imodemParserDataParticleKey.RAW_SIGNAL_CHL,
-                   DataParticleKey.VALUE: chl},
-                  {DataParticleKey.VALUE_ID: Flort_kn__stc_imodemParserDataParticleKey.RAW_SIGNAL_CDOM,
-                   DataParticleKey.VALUE: CDOM}]
+
+        fields_prof = struct.unpack('>I f f f f h h h', self.raw_data)
+
+        result = [self._encode_value(Flort_kn__stc_imodemParserDataParticleKey.TIMESTAMP, fields_prof[0], int),
+                  self._encode_value(Flort_kn__stc_imodemParserDataParticleKey.RAW_SIGNAL_BETA, fields_prof[5], int),
+                  self._encode_value(Flort_kn__stc_imodemParserDataParticleKey.RAW_SIGNAL_CHL, fields_prof[6], int),
+                  self._encode_value(Flort_kn__stc_imodemParserDataParticleKey.RAW_SIGNAL_CDOM, fields_prof[7], int)]
+
         log.debug('Flort_kn__stc_imodemParserDataParticleKey: particle=%s', result)
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
 
-class Flort_kn__stc_imodemParser(WfpEFileParser):
+class Flort_kn_stc_imodemParserDataParticleRecovered(Flort_kn_stc_imodemParserDataParticleAbstract):
+    """
+     The FLORT_KN__STC_IMODEM data set recovered particle
+    """
+
+    _data_particle_type = DataParticleType.FLORT_KN_INSTRUMENT_RECOVERED
+
+class Flort_kn_stc_imodemParserDataParticleTelemetered(Flort_kn_stc_imodemParserDataParticleAbstract):
+    """
+     The FLORT_KN__STC_IMODEM data set telemetered particle
+    """
+    _data_particle_type = DataParticleType.FLORT_KN_INSTRUMENT_TELEMETERED
+
+class Flort_kn_stc_imodemParser(WfpEFileParser):
 
     def parse_record(self, record):
         """
@@ -103,7 +90,7 @@ class Flort_kn__stc_imodemParser(WfpEFileParser):
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
-            sample = self._extract_sample(Flort_kn__stc_imodemParserDataParticle, None, record, self._timestamp)
+            sample = self._extract_sample(self._particle_class, None, record, self._timestamp)
             if sample:
                 # create particle
                 log.trace("Extracting sample %s with read_state: %s", sample, self._read_state)

@@ -1,0 +1,2524 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557174400.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 1
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1325
+    transmit_pulse_length: 1086
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 164
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 1
+    real_time_clock: [12, 9, 21, 0, 0, 0, 0]
+    ensemble_start_time: 3557174400.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1517
+    transducer_depth: 4
+    heading: 21348
+    pitch: 4216
+    roll: 3980
+    salinity: 35
+    temperature: 1832
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 4
+    pitch_stdev: 1
+    roll_stdev: 12
+    adc_transmit_current: 94
+    adc_transmit_voltage: 167
+    adc_ambient_temp: 92
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 90
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 1
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294965836
+    pressure_variance: 2259
+    real_time_clock_2: [20, 12, 9, 21, 0, 0, 0, 0]
+    ensemble_start_time_2: 3557174400.0000000000000000
+    water_velocity_east: [2, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [12, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-21, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [54, 20, 16, 17, 17, 17, 17, 17, 18, 16, 16, 17, 15, 19, 18, 16, 15, 19, 18, 19, 16, 18, 15, 16, 18, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam2: [59, 50, 76, 17, 15, 15, 14, 16, 16, 16, 17, 15, 15, 19, 16, 16, 16, 15, 18, 17, 19, 16, 16, 16, 16, 19, 17, 18, 19, 16, 17, 16, 17, 16, 17, 15, 16, 16, 16, 14, 18, 16, 16, 18, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam3: [44, 37, 27, 16, 16, 17, 17, 16, 15, 16, 16, 16, 18, 16, 17, 19, 20, 17, 17, 16, 14, 15, 15, 17, 19, 17, 17, 15, 16, 16, 15, 17, 18, 18, 17, 16, 18, 18, 16, 17, 15, 17, 17, 17, 18, 16, 16, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [53, 42, 18, 16, 18, 15, 15, 15, 16, 13, 17, 18, 18, 18, 16, 16, 17, 15, 17, 18, 18, 17, 17, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    echo_intensity_beam1: [114, 61, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44]
+    echo_intensity_beam2: [125, 76, 48, 44, 43, 43, 43, 43, 43, 43, 43, 44, 44, 44, 43, 44, 44, 43, 44, 43, 43, 43, 44, 44, 44, 44, 43, 44, 43, 43, 43, 44, 43, 44, 43, 43, 44, 43, 44, 44, 43, 44, 44, 44, 44, 44, 43, 44, 44, 43, 43, 44, 44, 44, 44]
+    echo_intensity_beam3: [139, 77, 49, 47, 46, 46, 46, 46, 46, 47, 46, 46, 46, 47, 47, 47, 46, 47, 46, 47, 46, 46, 46, 46, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 46, 46, 47, 47, 46, 47, 47, 46, 46, 47, 47, 46, 46, 46, 46, 47, 46]
+    echo_intensity_beam4: [131, 75, 50, 48, 47, 47, 48, 47, 47, 47, 47, 48, 47, 48, 47, 47, 47, 47, 48, 47, 48, 47, 47, 47, 47, 47, 48, 47, 48, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47]
+    percent_good_3beam: [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [92, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 2
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557178000.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 1
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1325
+    transmit_pulse_length: 1086
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 164
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 2
+    real_time_clock: [12, 9, 21, 1, 0, 0, 0]
+    ensemble_start_time: 3557178000.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1517
+    transducer_depth: 2
+    heading: 28638
+    pitch: 4192
+    roll: 4004
+    salinity: 35
+    temperature: 1684
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 10
+    pitch_stdev: 2
+    roll_stdev: 6
+    adc_transmit_current: 94
+    adc_transmit_voltage: 167
+    adc_ambient_temp: 95
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 93
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966467
+    pressure_variance: 1598
+    real_time_clock_2: [20, 12, 9, 21, 1, 0, 0, 0]
+    ensemble_start_time_2: 3557178000.0000000000000000
+    water_velocity_east: [16, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [0, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-45, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [47, 19, 17, 18, 17, 18, 20, 17, 17, 17, 18, 14, 17, 19, 17, 17, 14, 18, 18, 15, 18, 18, 16, 19, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam2: [68, 42, 66, 17, 16, 16, 17, 19, 16, 16, 17, 15, 20, 15, 16, 15, 17, 16, 14, 15, 18, 18, 17, 16, 17, 18, 15, 18, 16, 17, 18, 18, 15, 14, 17, 18, 16, 16, 20, 16, 17, 20, 17, 17, 18, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam3: [46, 39, 41, 17, 16, 16, 15, 17, 20, 17, 18, 17, 16, 18, 17, 15, 18, 16, 21, 17, 17, 18, 15, 19, 16, 17, 16, 17, 19, 17, 18, 18, 20, 16, 17, 18, 18, 17, 14, 17, 16, 17, 16, 15, 18, 15, 22, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [61, 39, 16, 17, 17, 19, 16, 17, 18, 18, 16, 16, 19, 17, 17, 15, 18, 20, 15, 18, 18, 16, 19, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    echo_intensity_beam1: [112, 59, 45, 45, 44, 44, 44, 45, 44, 44, 44, 44, 44, 45, 44, 45, 44, 44, 44, 45, 44, 44, 44, 44, 44, 45, 45, 45, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 44, 45, 44, 44, 45, 44]
+    echo_intensity_beam2: [129, 77, 48, 44, 43, 43, 43, 43, 43, 43, 44, 43, 44, 44, 43, 44, 43, 43, 43, 43, 43, 44, 43, 43, 43, 43, 44, 43, 44, 44, 43, 44, 43, 43, 43, 43, 43, 44, 44, 43, 43, 43, 43, 43, 44, 44, 43, 44, 43, 44, 44, 43, 44, 43, 44]
+    echo_intensity_beam3: [132, 73, 49, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 46, 46, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 46, 46, 47, 47, 46, 47]
+    echo_intensity_beam4: [131, 75, 49, 47, 47, 47, 48, 47, 47, 47, 48, 47, 47, 47, 48, 47, 47, 48, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 48, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47]
+    percent_good_3beam: [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [84, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 3
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557181600.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 1
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1325
+    transmit_pulse_length: 1086
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 164
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 3
+    real_time_clock: [12, 9, 21, 2, 0, 0, 0]
+    ensemble_start_time: 3557181600.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1512
+    transducer_depth: 2
+    heading: 20323
+    pitch: 4222
+    roll: 3744
+    salinity: 35
+    temperature: 1645
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 3
+    pitch_stdev: 0
+    roll_stdev: 18
+    adc_transmit_current: 94
+    adc_transmit_voltage: 167
+    adc_ambient_temp: 95
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966242
+    pressure_variance: 1593
+    real_time_clock_2: [20, 12, 9, 21, 2, 0, 0, 0]
+    ensemble_start_time_2: 3557181600.0000000000000000
+    water_velocity_east: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [36, 23, 19, 17, 17, 16, 18, 17, 18, 16, 16, 16, 17, 17, 18, 16, 16, 16, 16, 18, 15, 17, 15, 18, 17, 19, 18, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam2: [41, 56, 52, 17, 19, 18, 15, 15, 15, 18, 16, 17, 15, 15, 16, 16, 17, 15, 14, 20, 16, 18, 15, 19, 18, 16, 17, 18, 14, 17, 17, 18, 18, 17, 18, 18, 17, 14, 20, 17, 17, 17, 18, 17, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam3: [48, 58, 34, 19, 16, 19, 15, 16, 17, 18, 15, 17, 19, 16, 18, 18, 20, 16, 18, 15, 16, 17, 16, 17, 17, 16, 18, 17, 16, 15, 18, 14, 18, 17, 16, 17, 18, 18, 16, 17, 19, 17, 16, 18, 16, 17, 17, 20, 23, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [47, 40, 21, 18, 18, 17, 16, 18, 18, 19, 16, 17, 18, 18, 16, 19, 16, 17, 15, 16, 19, 20, 15, 17, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    echo_intensity_beam1: [108, 70, 47, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45]
+    echo_intensity_beam2: [121, 85, 51, 45, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44]
+    echo_intensity_beam3: [136, 80, 50, 47, 46, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47]
+    echo_intensity_beam4: [126, 76, 52, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 48, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 50, 51, 51]
+    percent_good_3beam: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 4
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557185200.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 1
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 4
+    real_time_clock: [12, 9, 21, 3, 0, 0, 0]
+    ensemble_start_time: 3557185200.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 2
+    heading: 20973
+    pitch: 4218
+    roll: 3745
+    salinity: 35
+    temperature: 1586
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 3
+    pitch_stdev: 1
+    roll_stdev: 22
+    adc_transmit_current: 94
+    adc_transmit_voltage: 167
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 160
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294965185
+    pressure_variance: 2100
+    real_time_clock_2: [20, 12, 9, 21, 3, 0, 0, 0]
+    ensemble_start_time_2: 3557185200.0000000000000000
+    water_velocity_east: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [61, 23, 18, 17, 15, 17, 19, 16, 18, 15, 18, 17, 18, 18, 18, 17, 17, 16, 17, 20, 19, 19, 17, 17, 16, 16, 13, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam2: [46, 53, 46, 19, 18, 15, 18, 17, 15, 16, 17, 16, 16, 16, 19, 14, 16, 17, 17, 17, 18, 16, 18, 16, 16, 17, 17, 19, 17, 15, 16, 16, 15, 16, 16, 16, 17, 16, 18, 16, 20, 15, 16, 16, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam3: [34, 48, 46, 20, 25, 23, 23, 21, 29, 26, 26, 22, 23, 24, 24, 26, 25, 25, 26, 26, 29, 28, 26, 24, 24, 24, 28, 23, 27, 27, 25, 26, 25, 21, 21, 25, 25, 23, 22, 23, 23, 25, 26, 29, 27, 24, 20, 21, 14, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [58, 37, 19, 19, 14, 17, 15, 18, 16, 18, 17, 13, 19, 18, 17, 20, 18, 15, 17, 15, 17, 16, 19, 18, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    echo_intensity_beam1: [123, 71, 46, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 45, 45, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 44, 44, 44, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44]
+    echo_intensity_beam2: [126, 88, 51, 44, 44, 43, 43, 43, 43, 44, 43, 44, 43, 44, 43, 44, 43, 43, 44, 44, 43, 43, 43, 44, 44, 43, 44, 43, 44, 43, 43, 44, 43, 43, 43, 44, 44, 43, 43, 43, 43, 44, 43, 43, 43, 43, 43, 44, 43, 43, 43, 43, 44, 44, 43]
+    echo_intensity_beam3: [129, 76, 50, 47, 47, 48, 47, 47, 47, 47, 48, 47, 48, 47, 47, 48, 48, 48, 47, 48, 48, 48, 48, 47, 47, 48, 48, 48, 48, 48, 48, 47, 48, 48, 48, 48, 47, 47, 48, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 48, 48, 47, 47, 47, 47]
+    echo_intensity_beam4: [130, 78, 52, 48, 48, 47, 48, 47, 48, 47, 47, 47, 48, 48, 48, 47, 48, 47, 48, 48, 47, 47, 47, 47, 48, 48, 48, 47, 48, 48, 47, 48, 47, 47, 48, 47, 47, 47, 48, 47, 47, 47, 48, 47, 47, 47, 47, 48, 47, 47, 48, 47, 48, 47, 47]
+    percent_good_3beam: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 5
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557188800.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 1
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 5
+    real_time_clock: [12, 9, 21, 4, 0, 0, 0]
+    ensemble_start_time: 3557188800.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1509
+    transducer_depth: 3
+    heading: 20162
+    pitch: 4222
+    roll: 3741
+    salinity: 35
+    temperature: 1578
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 4
+    pitch_stdev: 0
+    roll_stdev: 17
+    adc_transmit_current: 94
+    adc_transmit_voltage: 167
+    adc_ambient_temp: 97
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 95
+    adc_attitude: 130
+    adc_contamination_sensor: 160
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294965641
+    pressure_variance: 2304
+    real_time_clock_2: [20, 12, 9, 21, 4, 0, 0, 0]
+    ensemble_start_time_2: 3557188800.0000000000000000
+    water_velocity_east: [-20, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [47, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-52, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [19, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [40, 26, 17, 16, 18, 17, 19, 14, 18, 18, 17, 15, 18, 15, 15, 17, 17, 14, 20, 18, 17, 18, 16, 17, 15, 17, 15, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam2: [56, 62, 58, 16, 17, 17, 17, 16, 16, 16, 16, 17, 17, 18, 17, 16, 15, 16, 16, 19, 16, 21, 18, 17, 20, 15, 17, 16, 17, 16, 16, 18, 18, 19, 17, 16, 15, 18, 15, 18, 15, 20, 17, 16, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam3: [83, 82, 34, 17, 15, 18, 16, 17, 16, 18, 18, 19, 16, 19, 14, 16, 20, 20, 17, 19, 18, 16, 18, 17, 17, 15, 18, 16, 15, 15, 17, 19, 19, 17, 16, 17, 16, 17, 16, 15, 18, 18, 17, 18, 18, 14, 16, 17, 19, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [52, 39, 15, 15, 18, 17, 17, 16, 18, 18, 17, 15, 15, 14, 18, 19, 18, 17, 17, 15, 16, 18, 17, 17, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    echo_intensity_beam1: [108, 72, 47, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 46, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 44]
+    echo_intensity_beam2: [131, 88, 52, 45, 45, 45, 44, 44, 44, 45, 45, 45, 46, 46, 46, 45, 45, 45, 45, 45, 44, 44, 44, 44, 44, 44, 45, 45, 44, 44, 44, 45, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 45, 45, 45, 44, 45, 44, 44, 44, 44, 44, 44, 45]
+    echo_intensity_beam3: [153, 92, 51, 47, 47, 47, 46, 47, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 46, 47, 46, 47, 46, 46, 46, 47, 46, 46, 47, 47, 47, 47, 47, 46, 46, 46, 46, 47, 47, 46, 47, 46, 46, 46]
+    echo_intensity_beam4: [129, 80, 53, 49, 49, 49, 48, 49, 49, 49, 49, 49, 49, 49, 49, 48, 49, 49, 49, 49, 49, 49, 48, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 48, 49, 49, 49, 49, 49, 49, 49, 48, 49]
+    percent_good_3beam: [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [88, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 6
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557192400.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 1
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 6
+    real_time_clock: [12, 9, 21, 5, 0, 0, 0]
+    ensemble_start_time: 3557192400.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1509
+    transducer_depth: 1
+    heading: 20127
+    pitch: 4218
+    roll: 3773
+    salinity: 35
+    temperature: 1602
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 5
+    pitch_stdev: 1
+    roll_stdev: 20
+    adc_transmit_current: 94
+    adc_transmit_voltage: 167
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 95
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294965588
+    pressure_variance: 2086
+    real_time_clock_2: [20, 12, 9, 21, 5, 0, 0, 0]
+    ensemble_start_time_2: 3557192400.0000000000000000
+    water_velocity_east: [10, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_north: [30, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    water_velocity_up: [-22, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    error_velocity: [-17, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [51, 24, 19, 17, 18, 18, 17, 17, 14, 19, 18, 19, 19, 17, 19, 19, 15, 16, 19, 15, 16, 16, 17, 18, 16, 19, 13, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam2: [42, 54, 59, 17, 15, 18, 14, 16, 16, 15, 16, 18, 16, 14, 18, 17, 16, 13, 17, 15, 19, 15, 16, 15, 16, 17, 18, 18, 15, 19, 15, 18, 18, 17, 15, 16, 16, 15, 17, 18, 17, 17, 16, 14, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam3: [75, 85, 36, 17, 15, 17, 16, 20, 16, 18, 17, 18, 16, 16, 16, 16, 18, 20, 15, 16, 17, 19, 16, 16, 17, 15, 18, 19, 17, 16, 18, 18, 17, 16, 16, 16, 15, 16, 17, 18, 18, 18, 18, 19, 18, 17, 16, 19, 13, 0, 0, 0, 0, 0, 0]
+    correlation_magnitude_beam4: [49, 34, 19, 16, 18, 17, 20, 17, 15, 17, 18, 14, 16, 19, 19, 18, 17, 17, 17, 18, 16, 19, 16, 19, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    echo_intensity_beam1: [121, 70, 49, 48, 48, 47, 47, 47, 47, 48, 48, 47, 47, 47, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 47, 47, 48, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47]
+    echo_intensity_beam2: [125, 84, 51, 45, 45, 44, 45, 45, 45, 45, 45, 45, 44, 45, 45, 45, 45, 45, 45, 45, 44, 45, 44, 45, 45, 44, 45, 44, 44, 44, 45, 45, 45, 45, 45, 45, 45, 44, 45, 45, 45, 44, 45, 45, 45, 45, 45, 45, 44, 44, 45, 45, 45, 45, 45]
+    echo_intensity_beam3: [150, 93, 52, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47]
+    echo_intensity_beam4: [129, 79, 54, 50, 51, 50, 51, 50, 51, 51, 51, 51, 51, 50, 51, 50, 50, 50, 50, 51, 50, 50, 51, 50, 51, 50, 50, 50, 50, 50, 51, 50, 50, 50, 51, 51, 51, 50, 50, 50, 50, 50, 50, 51, 50, 50, 50, 50, 50, 50, 51, 50, 50, 50, 50]
+    percent_good_3beam: [12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [84, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    percent_good_4beam: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  - _index: 7
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557196000.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 7
+    real_time_clock: [12, 9, 21, 6, 0, 0, 0]
+    ensemble_start_time: 3557196000.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1510
+    transducer_depth: 6
+    heading: 2398
+    pitch: 762
+    roll: 1156
+    salinity: 35
+    temperature: 1658
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 25
+    pitch_stdev: 138
+    roll_stdev: 137
+    adc_transmit_current: 114
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 95
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966863
+    pressure_variance: 1935
+    real_time_clock_2: [20, 12, 9, 21, 6, 0, 0, 0]
+    ensemble_start_time_2: 3557196000.0000000000000000
+    water_velocity_east: [11, -19, -38, -123, -140, -94, 26, -20, 2, -80, 55, 55, -8, -37, 82, 97, -22, -63, 74, -49, -78, -2, 80, 65, 99, 25, 6, -21, 106, -54, -97, -305, -118, 17, 57, -10, -22, -66, -60, -20, -47, 36, 95, 133, -100, 19, -53, -32, -155, -27, -26, 98, 122, -32768, -32768]
+    water_velocity_north: [-90, -112, -101, -69, -94, -75, -65, -81, -53, -105, -7, -89, -36, -167, -108, 4, -98, -89, -83, -86, -158, -77, 47, -101, -33, 2, -11, -37, 113, 48, -38, -55, 160, -23, 119, -90, -132, -62, -74, -47, 5, 29, -112, 0, -48, -47, -97, -55, -207, 159, 61, -176, -223, -32768, -32768]
+    water_velocity_up: [-97, -200, -222, -215, -218, -229, -247, -230, -219, -225, -232, -267, -283, -252, -286, -232, -245, -242, -242, -248, -296, -277, -204, -280, -220, -226, -318, -288, -298, -232, -244, -137, -213, -346, -239, -13, -53, -63, -295, -324, -91, -91, -88, -105, -39, -12, -45, 104, 151, -173, 157, -394, -215, -32768, -32768]
+    error_velocity: [-65, -60, -30, -49, -65, -25, -5, 35, 30, -70, -30, -91, -43, -77, -79, 35, -7, 21, -56, 7, 58, 65, 89, -4, -17, -24, -64, 89, -8, 3, -60, -103, -218, -43, -54, 179, 2, 108, -157, -57, -121, 94, -91, 132, -53, -270, -301, -270, -89, 44, -76, -83, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [87, 81, 82, 85, 79, 82, 83, 80, 81, 79, 79, 77, 73, 75, 70, 73, 75, 69, 80, 70, 67, 72, 66, 68, 65, 69, 60, 67, 66, 54, 55, 56, 56, 60, 59, 60, 60, 65, 56, 57, 58, 51, 53, 52, 57, 53, 55, 51, 53, 61, 55, 50, 38, 38, 37]
+    correlation_magnitude_beam2: [75, 86, 91, 93, 92, 89, 98, 92, 88, 88, 86, 89, 83, 84, 84, 81, 84, 82, 76, 77, 78, 78, 77, 76, 73, 74, 70, 68, 68, 62, 60, 64, 68, 65, 59, 63, 55, 60, 53, 59, 57, 56, 61, 57, 51, 51, 52, 52, 52, 55, 50, 54, 48, 47, 51]
+    correlation_magnitude_beam3: [76, 83, 86, 85, 86, 86, 82, 84, 85, 84, 78, 76, 79, 77, 76, 77, 75, 74, 70, 72, 72, 65, 65, 69, 72, 71, 69, 67, 66, 68, 62, 57, 50, 54, 52, 60, 62, 52, 52, 58, 55, 51, 49, 49, 54, 46, 49, 49, 50, 45, 49, 48, 43, 49, 40]
+    correlation_magnitude_beam4: [67, 88, 88, 88, 87, 90, 92, 89, 86, 84, 80, 78, 79, 80, 78, 80, 79, 76, 71, 72, 71, 71, 73, 73, 70, 68, 65, 59, 63, 56, 55, 56, 61, 55, 56, 58, 50, 54, 57, 63, 59, 52, 54, 58, 50, 49, 53, 46, 50, 48, 46, 47, 49, 41, 41]
+    echo_intensity_beam1: [176, 157, 146, 137, 128, 122, 118, 112, 108, 103, 98, 94, 91, 89, 89, 86, 84, 84, 82, 81, 81, 78, 79, 80, 78, 77, 77, 76, 75, 73, 73, 71, 69, 72, 70, 71, 70, 72, 70, 69, 68, 67, 67, 66, 65, 64, 65, 63, 65, 62, 62, 64, 64, 63, 62]
+    echo_intensity_beam2: [174, 164, 155, 146, 138, 132, 129, 121, 115, 109, 102, 99, 97, 95, 92, 90, 89, 86, 84, 84, 81, 80, 81, 80, 79, 78, 76, 74, 73, 71, 69, 69, 67, 68, 69, 70, 69, 68, 67, 69, 68, 68, 66, 65, 64, 63, 62, 61, 62, 58, 60, 61, 61, 63, 62]
+    echo_intensity_beam3: [177, 160, 150, 142, 134, 127, 122, 117, 112, 107, 102, 98, 94, 92, 91, 91, 89, 87, 85, 84, 81, 80, 80, 82, 80, 81, 80, 78, 78, 76, 73, 73, 69, 71, 72, 73, 70, 70, 69, 69, 69, 70, 69, 68, 68, 67, 67, 67, 66, 66, 64, 66, 67, 66, 65]
+    echo_intensity_beam4: [176, 162, 153, 144, 135, 128, 124, 119, 112, 106, 99, 97, 94, 91, 89, 86, 86, 84, 82, 83, 82, 81, 81, 80, 79, 76, 75, 73, 71, 69, 69, 67, 68, 67, 69, 70, 70, 70, 70, 69, 67, 66, 66, 65, 63, 62, 61, 60, 60, 59, 60, 60, 62, 61, 61]
+    percent_good_3beam: [8, 12, 8, 16, 20, 8, 8, 12, 12, 12, 12, 16, 16, 8, 16, 4, 12, 8, 16, 8, 16, 4, 12, 8, 8, 12, 12, 12, 8, 8, 8, 12, 20, 8, 16, 12, 16, 8, 8, 4, 8, 12, 12, 20, 12, 12, 8, 0, 8, 8, 12, 0, 12, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [36, 32, 40, 32, 32, 32, 32, 36, 36, 40, 40, 40, 44, 48, 44, 48, 44, 48, 48, 52, 44, 56, 56, 48, 56, 48, 56, 60, 60, 72, 72, 72, 64, 76, 68, 64, 64, 64, 72, 76, 68, 68, 72, 68, 76, 76, 80, 88, 80, 80, 84, 92, 88, 100, 100]
+    percent_good_4beam: [56, 56, 52, 52, 48, 60, 60, 52, 52, 48, 48, 44, 40, 44, 40, 48, 44, 44, 36, 40, 40, 40, 32, 44, 36, 40, 32, 28, 32, 20, 20, 16, 16, 16, 16, 24, 20, 28, 20, 20, 24, 20, 16, 12, 12, 12, 12, 12, 12, 12, 4, 8, 0, 0, 0]
+  - _index: 8
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557199600.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1325
+    transmit_pulse_length: 1086
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 164
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 8
+    real_time_clock: [12, 9, 21, 7, 0, 0, 0]
+    ensemble_start_time: 3557199600.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1512
+    transducer_depth: 7
+    heading: 1302
+    pitch: 584
+    roll: 601
+    salinity: 35
+    temperature: 1657
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 11
+    pitch_stdev: 81
+    roll_stdev: 76
+    adc_transmit_current: 112
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 95
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 160
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 146
+    pressure_variance: 1945
+    real_time_clock_2: [20, 12, 9, 21, 7, 0, 0, 0]
+    ensemble_start_time_2: 3557199600.0000000000000000
+    water_velocity_east: [120, 106, 31, 1, -5, -28, 84, 121, 55, 37, 39, 129, 54, 84, 79, 34, 39, 72, 113, -5, 58, 111, 138, 83, 72, 134, 70, 126, 194, 58, 119, 64, 258, 209, 140, 222, 100, -6, -59, -153, 17, 195, 103, 163, 137, 255, 462, 185, 218, 278, 262, 440, -32768, -32768, -32768]
+    water_velocity_north: [-63, -146, -132, -125, -118, -112, -47, -105, -122, -126, -106, -107, -60, -109, -145, -163, -100, -147, -297, -145, -58, -83, -246, -83, -18, -59, -96, -44, -6, -91, -133, -192, -13, -442, -184, -211, -12, -114, -161, -520, -90, -267, -271, -211, -266, 66, 8, -270, -110, 136, -394, -855, -32768, -32768, -32768]
+    water_velocity_up: [-162, -244, -286, -289, -335, -350, -334, -334, -337, -365, -358, -360, -366, -348, -348, -365, -346, -385, -383, -359, -388, -323, -310, -316, -272, -275, -269, -230, -211, -196, -211, -147, -177, -152, -136, -120, -78, -53, -91, -143, -297, -181, 9, -76, -121, -166, -85, -138, -313, 34, -150, -382, -32768, -32768, -32768]
+    error_velocity: [109, -44, 26, 15, 59, 15, 59, 37, 58, 12, 34, -59, 40, -53, 40, -37, -17, 101, -50, 4, -44, -103, 2, -7, 57, 86, 38, 61, 31, -51, -37, -18, 6, 28, -124, -83, -182, 172, -95, 343, 265, 103, 263, 288, 54, -32768, -32768, -32768, -32768, -32768, -5, -32768, -32768, -32768, -32768]
+    correlation_magnitude_beam1: [82, 76, 84, 81, 77, 75, 77, 80, 78, 74, 78, 76, 78, 67, 69, 71, 69, 71, 73, 70, 65, 65, 62, 65, 65, 66, 67, 65, 60, 58, 52, 45, 47, 51, 48, 43, 47, 47, 46, 49, 50, 52, 56, 53, 47, 45, 51, 41, 39, 34, 29, 25, 20, 23, 25]
+    correlation_magnitude_beam2: [67, 78, 82, 86, 82, 81, 81, 80, 79, 82, 77, 75, 77, 78, 70, 75, 75, 73, 81, 73, 73, 75, 71, 74, 72, 68, 72, 68, 70, 65, 63, 63, 62, 63, 61, 57, 58, 55, 53, 59, 60, 56, 52, 55, 53, 47, 50, 52, 47, 50, 48, 41, 39, 40, 44]
+    correlation_magnitude_beam3: [71, 73, 80, 86, 76, 80, 77, 78, 75, 72, 70, 69, 68, 67, 66, 65, 63, 68, 66, 63, 63, 62, 65, 68, 65, 65, 63, 61, 60, 56, 56, 49, 54, 50, 52, 51, 50, 51, 52, 50, 52, 54, 54, 57, 55, 53, 53, 44, 50, 42, 52, 45, 40, 38, 38]
+    correlation_magnitude_beam4: [76, 78, 85, 83, 84, 85, 84, 84, 81, 82, 76, 76, 77, 74, 70, 72, 68, 74, 74, 68, 66, 66, 68, 73, 64, 61, 59, 62, 59, 58, 54, 54, 50, 48, 50, 49, 50, 45, 51, 46, 43, 42, 45, 39, 36, 41, 35, 31, 37, 29, 35, 32, 32, 32, 41]
+    echo_intensity_beam1: [173, 150, 140, 130, 121, 115, 110, 104, 102, 95, 91, 86, 85, 81, 76, 74, 74, 74, 73, 70, 70, 70, 71, 69, 67, 66, 65, 65, 64, 64, 64, 62, 61, 60, 61, 61, 61, 62, 61, 62, 61, 61, 58, 58, 58, 57, 55, 55, 54, 54, 55, 53, 53, 53, 52]
+    echo_intensity_beam2: [168, 156, 148, 139, 129, 122, 116, 112, 105, 101, 95, 90, 88, 84, 82, 80, 77, 78, 75, 73, 71, 71, 71, 71, 70, 69, 68, 67, 65, 63, 63, 62, 62, 62, 62, 63, 65, 62, 63, 64, 62, 61, 59, 60, 59, 57, 57, 56, 55, 54, 53, 52, 52, 51, 49]
+    echo_intensity_beam3: [172, 155, 147, 137, 127, 121, 115, 111, 106, 101, 96, 93, 87, 85, 82, 79, 78, 77, 76, 73, 71, 71, 71, 69, 69, 70, 69, 69, 69, 68, 67, 66, 64, 64, 62, 65, 66, 68, 65, 65, 65, 64, 62, 64, 64, 62, 62, 61, 60, 61, 61, 58, 57, 56, 57]
+    echo_intensity_beam4: [172, 153, 144, 133, 125, 118, 112, 105, 101, 95, 89, 86, 84, 80, 77, 74, 74, 72, 72, 68, 68, 67, 68, 66, 65, 64, 64, 62, 61, 59, 60, 59, 58, 58, 60, 61, 61, 60, 60, 58, 59, 59, 57, 58, 56, 55, 55, 53, 53, 53, 53, 52, 52, 52, 53]
+    percent_good_3beam: [12, 4, 0, 8, 8, 0, 4, 8, 12, 12, 12, 12, 20, 4, 20, 20, 8, 20, 24, 24, 24, 20, 8, 8, 12, 8, 12, 8, 12, 16, 16, 16, 24, 16, 20, 12, 12, 24, 16, 20, 8, 16, 20, 24, 20, 16, 12, 8, 12, 8, 4, 4, 0, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [48, 40, 44, 48, 44, 48, 48, 48, 48, 48, 48, 52, 44, 52, 52, 48, 52, 48, 44, 48, 48, 52, 56, 56, 64, 64, 60, 60, 56, 60, 68, 68, 64, 68, 68, 72, 72, 68, 68, 68, 80, 76, 68, 64, 72, 84, 88, 92, 88, 92, 92, 96, 100, 100, 100]
+    percent_good_4beam: [40, 56, 56, 44, 48, 52, 48, 44, 40, 40, 40, 36, 36, 44, 28, 32, 40, 32, 32, 28, 28, 28, 36, 36, 24, 28, 28, 32, 32, 24, 16, 16, 12, 16, 12, 16, 16, 8, 16, 12, 12, 8, 12, 12, 8, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0]
+  - _index: 9
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557203200.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1325
+    transmit_pulse_length: 1086
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 164
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 9
+    real_time_clock: [12, 9, 21, 8, 0, 0, 0]
+    ensemble_start_time: 3557203200.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1512
+    transducer_depth: 6
+    heading: 1093
+    pitch: 703
+    roll: 768
+    salinity: 35
+    temperature: 1648
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 12
+    pitch_stdev: 57
+    roll_stdev: 55
+    adc_transmit_current: 114
+    adc_transmit_voltage: 160
+    adc_ambient_temp: 95
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294967072
+    pressure_variance: 2102
+    real_time_clock_2: [20, 12, 9, 21, 8, 0, 0, 0]
+    ensemble_start_time_2: 3557203200.0000000000000000
+    water_velocity_east: [95, 215, 135, 126, 86, 69, 170, 189, 168, 140, 155, 181, 210, 208, 208, 192, 210, 208, 219, 167, 188, 153, 137, 134, 166, 175, 149, 138, 130, 133, 122, 155, 143, 131, 85, 124, 150, 84, 149, 235, 278, 229, 102, 202, 162, 279, 239, 220, 301, 185, 60, -339, 331, -116, 107]
+    water_velocity_north: [-125, -126, -100, -206, -124, -31, -82, -63, -87, -59, -46, -30, -46, -23, -54, -139, -121, -166, -157, -85, -128, -170, -132, -114, -107, -76, -90, -114, -173, -421, -198, -188, -178, -253, -170, -191, -295, -439, -319, -376, -236, -204, -297, -135, -291, -315, -313, -140, -146, -134, 506, 1065, -156, -453, -80]
+    water_velocity_up: [18, 10, 20, 7, 6, 11, -8, 4, -16, -2, -9, -9, -11, -22, -19, -15, -31, -57, -48, -47, -35, -53, -31, -42, -25, -31, -24, -2, -8, -49, 4, -64, -58, -22, 2, -42, -86, -106, -132, -147, -114, -58, -56, -50, -52, -109, -57, -73, -84, -60, -168, -97, 194, 496, 592]
+    error_velocity: [-5, -150, 19, -5, -43, -31, -37, -28, 16, -31, 3, -43, 39, -32, 11, -64, -58, 19, 6, -19, 32, 62, -30, -60, -28, 12, -44, 12, -69, -37, -81, -51, 2, -100, -59, -46, -84, 4, -79, 20, 6, -50, 9, -16, -93, -18, -60, 2, -54, -51, 79, -53, -21, -132, -32768]
+    correlation_magnitude_beam1: [86, 112, 127, 126, 123, 124, 129, 124, 126, 126, 123, 122, 125, 122, 121, 122, 123, 118, 117, 117, 113, 116, 118, 118, 117, 117, 119, 119, 112, 113, 109, 108, 106, 102, 100, 98, 97, 91, 92, 91, 90, 93, 90, 86, 87, 81, 80, 82, 72, 66, 70, 56, 45, 85, 56]
+    correlation_magnitude_beam2: [90, 113, 118, 121, 123, 120, 122, 124, 123, 122, 124, 120, 124, 121, 121, 119, 118, 123, 120, 115, 118, 112, 115, 121, 115, 119, 117, 115, 115, 112, 111, 106, 109, 109, 101, 103, 96, 96, 95, 96, 103, 103, 101, 98, 93, 95, 89, 86, 88, 79, 78, 73, 74, 70, 64]
+    correlation_magnitude_beam3: [90, 111, 126, 124, 125, 122, 124, 124, 127, 127, 124, 122, 122, 123, 122, 122, 123, 123, 121, 120, 120, 118, 117, 117, 119, 116, 118, 118, 117, 111, 113, 111, 107, 104, 103, 103, 98, 101, 102, 101, 101, 99, 92, 92, 90, 92, 93, 88, 82, 75, 72, 67, 66, 43, 39]
+    correlation_magnitude_beam4: [82, 107, 124, 126, 122, 122, 128, 123, 125, 123, 125, 122, 124, 120, 121, 120, 118, 121, 121, 119, 119, 118, 117, 118, 120, 118, 113, 115, 113, 113, 110, 101, 104, 105, 101, 93, 94, 94, 99, 104, 101, 100, 101, 93, 87, 92, 84, 81, 77, 75, 75, 63, 56, 49, 47]
+    echo_intensity_beam1: [206, 204, 202, 193, 183, 173, 168, 162, 158, 153, 150, 143, 138, 131, 128, 123, 120, 118, 115, 114, 110, 109, 108, 109, 108, 109, 107, 107, 106, 104, 102, 98, 96, 95, 94, 92, 91, 89, 89, 88, 88, 87, 86, 84, 84, 83, 83, 81, 80, 79, 78, 75, 74, 74, 74]
+    echo_intensity_beam2: [207, 204, 197, 190, 178, 169, 163, 158, 151, 147, 143, 138, 136, 129, 125, 122, 118, 117, 113, 110, 109, 108, 110, 108, 108, 106, 104, 102, 100, 97, 93, 90, 91, 89, 86, 85, 85, 84, 85, 86, 86, 85, 83, 82, 80, 78, 75, 73, 72, 71, 68, 66, 66, 66, 65]
+    echo_intensity_beam3: [211, 209, 207, 199, 188, 179, 174, 171, 167, 162, 158, 151, 145, 139, 135, 130, 127, 124, 122, 119, 116, 113, 112, 112, 111, 111, 112, 110, 110, 106, 105, 101, 99, 95, 97, 96, 95, 95, 94, 94, 93, 91, 92, 90, 90, 87, 87, 85, 83, 82, 79, 77, 76, 75, 73]
+    echo_intensity_beam4: [209, 204, 199, 189, 178, 169, 165, 159, 152, 148, 143, 138, 133, 125, 122, 120, 118, 116, 113, 109, 108, 109, 110, 110, 108, 108, 107, 103, 100, 98, 95, 94, 93, 90, 89, 88, 89, 90, 91, 90, 89, 86, 85, 84, 81, 78, 80, 77, 75, 74, 72, 70, 68, 69, 67]
+    percent_good_3beam: [32, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 4, 0, 8, 4, 8, 8, 4, 4, 4, 4, 4, 12, 4, 8, 12, 8, 8, 4, 24, 12, 8, 24, 16, 12, 8, 12, 12, 8, 8, 12, 16, 12, 16, 28, 36, 12, 12, 0, 4]
+    percent_transforms_reject: [0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0]
+    percent_bad_beams: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 4, 8, 12, 16, 12, 12, 16, 20, 24, 24, 28, 24, 24, 36, 28, 36, 28, 40, 48, 48, 48, 52, 76, 84, 96, 96]
+    percent_good_4beam: [64, 96, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 88, 88, 88, 92, 84, 88, 84, 84, 88, 88, 88, 88, 88, 80, 84, 84, 76, 76, 72, 80, 60, 68, 68, 48, 56, 56, 64, 60, 48, 60, 52, 56, 40, 36, 32, 20, 12, 12, 4, 4, 0]
+  - _index: 10
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557206800.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 10
+    real_time_clock: [12, 9, 21, 9, 0, 0, 0]
+    ensemble_start_time: 3557206800.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 3
+    heading: 134
+    pitch: 445
+    roll: 355
+    salinity: 35
+    temperature: 1633
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 17
+    pitch_stdev: 37
+    roll_stdev: 36
+    adc_transmit_current: 114
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294965864
+    pressure_variance: 2065
+    real_time_clock_2: [20, 12, 9, 21, 9, 0, 0, 0]
+    ensemble_start_time_2: 3557206800.0000000000000000
+    water_velocity_east: [-89, 25, -12, -73, 24, -64, -30, -72, -49, -17, -22, -19, 19, -28, -54, -32, -42, -36, -23, -30, -48, -88, -31, -44, -30, -58, -73, -41, 4, -8, -65, -39, -26, -66, -81, -67, -42, -68, -6, -3, -45, -53, -50, -57, -57, -64, -90, -83, -55, -67, -54, -6, 3, -105, -219]
+    water_velocity_north: [-153, -160, -49, -106, -88, 1, -40, -74, -153, -186, -168, -117, -98, -141, -149, -189, -204, -128, -114, -171, -123, -155, -173, -101, -69, -104, -175, -125, -133, -156, -159, -130, -138, -161, -169, -161, -198, -163, -136, -127, -158, -151, -163, -159, -179, -189, -119, -119, -72, -168, -58, -143, -124, -165, 269]
+    water_velocity_up: [-117, -140, -140, -139, -136, -141, -127, -135, -135, -134, -126, -133, -129, -128, -131, -109, -125, -128, -128, -126, -126, -125, -120, -123, -114, -117, -114, -109, -119, -118, -99, -101, -102, -105, -90, -99, -91, -75, -70, -71, -73, -84, -85, -98, -87, -96, -86, -65, -83, -49, -42, -34, -16, 95, 59]
+    error_velocity: [15, -26, 40, -4, 0, 29, 47, 14, -3, -31, -18, 34, -8, 26, 28, 30, -12, 11, -14, -6, -3, -12, 6, -2, -9, 5, 16, -14, -4, 13, 27, 29, 45, 23, 3, -28, 72, -31, -28, 4, -7, 67, 32, 15, -9, 23, 11, -44, -16, 17, 78, 18, 86, -284, -32768]
+    correlation_magnitude_beam1: [90, 114, 130, 117, 120, 127, 123, 125, 122, 121, 123, 127, 126, 125, 126, 122, 125, 124, 123, 124, 123, 125, 121, 123, 126, 126, 123, 122, 125, 120, 120, 121, 121, 116, 117, 111, 114, 115, 114, 116, 121, 120, 114, 115, 111, 111, 108, 104, 99, 97, 92, 89, 77, 78, 64]
+    correlation_magnitude_beam2: [86, 117, 130, 116, 127, 125, 127, 125, 121, 127, 126, 128, 125, 124, 126, 124, 127, 129, 128, 125, 121, 127, 126, 128, 127, 127, 125, 125, 125, 128, 123, 125, 123, 125, 127, 124, 124, 122, 125, 124, 122, 121, 123, 123, 123, 121, 120, 112, 116, 113, 113, 112, 102, 97, 83]
+    correlation_magnitude_beam3: [88, 115, 125, 118, 123, 128, 121, 127, 125, 125, 124, 128, 128, 127, 128, 126, 125, 123, 125, 126, 125, 121, 124, 126, 128, 127, 125, 127, 126, 121, 123, 122, 120, 121, 123, 121, 119, 120, 118, 117, 118, 121, 117, 122, 117, 116, 114, 112, 113, 107, 101, 101, 98, 90, 91]
+    correlation_magnitude_beam4: [81, 115, 129, 121, 126, 126, 123, 124, 123, 129, 125, 125, 127, 126, 123, 126, 125, 126, 128, 126, 122, 125, 125, 127, 128, 126, 127, 125, 128, 124, 120, 125, 122, 123, 119, 120, 120, 119, 122, 124, 122, 118, 116, 118, 119, 112, 108, 107, 104, 104, 99, 91, 91, 73, 74]
+    echo_intensity_beam1: [198, 201, 204, 189, 177, 173, 167, 163, 156, 150, 149, 146, 141, 133, 127, 123, 120, 118, 116, 113, 111, 110, 109, 111, 112, 112, 110, 109, 105, 104, 102, 99, 96, 96, 92, 92, 91, 90, 92, 92, 93, 92, 92, 90, 86, 84, 82, 80, 77, 74, 72, 71, 69, 67, 65]
+    echo_intensity_beam2: [199, 206, 209, 192, 184, 177, 172, 167, 159, 157, 152, 149, 145, 136, 130, 127, 127, 124, 119, 115, 114, 117, 119, 119, 118, 117, 115, 114, 111, 105, 102, 100, 100, 98, 96, 95, 97, 98, 100, 99, 97, 96, 94, 92, 91, 88, 85, 80, 80, 78, 75, 72, 68, 64, 61]
+    echo_intensity_beam3: [204, 207, 211, 198, 187, 182, 180, 173, 165, 159, 156, 154, 151, 144, 138, 134, 129, 126, 123, 121, 117, 116, 117, 119, 120, 119, 118, 116, 115, 113, 111, 107, 103, 100, 99, 98, 96, 98, 96, 97, 97, 97, 96, 95, 94, 92, 89, 87, 84, 80, 78, 76, 74, 71, 68]
+    echo_intensity_beam4: [200, 207, 206, 188, 181, 174, 171, 164, 155, 154, 150, 146, 140, 132, 128, 126, 123, 119, 117, 112, 113, 116, 118, 118, 116, 114, 112, 110, 107, 101, 99, 98, 96, 95, 94, 94, 94, 96, 98, 96, 95, 92, 91, 87, 86, 83, 82, 78, 75, 74, 71, 67, 64, 62, 60]
+    percent_good_3beam: [16, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 4, 0, 0, 4, 4, 0, 8, 8, 12, 12, 16, 20, 12, 24, 24, 20, 4]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 12, 20, 52, 72, 96]
+    percent_good_4beam: [72, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 96, 100, 96, 100, 100, 96, 96, 100, 92, 92, 88, 88, 80, 76, 76, 56, 24, 8, 0]
+  - _index: 11
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557210400.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 11
+    real_time_clock: [12, 9, 21, 10, 0, 0, 0]
+    ensemble_start_time: 3557210400.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 6
+    heading: 2371
+    pitch: 518
+    roll: 839
+    salinity: 35
+    temperature: 1626
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 10
+    pitch_stdev: 36
+    roll_stdev: 37
+    adc_transmit_current: 115
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966912
+    pressure_variance: 2136
+    real_time_clock_2: [20, 12, 9, 21, 10, 0, 0, 0]
+    ensemble_start_time_2: 3557210400.0000000000000000
+    water_velocity_east: [251, 202, 290, 269, 306, 366, 350, 314, 307, 319, 312, 332, 339, 279, 343, 339, 340, 343, 383, 327, 343, 361, 349, 343, 404, 392, 366, 377, 402, 373, 328, 404, 360, 358, 359, 370, 401, 359, 325, 301, 308, 419, 396, 389, 271, 332, 324, 354, 416, 445, 354, 234, 273, -32768, -32768]
+    water_velocity_north: [-855, -861, -709, -770, -774, -800, -791, -836, -789, -802, -795, -693, -724, -773, -797, -862, -808, -794, -783, -864, -768, -753, -795, -749, -741, -804, -796, -791, -798, -820, -830, -823, -844, -877, -807, -842, -845, -793, -818, -841, -802, -871, -806, -868, -919, -864, -808, -768, -802, -878, -993, -962, -627, -32768, -32768]
+    water_velocity_up: [-112, -110, -123, -126, -123, -132, -116, -122, -126, -131, -118, -115, -110, -109, -113, -125, -97, -115, -121, -109, -113, -115, -109, -94, -95, -96, -95, -85, -88, -100, -88, -88, -92, -79, -71, -70, -58, -69, -58, -73, -56, -42, -48, -49, -33, -73, -112, -120, -98, -59, -64, 49, -41, -32768, -32768]
+    error_velocity: [120, 7, 6, -32, -30, 11, 35, 2, -4, 2, 9, 23, 38, 20, -15, -37, -8, 30, 8, 35, -20, -5, -28, 1, -18, -23, 15, -8, 46, -4, -15, 41, 31, 10, -6, -23, 56, 1, 35, -42, -26, 34, 2, 19, -36, 22, 43, 67, -11, -32, -3, 107, -328, -32768, -32768]
+    correlation_magnitude_beam1: [81, 119, 131, 117, 131, 124, 126, 125, 127, 128, 128, 126, 126, 125, 125, 121, 119, 122, 120, 122, 120, 121, 122, 124, 122, 123, 120, 116, 115, 110, 109, 106, 99, 99, 99, 99, 100, 97, 95, 100, 100, 91, 88, 82, 78, 76, 71, 64, 63, 58, 56, 48, 37, 34, 0]
+    correlation_magnitude_beam2: [81, 119, 129, 119, 128, 124, 129, 120, 128, 125, 125, 124, 127, 126, 122, 124, 126, 126, 122, 126, 122, 125, 127, 123, 125, 126, 126, 124, 124, 123, 121, 119, 120, 119, 119, 119, 117, 115, 119, 121, 118, 118, 114, 115, 113, 109, 105, 96, 92, 92, 74, 69, 61, 60, 42]
+    correlation_magnitude_beam3: [86, 115, 129, 112, 129, 122, 125, 121, 125, 129, 125, 127, 127, 124, 124, 123, 123, 122, 120, 122, 118, 123, 126, 122, 123, 123, 121, 121, 114, 115, 110, 109, 106, 105, 106, 105, 104, 104, 106, 106, 108, 104, 99, 93, 98, 90, 81, 74, 70, 59, 58, 46, 43, 25, 18]
+    correlation_magnitude_beam4: [73, 117, 129, 116, 133, 123, 126, 121, 130, 128, 124, 126, 128, 126, 124, 126, 127, 124, 125, 124, 121, 123, 121, 124, 127, 125, 122, 124, 122, 121, 116, 120, 117, 118, 116, 113, 112, 116, 114, 113, 115, 111, 107, 105, 102, 97, 90, 84, 77, 73, 60, 54, 51, 45, 38]
+    echo_intensity_beam1: [197, 204, 205, 190, 187, 179, 172, 166, 157, 155, 151, 146, 141, 136, 129, 126, 120, 119, 117, 117, 116, 114, 114, 115, 115, 115, 112, 111, 109, 107, 104, 101, 100, 97, 96, 95, 94, 96, 94, 94, 95, 94, 94, 93, 93, 91, 88, 87, 85, 83, 83, 81, 80, 78, 77]
+    echo_intensity_beam2: [199, 210, 206, 194, 189, 180, 175, 163, 160, 156, 148, 146, 140, 133, 127, 125, 123, 122, 122, 120, 122, 125, 123, 120, 119, 117, 115, 113, 107, 105, 103, 104, 103, 104, 104, 102, 101, 104, 104, 103, 101, 98, 95, 93, 89, 87, 82, 80, 77, 74, 73, 71, 69, 68, 67]
+    echo_intensity_beam3: [201, 207, 210, 193, 192, 182, 178, 168, 161, 158, 154, 148, 145, 139, 134, 128, 126, 123, 122, 122, 119, 120, 120, 121, 120, 119, 115, 113, 112, 108, 104, 101, 101, 100, 99, 98, 98, 98, 99, 98, 96, 97, 96, 96, 95, 95, 91, 89, 87, 85, 83, 80, 79, 77, 77]
+    echo_intensity_beam4: [201, 211, 206, 193, 190, 180, 175, 164, 160, 157, 151, 146, 141, 134, 130, 127, 124, 122, 121, 118, 119, 122, 122, 120, 118, 116, 114, 114, 108, 105, 104, 102, 103, 103, 103, 103, 102, 102, 103, 102, 101, 98, 94, 92, 91, 89, 86, 84, 82, 79, 77, 75, 75, 73, 73]
+    percent_good_3beam: [36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 8, 4, 8, 12, 12, 4, 8, 12, 4, 16, 16, 24, 20, 24, 20, 8, 12, 12, 12, 24, 20, 4, 0, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 0, 4, 8, 16, 12, 20, 36, 36, 48, 52, 64, 76, 92, 100, 100]
+    percent_good_4beam: [48, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 96, 96, 88, 92, 88, 88, 84, 92, 88, 84, 92, 84, 80, 68, 64, 64, 60, 56, 52, 40, 36, 12, 4, 4, 0, 0]
+  - _index: 12
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557214000.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 12
+    real_time_clock: [12, 9, 21, 11, 0, 0, 0]
+    ensemble_start_time: 3557214000.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 7
+    heading: 1494
+    pitch: 513
+    roll: 524
+    salinity: 35
+    temperature: 1605
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 10
+    pitch_stdev: 28
+    roll_stdev: 31
+    adc_transmit_current: 115
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 95
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966911
+    pressure_variance: 2289
+    real_time_clock_2: [20, 12, 9, 21, 11, 0, 0, 0]
+    ensemble_start_time_2: 3557214000.0000000000000000
+    water_velocity_east: [57, 13, 113, 131, 112, 185, 76, 43, 131, 94, 100, 65, 115, 133, 152, 147, 150, 178, 172, 103, 99, 141, 182, 141, 227, 215, 178, 154, 136, 151, 115, 170, 162, 188, 134, 166, 154, 164, 142, 184, 142, 140, 174, 161, 138, 204, 208, 190, 119, 136, 172, 75, 238, -41, -18]
+    water_velocity_north: [-627, -536, -471, -588, -601, -557, -576, -535, -647, -607, -620, -504, -514, -530, -578, -604, -590, -659, -617, -561, -579, -563, -553, -554, -574, -539, -564, -644, -625, -599, -688, -670, -675, -711, -669, -660, -647, -647, -628, -625, -627, -649, -608, -665, -668, -634, -590, -557, -614, -606, -627, -783, -725, -753, -833]
+    water_velocity_up: [117, 130, 157, 158, 156, 148, 140, 148, 132, 140, 126, 136, 127, 120, 130, 127, 119, 115, 108, 135, 121, 120, 114, 110, 109, 124, 115, 100, 106, 110, 90, 101, 90, 74, 76, 95, 71, 76, 61, 68, 79, 64, 63, 64, 15, 84, 17, 30, 7, 30, -25, 123, 142, 192, 318]
+    error_velocity: [17, 3, 11, 13, 7, 10, 15, -41, 2, -16, -13, 47, 45, -3, 23, 16, -2, 23, -18, 8, 1, -1, 24, -17, -5, -7, -31, 10, 2, 0, -29, 0, 43, -28, -9, 19, 15, 26, -6, -22, 25, -43, -18, -3, -17, -11, -30, -77, 34, 0, -44, 57, 72, -32768, -32768]
+    correlation_magnitude_beam1: [93, 117, 129, 120, 127, 126, 124, 123, 126, 124, 126, 125, 126, 128, 126, 129, 125, 125, 126, 123, 124, 125, 122, 123, 124, 124, 124, 125, 121, 124, 116, 118, 114, 116, 113, 111, 112, 111, 109, 109, 109, 107, 109, 106, 100, 95, 92, 84, 87, 74, 65, 55, 61, 49, 63]
+    correlation_magnitude_beam2: [91, 115, 129, 120, 128, 125, 124, 124, 126, 128, 125, 126, 122, 127, 122, 128, 127, 126, 123, 127, 124, 127, 124, 124, 126, 122, 127, 128, 124, 124, 124, 121, 120, 120, 121, 122, 120, 118, 120, 125, 119, 120, 120, 117, 115, 116, 116, 109, 104, 95, 86, 76, 70, 69, 67]
+    correlation_magnitude_beam3: [91, 118, 129, 118, 124, 124, 123, 121, 122, 128, 123, 123, 123, 126, 125, 124, 126, 127, 124, 127, 127, 125, 125, 125, 124, 123, 122, 122, 126, 120, 124, 121, 115, 118, 118, 119, 116, 116, 120, 118, 120, 118, 115, 113, 110, 111, 101, 96, 97, 84, 71, 69, 57, 58, 16]
+    correlation_magnitude_beam4: [90, 119, 130, 121, 127, 126, 126, 125, 126, 125, 123, 128, 124, 128, 124, 123, 129, 127, 126, 127, 126, 128, 126, 125, 124, 126, 127, 124, 124, 118, 118, 124, 118, 119, 117, 118, 114, 115, 117, 117, 119, 114, 116, 111, 109, 111, 110, 104, 96, 90, 82, 72, 67, 63, 53]
+    echo_intensity_beam1: [202, 205, 204, 192, 186, 179, 169, 161, 156, 155, 150, 147, 140, 137, 134, 130, 131, 128, 124, 121, 121, 122, 118, 115, 112, 111, 108, 107, 107, 105, 102, 100, 99, 97, 97, 97, 96, 95, 96, 97, 98, 97, 96, 95, 93, 92, 89, 87, 87, 84, 81, 77, 72, 70, 69]
+    echo_intensity_beam2: [200, 206, 205, 192, 188, 178, 168, 160, 157, 154, 150, 145, 139, 138, 131, 132, 132, 127, 126, 124, 124, 121, 117, 115, 113, 111, 110, 108, 106, 106, 103, 99, 100, 101, 98, 98, 100, 100, 100, 101, 100, 98, 95, 94, 93, 90, 88, 84, 77, 72, 70, 67, 66, 64, 62]
+    echo_intensity_beam3: [207, 211, 211, 198, 192, 186, 178, 167, 161, 161, 155, 152, 148, 145, 140, 137, 136, 135, 132, 128, 128, 128, 125, 123, 120, 118, 113, 113, 112, 110, 107, 106, 103, 102, 102, 103, 101, 101, 101, 101, 103, 103, 102, 101, 98, 96, 93, 92, 90, 89, 83, 77, 74, 71, 70]
+    echo_intensity_beam4: [205, 210, 206, 194, 189, 178, 170, 161, 159, 155, 152, 148, 141, 139, 134, 132, 133, 128, 126, 125, 127, 122, 118, 117, 114, 113, 110, 109, 105, 103, 103, 100, 101, 102, 100, 100, 100, 102, 103, 101, 100, 98, 96, 94, 94, 90, 87, 83, 79, 74, 74, 71, 68, 66, 66]
+    percent_good_3beam: [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 4, 8, 0, 4, 0, 4, 8, 0, 0, 12, 8, 16, 8, 20, 28, 24, 12, 12, 20, 12, 4]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 4, 4, 4, 0, 4, 4, 4, 4, 0, 4, 4, 4, 8, 0, 8, 12, 8, 28, 48, 68, 72, 88, 96]
+    percent_good_4beam: [80, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 96, 96, 96, 92, 92, 96, 92, 96, 92, 92, 96, 96, 84, 84, 84, 84, 68, 64, 48, 40, 20, 8, 0, 0]
+  - _index: 13
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557217600.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 13
+    real_time_clock: [12, 9, 21, 12, 0, 0, 0]
+    ensemble_start_time: 3557217600.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1510
+    transducer_depth: 4
+    heading: 695
+    pitch: 309
+    roll: 393
+    salinity: 35
+    temperature: 1614
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 10
+    pitch_stdev: 27
+    roll_stdev: 36
+    adc_transmit_current: 115
+    adc_transmit_voltage: 160
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 72
+    adc_attitude_temp: 95
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966179
+    pressure_variance: 2253
+    real_time_clock_2: [20, 12, 9, 21, 12, 0, 0, 0]
+    ensemble_start_time_2: 3557217600.0000000000000000
+    water_velocity_east: [-76, -50, -50, -77, -37, -13, -39, -1, 4, -9, -54, -57, 12, 37, 6, 4, 24, 22, 71, 41, -5, 2, 37, 69, 108, 81, 76, 19, 53, 50, 76, 32, 50, 46, 9, 12, 53, 48, 47, 7, 42, 50, 50, 79, 82, 24, 60, 78, 50, 88, 86, -8, -25, -22, -32768]
+    water_velocity_north: [-196, -208, -195, -135, -131, -156, -145, -238, -248, -329, -291, -326, -306, -293, -280, -327, -349, -381, -372, -332, -331, -314, -279, -322, -310, -312, -336, -339, -284, -260, -323, -377, -365, -338, -337, -331, -374, -359, -403, -313, -305, -395, -324, -282, -294, -327, -304, -258, -295, -352, -234, -274, -277, -400, -32768]
+    water_velocity_up: [-4, -20, -2, -4, 3, 8, 2, -12, -5, -7, -14, -9, -16, -32, -9, -20, -18, -20, -21, -5, -8, -8, -11, -19, -23, -6, -8, -2, -10, -17, -18, -12, -13, -18, -3, -11, -10, -19, -25, -15, -13, -9, -17, -19, -47, -28, -55, -65, -21, -115, -142, -152, -192, 159, -32768]
+    error_velocity: [-8, 2, 7, 24, -27, 22, 24, 0, 17, 3, -6, 52, 15, 39, 40, 36, 26, -17, -25, -15, 17, 6, -17, 0, 12, 8, -19, 37, 2, 16, 37, 6, -26, 28, 20, 3, 30, 37, -34, 16, 53, 59, 15, 20, 1, 9, -30, 14, 16, 48, 54, 61, 59, 26, -32768]
+    correlation_magnitude_beam1: [88, 119, 126, 119, 126, 128, 117, 125, 126, 127, 124, 123, 124, 123, 123, 125, 126, 126, 126, 125, 125, 123, 127, 121, 122, 126, 121, 122, 123, 116, 118, 119, 118, 114, 115, 115, 117, 118, 118, 114, 117, 110, 111, 113, 108, 104, 100, 97, 89, 84, 73, 72, 62, 65, 43]
+    correlation_magnitude_beam2: [91, 120, 131, 118, 129, 126, 121, 125, 124, 128, 121, 127, 122, 125, 127, 128, 125, 127, 126, 126, 126, 125, 125, 126, 124, 127, 125, 122, 123, 124, 123, 119, 121, 122, 123, 125, 125, 124, 121, 124, 122, 123, 119, 115, 115, 110, 105, 107, 101, 91, 85, 77, 69, 61, 58]
+    correlation_magnitude_beam3: [97, 122, 127, 122, 124, 130, 119, 121, 128, 126, 124, 126, 126, 125, 126, 127, 125, 123, 124, 125, 126, 123, 125, 124, 127, 124, 125, 121, 123, 122, 122, 118, 122, 120, 120, 121, 116, 122, 123, 116, 117, 118, 119, 117, 111, 113, 106, 103, 93, 85, 82, 76, 63, 62, 56]
+    correlation_magnitude_beam4: [78, 117, 133, 115, 130, 126, 118, 122, 124, 128, 123, 123, 126, 124, 128, 123, 127, 127, 126, 125, 127, 130, 124, 127, 123, 125, 127, 124, 121, 120, 122, 122, 123, 120, 121, 116, 119, 121, 123, 123, 122, 117, 117, 117, 108, 108, 96, 90, 87, 79, 73, 66, 54, 49, 44]
+    echo_intensity_beam1: [196, 193, 197, 185, 183, 176, 161, 157, 153, 151, 144, 144, 143, 135, 130, 128, 126, 125, 121, 118, 118, 116, 115, 113, 110, 108, 108, 105, 101, 98, 96, 94, 91, 93, 93, 94, 93, 94, 94, 95, 93, 91, 91, 90, 86, 84, 80, 77, 73, 69, 67, 66, 61, 61, 59]
+    echo_intensity_beam2: [198, 198, 200, 188, 188, 177, 163, 159, 155, 152, 146, 148, 141, 137, 138, 132, 127, 125, 123, 122, 120, 120, 118, 116, 112, 112, 109, 104, 101, 101, 98, 96, 98, 100, 98, 97, 97, 99, 98, 96, 95, 93, 92, 88, 83, 79, 76, 73, 69, 67, 64, 61, 58, 57, 56]
+    echo_intensity_beam3: [203, 198, 203, 191, 189, 183, 169, 162, 160, 158, 149, 149, 147, 141, 138, 136, 133, 128, 126, 125, 123, 123, 120, 118, 117, 116, 113, 110, 106, 105, 102, 100, 98, 99, 100, 98, 99, 98, 98, 99, 97, 97, 96, 95, 91, 89, 86, 82, 80, 76, 72, 69, 66, 64, 62]
+    echo_intensity_beam4: [197, 194, 198, 186, 185, 175, 161, 157, 153, 149, 143, 144, 140, 135, 133, 130, 127, 126, 121, 121, 120, 118, 116, 114, 110, 108, 107, 102, 100, 98, 96, 95, 96, 97, 96, 94, 96, 97, 96, 95, 94, 91, 90, 84, 80, 77, 73, 70, 69, 66, 63, 61, 59, 59, 57]
+    percent_good_3beam: [20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 4, 0, 8, 0, 4, 8, 8, 4, 4, 8, 12, 8, 4, 4, 8, 16, 20, 20, 12, 12, 24, 24, 24, 16, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 8, 4, 8, 12, 24, 40, 40, 48, 64, 76, 100]
+    percent_good_4beam: [76, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 92, 96, 100, 92, 96, 96, 92, 92, 96, 96, 92, 88, 92, 92, 92, 84, 80, 72, 68, 64, 48, 36, 28, 12, 8, 0]
+  - _index: 14
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557221200.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 14
+    real_time_clock: [12, 9, 21, 13, 0, 0, 0]
+    ensemble_start_time: 3557221200.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1510
+    transducer_depth: 8
+    heading: 1640
+    pitch: 352
+    roll: 654
+    salinity: 35
+    temperature: 1631
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 9
+    pitch_stdev: 28
+    roll_stdev: 37
+    adc_transmit_current: 115
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 160
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294967064
+    pressure_variance: 2608
+    real_time_clock_2: [20, 12, 9, 21, 13, 0, 0, 0]
+    ensemble_start_time_2: 3557221200.0000000000000000
+    water_velocity_east: [61, -3, 12, 114, 195, 205, 245, 210, 157, 71, 176, 152, 217, 213, 231, 126, 148, 149, 178, 125, 227, 245, 196, 166, 188, 236, 251, 312, 285, 300, 254, 302, 219, 174, 224, 197, 265, 214, 194, 180, 215, 240, 223, 261, 232, 266, 201, 317, 234, 202, 271, 153, 267, 68, -32768]
+    water_velocity_north: [-579, -534, -429, -441, -487, -493, -488, -519, -572, -597, -640, -655, -605, -614, -761, -711, -658, -669, -679, -649, -662, -641, -685, -715, -683, -648, -635, -645, -654, -658, -664, -654, -664, -657, -675, -665, -685, -651, -693, -630, -664, -646, -646, -609, -694, -650, -653, -701, -671, -665, -580, -614, -628, -598, -32768]
+    water_velocity_up: [107, 115, 124, 128, 123, 129, 117, 117, 127, 132, 121, 123, 119, 122, 101, 109, 114, 116, 118, 120, 111, 114, 109, 123, 113, 129, 116, 97, 110, 105, 104, 103, 92, 103, 92, 111, 104, 106, 102, 104, 91, 94, 90, 82, 87, 42, 65, -25, -83, -108, -57, -89, 27, -105, -32768]
+    error_velocity: [0, 38, 30, 3, -13, 48, 14, -10, -13, 60, -3, 6, -14, -26, 9, -35, 48, -5, 37, 17, 2, 2, -22, -51, 26, -6, 15, 1, 44, 19, 5, -4, 13, -29, 46, 5, 46, 45, -3, -18, 18, -18, 62, -13, -11, 8, 0, 14, 13, -73, -16, -77, -15, -32768, -32768]
+    correlation_magnitude_beam1: [77, 119, 117, 127, 121, 130, 127, 119, 126, 125, 125, 124, 127, 126, 127, 127, 124, 126, 125, 125, 126, 126, 126, 122, 125, 125, 126, 121, 121, 124, 123, 116, 117, 118, 118, 118, 117, 118, 116, 117, 114, 112, 114, 107, 97, 89, 79, 67, 59, 54, 56, 51, 51, 28, 23]
+    correlation_magnitude_beam2: [83, 112, 120, 120, 119, 128, 118, 118, 123, 126, 124, 123, 124, 126, 123, 121, 122, 124, 124, 124, 125, 125, 124, 121, 126, 123, 124, 121, 120, 121, 123, 119, 118, 119, 121, 120, 120, 122, 114, 118, 116, 118, 119, 114, 114, 109, 105, 101, 94, 89, 79, 74, 70, 66, 58]
+    correlation_magnitude_beam3: [82, 117, 115, 123, 121, 132, 114, 123, 128, 123, 129, 126, 128, 127, 127, 124, 128, 126, 126, 127, 126, 126, 127, 126, 124, 127, 124, 125, 121, 123, 125, 124, 122, 125, 120, 121, 122, 124, 121, 123, 121, 123, 119, 118, 112, 106, 101, 90, 83, 76, 68, 61, 64, 69, 62]
+    correlation_magnitude_beam4: [77, 111, 123, 123, 122, 130, 119, 123, 125, 125, 128, 124, 125, 124, 120, 123, 122, 125, 124, 124, 126, 125, 125, 124, 125, 124, 121, 120, 119, 115, 120, 120, 120, 117, 122, 117, 121, 116, 121, 117, 115, 116, 115, 111, 109, 102, 99, 88, 79, 67, 64, 60, 55, 45, 39]
+    echo_intensity_beam1: [192, 185, 193, 186, 183, 187, 173, 161, 156, 152, 149, 147, 145, 145, 140, 133, 129, 127, 125, 124, 121, 121, 119, 118, 118, 120, 117, 115, 109, 108, 105, 102, 101, 100, 99, 100, 100, 101, 100, 99, 99, 98, 97, 94, 91, 87, 84, 80, 75, 75, 72, 70, 69, 67, 65]
+    echo_intensity_beam2: [193, 189, 195, 184, 187, 186, 169, 160, 155, 153, 149, 147, 146, 142, 135, 131, 131, 130, 128, 125, 126, 123, 122, 122, 122, 120, 114, 110, 107, 106, 104, 104, 104, 105, 105, 104, 104, 103, 102, 101, 101, 99, 96, 92, 88, 82, 78, 74, 71, 67, 65, 64, 62, 62, 59]
+    echo_intensity_beam3: [198, 193, 202, 195, 191, 195, 182, 169, 165, 161, 159, 156, 154, 153, 147, 139, 136, 136, 134, 132, 130, 130, 128, 129, 127, 127, 127, 123, 119, 113, 112, 110, 108, 108, 108, 108, 108, 107, 108, 106, 105, 106, 105, 102, 101, 96, 91, 88, 82, 79, 77, 73, 71, 69, 67]
+    echo_intensity_beam4: [194, 186, 195, 185, 187, 186, 170, 161, 156, 153, 150, 148, 147, 142, 134, 129, 129, 129, 127, 126, 125, 122, 123, 123, 122, 118, 112, 108, 107, 104, 104, 103, 104, 106, 106, 105, 104, 102, 102, 100, 100, 99, 94, 91, 86, 82, 78, 75, 70, 68, 68, 66, 65, 63, 62]
+    percent_good_3beam: [16, 4, 4, 0, 0, 0, 4, 0, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 8, 8, 8, 4, 8, 8, 12, 8, 4, 12, 4, 8, 8, 8, 12, 12, 8, 12, 16, 12, 36, 24, 28, 16, 8, 8, 24, 8, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 12, 8, 32, 36, 52, 64, 68, 68, 92, 100]
+    percent_good_4beam: [68, 96, 96, 100, 100, 100, 96, 100, 100, 96, 100, 100, 100, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 100, 92, 92, 92, 96, 92, 92, 88, 92, 96, 88, 96, 92, 92, 92, 88, 88, 88, 84, 80, 76, 56, 44, 36, 32, 28, 24, 8, 0, 0]
+  - _index: 15
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557224800.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 15
+    real_time_clock: [12, 9, 21, 14, 0, 0, 0]
+    ensemble_start_time: 3557224800.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 3
+    heading: 1433
+    pitch: 426
+    roll: 449
+    salinity: 35
+    temperature: 1632
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 11
+    pitch_stdev: 23
+    roll_stdev: 34
+    adc_transmit_current: 115
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 160
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966548
+    pressure_variance: 1613
+    real_time_clock_2: [20, 12, 9, 21, 14, 0, 0, 0]
+    ensemble_start_time_2: 3557224800.0000000000000000
+    water_velocity_east: [117, 126, 175, 206, 251, 334, 295, 229, 217, 168, 130, 230, 284, 224, 241, 225, 253, 187, 200, 247, 276, 210, 175, 235, 219, 276, 272, 242, 304, 274, 304, 248, 257, 273, 186, 176, 209, 194, 217, 258, 248, 280, 174, 204, 238, 220, 149, 233, 252, 289, 287, 193, 218, -137, -422]
+    water_velocity_north: [-586, -503, -401, -454, -466, -534, -440, -411, -519, -510, -519, -563, -583, -609, -641, -616, -613, -652, -643, -609, -672, -638, -719, -680, -675, -683, -711, -708, -708, -700, -686, -716, -701, -677, -686, -710, -700, -699, -676, -661, -709, -682, -689, -708, -704, -698, -666, -724, -689, -677, -748, -754, -867, -634, -167]
+    water_velocity_up: [104, 92, 83, 115, 125, 122, 111, 112, 86, 79, 68, 61, 74, 58, 64, 74, 67, 80, 79, 87, 89, 100, 105, 108, 111, 111, 109, 108, 83, 91, 94, 90, 89, 85, 99, 90, 96, 99, 106, 107, 97, 92, 87, 82, 88, 70, 80, 16, 53, 0, -34, -20, 43, -40, -70]
+    error_velocity: [-33, -35, 53, -13, 21, 43, 22, -16, 16, 50, -25, -2, 23, 13, -9, 4, 14, 7, -54, 1, -8, -36, 5, -5, -17, 1, 23, 32, 10, -35, -5, 11, -3, -23, -5, 1, -25, 26, -11, 0, 6, -2, -17, -9, 59, 42, 9, 3, -28, 21, 59, 55, 79, -32768, -32768]
+    correlation_magnitude_beam1: [83, 124, 119, 124, 122, 128, 122, 126, 128, 127, 129, 128, 126, 126, 125, 128, 126, 126, 127, 128, 124, 125, 126, 125, 124, 124, 127, 121, 123, 121, 123, 121, 124, 122, 122, 120, 117, 120, 120, 124, 121, 121, 121, 119, 117, 110, 101, 96, 94, 90, 80, 64, 56, 56, 43]
+    correlation_magnitude_beam2: [82, 120, 125, 128, 125, 123, 118, 126, 124, 126, 125, 124, 124, 124, 128, 126, 127, 127, 126, 123, 123, 126, 125, 125, 127, 127, 122, 125, 122, 125, 123, 124, 125, 124, 123, 124, 122, 120, 121, 123, 120, 123, 122, 119, 116, 114, 111, 111, 104, 100, 94, 87, 81, 65, 63]
+    correlation_magnitude_beam3: [84, 122, 117, 123, 123, 126, 120, 124, 127, 125, 125, 127, 126, 125, 125, 127, 128, 126, 126, 127, 127, 125, 124, 123, 130, 128, 125, 121, 124, 124, 125, 124, 123, 123, 122, 126, 125, 126, 125, 123, 124, 122, 122, 119, 120, 112, 113, 102, 98, 89, 86, 73, 70, 62, 70]
+    correlation_magnitude_beam4: [82, 118, 127, 127, 128, 124, 122, 128, 126, 128, 123, 125, 128, 124, 128, 126, 127, 128, 127, 127, 126, 127, 126, 126, 126, 124, 125, 129, 122, 123, 119, 124, 125, 125, 124, 126, 126, 124, 124, 125, 124, 124, 123, 122, 121, 114, 113, 109, 103, 98, 85, 81, 70, 57, 56]
+    echo_intensity_beam1: [199, 194, 194, 187, 175, 168, 159, 156, 154, 153, 155, 155, 155, 151, 150, 152, 155, 156, 154, 149, 140, 133, 127, 126, 124, 125, 121, 118, 114, 111, 109, 107, 108, 107, 107, 106, 105, 103, 103, 103, 102, 102, 101, 100, 97, 94, 90, 85, 81, 79, 76, 73, 71, 69, 68]
+    echo_intensity_beam2: [200, 194, 194, 185, 175, 163, 156, 156, 153, 153, 153, 151, 150, 149, 151, 154, 154, 155, 150, 141, 132, 129, 128, 126, 127, 124, 118, 114, 109, 109, 109, 109, 110, 109, 107, 105, 105, 104, 104, 104, 104, 103, 100, 96, 91, 87, 83, 80, 74, 71, 68, 66, 63, 61, 60]
+    echo_intensity_beam3: [205, 198, 200, 190, 180, 172, 164, 161, 158, 157, 155, 157, 155, 153, 153, 156, 159, 161, 159, 155, 145, 136, 132, 130, 131, 131, 128, 124, 118, 114, 113, 112, 113, 112, 113, 112, 111, 110, 109, 108, 108, 107, 107, 105, 101, 96, 92, 88, 86, 82, 78, 75, 73, 71, 69]
+    echo_intensity_beam4: [202, 193, 195, 186, 178, 165, 158, 157, 155, 154, 154, 156, 156, 153, 154, 156, 157, 157, 152, 143, 136, 130, 130, 129, 127, 123, 120, 115, 112, 110, 111, 112, 113, 111, 110, 107, 106, 106, 107, 106, 106, 104, 102, 97, 92, 89, 86, 81, 78, 74, 72, 68, 67, 66, 66]
+    percent_good_3beam: [28, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 16, 8, 20, 16, 24, 28, 36, 12, 4]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 12, 8, 20, 24, 36, 48, 88, 96]
+    percent_good_4beam: [64, 100, 100, 100, 100, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 96, 96, 96, 100, 100, 100, 96, 96, 92, 84, 80, 72, 64, 52, 36, 16, 0, 0]
+  - _index: 16
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557228400.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 16
+    real_time_clock: [12, 9, 21, 15, 0, 0, 0]
+    ensemble_start_time: 3557228400.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 8
+    heading: 35445
+    pitch: 176
+    roll: 279
+    salinity: 35
+    temperature: 1629
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 26
+    pitch_stdev: 30
+    roll_stdev: 34
+    adc_transmit_current: 115
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294967195
+    pressure_variance: 2432
+    real_time_clock_2: [20, 12, 9, 21, 15, 0, 0, 0]
+    ensemble_start_time_2: 3557228400.0000000000000000
+    water_velocity_east: [189, 84, 128, 272, 228, 312, 227, 300, 203, 172, 118, 214, 156, 184, 140, 158, 174, 140, 117, 131, 171, 110, 84, 89, 138, 102, 127, 148, 191, 173, 131, 177, 104, 155, 153, 171, 180, 221, 150, 165, 177, 130, 156, 98, 141, 174, 128, 129, 184, 181, 118, 40, 109, -164, -32768]
+    water_velocity_north: [-454, -523, -509, -541, -596, -491, -208, -406, -570, -582, -569, -633, -599, -630, -614, -598, -619, -615, -609, -663, -614, -640, -670, -695, -708, -666, -679, -645, -699, -697, -732, -656, -696, -692, -710, -725, -716, -650, -680, -651, -655, -705, -642, -676, -676, -598, -645, -647, -605, -706, -706, -610, -492, -479, -32768]
+    water_velocity_up: [67, 59, 39, 33, 48, 46, 38, 39, 42, 32, 32, 30, 43, 21, 17, 5, 32, -6, 17, 9, 4, 14, 17, 30, 27, 24, 14, 8, -12, -32, -14, 4, -6, -7, -10, -23, -20, -22, -26, -30, -41, -35, -31, -47, -48, -28, -43, -31, -40, -123, -141, -132, -141, 38, -32768]
+    error_velocity: [-10, -27, -35, -26, -6, -92, -60, -43, -11, -22, -65, -58, -26, -64, -56, -55, 14, -15, -10, 3, 8, 4, -22, -7, -42, -24, -63, -66, -47, -60, -7, 4, 4, -34, 18, 6, -30, -8, 0, -20, -3, -26, 16, -44, -60, 2, -3, -15, -46, -62, -73, -45, -194, -32768, -32768]
+    correlation_magnitude_beam1: [79, 116, 115, 109, 119, 115, 119, 112, 119, 114, 119, 117, 112, 106, 106, 106, 108, 107, 110, 116, 121, 123, 127, 123, 123, 121, 118, 118, 113, 114, 115, 114, 114, 120, 119, 118, 116, 118, 119, 119, 116, 117, 115, 114, 112, 105, 101, 91, 87, 77, 68, 57, 49, 43, 45]
+    correlation_magnitude_beam2: [90, 117, 121, 116, 120, 117, 125, 117, 120, 119, 126, 122, 122, 119, 121, 120, 119, 119, 123, 120, 122, 127, 127, 127, 121, 124, 123, 126, 121, 122, 121, 124, 125, 124, 126, 127, 124, 123, 124, 124, 122, 124, 123, 123, 123, 121, 118, 114, 104, 97, 94, 86, 74, 63, 61]
+    correlation_magnitude_beam3: [87, 121, 123, 118, 122, 119, 123, 116, 122, 123, 122, 126, 122, 120, 117, 116, 120, 120, 119, 120, 123, 125, 127, 126, 124, 124, 124, 125, 124, 123, 123, 122, 124, 123, 125, 124, 125, 124, 125, 124, 125, 123, 125, 122, 122, 121, 117, 111, 108, 100, 88, 80, 83, 69, 70]
+    correlation_magnitude_beam4: [72, 114, 115, 112, 111, 111, 122, 108, 116, 108, 114, 117, 103, 107, 104, 106, 105, 107, 111, 116, 120, 124, 128, 122, 122, 121, 119, 115, 116, 114, 115, 115, 114, 113, 114, 114, 116, 114, 113, 118, 112, 111, 113, 107, 103, 103, 98, 92, 83, 75, 64, 56, 46, 44, 40]
+    echo_intensity_beam1: [191, 183, 173, 157, 145, 138, 143, 128, 120, 114, 114, 112, 106, 99, 94, 94, 95, 97, 100, 111, 122, 130, 135, 131, 121, 114, 106, 103, 98, 96, 97, 95, 95, 95, 96, 96, 96, 96, 96, 95, 92, 89, 87, 86, 84, 81, 78, 75, 70, 67, 64, 61, 59, 58, 56]
+    echo_intensity_beam2: [198, 188, 178, 163, 149, 142, 146, 133, 123, 121, 121, 118, 111, 104, 101, 102, 100, 104, 113, 126, 137, 145, 142, 130, 121, 113, 109, 105, 101, 101, 101, 101, 102, 103, 104, 103, 102, 101, 99, 99, 96, 94, 93, 91, 88, 83, 80, 74, 70, 67, 63, 59, 57, 55, 54]
+    echo_intensity_beam3: [203, 196, 184, 170, 157, 153, 154, 139, 131, 128, 127, 126, 117, 111, 106, 105, 106, 106, 111, 122, 134, 143, 147, 144, 133, 125, 119, 115, 110, 108, 106, 106, 106, 105, 106, 106, 107, 105, 104, 105, 102, 101, 99, 98, 97, 95, 90, 84, 79, 76, 71, 67, 64, 62, 60]
+    echo_intensity_beam4: [192, 182, 173, 156, 144, 137, 140, 126, 119, 115, 119, 118, 104, 96, 96, 95, 94, 98, 106, 117, 128, 133, 133, 122, 113, 106, 101, 97, 94, 94, 95, 95, 94, 95, 96, 97, 97, 95, 94, 92, 90, 87, 85, 82, 79, 77, 74, 69, 65, 63, 60, 57, 57, 55, 55]
+    percent_good_3beam: [44, 4, 0, 4, 8, 12, 0, 4, 8, 12, 8, 12, 4, 12, 4, 12, 8, 8, 8, 12, 4, 4, 8, 8, 8, 4, 8, 8, 4, 4, 8, 8, 12, 8, 8, 4, 4, 4, 4, 4, 8, 8, 4, 4, 8, 8, 16, 20, 32, 24, 16, 24, 24, 8, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 12, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 12, 16, 28, 48, 52, 68, 92, 100]
+    percent_good_4beam: [56, 96, 100, 96, 92, 88, 100, 96, 88, 84, 88, 84, 92, 84, 84, 80, 84, 84, 84, 88, 96, 96, 92, 92, 92, 96, 92, 92, 92, 92, 88, 92, 88, 92, 92, 92, 92, 92, 92, 92, 88, 88, 92, 92, 88, 88, 76, 68, 52, 48, 36, 24, 8, 0, 0]
+  - _index: 17
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557232000.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 17
+    real_time_clock: [12, 9, 21, 16, 0, 0, 0]
+    ensemble_start_time: 3557232000.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 3
+    heading: 34044
+    pitch: 233
+    roll: 236
+    salinity: 35
+    temperature: 1627
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 25
+    pitch_stdev: 30
+    roll_stdev: 30
+    adc_transmit_current: 114
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966332
+    pressure_variance: 2103
+    real_time_clock_2: [20, 12, 9, 21, 16, 0, 0, 0]
+    ensemble_start_time_2: 3557232000.0000000000000000
+    water_velocity_east: [114, 114, 122, 175, 291, 287, 222, 234, 151, 164, 194, 160, 173, 135, 70, 133, 126, 134, 90, 164, 103, 144, 92, 82, 86, 114, 106, 99, 94, 125, 77, 90, 82, 38, 60, 76, 85, 94, 68, -8, 77, 65, 55, 65, 50, 79, 67, 127, 88, -10, -9, -44, 59, 169, -32768]
+    water_velocity_north: [-259, -383, -229, -326, -446, -317, -106, -314, -312, -306, -346, -381, -338, -351, -419, -410, -358, -349, -454, -398, -424, -423, -438, -434, -470, -413, -463, -496, -406, -430, -452, -438, -433, -458, -464, -481, -420, -448, -391, -443, -419, -414, -379, -403, -401, -387, -402, -408, -461, -388, -302, -478, -383, -425, -32768]
+    water_velocity_up: [-27, -32, -49, -35, -38, -43, -43, -53, -36, -53, -64, -50, -69, -60, -69, -75, -85, -98, -102, -87, -103, -102, -123, -113, -111, -109, -115, -134, -123, -145, -136, -136, -136, -138, -152, -145, -162, -154, -161, -147, -145, -168, -163, -178, -158, -155, -152, -179, -140, -180, -178, -227, -210, -100, -32768]
+    error_velocity: [-24, -16, 16, 23, -19, -38, -4, 21, -69, -68, 30, 12, -30, -37, 29, 64, 37, 29, 12, -31, -8, 39, -36, -4, -17, -13, -2, -2, -26, 3, -5, -24, 1, 35, -4, 4, -3, -69, -1, -54, 2, -3, 8, -48, -8, -11, -32, 4, 44, -14, -19, -36, -31, -222, -32768]
+    correlation_magnitude_beam1: [90, 122, 125, 119, 126, 128, 119, 116, 125, 127, 122, 124, 124, 122, 123, 120, 122, 118, 122, 121, 123, 124, 125, 125, 127, 127, 126, 126, 124, 126, 122, 125, 124, 123, 123, 125, 126, 124, 121, 124, 124, 123, 124, 122, 125, 119, 113, 111, 104, 99, 91, 84, 73, 72, 81]
+    correlation_magnitude_beam2: [82, 117, 121, 116, 117, 120, 119, 115, 120, 125, 115, 117, 122, 115, 104, 109, 108, 109, 109, 112, 114, 119, 123, 125, 127, 128, 125, 123, 121, 118, 119, 123, 119, 122, 122, 126, 122, 122, 121, 121, 120, 120, 122, 119, 116, 112, 109, 108, 92, 92, 83, 74, 70, 61, 62]
+    correlation_magnitude_beam3: [84, 120, 121, 115, 120, 126, 118, 111, 120, 125, 124, 123, 119, 120, 122, 119, 114, 117, 119, 117, 121, 121, 121, 120, 123, 124, 123, 124, 125, 122, 121, 125, 122, 123, 123, 125, 123, 122, 123, 123, 124, 124, 121, 120, 119, 116, 115, 107, 99, 97, 88, 81, 75, 59, 49]
+    correlation_magnitude_beam4: [85, 122, 123, 118, 124, 126, 120, 114, 130, 123, 125, 122, 124, 126, 116, 122, 120, 118, 120, 122, 122, 123, 122, 123, 127, 128, 126, 126, 124, 123, 126, 124, 124, 126, 126, 124, 126, 125, 127, 124, 127, 124, 122, 122, 120, 119, 112, 109, 105, 99, 93, 83, 77, 71, 62]
+    echo_intensity_beam1: [198, 190, 180, 164, 155, 152, 145, 137, 143, 142, 130, 117, 111, 106, 97, 94, 94, 93, 95, 99, 103, 111, 121, 134, 141, 140, 131, 119, 110, 106, 104, 104, 101, 103, 102, 103, 103, 101, 101, 103, 102, 101, 98, 98, 94, 91, 87, 82, 77, 74, 70, 66, 62, 61, 58]
+    echo_intensity_beam2: [189, 184, 175, 157, 145, 142, 138, 128, 128, 124, 115, 112, 122, 109, 92, 90, 88, 86, 88, 92, 100, 111, 123, 133, 137, 130, 116, 105, 100, 99, 97, 96, 97, 98, 98, 97, 96, 95, 98, 97, 95, 92, 90, 87, 84, 81, 77, 71, 69, 65, 61, 59, 57, 56, 54]
+    echo_intensity_beam3: [197, 192, 182, 167, 156, 153, 145, 135, 135, 133, 125, 119, 113, 105, 103, 97, 94, 95, 98, 101, 104, 113, 122, 137, 145, 144, 130, 117, 111, 106, 105, 103, 103, 105, 104, 104, 103, 101, 102, 104, 103, 100, 98, 95, 95, 90, 86, 81, 78, 75, 70, 65, 62, 60, 58]
+    echo_intensity_beam4: [194, 187, 178, 161, 154, 149, 141, 141, 149, 140, 128, 114, 111, 108, 98, 95, 94, 92, 96, 100, 106, 115, 129, 139, 142, 134, 124, 114, 106, 104, 103, 102, 103, 104, 104, 103, 103, 101, 102, 104, 102, 99, 98, 95, 91, 85, 81, 76, 73, 69, 65, 62, 59, 58, 56]
+    percent_good_3beam: [20, 0, 0, 0, 4, 0, 0, 0, 8, 12, 4, 0, 0, 0, 8, 0, 4, 4, 12, 8, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 4, 0, 8, 8, 20, 16, 24, 24, 28, 16, 0]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 12, 16, 24, 32, 44, 72, 100]
+    percent_good_4beam: [80, 100, 100, 100, 96, 100, 100, 96, 88, 88, 96, 100, 100, 100, 88, 96, 92, 92, 88, 92, 92, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 100, 100, 100, 96, 96, 88, 88, 68, 68, 52, 44, 28, 12, 0]
+  - _index: 18
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557235600.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 18
+    real_time_clock: [12, 9, 21, 17, 0, 0, 0]
+    ensemble_start_time: 3557235600.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 4
+    heading: 35665
+    pitch: 220
+    roll: 289
+    salinity: 35
+    temperature: 1629
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 15
+    pitch_stdev: 51
+    roll_stdev: 39
+    adc_transmit_current: 114
+    adc_transmit_voltage: 160
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966450
+    pressure_variance: 2001
+    real_time_clock_2: [20, 12, 9, 21, 17, 0, 0, 0]
+    ensemble_start_time_2: 3557235600.0000000000000000
+    water_velocity_east: [135, 102, 51, 108, 172, 239, 239, 158, 178, 164, 244, 159, 191, 144, 144, 224, 204, 160, 186, 164, 178, 145, 98, 123, 40, 79, 76, 63, 111, 88, 59, 45, 10, 0, -2, 31, 7, 9, 57, -7, -40, -17, -25, -54, -75, 60, 37, -33, 38, 12, 68, 88, 94, 114, 56]
+    water_velocity_north: [-135, -157, -156, -145, -148, -78, -250, -72, -60, -171, -229, -223, -150, -191, -173, -181, -133, -148, -207, -240, -229, -209, -178, -150, -156, -163, -127, -149, -180, -159, -169, -147, -180, -176, -207, -175, -179, -140, -159, -153, -143, -162, -171, -189, -144, -212, -162, -194, -204, -197, -130, -121, -25, -51, -195]
+    water_velocity_up: [0, -28, -80, -55, -38, -37, -63, -32, -60, -66, -66, -67, -65, -63, -79, -108, -114, -102, -106, -111, -108, -98, -100, -86, -95, -95, -88, -76, -75, -96, -96, -81, -117, -84, -105, -95, -93, -121, -95, -122, -128, -97, -105, -119, -126, -134, -103, -129, -202, -153, -197, -210, -119, -124, -194]
+    error_velocity: [-56, -18, 6, -44, 44, 52, -105, 41, -6, -10, -8, -4, -22, 34, -29, -22, 48, 15, -35, -31, 7, 24, 0, -1, 31, 45, 12, -6, -21, 4, -9, -12, -3, -14, -15, 19, 17, 15, 24, 14, -10, 13, 20, -19, -35, -3, 43, 14, 65, 7, 59, 64, 106, 97, -32768]
+    correlation_magnitude_beam1: [98, 108, 120, 107, 116, 124, 112, 110, 122, 122, 120, 118, 113, 110, 107, 109, 109, 106, 110, 109, 113, 115, 120, 123, 122, 125, 125, 122, 119, 120, 123, 122, 120, 120, 121, 118, 116, 117, 115, 119, 116, 117, 114, 114, 110, 114, 104, 103, 92, 85, 86, 80, 79, 81, 39]
+    correlation_magnitude_beam2: [93, 117, 114, 111, 117, 116, 105, 109, 119, 113, 113, 116, 115, 105, 111, 101, 102, 101, 103, 108, 109, 109, 115, 116, 116, 115, 119, 125, 121, 116, 115, 113, 114, 113, 116, 115, 112, 114, 115, 115, 112, 115, 113, 110, 111, 109, 110, 104, 98, 96, 91, 85, 82, 77, 76]
+    correlation_magnitude_beam3: [92, 119, 117, 115, 111, 118, 109, 118, 118, 120, 121, 112, 116, 117, 112, 111, 108, 111, 108, 110, 117, 114, 113, 115, 120, 122, 123, 122, 124, 119, 117, 117, 120, 118, 120, 119, 119, 118, 117, 120, 119, 113, 114, 114, 114, 114, 110, 108, 106, 106, 98, 91, 80, 76, 70]
+    correlation_magnitude_beam4: [91, 114, 116, 105, 116, 123, 109, 109, 123, 124, 119, 118, 114, 113, 112, 111, 110, 111, 112, 112, 109, 114, 115, 119, 123, 122, 126, 127, 126, 121, 119, 118, 120, 120, 121, 123, 116, 117, 116, 120, 115, 117, 119, 119, 114, 114, 109, 102, 101, 96, 83, 78, 76, 69, 69]
+    echo_intensity_beam1: [198, 183, 177, 157, 152, 143, 141, 132, 127, 120, 114, 109, 102, 97, 91, 88, 86, 86, 86, 86, 89, 90, 95, 103, 111, 122, 128, 125, 114, 103, 98, 96, 95, 94, 93, 93, 92, 91, 91, 89, 89, 90, 90, 89, 88, 88, 84, 80, 74, 71, 68, 65, 62, 60, 58]
+    echo_intensity_beam2: [195, 185, 174, 156, 151, 139, 139, 131, 128, 120, 114, 110, 104, 96, 93, 88, 86, 87, 88, 89, 88, 92, 99, 103, 113, 124, 128, 120, 110, 103, 98, 96, 94, 94, 93, 94, 95, 95, 91, 90, 90, 89, 88, 89, 88, 87, 84, 78, 74, 70, 66, 63, 60, 58, 56]
+    echo_intensity_beam3: [198, 189, 182, 165, 153, 145, 147, 138, 134, 126, 121, 113, 108, 106, 99, 93, 90, 87, 87, 92, 96, 98, 101, 108, 116, 128, 133, 133, 124, 111, 104, 101, 100, 99, 98, 99, 98, 98, 98, 95, 94, 94, 93, 92, 92, 92, 91, 86, 82, 78, 72, 69, 66, 64, 62]
+    echo_intensity_beam4: [200, 185, 174, 155, 157, 147, 142, 132, 129, 122, 115, 108, 104, 99, 98, 91, 87, 88, 88, 89, 91, 95, 99, 108, 119, 129, 130, 121, 110, 102, 99, 97, 97, 98, 96, 96, 96, 95, 93, 92, 93, 93, 93, 92, 92, 86, 81, 78, 74, 69, 66, 62, 62, 60, 58]
+    percent_good_3beam: [20, 4, 4, 4, 0, 0, 12, 8, 0, 8, 0, 8, 8, 8, 12, 4, 4, 4, 0, 4, 8, 8, 8, 8, 4, 0, 0, 4, 4, 0, 0, 0, 4, 4, 0, 0, 4, 0, 8, 4, 0, 8, 16, 4, 4, 0, 4, 4, 0, 16, 16, 24, 12, 28, 8]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 12, 8, 20, 12, 20, 16, 16, 8, 8, 8, 4, 4, 4, 4, 0, 0, 4, 4, 4, 8, 4, 4, 4, 4, 8, 4, 8, 8, 4, 4, 12, 8, 12, 12, 16, 28, 20, 32, 40, 52, 56, 92]
+    percent_good_4beam: [80, 96, 96, 92, 96, 96, 84, 88, 96, 88, 92, 88, 88, 80, 80, 76, 84, 76, 84, 80, 84, 84, 84, 88, 92, 96, 96, 96, 96, 96, 96, 96, 88, 92, 96, 96, 92, 92, 88, 88, 92, 88, 80, 84, 88, 88, 84, 80, 72, 64, 52, 36, 36, 16, 0]
+  - _index: 19
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557239200.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 19
+    real_time_clock: [12, 9, 21, 18, 0, 0, 0]
+    ensemble_start_time: 3557239200.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 3
+    heading: 35615
+    pitch: 240
+    roll: 185
+    salinity: 35
+    temperature: 1630
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 20
+    pitch_stdev: 47
+    roll_stdev: 42
+    adc_transmit_current: 115
+    adc_transmit_voltage: 161
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966002
+    pressure_variance: 2255
+    real_time_clock_2: [20, 12, 9, 21, 18, 0, 0, 0]
+    ensemble_start_time_2: 3557239200.0000000000000000
+    water_velocity_east: [20, -111, -138, -88, -113, 19, 17, -14, -2, -22, -45, 20, 5, -73, -100, -122, -70, -72, -71, -98, -151, -98, -72, -87, -143, -157, -125, -160, -141, -193, -233, -158, -239, -221, -258, -240, -218, -207, -199, -202, -235, -260, -213, -204, -219, -180, -189, -146, -198, -174, -220, -228, -304, -194, -233]
+    water_velocity_north: [35, 169, 170, 12, 16, 47, 105, 85, 108, 53, -13, 24, 111, 128, 95, 156, 135, 110, 102, 48, 53, 68, 73, 99, 31, 123, 120, 91, 72, 46, 43, 24, 42, 17, -20, 59, 12, -23, 40, 85, 36, 47, 50, 59, 37, 90, 67, 93, 144, 129, 106, 76, 146, 129, 155]
+    water_velocity_up: [13, 33, -16, 1, 19, 26, -20, 13, 30, 21, 23, 23, 33, 32, 19, 28, 15, 29, 20, 20, 18, 8, 26, 26, 11, 15, 20, 21, 8, 22, 13, 10, 24, 15, 8, 5, 16, 16, 21, 10, 4, -15, 8, 12, 5, -3, 21, 2, -23, -30, -64, -5, -103, -200, -111]
+    error_velocity: [-64, -11, -88, -13, 5, -17, 82, -28, 7, -27, -21, 3, 16, 13, -8, 40, 8, -30, -18, 37, 2, -3, 18, -6, 26, 27, 4, -15, 13, 9, 15, -31, -37, 30, 21, 5, 5, -16, 1, 35, 10, 13, 33, 16, 5, 20, 15, 53, 62, -4, -13, 46, -35, 77, -32768]
+    correlation_magnitude_beam1: [69, 120, 111, 119, 119, 129, 110, 121, 123, 128, 127, 124, 122, 123, 116, 114, 107, 111, 113, 110, 107, 118, 116, 117, 122, 123, 126, 127, 127, 130, 126, 125, 124, 124, 122, 123, 121, 123, 122, 120, 117, 120, 120, 116, 120, 121, 116, 114, 108, 104, 95, 97, 87, 74, 72]
+    correlation_magnitude_beam2: [70, 122, 117, 111, 116, 132, 103, 121, 120, 126, 127, 121, 123, 120, 123, 118, 117, 115, 116, 111, 116, 118, 121, 125, 125, 123, 128, 124, 125, 124, 125, 125, 124, 122, 124, 124, 126, 122, 122, 124, 123, 121, 122, 120, 123, 120, 119, 116, 105, 105, 100, 96, 95, 89, 89]
+    correlation_magnitude_beam3: [67, 121, 117, 116, 119, 126, 112, 121, 123, 122, 122, 124, 125, 122, 118, 120, 114, 109, 115, 109, 111, 117, 117, 123, 121, 122, 124, 128, 128, 127, 126, 122, 122, 125, 123, 119, 120, 119, 120, 122, 120, 118, 118, 118, 118, 116, 119, 115, 110, 101, 102, 99, 100, 87, 88]
+    correlation_magnitude_beam4: [69, 122, 111, 121, 119, 124, 112, 121, 125, 125, 128, 123, 122, 120, 125, 117, 113, 109, 119, 112, 116, 116, 121, 120, 125, 128, 129, 126, 128, 124, 124, 123, 122, 125, 124, 121, 120, 122, 125, 123, 119, 122, 122, 120, 122, 120, 120, 115, 109, 105, 94, 93, 88, 79, 79]
+    echo_intensity_beam1: [186, 186, 179, 167, 155, 156, 144, 133, 124, 121, 119, 110, 105, 100, 92, 88, 84, 81, 81, 82, 81, 86, 89, 97, 105, 115, 123, 127, 123, 116, 108, 103, 100, 97, 97, 95, 94, 93, 95, 94, 93, 91, 91, 91, 91, 94, 92, 88, 84, 78, 72, 68, 65, 63, 60]
+    echo_intensity_beam2: [188, 188, 183, 165, 163, 167, 146, 135, 128, 125, 122, 114, 109, 101, 97, 89, 87, 85, 84, 86, 87, 92, 98, 105, 116, 129, 131, 127, 116, 108, 104, 102, 100, 100, 97, 97, 97, 99, 97, 94, 93, 92, 93, 96, 96, 94, 91, 83, 77, 72, 69, 65, 62, 61, 59]
+    echo_intensity_beam3: [191, 189, 184, 168, 160, 158, 148, 137, 129, 127, 123, 118, 112, 106, 106, 103, 90, 87, 90, 86, 88, 91, 95, 101, 110, 120, 130, 134, 129, 119, 112, 107, 102, 102, 100, 100, 98, 99, 100, 98, 95, 94, 93, 93, 95, 96, 95, 93, 87, 82, 76, 72, 67, 65, 63]
+    echo_intensity_beam4: [190, 190, 182, 175, 157, 149, 145, 134, 126, 125, 120, 113, 106, 102, 99, 90, 82, 84, 85, 84, 88, 92, 98, 108, 119, 131, 133, 127, 117, 109, 105, 102, 100, 100, 98, 96, 97, 97, 98, 97, 95, 95, 94, 97, 97, 95, 90, 84, 79, 73, 69, 66, 63, 62, 61]
+    percent_good_3beam: [20, 0, 4, 4, 0, 4, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 8, 4, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0, 4, 4, 4, 12, 0, 0, 8, 24, 16, 20, 24, 20]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [52, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 4, 0, 8, 12, 12, 16, 24, 44, 56, 80]
+    percent_good_4beam: [28, 100, 92, 96, 100, 96, 84, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 92, 92, 92, 92, 96, 100, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 100, 96, 92, 100, 96, 96, 92, 88, 92, 88, 80, 60, 60, 36, 20, 0]
+  - _index: 20
+    particle_object: AdcpsJlnParticle
+    particle_type: adcps_jln_instrument
+    internal_timestamp: 3557242800.000000
+    firmware_version: 50
+    firmware_revision: 40
+    sysconfig_frequency: 75
+    sysconfig_beam_pattern: 1
+    sysconfig_sensor_config: 0
+    sysconfig_head_attached: 1
+    sysconfig_vertical_orientation: 0
+    sysconfig_beam_angle: 1
+    sysconfig_beam_config: 4
+    data_flag: 0
+    lag_length: 11
+    num_beams: 4
+    num_cells: 55
+    pings_per_ensemble: 25
+    cell_length: 1000
+    blank_after_transmit: 200
+    signal_processing_mode: 1
+    low_corr_threshold: 64
+    num_code_repetitions: 7
+    percent_good_min: 0
+    error_vel_threshold: 2000
+    time_per_ping_minutes: 0
+    time_per_ping_seconds: 10.0000000000000000
+    coord_transform_type: 3
+    coord_transform_tilts: 1
+    coord_transform_beams: 1
+    coord_transform_mapping: 1
+    heading_alignment: 0
+    heading_bias: 0
+    sensor_source_speed: 1
+    sensor_source_depth: 1
+    sensor_source_heading: 1
+    sensor_source_pitch: 1
+    sensor_source_roll: 1
+    sensor_source_conductivity: 0
+    sensor_source_temperature: 1
+    sensor_available_speed: 0
+    sensor_available_depth: 1
+    sensor_available_heading: 1
+    sensor_available_pitch: 1
+    sensor_available_roll: 1
+    sensor_available_conductivity: 0
+    sensor_available_temperature: 1
+    bin_1_distance: 1322
+    transmit_pulse_length: 1081
+    reference_layer_start: 1
+    reference_layer_stop: 5
+    false_target_threshold: 50
+    low_latency_trigger: 0
+    transmit_lag_distance: 163
+    cpu_board_serial_number: 681103138035335206
+    system_bandwidth: 1
+    system_power: 255
+    serial_number: 17231
+    beam_angle: 20
+    ensemble_number: 20
+    real_time_clock: [12, 9, 21, 19, 0, 0, 0]
+    ensemble_start_time: 3557242800.0000000000000000
+    ensemble_number_increment: 0
+    bit_result_demod_1: 0
+    bit_result_demod_0: 0
+    bit_result_timing: 0
+    speed_of_sound: 1511
+    transducer_depth: 3
+    heading: 538
+    pitch: 147
+    roll: 221
+    salinity: 35
+    temperature: 1633
+    mpt_minutes: 0
+    mpt_seconds: 0.0500000000000000
+    heading_stdev: 16
+    pitch_stdev: 37
+    roll_stdev: 29
+    adc_transmit_current: 114
+    adc_transmit_voltage: 160
+    adc_ambient_temp: 96
+    adc_pressure_plus: 73
+    adc_pressure_minus: 73
+    adc_attitude_temp: 94
+    adc_attitude: 130
+    adc_contamination_sensor: 159
+    bus_error_exception: 0
+    address_error_exception: 0
+    illegal_instruction_exception: 0
+    zero_divide_instruction: 0
+    emulator_exception: 0
+    unassigned_exception: 0
+    watchdog_restart_occurred: 0
+    battery_saver_power: 0
+    pinging: 0
+    cold_wakeup_occurred: 0
+    unknown_wakeup_occurred: 0
+    clock_read_error: 0
+    unexpected_alarm: 0
+    clock_jump_forward: 0
+    clock_jump_backward: 0
+    power_fail: 1
+    spurious_dsp_interrupt: 0
+    spurious_uart_interrupt: 0
+    spurious_clock_interrupt: 0
+    level_7_interrupt: 1
+    pressure: 4294966485
+    pressure_variance: 1898
+    real_time_clock_2: [20, 12, 9, 21, 19, 0, 0, 0]
+    ensemble_start_time_2: 3557242800.0000000000000000
+    water_velocity_east: [-9, -130, -176, -163, -114, -133, -42, -85, -42, -64, -135, -99, -44, -127, -108, -97, -57, -80, -78, -122, -73, -115, -68, -104, -130, -113, -106, -114, -116, -69, -125, -138, -158, -201, -161, -162, -153, -136, -130, -150, -107, -152, -120, -94, -64, -100, -110, -98, -64, -92, -189, -175, -208, -276, -313]
+    water_velocity_north: [-184, -85, 26, 118, 61, 57, 56, 10, -6, 39, 44, 29, 67, 63, 51, 29, 70, 149, 59, 62, 64, 39, 76, 79, 80, 81, 91, 87, 60, 68, 15, 58, 61, 83, 37, 100, 85, 106, 94, 97, 134, 131, 105, 104, 101, 81, 68, 127, 133, 136, 105, 169, 159, 232, 141]
+    water_velocity_up: [-72, -27, -36, -33, -29, -35, -28, -23, -27, -26, -31, -25, -32, -20, -19, -27, -20, -17, -37, -14, -14, -23, -14, -28, -22, -12, -14, -19, -21, -7, 4, -2, -12, -5, 4, -3, -8, 0, -2, -2, 0, 11, -7, -1, 8, 7, 6, 16, -3, -33, -28, -125, -111, -54, -98]
+    error_velocity: [-118, -3, -1, -26, -14, -25, -38, 8, 2, 25, 28, 30, -16, 31, 2, -1, -35, -66, 11, -55, 16, 2, -13, 16, -14, 7, -26, -27, -17, 7, -21, 10, 4, -5, 43, -40, -16, -6, -1, -62, -13, 31, -10, -47, -14, -6, -28, -19, -29, 10, -6, -6, -76, -66, 157]
+    correlation_magnitude_beam1: [73, 123, 123, 125, 123, 123, 116, 120, 126, 124, 125, 124, 124, 120, 123, 122, 115, 109, 109, 112, 114, 121, 120, 117, 123, 123, 127, 127, 127, 125, 123, 123, 125, 125, 126, 122, 121, 122, 122, 123, 120, 119, 117, 115, 120, 118, 117, 109, 102, 94, 89, 86, 83, 83, 80]
+    correlation_magnitude_beam2: [75, 127, 120, 120, 121, 126, 118, 119, 122, 128, 128, 126, 126, 122, 119, 123, 122, 118, 109, 116, 116, 118, 121, 122, 121, 128, 130, 129, 125, 124, 124, 125, 124, 126, 125, 124, 127, 125, 124, 127, 123, 121, 124, 126, 125, 125, 122, 114, 112, 106, 97, 94, 86, 82, 82]
+    correlation_magnitude_beam3: [82, 119, 121, 124, 123, 124, 115, 122, 128, 125, 126, 124, 126, 122, 125, 116, 122, 116, 118, 117, 120, 124, 119, 123, 126, 125, 127, 126, 125, 124, 123, 127, 126, 125, 125, 125, 126, 125, 126, 127, 122, 124, 123, 123, 122, 122, 119, 115, 111, 103, 100, 93, 91, 87, 83]
+    correlation_magnitude_beam4: [73, 119, 123, 124, 118, 123, 113, 119, 125, 119, 129, 122, 124, 119, 126, 115, 113, 110, 108, 114, 113, 114, 119, 118, 120, 125, 127, 125, 126, 122, 125, 125, 121, 124, 124, 123, 122, 122, 127, 124, 120, 124, 123, 123, 121, 119, 118, 110, 102, 96, 87, 84, 73, 70, 70]
+    echo_intensity_beam1: [193, 188, 186, 177, 162, 151, 145, 136, 132, 128, 122, 116, 109, 104, 99, 96, 89, 84, 82, 83, 85, 90, 94, 103, 114, 126, 132, 132, 123, 115, 108, 104, 101, 99, 98, 98, 98, 98, 98, 97, 95, 95, 94, 95, 96, 96, 92, 87, 82, 77, 73, 69, 66, 64, 63]
+    echo_intensity_beam2: [194, 191, 188, 179, 164, 151, 146, 138, 130, 125, 125, 117, 110, 105, 99, 95, 91, 86, 83, 84, 86, 94, 102, 113, 128, 137, 138, 132, 119, 110, 107, 104, 104, 104, 102, 101, 102, 103, 100, 98, 97, 98, 99, 100, 100, 97, 90, 84, 78, 72, 69, 66, 66, 65, 62]
+    echo_intensity_beam3: [198, 190, 193, 183, 170, 159, 153, 143, 136, 130, 127, 123, 118, 111, 109, 102, 98, 96, 97, 91, 95, 96, 103, 112, 122, 134, 140, 141, 132, 121, 114, 110, 106, 107, 105, 104, 102, 103, 105, 104, 101, 100, 99, 100, 101, 102, 99, 94, 88, 82, 79, 74, 71, 68, 66]
+    echo_intensity_beam4: [194, 188, 187, 177, 161, 151, 144, 134, 128, 124, 125, 116, 111, 103, 99, 93, 87, 84, 86, 87, 87, 91, 99, 111, 122, 134, 136, 129, 119, 111, 107, 104, 102, 102, 102, 101, 102, 101, 100, 99, 98, 97, 98, 100, 98, 92, 88, 82, 77, 72, 69, 67, 66, 64, 62]
+    percent_good_3beam: [60, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 4, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 8, 20, 20, 20, 16, 12, 12, 16]
+    percent_transforms_reject: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    percent_bad_beams: [16, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 12, 20, 36, 40, 56, 76]
+    percent_good_4beam: [24, 100, 96, 100, 100, 100, 92, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 92, 96, 100, 96, 100, 100, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 96, 100, 92, 76, 68, 60, 48, 48, 32, 8]
