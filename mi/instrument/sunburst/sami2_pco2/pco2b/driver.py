@@ -628,7 +628,7 @@ class Protocol(Pco2wProtocol):
 
         Pco2wProtocol._build_command_dict(self)
 
-        self._cmd_dict.add(Capability.RUN_EXTERNAL_PUMP, display_name="run external pump")
+        self._cmd_dict.add(Capability.RUN_EXTERNAL_PUMP, display_name="Run External Pump")
 
     def _build_param_dict(self):
         """
@@ -666,7 +666,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x0A,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='mode bits (set to 00001010)')
+                             display_name='Mode Bits (set to 00001010)')
 
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, configuration_string_regex,
                              lambda match: int(match.group(8), 16),
@@ -676,7 +676,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x000E10,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 sample interval')
+                             display_name='Device 1 Sample Interval')
 
         self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, configuration_string_regex,
                              lambda match: int(match.group(9), 16),
@@ -686,7 +686,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x01,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 driver version')
+                             display_name='Device 1 Driver Version')
 
         self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, configuration_string_regex,
                              lambda match: int(match.group(10), 16),
@@ -696,7 +696,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x0B,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 parameter pointer')
+                             display_name='Device 1 Parameter Pointer')
 
         self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, configuration_string_regex,
                              lambda match: int(match.group(30), 16),
@@ -706,7 +706,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x1E,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='external pump settings')
+                             display_name='External Pump Settings')
 
         ## Engineering parameter to set delay after running external pump to take a sample, set as startup parameter
         ##   because it is configurable by the user and should be reapplied on application of startup parameters.
@@ -718,7 +718,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=False,
                              default_value=360,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='external pump delay')
+                             display_name='External Pump Delay')
 
     ########################################################################
     # Overridden base class methods

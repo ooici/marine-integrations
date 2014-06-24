@@ -449,7 +449,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x02,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='mode bits (set to 00000010)')
+                             display_name='Mode Bits (set to 00000010)')
 
         ## Changed from 0x000E10 to 0x000000 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, configuration_string_regex,
@@ -460,7 +460,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x000000,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 sample interval')
+                             display_name='Device 1 Sample Interval')
 
         ## Changed from 0x01 to 0x00 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, configuration_string_regex,
@@ -471,7 +471,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 driver version')
+                             display_name='Device 1 Driver Version')
 
         ## Changed from 0x0B to 0x00 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, configuration_string_regex,
@@ -482,7 +482,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 parameter pointer')
+                             display_name='Device 1 Parameter Pointer')
 
     ########################################################################
     # Overridden base class methods

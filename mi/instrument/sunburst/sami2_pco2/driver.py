@@ -739,10 +739,10 @@ class Pco2wProtocol(SamiProtocol):
 
         SamiProtocol._build_command_dict(self)
 
-        self._cmd_dict.add(Pco2wCapability.ACQUIRE_BLANK_SAMPLE, display_name="acquire blank sample")
-        self._cmd_dict.add(Pco2wCapability.DEIONIZED_WATER_FLUSH_100ML, display_name="deionized water flush 100 ml")
-        self._cmd_dict.add(Pco2wCapability.REAGENT_FLUSH_100ML, display_name="reagent flush 100 ml")
-        self._cmd_dict.add(Pco2wCapability.DEIONIZED_WATER_FLUSH, display_name="deionized water flush")
+        self._cmd_dict.add(Pco2wCapability.ACQUIRE_BLANK_SAMPLE, display_name="Acquire Blank Sample")
+        self._cmd_dict.add(Pco2wCapability.DEIONIZED_WATER_FLUSH_100ML, display_name="Deionized Water Flush 100 ml")
+        self._cmd_dict.add(Pco2wCapability.REAGENT_FLUSH_100ML, display_name="Reagent Flush 100 ml")
+        self._cmd_dict.add(Pco2wCapability.DEIONIZED_WATER_FLUSH, display_name="Deionized Water Flush")
 
     def _build_param_dict(self):
         """
@@ -765,7 +765,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x04,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='sami driver version')
+                             display_name='Sami Driver Version')
 
         self._param_dict.add(Pco2wParameter.PUMP_PULSE, configuration_string_regex,
                              lambda match: int(match.group(21), 16),
@@ -775,7 +775,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x10,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='pump pulse duration')
+                             display_name='Pump Pulse Duration')
 
         self._param_dict.add(Pco2wParameter.PUMP_DURATION, configuration_string_regex,
                              lambda match: int(match.group(22), 16),
@@ -785,7 +785,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x20,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='pump measurement duration')
+                             display_name='Pump Measurement Duration')
 
         self._param_dict.add(Pco2wParameter.SAMPLES_PER_MEASUREMENT, configuration_string_regex,
                              lambda match: int(match.group(23), 16),
@@ -795,7 +795,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0xFF,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='samples per measurement')
+                             display_name='Samples Per Measurement')
 
         self._param_dict.add(Pco2wParameter.CYCLES_BETWEEN_BLANKS, configuration_string_regex,
                              lambda match: int(match.group(24), 16),
@@ -805,7 +805,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x54,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='cycles between blanks')
+                             display_name='Cycles Between Blanks')
 
         self._param_dict.add(Pco2wParameter.NUMBER_REAGENT_CYCLES, configuration_string_regex,
                              lambda match: int(match.group(25), 16),
@@ -815,7 +815,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x18,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='number of reagent cycles')
+                             display_name='Number of Reagent Cycles')
 
         self._param_dict.add(Pco2wParameter.NUMBER_BLANK_CYCLES, configuration_string_regex,
                              lambda match: int(match.group(26), 16),
@@ -825,7 +825,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x1C,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='number of blank cycles')
+                             display_name='Number of Blank Cycles')
 
         self._param_dict.add(Pco2wParameter.FLUSH_PUMP_INTERVAL, configuration_string_regex,
                              lambda match: int(match.group(27), 16),
@@ -835,7 +835,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x01,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='flush pump interval')
+                             display_name='Flush Pump Interval')
 
         self._param_dict.add(Pco2wParameter.BIT_SWITCHES, configuration_string_regex,
                              lambda match: int(match.group(28), 16),
@@ -845,7 +845,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='bit switches')
+                             display_name='Bit Switches')
 
         self._param_dict.add(Pco2wParameter.NUMBER_EXTRA_PUMP_CYCLES, configuration_string_regex,
                              lambda match: int(match.group(29), 16),
@@ -855,7 +855,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x38,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='number of extra pump cycles')
+                             display_name='Number of Extra Pump Cycles')
 
         self._param_dict.add(Pco2wParameter.PUMP_100ML_CYCLES, r'Pump 100ml cycles = ([0-9]+)',
                              lambda match: match.group(1),
@@ -865,7 +865,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=False,
                              default_value=0x1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='pump 100ml cycles')
+                             display_name='Pump 100ml Cycles')
 
         self._param_dict.add(Pco2wParameter.REAGENT_FLUSH_DURATION, r'Reagent flush duration = ([0-9]+)',
                              lambda match: match.group(1),
@@ -875,7 +875,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=False,
                              default_value=0x8,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='flush duration')
+                             display_name='Reagent Flush Duration')
 
         self._param_dict.add(Pco2wParameter.DEIONIZED_WATER_FLUSH_DURATION,
                              r'Deionized water flush duration = ([0-9]+)',
@@ -886,7 +886,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=False,
                              default_value=0x8,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='flush duration')
+                             display_name='Deionized Water Flush Duration')
 
     ########################################################################
     # Overridden base class methods
