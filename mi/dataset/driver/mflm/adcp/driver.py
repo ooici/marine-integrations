@@ -21,6 +21,8 @@ from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.adcps import AdcpsParser, AdcpsParserDataParticle
 from mi.dataset.parser.adcp_pd0 import AdcpPd0Parser
+from mi.dataset.parser.adcps_jln import AdcpsJlnParticle
+
 
 class DataSourceKey(BaseEnum):
     """
@@ -33,14 +35,17 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [AdcpsParserDataParticle.type()]
+        return [AdcpsParserDataParticle.type(),
+                AdcpsJlnParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.ADCPS_JLN_SIO_MULE, DataSourceKey.ADCPS_JLN]
+        data_keys = DataSourceKey.list()
+
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.ADCPS_JLN_SIO_MULE: HarvesterType.SINGLE_FILE,
                           DataSourceKey.ADCPS_JLN: HarvesterType.SINGLE_DIRECTORY}
+
         super(MflmADCPSDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                      exception_callback, data_keys, harvester_type=harvester_type)
 

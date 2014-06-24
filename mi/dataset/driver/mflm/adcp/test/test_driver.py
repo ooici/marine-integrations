@@ -75,8 +75,6 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = AdcpsSioMuleDataParticleType.SAMPLE
-
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 # Device specific integration tests are for                                   #
@@ -170,8 +168,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_MOD_DATE: mod_time,
                     DriverStateKey.PARSER_STATE: {'in_process_data': [],
                                                   'unprocessed_data': [[0, 32], [607, 678], [1254, 1300]],
-                                                  }
-                }
+                                                  }}
+                },
+            DataSourceKey.ADCPS_JLN: {
             }
         }
 
@@ -279,7 +278,7 @@ class QualificationTest(DataSetQualificationTestCase):
                                          TELEM_DIR,
                                          "node59p1.dat")
 
-        #create recovered data
+        # create recovered data
         self.create_sample_data_set_dir('ADCP_CCE1T_20.000',
                                         RECOV_DIR,
                                         'ADCP_CCE1T_20.PD0')
@@ -288,10 +287,10 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Verify we get 2 samples
-            log.debug('#### attempting to get particles on stream %s', AdcpsSioMuleDataParticleType.SAMPLE)
+            log.debug('attempting to get particles on stream %s', AdcpsSioMuleDataParticleType.SAMPLE)
             result = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 2)
 
-            log.info("#### RESULT: %s", result)
+            log.info("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
@@ -302,12 +301,13 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Verify that we get 20  samples
-            log.debug('#### attempting to get particles on stream %s', AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT)
+            log.debug('attempting to get particles on stream %s', AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT)
 
-            result = self.data_subscribers.get_samples(
+            result = self.get_samples(
                 AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT, 20, 100)
 
-            log.info("#### RESULT: %s", result)
+            log.info("RESULT: %s", result)
+
             self.assert_data_values(result, 'ADCP_CCE1T_20.yml')
 
         except Exception as e:
@@ -318,10 +318,19 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test a large import
         """
+        log.info("### START QUAL TEST PUBLISH PATH ###")
+
         self.create_sample_data_set_dir('node59p1.dat', TELEM_DIR)
+
+        #create recovered data
+        self.create_sample_data_set_dir('ADCP_CCE1T.000',
+                                        RECOV_DIR,
+                                        'ADCP_CCE1T.PD0')
+
         self.assert_initialize()
 
-        self.get_samples(SAMPLE_STREAM, 2000, 400)
+        self.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 2000, 400)
+        self.data_subscribers.get_samples(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT, 200, 400)
 
     def test_stop_start(self):
         """
@@ -332,6 +341,13 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('node59p1_step2.dat', TELEM_DIR,
                                         "node59p1.dat", copy_metadata=False)
 
+        self.create_sample_data_set_dir('ADCP_CCE1T_21_40.000',
+                                        RECOV_DIR,
+                                        'ADCP_CCE1T_21_40.PD0')
+
+        num_samples = 8
+        max_time = 100  # seconds
+
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -341,31 +357,49 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 3)
+            result = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 3)
             log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1-2.txt.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(AdcpsSioMuleDataParticleType.SAMPLE, 0)
 
             self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR,
                                             "node59p1.dat", copy_metadata=False)
+
             # Now read the first records of the second file then stop
-            result1 = self.data_subscribers.get_samples(SAMPLE_STREAM, 2)
+            result1 = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 2)
             log.debug("RESULT 1: %s", result1)
+
+            #get first 8 records and verify data
+            samples1 = self.data_subscribers.get_samples(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT,
+                                                         num_samples, max_time)
+            self.assert_data_values(samples1, 'ADCP_CCE1T_21_28.yml')
+
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
-            result2 = self.data_subscribers.get_samples(SAMPLE_STREAM, 3)
+
+            result2 = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 3)
             log.debug("RESULT 2: %s", result2)
+
             result = result1
             result.extend(result2)
             log.debug("RESULT: %s", result)
+
             self.assert_data_values(result, 'test_data_3-4.txt.result.yml')
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(AdcpsSioMuleDataParticleType.SAMPLE, 0)
+
+            num_samples = 12
+            samples2 = self.data_subscribers.get_samples(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT,
+                                                         num_samples, max_time)
+            self.assert_data_values(samples2, 'ADCP_CCE1T_29_40.yml')
+
+            #verify the queues is empty
+            self.assert_sample_queue_size(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -379,6 +413,13 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('node59p1_step2.dat', TELEM_DIR,
                                         "node59p1.dat", copy_metadata=False)
 
+        self.create_sample_data_set_dir('ADCP_CCE1T_21_40.000',
+                                        RECOV_DIR,
+                                        'ADCP_CCE1T_21_40.PD0')
+
+        num_samples = 8
+        max_time = 100  # seconds
+
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -387,20 +428,27 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 3)
+            result = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 3)
             log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1-2.txt.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(AdcpsSioMuleDataParticleType.SAMPLE, 0)
 
             self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR,
                                             "node59p1.dat", copy_metadata=False)
+
             # Now read the first records of the second file then stop
-            result1 = self.data_subscribers.get_samples(SAMPLE_STREAM, 2)
+            result1 = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 2)
             log.debug("RESULT 1: %s", result1)
+
+            #get first 8 records and verify data
+            samples1 = self.data_subscribers.get_samples(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT,
+                                                         num_samples, max_time)
+
+            self.assert_data_values(samples1, 'ADCP_CCE1T_21_28.yml')
+
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             # stop and re-start the agent
             self.stop_dataset_agent_client()
@@ -409,14 +457,23 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_initialize()
 
             # read the second set of records from the file
-            result2 = self.data_subscribers.get_samples(SAMPLE_STREAM, 3)
+            result2 = self.data_subscribers.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 3)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
             log.debug("RESULT: %s", result)
             self.assert_data_values(result, 'test_data_3-4.txt.result.yml')
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(AdcpsSioMuleDataParticleType.SAMPLE, 0)
+
+            num_samples = 12
+            samples2 = self.data_subscribers.get_samples(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT,
+                                                         num_samples, max_time)
+            self.assert_data_values(samples2, 'ADCP_CCE1T_29_40.yml')
+
+            #verify the queues is empty
+            self.assert_sample_queue_size(AdcpsJlnDataParticleType.ADCPS_JLN_INSTRUMENT, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -433,8 +490,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        self.get_samples(SAMPLE_STREAM, 28, 30)
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        self.get_samples(AdcpsSioMuleDataParticleType.SAMPLE, 28, 30)
+        self.assert_sample_queue_size(AdcpsSioMuleDataParticleType.SAMPLE, 0)
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
