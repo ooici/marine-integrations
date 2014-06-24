@@ -50,7 +50,7 @@ EOP_MATCHER = re.compile(EOP_REGEX)
 
 
 class DataParticleType(BaseEnum):
-    DATA = 'ctdpf_ckl_wfp_sio_mule_instrument'
+    DATA = 'ctdpf_ckl_wfp_instrument'
     METADATA = 'ctdpf_ckl_wfp_sio_mule_metadata'
 
 
