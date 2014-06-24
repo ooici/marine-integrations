@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    particle_object: CtdmoParserDataParticle
+    particle_object: CtdmoTelemeteredInstrumentDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T10:00:01Z'
     sio_controller_timestamp: 1374667638
@@ -16,7 +16,7 @@ data:
     pressure: 4155
     ctd_time: 427975201
   - _index: 2
-    particle_object: CtdmoParserDataParticle
+    particle_object: CtdmoTelemeteredInstrumentDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T12:00:01'
     sio_controller_timestamp: 1374674838
@@ -26,7 +26,7 @@ data:
     pressure: 4153
     ctd_time: 427982401
   - _index: 3
-    particle_object: CtdmoParserDataParticle
+    particle_object: CtdmoTelemeteredInstrumentDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T14:00:01'
     sio_controller_timestamp: 1374682038
@@ -36,7 +36,7 @@ data:
     pressure: 4053
     ctd_time: 427989601
   - _index: 4
-    particle_object: CtdmoParserDataParticle
+    particle_object: CtdmoTelemeteredInstrumentDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T16:00:01'
     sio_controller_timestamp: 1374689239
@@ -46,7 +46,7 @@ data:
     pressure: 4046
     ctd_time: 427996801
   - _index: 5
-    particle_object: CtdmoParserDataParticle
+    particle_object: CtdmoTelemeteredInstrumentDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T18:00:01'
     sio_controller_timestamp: 1374696438
@@ -56,7 +56,7 @@ data:
     pressure: 4002
     ctd_time: 428004001
   - _index: 6
-    particle_object: CtdmoOffsetDataParticle
+    particle_object: CtdmoTelemeteredOffsetDataParticle
     particle_type: ctdmo_ghqr_sio_offset
     internal_timestamp: '2013-07-24T22:07:18'
     sio_controller_timestamp: 1374703638
