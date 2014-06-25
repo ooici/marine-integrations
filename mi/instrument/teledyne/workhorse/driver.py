@@ -7,17 +7,18 @@ Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
+
+
+__author__ = 'Sung Ahn'
+__license__ = 'Apache 2.0'
+
+import socket
 import re
 from mi.core.exceptions import InstrumentProtocolException
 from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_REGEX_MATCHER, \
     ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER, ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER, ADCP_TRANSMIT_PATH_REGEX_MATCHER, \
     ADCP_PD0_PARSED_REGEX_MATCHER, ADCP_COMPASS_CALIBRATION_DataParticle, ADCP_PD0_PARSED_DataParticle, \
     ADCP_SYSTEM_CONFIGURATION_DataParticle, ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE, ADCP_TRANSMIT_PATH_PARTICLE
-
-__author__ = 'Sung Ahn'
-__license__ = 'Apache 2.0'
-
-import socket
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
@@ -27,7 +28,7 @@ from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger
-from struct import *
+from struct import unpack
 
 log = get_logger()
 
@@ -126,7 +127,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         @param driver_event Driver process event callback.
         """
 
-        log.debug("IN WorkhorseProtocol.__init__")
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
 
@@ -138,40 +138,40 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         self._cmd_dict.add(TeledyneCapability.START_AUTOSAMPLE,
                            timeout=300,
-                           display_name="start autosample",
+                           display_name="Start Autosample",
                            description="Place the instrument into autosample mode")
         self._cmd_dict.add(TeledyneCapability.STOP_AUTOSAMPLE,
-                           display_name="stop autosample",
+                           display_name="Stop Autosample",
                            description="Exit autosample mode and return to command mode")
         self._cmd_dict.add(TeledyneCapability.CLOCK_SYNC,
-                           display_name="sync clock")
+                           display_name="Sync Clock")
         self._cmd_dict.add(TeledyneCapability.GET_CALIBRATION,
-                           display_name="get calibration")
+                           display_name="Get Calibration")
         self._cmd_dict.add(TeledyneCapability.GET_CONFIGURATION,
                            timeout=300,
-                           display_name="get configuration")
+                           display_name="Get Configuration")
         self._cmd_dict.add(TeledyneCapability.SAVE_SETUP_TO_RAM,
-                           display_name="save setup to ram")
+                           display_name="Save Setup To Ram")
         self._cmd_dict.add(TeledyneCapability.GET_ERROR_STATUS_WORD,
-                           display_name="get error status word")
+                           display_name="Get Error Status Word")
         self._cmd_dict.add(TeledyneCapability.CLEAR_ERROR_STATUS_WORD,
-                           display_name="clear error status word")
+                           display_name="Clear Error Status Word")
         self._cmd_dict.add(TeledyneCapability.GET_FAULT_LOG,
-                           display_name="get fault log")
+                           display_name="Get Fault Log")
         self._cmd_dict.add(TeledyneCapability.CLEAR_FAULT_LOG,
-                           display_name="clear fault log")
+                           display_name="Clear Fault Log")
         self._cmd_dict.add(TeledyneCapability.RUN_TEST_200,
-                           display_name="run test 200")
+                           display_name="Run Test 200")
         self._cmd_dict.add(TeledyneCapability.USER_SETS,
-                           display_name="set user sets")
+                           display_name="Set User Sets")
         self._cmd_dict.add(TeledyneCapability.FACTORY_SETS,
-                           display_name="set factory sets")
+                           display_name="Set Factory Sets")
         self._cmd_dict.add(TeledyneCapability.ACQUIRE_STATUS,
-                           display_name="acquire status")
+                           display_name="Acquire Status")
         self._cmd_dict.add(TeledyneCapability.START_DIRECT,
-                           display_name="start direct access")
+                           display_name="Start Direct Access")
         self._cmd_dict.add(TeledyneCapability.STOP_DIRECT,
-                           display_name="stop direct access")
+                           display_name="Stop Direct Access")
 
     ########################################################################
     # Private helpers.
@@ -189,29 +189,29 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
-        if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
+        elif (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
                                  ADCP_PD0_PARSED_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
-        if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
+        elif (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
-        if (self._extract_sample(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
+        elif (self._extract_sample(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
                                  ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
-            log.trace("_got_chunk2 - successful match for ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
+            log.trace("_got_chunk - successful match for ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
 
-        if (self._extract_sample(ADCP_TRANSMIT_PATH_PARTICLE,
+        elif (self._extract_sample(ADCP_TRANSMIT_PATH_PARTICLE,
                                  ADCP_TRANSMIT_PATH_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
-            log.trace("_got_chunk2 - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
+            log.trace("_got_chunk - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
 
     def _get_params(self):
         return dir(WorkhorseParameter)
@@ -232,7 +232,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         # self._connection.send_break(delay)
         # Then remove below lines
 
-        log.trace("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:

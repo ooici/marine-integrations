@@ -560,7 +560,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # CLIP_DATA_PAST_BOTTOM: True/False,
         self.assert_set(TeledyneParameter.CLIP_DATA_PAST_BOTTOM, True)
-        self.assert_set_exception(TeledyneParameter.CLIP_DATA_PAST_BOTTOM, "LEROY JENKINS")
 
         #
         # Reset to good value.
@@ -578,10 +577,8 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
         self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, 1)
 
-        self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, "LEROY JENKINS")
         self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 2)
         self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, -1)
-        self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 3.1415926)
 
         #
         # Reset to good value.
@@ -600,11 +597,9 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 128)
         self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 254)
 
-        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, "LEROY JENKINS")
         self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 256)
         self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 0)
         self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, -1)
-        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 3.1415926)
 
         #
         # Reset to good value.

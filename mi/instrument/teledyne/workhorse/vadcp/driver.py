@@ -4,7 +4,16 @@
 @author Sung Ahn
 @brief Driver for the VADCP
 """
+
+import base64
+import time
 from mi.instrument.teledyne.driver import TIMEOUT
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_DataParticle, \
+    ADCP_SYSTEM_CONFIGURATION_DataParticle, ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE, ADCP_TRANSMIT_PATH_PARTICLE, \
+    ADCP_PD0_PARSED_DataParticle, ADCP_COMPASS_CALIBRATION_REGEX_MATCHER, \
+    ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER, ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER, ADCP_TRANSMIT_PATH_REGEX_MATCHER, \
+    ADCP_PD0_PARSED_REGEX_MATCHER
+
 from mi.instrument.teledyne.workhorse.driver import WorkhorseInstrumentDriver
 from mi.instrument.teledyne.workhorse.driver import WorkhorseProtocol
 
@@ -29,6 +38,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
 from mi.instrument.teledyne.workhorse.adcp.driver import ADCPUnits
+from mi.instrument.teledyne.workhorse.adcp.driver import ADCPDescription
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.exceptions import InstrumentParameterException
@@ -40,7 +50,7 @@ from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.data_particle import RawDataParticle
-from mi.instrument.teledyne.particles import *
+from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import InitializationType
 from mi.core.exceptions import InstrumentParameterExpirationException
 from mi.core.instrument.instrument_driver import ResourceAgentState
@@ -48,7 +58,9 @@ from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
-import base64
+
+# newline.
+NEWLINE = '\r\n'
 
 
 class SlaveProtocol(BaseEnum):
@@ -268,7 +280,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         Configure driver for device comms.
         @param args[0] Communications config dictionary.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
+        @return (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
         None) if successful, (None, None) otherwise.
         @raises InstrumentParameterException if missing or invalid param dict.
         """
@@ -297,7 +309,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         Initialize device communications. Causes the connection parameters to
         be reset.
-        @retval (next_state, result) tuple, (DriverConnectionState.UNCONFIGURED,
+        @return (next_state, result) tuple, (DriverConnectionState.UNCONFIGURED,
         None).
         """
         result = None
@@ -311,7 +323,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         Configure driver for device comms.
         @param args[0] Communications config dictionary.
-        @retval (next_state, result) tuple, (None, None).
+        @return (next_state, result) tuple, (None, None).
         @raises InstrumentParameterException if missing or invalid param dict.
         """
         next_state = None
@@ -339,7 +351,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         Establish communications with the device via port agent / logger and
         construct and initialize a protocol FSM for device interaction.
-        @retval (next_state, result) tuple, (DriverConnectionState.CONNECTED,
+        @return (next_state, result) tuple, (DriverConnectionState.CONNECTED,
         None) if successful.
         @raises InstrumentConnectionException if the attempt to connect failed.
         """
@@ -381,7 +393,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         Disconnect to the device via port agent / logger and destroy the
         protocol FSM.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
+        @return (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
         None) if successful.
         """
         result = None
@@ -398,7 +410,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         The device connection was lost. Stop comms, destroy protocol FSM and
         revert to disconnected state.
-        @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
+        @return (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
         None).
         """
         result = None
@@ -429,16 +441,13 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
         @param all_configs configuration dict
 
-        @retval a Connection instance, which will be assigned to
+        @return a Connection instance, which will be assigned to
                   self._connections
 
         @throws InstrumentParameterException Invalid configuration.
         """
         connections = {}
-        all_config = {}
         for name, config in all_configs.items():
-            all_config[name] = config
-        for name, config in all_config.items():
             if not isinstance(config, dict):
                 continue
             if 'mock_port_agent' in config:
@@ -510,10 +519,7 @@ class Protocol(WorkhorseProtocol):
 
         # The parameter, comamnd, and driver dictionaries.
         self._param_dict2 = ProtocolParameterDict()
-        self._cmd_dict2 = ProtocolCommandDict()
-        self._driver_dict2 = DriverDict()
         self._build_param_dict2()
-
         self._chunker2 = StringChunker(WorkhorseProtocol.sieve_function)
 
     # Overridden for dual(master/slave) instruments
@@ -544,7 +550,7 @@ class Protocol(WorkhorseProtocol):
         Return a list of metadata about the protocol's driver support,
         command formats, and parameter formats. The format should be easily
         JSONifyable (as will happen in the driver on the way out to the agent)
-        @retval A python dict that represents the metadata
+        @return A python dict that represents the metadata
         @see https://confluence.oceanobservatories.org/display/syseng/
                    CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
@@ -564,8 +570,8 @@ class Protocol(WorkhorseProtocol):
         String val constructed by param dict formatting function.
         @param param the parameter key to set.
         @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @ retval The set command to be sent to the device.
+        @ return The set command to be sent to the device.
+        @ return The set command to be sent to the device.
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
@@ -588,8 +594,8 @@ class Protocol(WorkhorseProtocol):
         String val constructed by param dict formatting function.
         @param param the parameter key to set.
         @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @ retval The set command to be sent to the device.
+        @ return The set command to be sent to the device.
+        @ return The set command to be sent to the device.
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
@@ -698,7 +704,7 @@ class Protocol(WorkhorseProtocol):
         match. Groups that match will be returned as a string.
         Cannot be supplied with expected_prompt. May be helpful for
         instruments that do not have a prompt.
-        @retval resp_result The (possibly parsed) response result including the
+        @return resp_result The (possibly parsed) response result including the
         first instance of the prompt matched. If a regex was used, the prompt
         will be an empty string and the response will be the joined collection
         of matched groups.
@@ -779,7 +785,7 @@ class Protocol(WorkhorseProtocol):
         match. Groups that match will be returned as a string.
         Cannot be supplied with expected_prompt. May be helpful for
         instruments that do not have a prompt.
-        @retval resp_result The (possibly parsed) response result including the
+        @return resp_result The (possibly parsed) response result including the
         first instance of the prompt matched. If a regex was used, the prompt
         will be an empty string and the response will be the joined collection
         of matched groups.
@@ -859,7 +865,7 @@ class Protocol(WorkhorseProtocol):
         string. Cannot be used with expected prompt. None
         will be returned as a prompt with this match. If a regex is supplied,
         internal the prompt list will be ignored.
-        @retval Regex search result tuple (as MatchObject.groups() would return
+        @return Regex search result tuple (as MatchObject.groups() would return
         if a response_regex is supplied. A tuple of (prompt, response) if a
         prompt is looked for.
         @throw InstrumentProtocolException if both regex and expected prompt are
@@ -1488,7 +1494,7 @@ class Protocol(WorkhorseProtocol):
         returned are marked as startup, and the values are the best as chosen
         from the initialization, default, and current parameters.
 
-        @retval The dict of parameter_name/values (override this method if it
+        @return The dict of parameter_name/values (override this method if it
             is more involved for a specific instrument) that should be set at
             a higher level.
 
@@ -1743,7 +1749,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Serial data out",
-                             units=ADCPUnits.SERIALDATAOUT,
+                             description=ADCPDescription.SERIALDATAOUT,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1755,7 +1761,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Serial flow control",
-                             units=ADCPUnits.FLOWCONTROL,
+                             description=ADCPDescription.FLOWCONTROL,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1767,7 +1773,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Banner",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1779,7 +1785,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Instrument id",
-                             units=ADCPUnits.NONE,
                              direct_access=True,
                              startup_param=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1791,7 +1796,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Sleep enable",
-                             units=ADCPUnits.SLEEP,
+                             description=ADCPDescription.SLEEP,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1803,7 +1808,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Save nvram to recorder",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              default_value=True,
                              direct_access=True,
@@ -1815,7 +1820,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Polled mode",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1827,7 +1832,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Xmit power",
-                             units=ADCPUnits.XMTPOWER,
+                             description=ADCPDescription.XMTPOWER,
                              startup_param=True,
                              direct_access=True,
                              default_value=255)
@@ -1838,7 +1843,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.INT,
                              display_name="latency trigger",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1964,7 +1969,6 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Synch ping ensemble",
-                             units=ADCPUnits.NONE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1976,7 +1980,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="RDS3 mode selection",
-                             units=ADCPUnits.NONE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1987,7 +1990,7 @@ class Protocol(WorkhorseProtocol):
                              lambda match: int(match.group(1), base=10),
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             display_name="Synch delay",
+                             display_name="Synch Delay",
                              units=ADCPUnits.TENTHMILLISECOND,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
@@ -2012,7 +2015,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time per ensemble",
-                             units=ADCPUnits.INTERVALTIMEMILLI,
+                             description=ADCPDescription.INTERVALTIMEHundredth,
                              startup_param=True,
                              direct_access=True,
                              default_value='00:00:00.00')
@@ -2023,7 +2026,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time of first ping",
-                             units=ADCPUnits.DATETIME,
+                             description=ADCPDescription.DATETIME,
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
@@ -2034,7 +2037,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time per ping",
-                             units=ADCPUnits.PINGTIME,
+                             description=ADCPDescription.PINGTIME,
                              startup_param=True,
                              direct_access=True,
                              default_value='00:01.00')
@@ -2045,7 +2048,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time",
-                             units=ADCPUnits.SETTIME,
+                             description=ADCPDescription.SETTIME,
                              expiration=86400)  # expire once per day 60 * 60 * 24
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
@@ -2054,7 +2057,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Buffered output period",
-                             units=ADCPUnits.INTERVALTIME,
+                             description=ADCPDescription.INTERVALTIME,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -2077,7 +2080,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Bandwidth control",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=0)
@@ -2088,7 +2091,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Correlation threshold",
-                             units=ADCPUnits.NONE,
                              startup_param=True,
                              direct_access=True,
                              default_value=64)
@@ -2133,7 +2135,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Clip data past bottom",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=False)
@@ -2144,7 +2146,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Receiver gain select",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=1)
@@ -2155,7 +2157,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Number of depth cells",
-                             units=ADCPUnits.NONE,
                              startup_param=True,
                              direct_access=True,
                              default_value=22)
@@ -2166,7 +2167,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Pings per ensemble",
-                             units=ADCPUnits.NONE,
                              startup_param=True,
                              direct_access=True,
                              default_value=1)
@@ -2177,7 +2177,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Sample ambient sound",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -2211,7 +2211,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ping weight",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=0)
@@ -2234,7 +2234,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Clock synch interval",
-                             units=ADCPUnits.INTERVALTIME,
+                             description=ADCPDescription.INTERVALTIME,
                              startup_param=True,
                              direct_access=False,
                              default_value="00:00:00")
@@ -2246,7 +2246,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Get status interval",
-                             units=ADCPUnits.INTERVALTIME,
+                             description=ADCPDescription.INTERVALTIME,
                              startup_param=True,
                              direct_access=False,
                              default_value="00:00:00")
@@ -2268,7 +2268,7 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Serial data out for 5th beam",
-                              units=ADCPUnits.SERIALDATAOUT,
+                              description=ADCPDescription.SERIALDATAOUT,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2280,7 +2280,7 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Serial flow control for 5th beam",
-                              units=ADCPUnits.FLOWCONTROL,
+                              description=ADCPDescription.FLOWCONTROL,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2292,7 +2292,7 @@ class Protocol(WorkhorseProtocol):
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Banner for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2304,7 +2304,6 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Instrument id for 5th beam",
-                              units=ADCPUnits.NONE,
                               direct_access=True,
                               startup_param=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2316,7 +2315,7 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Sleep enable for 5th beam",
-                              units=ADCPUnits.SLEEP,
+                              units=ADCPDescription.SLEEP,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2328,7 +2327,7 @@ class Protocol(WorkhorseProtocol):
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Save nvram to recorder for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               default_value=True,
                               direct_access=True,
@@ -2340,7 +2339,7 @@ class Protocol(WorkhorseProtocol):
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Polled mode for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2352,7 +2351,7 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Xmit power for 5th beam",
-                              units=ADCPUnits.XMTPOWER,
+                              description=ADCPDescription.XMTPOWER,
                               startup_param=True,
                               direct_access=True,
                               default_value=255)
@@ -2363,7 +2362,7 @@ class Protocol(WorkhorseProtocol):
                               int,
                               type=ParameterDictType.INT,
                               display_name="latency trigger for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
@@ -2489,7 +2488,6 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Synch ping ensemble for 5th beam",
-                              units=ADCPUnits.NONE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
@@ -2501,7 +2499,6 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="RDS3 mode selection for 5th beam",
-                              units=ADCPUnits.NONE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
@@ -2549,7 +2546,7 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Time per ensemble for 5th beam",
-                              units=ADCPUnits.INTERVALTIMEMILLI,
+                              description=ADCPDescription.INTERVALTIMEHundredth,
                               startup_param=True,
                               direct_access=True,
                               default_value='00:00:00.00')
@@ -2560,7 +2557,7 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Time of first ping for 5th beam",
-                              units=ADCPUnits.DATETIME,
+                              description=ADCPDescription.DATETIME,
                               startup_param=False,
                               direct_access=False,
                               visibility=ParameterDictVisibility.READ_ONLY)
@@ -2571,7 +2568,7 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Time for 5th beam",
-                              units=ADCPUnits.SETTIME,
+                              description=ADCPDescription.SETTIME,
                               expiration=86400)  # expire once per day 60 * 60 * 24
 
         self._param_dict2.add(Parameter2.BUFFERED_OUTPUT_PERIOD,
@@ -2580,7 +2577,7 @@ class Protocol(WorkhorseProtocol):
                               str,
                               type=ParameterDictType.STRING,
                               display_name="Buffered output period for 5th beam",
-                              units=ADCPUnits.INTERVALTIME,
+                              description=ADCPDescription.INTERVALTIME,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
@@ -2603,7 +2600,7 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Bandwidth control for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               direct_access=True,
                               default_value=0)
@@ -2614,7 +2611,6 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Correlation threshold for 5th beam",
-                              units=ADCPUnits.NONE,
                               startup_param=True,
                               direct_access=True,
                               default_value=64)
@@ -2659,7 +2655,7 @@ class Protocol(WorkhorseProtocol):
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Clip data past bottom for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               direct_access=True,
                               default_value=0)
@@ -2670,7 +2666,7 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Receiver gain select for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               direct_access=True,
                               default_value=1)
@@ -2681,7 +2677,6 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Number of depth cells for 5th beam",
-                              units=ADCPUnits.NONE,
                               startup_param=True,
                               direct_access=True,
                               default_value=22)
@@ -2692,7 +2687,6 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Pings per ensemble for 5th beam",
-                              units=ADCPUnits.NONE,
                               startup_param=True,
                               direct_access=True,
                               default_value=1)
@@ -2703,7 +2697,7 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Sample ambient sound for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
@@ -2737,7 +2731,7 @@ class Protocol(WorkhorseProtocol):
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Ping weight for 5th beam",
-                              units=ADCPUnits.TRUEFALSE,
+                              description=ADCPDescription.TRUEFALSE,
                               startup_param=True,
                               direct_access=True,
                               default_value=0)
@@ -2769,7 +2763,7 @@ class Protocol(WorkhorseProtocol):
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        @return (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -2907,7 +2901,7 @@ class Protocol(WorkhorseProtocol):
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change
-        @retval (next_state, result) tuple, (None, (None, )) if successful.
+        @return (next_state, result) tuple, (None, (None, )) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -3121,7 +3115,7 @@ class Protocol(WorkhorseProtocol):
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
+        @return (next_state, result) tuple, (ProtocolState.COMMAND,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command misunderstood or
@@ -3145,7 +3139,7 @@ class Protocol(WorkhorseProtocol):
         """
         Perform a set command.
         @param args[0] parameter : value dict.
-        @retval (next_state, result) tuple, (None, None).
+        @return (next_state, result) tuple, (None, None).
         @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
         not a dict, or if paramter can't be properly formatted.
         @throws InstrumentTimeoutException if device cannot be woken for set command.
@@ -3204,7 +3198,7 @@ class Protocol(WorkhorseProtocol):
         into command mode, do the clock sync, then switch back.  If an
         exception is thrown we will try to get ourselves back into
         streaming and then raise that exception.
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        @return (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -3261,7 +3255,7 @@ class Protocol(WorkhorseProtocol):
     def _handler_command_get_status(self, *args, **kwargs):
         """
         execute a get status on the leading edge of a second change
-        @retval next_state, (next_agent_state, result) if successful.
+        @return next_state, (next_agent_state, result) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -3292,7 +3286,7 @@ class Protocol(WorkhorseProtocol):
         into command mode, get calibration, then switch back.  If an
         exception is thrown we will try to get ourselves back into
         streaming and then raise that exception.
-        @retval next_state, (next_agent_state, result) if successful.
+        @return next_state, (next_agent_state, result) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -3334,7 +3328,7 @@ class Protocol(WorkhorseProtocol):
     def _handler_autosample_get_status(self, *args, **kwargs):
         """
         execute a get status on the leading edge of a second change
-        @retval (next_state, result) tuple, (None, (None, )) if successful.
+        @return (next_state, result) tuple, (None, (None, )) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -3391,7 +3385,7 @@ class Protocol(WorkhorseProtocol):
         into command mode, get configuration, then switch back.  If an
         exception is thrown we will try to get ourselves back into
         streaming and then raise that exception.
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        @return (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.

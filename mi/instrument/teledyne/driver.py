@@ -26,7 +26,7 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -239,17 +239,17 @@ class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-    #     self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
-    #                                      DriverEvent.DISCOVER,
-    #                                      self._handler_connected_discover)
-    #
-    # def _handler_connected_discover(self, event, *args, **kwargs):
-    #     # Redefine discover handler so that we can apply startup params
-    #     # when we discover. Gotta get into command mode first though.
-    #
-    #     result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-    #     self.apply_startup_params()
-    #     return result
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
+                                         DriverEvent.DISCOVER,
+                                         self._handler_connected_discover)
+
+    def _handler_connected_discover(self, event, *args, **kwargs):
+        # Redefine discover handler so that we can apply startup params
+        # when we discover. Gotta get into command mode first though.
+
+        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        self.apply_startup_params()
+        return result
 
 
 # noinspection PyMethodMayBeStatic
@@ -344,11 +344,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                                        self._handler_autosample_get_calibration)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CONFIGURATION,
                                        self._handler_autosample_get_configuration)
-
-        # we may have got a particle and slipped into AUTOSAMPLE, so we should honor discover...
-        # self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.DISCOVER,
-        #                                self._handler_unknown_discover)
-
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE,
                                        self._handler_recover_autosample)
 
@@ -482,7 +477,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param timeout: command timeout
         @param delay: wakeup delay
         @param time_format: time format string for set command
-        @return: true if the command is successful
         """
         self._wakeup(timeout=3, delay=delay)
 
@@ -496,12 +490,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         time.sleep(1)
         self._get_response(TIMEOUT)
 
-        return True
-
     ########################################################################
     # Startup parameter handlers
     ########################################################################
-
     def apply_startup_params(self):
         """
         Apply all startup parameters.  First we check the instrument to see
@@ -664,10 +655,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         break_confirmation = []
         log.trace("self._linebuf = " + self._linebuf)
 
-        # break_confirmation.append("[BREAK Wakeup A]" + NEWLINE +
-        #                           "WorkHorse Broadband ADCP Version 50.40" + NEWLINE +
-        #                           "Teledyne RD Instruments (c) 1996-2010" + NEWLINE +
-        #                           "All Rights Reserved.")
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
         timeout = 30
@@ -699,70 +686,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         self.last_wakeup = time.time()
         super(TeledyneProtocol, self)._wakeup(timeout, delay)
-
-    # def _wakeup(self, timeout=3, delay=1):
-    #     """
-    #     Clear buffers and send a wakeup command to the instrument
-    #     @param timeout The timeout to wake the device.
-    #     @param delay The time to wait between consecutive wakeups.
-    #     @throw InstrumentTimeoutException if the device could not be woken.
-    #     """
-    #
-    #     self.last_wakeup = time.time()
-    #     # Clear the prompt buffer.
-    #     self._promptbuf = ''
-    #
-    #     # Grab time for timeout.
-    #     starttime = time.time()
-    #     endtime = starttime + float(timeout)
-    #
-    #     # Send a line return and wait a sec.
-    #     log.debug('Sending wakeup. timeout=%s' % timeout)
-    #     self._send_wakeup()
-    #     while time.time() < endtime:
-    #         time.sleep(0.05)
-    #         for item in self._get_prompts():
-    #             index = self._promptbuf.find(item)
-    #             if index >= 0:
-    #                 log.debug('wakeup got prompt: %s' % repr(item))
-    #                 return item
-    #     return None
-    #
-    # def _wakeup(self, timeout, delay=1):
-    #     """
-    #     Clear buffers and send a wakeup command to the instrument
-    #     @param timeout The timeout to wake the device.
-    #     @param delay The time to wait between consecutive wakeups.
-    #     @throw InstrumentTimeoutException if the device could not be woken.
-    #     """
-    #     # Clear the prompt buffer.
-    #     log.debug("clearing promptbuf: %s", self._promptbuf)
-    #     self._promptbuf = ''
-    #
-    #     # Grab time for timeout.
-    #     starttime = time.time()
-    #
-    #     while True:
-    #         # Send a line return and wait a sec.
-    #         log.trace('Sending wakeup. timeout=%s', timeout)
-    #         self._send_wakeup()
-    #         time.sleep(delay)
-    #
-    #         log.debug("Prompts: %s", self._get_prompts())
-    #
-    #         for item in self._get_prompts():
-    #             log.debug("buffer: %s", self._promptbuf)
-    #             log.debug("find prompt: %s", item)
-    #             index = self._promptbuf.find(item)
-    #             log.debug("Got prompt (index: %s): %s ", index, repr(self._promptbuf))
-    #             if index >= 0:
-    #                 log.trace('wakeup got prompt: %s', repr(item))
-    #                 return item
-    #         log.debug("Searched for all prompts")
-    #
-    #         if time.time() > starttime + timeout:
-    #             raise InstrumentTimeoutException("in _wakeup()")
-    #
 
     def _instrument_config_dirty(self):
         """
@@ -1392,7 +1315,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change
-        @retval next_state, (next_agent_state, result) if successful.
+        @return next_state, (next_agent_state, result) if successful.
         """
 
         next_state = None
@@ -1525,7 +1448,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _discover(self):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE or UNKNOWN.
-        @retval (next_protocol_state, next_agent_state)
+        @return (next_protocol_state, next_agent_state)
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
@@ -1555,7 +1478,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         String val constructed by param dict formatting function.
         @param param the parameter key to set.
         @param val the parameter value to set.
-        @retval The set command to be sent to the device.
+        @return The set command to be sent to the device.
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
@@ -1589,7 +1512,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param cmd get command
         @param param the parameter key to set.
         @param val the parameter value to set.
-        @retval The get command to be sent to the device.
+        @return The get command to be sent to the device.
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
@@ -1720,43 +1643,3 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _parse_restore_factory_params_response(self):
         """
         """
-
-    ########################################################################
-    # Static helpers to format set commands.
-    ########################################################################
-
-    # @staticmethod
-    # def _bool_to_int(v):
-    #     """
-    #     Write a bool value to string as an int.
-    #     @param v A bool val.
-    #     @retval a int string.
-    #     @throws InstrumentParameterException if value is not a float.
-    #     """
-    #
-    #     if not isinstance(v, int):
-    #         raise InstrumentParameterException('Value %s is not a int.' % v)
-    #     else:
-    #         if v:
-    #             return 1
-    #         else:
-    #             return 0
-
-    # @staticmethod
-    # def _reverse_bool_to_int(v):
-    #     """
-    #     Write a inverse-bool value to string as an int.
-    #     @param v A bool val.
-    #     @retval a int string.
-    #     @throws InstrumentParameterException if value is not a float.
-    #     """
-    #
-    #     if not isinstance(v, int):
-    #         raise InstrumentParameterException('Value %s is not a float.' % v)
-    #     else:
-    #         if v:
-    #             log.trace("RETURNING 0")
-    #             return 0
-    #         else:
-    #             log.trace("RETURNING 1")
-    #             return 1

@@ -6,6 +6,7 @@
 Release notes:
 
 """
+from _pytest import unittest
 import gevent
 from mi.instrument.teledyne.particles import ADCP_TRANSMIT_PATH_KEY, ADCP_ANCILLARY_SYSTEM_DATA_KEY
 
@@ -27,7 +28,6 @@ from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverUni
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverIntegrationTest
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverQualificationTest
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverPublicationTest
-from mi.instrument.teledyne.workhorse.test.test_driver import DataParticleType
 from mi.instrument.teledyne.particles import VADCPDataParticleType
 
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA
@@ -792,11 +792,11 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: Data particle of unkown type produced by the driver
         """
 
-        if isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM):
+        if isinstance(data_particle, VADCPDataParticleType.ADCP_PD0_PARSED_BEAM):
             self.assert_particle_pd0_data(data_particle)
-        elif isinstance(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION):
+        elif isinstance(data_particle, VADCPDataParticleType.ADCP_SYSTEM_CONFIGURATION):
             self.assert_particle_system_configuration(data_particle)
-        elif isinstance(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION):
+        elif isinstance(data_particle, VADCPDataParticleType.ADCP_COMPASS_CALIBRATION):
             self.assert_particle_compass_calibration(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
@@ -809,7 +809,7 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         """
         log.debug("in assert_particle_compass_calibration")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
     def assert_particle_system_configuration(self, data_particle, verify_values=True):
@@ -818,7 +818,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_FDDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_SYSTEM_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._system_configuration_data_parameters_VADCP,
                                              verify_values)
 
@@ -829,7 +829,7 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         """
         log.debug("IN assert_particle_pd0_data")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters)  # , verify_values
 
     def assert_particle_pd0_data_earth(self, data_particle, verify_values=True):
@@ -839,7 +839,7 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         """
         log.debug("IN assert_particle_pd0_data")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters_earth)  # , verify_values
 
     def assert_particle_pt2_data(self, data_particle, verify_values=True):
@@ -849,7 +849,7 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         """
         log.debug("IN assert_particle_pt2_data")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
         self.assert_data_particle_parameters(data_particle, self._pt2_dict)  # , verify_values
 
     def assert_particle_pt4_data(self, data_particle, verify_values=True):
@@ -859,7 +859,7 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         """
         log.debug("IN assert_particle_pt2_data")
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_TRANSMIT_PATH)
         self.assert_data_particle_parameters(data_particle, self._pt4_dict)  # , verify_values
 
 
@@ -1008,7 +1008,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(VADCPDataParticleType())
         self.assert_enum_has_no_duplicates(ScheduledJob())
         # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
@@ -1185,7 +1185,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         @param data_particle: ADCPT_PT4DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        self.assert_data_particle_header(data_particle, DataParticleType.VADCP_TRANSMIT_PATH)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.VADCP_TRANSMIT_PATH)
         self.assert_data_particle_parameters(data_particle, self._pt4_dict)  # , verify_values
 
     def assert_VADCP_ANCILLARY_data(self, data_particle, verify_values=True):
@@ -1194,29 +1194,30 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         @param data_particle: ADCPT_PT2DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        self.assert_data_particle_header(data_particle, DataParticleType.VADCP_ANCILLARY_SYSTEM_DATA)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.VADCP_ANCILLARY_SYSTEM_DATA)
         self.assert_data_particle_parameters(data_particle, self._pt2_dict)  # , verify_values
 
     def assert_VADCP_Calibration(self, data_particle, verify_values=True):
-        self.assert_data_particle_header(data_particle, DataParticleType.VADCP_COMPASS_CALIBRATION)
+        self.assert_data_particle_header(data_particle, VADCPDataParticleType.VADCP_COMPASS_CALIBRATION)
 
     def assert_acquire_status(self):
         """
         Overwritten`
         It needs to verify additional data particles for VADCP
         """
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_calibration,
+        self.assert_async_particle_generation(VADCPDataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_calibration,
                                               timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA,
+        self.assert_async_particle_generation(VADCPDataParticleType.ADCP_ANCILLARY_SYSTEM_DATA,
                                               self.assert_VADCP_ANCILLARY_data, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data,
+        self.assert_async_particle_generation(VADCPDataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data,
                                               timeout=60)
 
-        self.assert_async_particle_generation(DataParticleType.VADCP_COMPASS_CALIBRATION, self.assert_VADCP_Calibration,
+        self.assert_async_particle_generation(VADCPDataParticleType.VADCP_COMPASS_CALIBRATION,
+                                              self.assert_VADCP_Calibration,
                                               timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA,
+        self.assert_async_particle_generation(VADCPDataParticleType.ADCP_ANCILLARY_SYSTEM_DATA,
                                               self.assert_VADCP_ANCILLARY_data, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data,
+        self.assert_async_particle_generation(VADCPDataParticleType.ADCP_TRANSMIT_PATH, self.assert_transmit_data,
                                               timeout=60)
 
     # Overwritten method
@@ -1284,7 +1285,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set_bulk(params)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data,
+        self.assert_async_particle_generation(VADCPDataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data,
                                               timeout=40)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
@@ -1833,21 +1834,22 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY,
                         self._driver_parameters_slave[TeledyneParameter2.AMBIGUITY_VELOCITY][self.VALUE])
 
+    #@unittest.skip('It takes many house for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
-        self._tst_set_xmit_power()
-        self._tst_set_speed_of_sound()
-        self._tst_set_pitch()
-        self._tst_set_roll()
-        self._tst_set_salinity()
-        self._tst_set_sensor_source()
-        self._tst_set_time_per_ensemble()
-        self._tst_set_false_target_threshold()
-        self._tst_set_bandwidth_control()
-        self._tst_set_correlation_threshold()
-        self._tst_set_error_velocity_threshold()
-        self._tst_set_blank_after_transmit()
+        #self._tst_set_xmit_power()
+        #self._tst_set_speed_of_sound()
+        #self._tst_set_pitch()
+        #self._tst_set_roll()
+        #self._tst_set_salinity()
+        #self._tst_set_sensor_source()
+        #self._tst_set_time_per_ensemble()
+        #self._tst_set_false_target_threshold()
+        #self._tst_set_bandwidth_control()
+        #self._tst_set_correlation_threshold()
+        #self._tst_set_error_velocity_threshold()
+        #self._tst_set_blank_after_transmit()
         self._tst_set_clip_data_past_bottom()
         self._tst_set_receiver_gain_select()
         self._tst_set_number_of_depth_cells()
@@ -1857,6 +1859,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._tst_set_ping_weight()
         self._tst_set_ambiguity_velocity()
 
+    #@unittest.skip('It takes many house for this test')
     def test_set_ranges_slave(self):
         self.assert_initialize_driver()
 

@@ -8,6 +8,7 @@ Release notes:
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
 from mi.core.common import Units
+from mi.core.common import BaseEnum
 from mi.instrument.teledyne.workhorse.driver import WorkhorseInstrumentDriver
 from mi.instrument.teledyne.workhorse.driver import WorkhorseProtocol
 
@@ -97,17 +98,17 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
 
 class ADCPUnits(Units):
-    INTERVALTIME = 'Hour:Minute:Second'
-    INTERVALTIMEMILLI = 'Hour:Minute:Second.Second/100'
-    DATETIME = 'CCYY/MM/DD,hh:mm:ss'
-    PINGTIME = "min:sec.sec/100"
-    SETTIME = 'CCYY/MM/DD,hh:mm:ss'
-    SERIALDATAOUT = 'Vel Cor Amp'
-    FLOWCONTROL = 'BITS: EnsCyc PngCyc Binry Ser Rec'
-    TRUEFALSE = 'True(1)/False(0)'
-    NONE = ' '
-    SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
-    XMTPOWER = 'XMT Power 0-255'
+    # INTERVALTIME = 'Hour:Minute:Second'
+    # INTERVALTIMEHundredth = 'Hour:Minute:Second.Second/100'
+    # DATETIME = 'CCYY/MM/DD,hh:mm:ss'
+    # PINGTIME = "min:sec.sec/100"
+    # SETTIME = 'CCYY/MM/DD,hh:mm:ss'
+    # SERIALDATAOUT = 'Vel Cor Amp'
+    # FLOWCONTROL = 'BITS: EnsCyc PngCyc Binry Ser Rec'
+    # TRUEFALSE = 'True(1)/False(0)'
+    # NONE = ' '
+    # SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
+    # XMTPOWER = 'XMT Power 0-255'
     CDEGREE = '1/100 degree'
     DM = 'dm'
     MPERS = 'm/s'
@@ -117,6 +118,26 @@ class ADCPUnits(Units):
     CMPERSRADIAL = 'cm/s radial'
     TENTHMILLISECOND = '1/10 msec'
 
+class ADCPDescription(BaseEnum):
+    INTERVALTIME = 'Hour:Minute:Second'
+    INTERVALTIMEHundredth = 'Hour:Minute:Second.Second/100'
+    DATETIME = 'CCYY/MM/DD,hh:mm:ss'
+    PINGTIME = "min:sec.sec/100"
+    SETTIME = 'CCYY/MM/DD,hh:mm:ss'
+    SERIALDATAOUT = 'Vel Cor Amp'
+    FLOWCONTROL = 'BITS: EnsCyc PngCyc Binry Ser Rec'
+    TRUEFALSE = 'True(1)/False(0)'
+    NONE = ' '
+    SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
+    XMTPOWER = 'XMT Power 0-255'
+    # CDEGREE = '1/100 degree'
+    # DM = 'dm'
+    # MPERS = 'm/s'
+    # PPTHOUSAND = 'pp thousand'
+    # SELECTION = 'selection'
+    # ENSEMBLEPERBURST = 'Ensembles Per Burst'
+    # CMPERSRADIAL = 'cm/s radial'
+    # TENTHMILLISECOND = '1/10 msec'
 
 class Protocol(WorkhorseProtocol):
     """
@@ -141,7 +162,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Serial Data Out",
-                             units=ADCPUnits.SERIALDATAOUT,
+                             description=ADCPDescription.SERIALDATAOUT,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -153,7 +174,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Serial Flow Control",
-                             units=ADCPUnits.FLOWCONTROL,
+                             description=ADCPDescription.FLOWCONTROL,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -165,7 +186,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Banner",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -177,7 +198,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Instrument id",
-                             units=ADCPUnits.NONE,
                              direct_access=True,
                              startup_param=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -189,7 +209,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Sleep enable",
-                             units=ADCPUnits.SLEEP,
+                             description=ADCPDescription.SLEEP,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -201,7 +221,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Save nvram to recorder",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              default_value=True,
                              direct_access=True,
@@ -213,7 +233,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Polled Mode",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -226,7 +246,7 @@ class Protocol(WorkhorseProtocol):
                              type=ParameterDictType.INT,
                              display_name="Xmit Power",
                              startup_param=True,
-                             units=ADCPUnits.XMTPOWER,
+                             description=ADCPDescription.XMTPOWER,
                              direct_access=True,
                              default_value=255)
 
@@ -236,7 +256,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.INT,
                              display_name="Latency trigger",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -374,7 +394,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time per ensemble",
-                             units=ADCPUnits.INTERVALTIMEMILLI,
+                             description=ADCPDescription.INTERVALTIMEHundredth,
                              startup_param=True,
                              direct_access=True,
                              default_value='00:00:00.00')
@@ -385,7 +405,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time of first ping",
-                             units=ADCPUnits.DATETIME,
+                             description=ADCPDescription.DATETIME,
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
@@ -396,7 +416,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time per ping",
-                             units=ADCPUnits.PINGTIME,
+                             description=ADCPDescription.PINGTIME,
                              startup_param=True,
                              direct_access=True,
                              default_value='00:01.00')
@@ -407,7 +427,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Time",
-                             units=ADCPUnits.SETTIME,
+                             description=ADCPDescription.SETTIME,
                              expiration=86400)  # expire once per day 60 * 60 * 24
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
@@ -416,7 +436,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Buffered output period",
-                             units=ADCPUnits.INTERVALTIME,
+                             description=ADCPDescription.INTERVALTIME,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -439,7 +459,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Bandwidth Control",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=0)
@@ -450,7 +470,6 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Correlation threshold",
-                             units=ADCPUnits.NONE,
                              startup_param=True,
                              direct_access=True,
                              default_value=64)
@@ -495,7 +514,7 @@ class Protocol(WorkhorseProtocol):
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Clip Data Past Bottom",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=False)
@@ -506,7 +525,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Receiver Gain Select",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=1)
@@ -517,7 +536,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Number of Depth Cells",
-                             units=ADCPUnits.NONE,
+                             description=ADCPDescription.NONE,
                              startup_param=True,
                              direct_access=True,
                              default_value=100)
@@ -528,7 +547,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Pings Per Ensemble",
-                             units=ADCPUnits.NONE,
+                             description=ADCPDescription.NONE,
                              startup_param=True,
                              direct_access=True,
                              default_value=1)
@@ -539,7 +558,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Sample Ambient Sound",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -573,7 +592,7 @@ class Protocol(WorkhorseProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ping Weight",
-                             units=ADCPUnits.TRUEFALSE,
+                             description=ADCPDescription.TRUEFALSE,
                              startup_param=True,
                              direct_access=True,
                              default_value=0)
@@ -596,7 +615,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Clock synch interval",
-                             units=ADCPUnits.INTERVALTIME,
+                             description=ADCPDescription.INTERVALTIME,
                              startup_param=True,
                              direct_access=False,
                              default_value="00:00:00")
@@ -607,7 +626,7 @@ class Protocol(WorkhorseProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              display_name="Get status interval",
-                             units=ADCPUnits.INTERVALTIME,
+                             description=ADCPDescription.INTERVALTIME,
                              startup_param=True,
                              direct_access=False,
                              default_value="00:00:00")
