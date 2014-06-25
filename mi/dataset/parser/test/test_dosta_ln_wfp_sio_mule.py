@@ -12,7 +12,7 @@ import os
 import ntplib, struct
 from nose.plugins.attrib import attr
 
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, UnexpectedDataException
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -49,8 +49,9 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dosta_ln_wfp_sio_mule',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaLnWfpSioMuleParserDataParticle'
             }
-       
-        # First 'WE' SIO header in noe58p1.dat, first record.      
+
+        
+        # First 'WE' SIO header in noe58p1.dat, first record.        
         self.timestamp_1a = self.timestamp_to_ntp('Q\xf2W.') # The record timestamp should be 2986504401
         log.debug("Converted timestamp 1a: %s",self.timestamp_1a)
         self.particle_1a = DostaLnWfpSioMuleParserDataParticle(b'Q\xf2W.\x00\x00\x00\x00A9Y' \
@@ -69,6 +70,7 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
             '\t\xd3\xd7B\x9b\xdc)?\xec\xac\x08\x00:\x00d\x027', internal_timestamp = self.timestamp_1c)    
         
         # Second 'WE' SIO header in noe58p1.dat, first record.
+        self.timestamp_2a  = self.timestamp_to_ntp('Q\xf2\x8fn')
         log.debug("Converted timestamp 2a: %s",self.timestamp_2a)
         self.particle_2a = DostaLnWfpSioMuleParserDataParticle(b'Q\xf2\x8fn\x00\x00\x00\x00A7\xd5f' \
             '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x008\x00a\x02=', internal_timestamp = self.timestamp_2a)
@@ -239,11 +241,11 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
 	    StateKey.IN_PROCESS_DATA:[]}
         log.debug('-------------------------------------------------------------Starting test_bad_data')
-        with self.assertRaises(SampleException):
-	    self.parser = DostaLnWfpSioMuleParser(self.config, self.state, self.stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
-            result = self.parser.get_records(1)
-
+        self.parser = DostaLnWfpSioMuleParser(self.config, self.state, self.stream_handle,
+					      self.state_callback, self.pub_callback, self.exception_callback)
+        result = self.parser.get_records(1)
+	self.assert_(isinstance(self.exception_callback_value, UnexpectedDataException))
+		     
 
     def test_in_process_start(self):
         """
