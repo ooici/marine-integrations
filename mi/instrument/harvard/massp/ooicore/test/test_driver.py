@@ -604,7 +604,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
                       name, state, end_time - time.time())
             time.sleep(sleep_time)
 
-
     def test_driver_process(self):
         """
         Test for correct launch of driver process and communications, including asynchronous driver events.

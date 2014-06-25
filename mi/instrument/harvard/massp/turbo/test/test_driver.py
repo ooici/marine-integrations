@@ -626,7 +626,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_reset()
 
         self.assert_enter_command_mode()
-        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_direct_access_start_telnet()
         self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 

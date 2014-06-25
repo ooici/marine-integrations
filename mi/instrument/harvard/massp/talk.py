@@ -61,7 +61,7 @@ class _Direct(object):
         Establishes the connection and starts the receiving thread.
         """
         print "### connecting to %s:%s" % (hostname, portnum)
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._sock = socket.socket()
         self._sock.connect((hostname, portnum))
         self._bt = _Recv(self._sock)
         self._bt.start()
@@ -105,7 +105,7 @@ class _Direct(object):
                 break
 
             else:
-                cmd = cmd + NEWLINE
+                cmd += NEWLINE
                 print >> sys.stderr, 'SEND: %r' % cmd
                 #self.send_characters(cmd)
                 self.send(cmd)

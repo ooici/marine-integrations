@@ -469,7 +469,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         for name in parameters:
             kwargs = parameters[name]
             if name in constraints:
-                kwargs['val_description'] = '%s value from %d - %d' % constraints[name]
+                _type, minimum, maximum = constraints[name]
+                kwargs['val_description'] = '%s value from %d - %d' % (_type, minimum, maximum)
             self._param_dict.add(name, '', None, None, **kwargs)
 
     def _build_command_dict(self):

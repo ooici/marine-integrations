@@ -846,7 +846,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         finally:
             self.resetting = False
 
-
     ########################################################################
     # Unknown handlers.
     ########################################################################

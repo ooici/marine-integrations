@@ -1054,7 +1054,7 @@ class Protocol(InstrumentProtocol):
         if turbo_state == turbo.ProtocolState.AT_SPEED:
             self._slave_protocols[TURBO]._protocol_fsm.on_event(turbo.Capability.STOP_TURBO)
         while rga_state not in [rga.ProtocolState.COMMAND, rga.ProtocolState.ERROR] or \
-              turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.ERROR]:
+                turbo_state not in [turbo.ProtocolState.COMMAND, turbo.ProtocolState.ERROR]:
             time.sleep(.1)
             mcu_state, turbo_state, rga_state = self._get_slave_states()
         if mcu_state != mcu.ProtocolState.COMMAND:

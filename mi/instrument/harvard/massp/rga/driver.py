@@ -44,7 +44,7 @@ from mi.instrument.harvard.massp.common import MASSP_STATE_ERROR, MASSP_CLEAR_ER
 
 
 log = mi.core.log.get_logger()
-META_LOGGER = mi.core.log.get_logging_metaclass('trace')
+META_LOGGER = mi.core.log.get_logging_metaclass()
 
 
 ###
@@ -520,8 +520,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                 formatter = str
 
             if param in constraints:
-                parameters[param][val_desc] = parameters[param].get(val_desc, '') + \
-                                              '%s value from %d - %d' % constraints[param]
+                _type, minimum, maximum = constraints[param]
+                parameters[param][val_desc] = '%s %s value from %d - %d' % (parameters[param].get(val_desc, ''),
+                                                                            _type, minimum, maximum)
 
             self._param_dict.add(param, '', None, formatter, type=value_type,
                                  visibility=visibility, startup_param=startup, **parameters[param])
