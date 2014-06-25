@@ -105,21 +105,18 @@ class ProtocolState(Pco2wProtocolState):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
 
 
 class ProtocolEvent(Pco2wProtocolEvent):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
 
 
 class Capability(Pco2wCapability):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
 
 
 class DataParticleType(Pco2wSamiDataParticleType):
@@ -133,7 +130,6 @@ class Parameter(Pco2wParameter):
     """
     Device specific parameters.
     """
-    pass
 
 
 class InstrumentCommand(Pco2wInstrumentCommand):
@@ -141,7 +137,6 @@ class InstrumentCommand(Pco2wInstrumentCommand):
     Device specfic Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
-    pass
 
 
 ###############################################################################

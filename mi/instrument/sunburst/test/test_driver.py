@@ -1,7 +1,7 @@
 """
 @package mi.instrument.sunburst.test.test_driver
 @file marine-integrations/mi/instrument/sunburst/driver.py
-@author Stuart Pearce & Chris Wingard
+@author Kevin Stiemke
 @brief Common test case code for SAMI instrument drivers
 
 USAGE:
@@ -40,13 +40,6 @@ from mi.idk.unit_test import DriverProtocolState
 from mi.idk.unit_test import DriverEvent
 from mi.idk.unit_test import ResourceAgentState
 from interface.objects import AgentCommand
-
-# Might need these for later Integration tests and Qualification tests
-#from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-#from ion.agents.instrument.instrument_agent import InstrumentAgentState
-#from mi.core.instrument.instrument_driver import DriverAsyncEvent
-#from mi.core.instrument.instrument_driver import DriverConnectionState
-#from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.data_particle import DataParticleKey
@@ -576,27 +569,19 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=DriverEvent.START_AUTOSAMPLE)
         retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
-        # state = self.instrument_agent_client.get_agent_state()
-        # self.assertEqual(state, ResourceAgentState.STREAMING)
-
         self.assert_state_change(ResourceAgentState.STREAMING, SamiProtocolState.AUTOSAMPLE, timeout=timeout)
 
-    ## Have to override because the driver enters a sample state as soon as autosample mode is entered by design.
     def assert_sample_autosample(self, sample_data_assert, sample_queue,
                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=3):
         """
         Test instrument driver execute interface to start and stop streaming
-        mode.
+        mode. Overridden because the SAMI drivers enter a sample state as soon as autosample mode is entered by design.
 
-        This command is only useful for testing one stream produced in
-        streaming mode at a time.  If your driver has multiple streams
-        then you will need to call this method more than once or use a
-        different test.
+        :param sample_data_assert: method to test samples
+        :param sample_queue: type of sample
+        :param timeout: timeout for sample retrieval
+        :param sample_count: number of samples expected
         """
-        ## self.assert_enter_command_mode()
-
-        # Begin streaming.
-        ## self.assert_start_autosample()
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)

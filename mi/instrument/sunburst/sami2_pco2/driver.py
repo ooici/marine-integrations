@@ -94,7 +94,6 @@ class ScheduledJob(SamiScheduledJob):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
 
 
 class Pco2wProtocolState(SamiProtocolState):
@@ -689,7 +688,6 @@ class Pco2wProtocol(SamiProtocol):
         """
         Parse response to take blank sample instrument command
         """
-        pass
 
     ########################################################################
     # Private Methods

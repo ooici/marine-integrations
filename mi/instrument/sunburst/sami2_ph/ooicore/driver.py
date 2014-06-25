@@ -154,7 +154,6 @@ class ScheduledJob(SamiScheduledJob):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
 
 
 class ProtocolState(SamiProtocolState):

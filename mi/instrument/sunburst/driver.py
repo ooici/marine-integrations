@@ -149,7 +149,7 @@ SAMI_ERROR_REGEX = r'\?([0-9A-Fa-f]{2})' + SAMI_NEWLINE
 SAMI_ERROR_REGEX_MATCHER = re.compile(SAMI_ERROR_REGEX)
 
 # Newline returned from SAMI
-SAMI_NEW_LINE_REGEX = (r'(.*)' + SAMI_NEWLINE)
+SAMI_NEW_LINE_REGEX = r'(.*)' + SAMI_NEWLINE
 SAMI_NEW_LINE_REGEX_MATCHER = re.compile(SAMI_NEW_LINE_REGEX)
 
 ###
@@ -1223,7 +1223,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit unknown state.
         """
-        pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -1258,7 +1257,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit discover state.
         """
-        pass
 
     def _handler_waiting_discover(self, *args, **kwargs):
         """
@@ -1324,7 +1322,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit command state.
         """
-        pass
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -1449,7 +1446,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
@@ -1511,7 +1507,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit autosample state
         """
-        pass
 
     def _handler_autosample_stop(self, *args, **kwargs):
         """

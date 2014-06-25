@@ -533,7 +533,6 @@ class Protocol(Pco2wProtocol):
         """
         Parse response to take dev1 sample from instrument
         """
-        pass
 
     def _take_dev1_sample(self):
         """
