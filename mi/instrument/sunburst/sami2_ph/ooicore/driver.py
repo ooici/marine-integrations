@@ -492,9 +492,6 @@ class Protocol(SamiProtocol):
         @param driver_event Driver process event callback.
         """
 
-        # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
-
         # Build protocol state machine.
         self._protocol_fsm = ThreadSafeFSM(
             ProtocolState, ProtocolEvent,

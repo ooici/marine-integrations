@@ -470,6 +470,13 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
+        for part in [self.VALID_STATUS_MESSAGE, self.VALID_CONTROL_RECORD, self.VALID_DATA_SAMPLE,
+                     self.VALID_CONFIG_STRING]:
+            self.assert_chunker_sample(chunker, part)
+            self.assert_chunker_sample_with_noise(chunker, part)
+            self.assert_chunker_fragmented_sample(chunker, part)
+            self.assert_chunker_combined_sample(chunker, part)
+
         self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_STATUS_MESSAGE)
         self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE)

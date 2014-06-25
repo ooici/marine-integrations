@@ -331,9 +331,6 @@ class Protocol(Pco2wProtocol):
         @param driver_event Driver process event callback.
         """
 
-        # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
-
         # Build protocol state machine.
         self._protocol_fsm = ThreadSafeFSM(
             ProtocolState, ProtocolEvent,
@@ -397,13 +394,6 @@ class Protocol(Pco2wProtocol):
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
     ########################################################################
-
-    def _build_command_dict(self):
-        """
-        Populate the command dictionary with command.
-        """
-
-        Pco2wProtocol._build_command_dict(self)
 
     def _build_param_dict(self):
         """

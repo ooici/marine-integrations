@@ -712,6 +712,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
 
+        # Construct protocol superclass.
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+
         # Add event handlers for protocol state machine
         self._protocol_fsm.add_handler(
             SamiProtocolState.UNKNOWN, SamiProtocolEvent.ENTER,
