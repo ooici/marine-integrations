@@ -2302,7 +2302,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              default_value=0x07,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='Global Bits (set to 00000111)')
+                             display_name='Global Bits')
 
         ## Engineering parameter to set pseudo auto sample rate, set as startup parameter because it is configurable
         ##   by the user and should be reapplied on application of startup parameters.
