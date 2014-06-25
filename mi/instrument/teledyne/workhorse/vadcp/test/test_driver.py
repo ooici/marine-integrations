@@ -1099,7 +1099,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         return the port agent configuration
         """
         comm_config = self.get_comm_config()
-        log.debug('comm_config = %r', comm_config.__dict__)
         method = comm_config.method()
         config = {}
 
@@ -1132,7 +1131,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             log.error("Port agent already initialized")
             return
 
-        log.debug("Startup Port Agent")
 
         config = self.port_agent_config()
         log.debug("port agent config: %s", config)
@@ -1196,12 +1194,10 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         @param data_particle: ADCPT_PT2DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.VADCP_ANCILLARY_SYSTEM_DATA)
         self.assert_data_particle_parameters(data_particle, self._pt2_dict)  # , verify_values
 
     def assert_VADCP_Calibration(self, data_particle, verify_values=True):
-        log.debug("IN assert_Calibration")
         self.assert_data_particle_header(data_particle, DataParticleType.VADCP_COMPASS_CALIBRATION)
 
     def assert_acquire_status(self):
@@ -1361,7 +1357,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for XMIT_POWER ======")
 
         # XMIT_POWER:  -- Int 0-255
         self.assert_set(TeledyneParameter2.XMIT_POWER, 0)
@@ -1383,7 +1378,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for PITCH ======")
         # PITCH:  -- Int -6000 to 6000
         self.assert_set(TeledyneParameter2.PITCH, -6000)
         self.assert_set(TeledyneParameter2.PITCH, -4000)
@@ -1410,7 +1404,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for ROLL ======")
         # ROLL:  -- Int -6000 to 6000
         self.assert_set(TeledyneParameter2.ROLL, -6000)
         self.assert_set(TeledyneParameter2.ROLL, -4000)
@@ -1436,7 +1429,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for SPEED_OF_SOUND ======")
 
         # SPEED_OF_SOUND:  -- Int 1485 (1400 - 1600)
         self.assert_set(TeledyneParameter2.SPEED_OF_SOUND, 1400)
@@ -1463,7 +1455,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for SALINITY ======")
 
         # SALINITY:  -- Int (0 - 40)
         self.assert_set(TeledyneParameter2.SALINITY, 1)
@@ -1493,7 +1484,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for SENSOR_SOURCE ======")
 
         # SENSOR_SOURCE:  -- (0/1) for 7 positions.
         # note it lacks capability to have a 1 in the #6 position
@@ -1526,7 +1516,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for TIME_PER_ENSEMBLE ======")
 
         # TIME_PER_ENSEMBLE:  -- String 01:00:00.00 (hrs:min:sec.sec/100)
         self.assert_set(TeledyneParameter2.TIME_PER_ENSEMBLE, "00:00:00.00")
@@ -1553,7 +1542,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for FALSE_TARGET_THRESHOLD ======")
 
         # FALSE_TARGET_THRESHOLD: string of 0-255,0-255
         self.assert_set(TeledyneParameter2.FALSE_TARGET_THRESHOLD, "000,000")
@@ -1580,7 +1568,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for BANDWIDTH_CONTROL ======")
 
         # BANDWIDTH_CONTROL: 0/1,
         self.assert_set(TeledyneParameter2.BANDWIDTH_CONTROL, 1)
@@ -1601,7 +1588,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for CORRELATION_THRESHOLD ======")
 
         # CORRELATION_THRESHOLD: int 064, 0 - 255
         self.assert_set(TeledyneParameter2.CORRELATION_THRESHOLD, 50)
@@ -1626,7 +1612,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for ERROR_VELOCITY_THRESHOLD ======")
 
         # ERROR_VELOCITY_THRESHOLD: int (0-5000 mm/s) NOTE it enforces 0-9999
         # decimals are truncated to ints
@@ -1653,7 +1638,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ======")
 
         # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
         self.assert_set(TeledyneParameter2.BLANK_AFTER_TRANSMIT, 0)
@@ -1684,7 +1668,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for CLIP_DATA_PAST_BOTTOM ======")
 
         # CLIP_DATA_PAST_BOTTOM: True/False,
         self.assert_set(TeledyneParameter2.CLIP_DATA_PAST_BOTTOM, True)
@@ -1701,7 +1684,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for RECEIVER_GAIN_SELECT ======")
 
         # RECEIVER_GAIN_SELECT: (0/1),
         self.assert_set(TeledyneParameter2.RECEIVER_GAIN_SELECT, 0)
@@ -1723,7 +1705,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for NUMBER_OF_DEPTH_CELLS ======")
 
         # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
         self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 1)
@@ -1747,7 +1728,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for PINGS_PER_ENSEMBLE ======")
 
         # PINGS_PER_ENSEMBLE: -- int  (0-16384) 1,
         self.assert_set(TeledyneParameter2.PINGS_PER_ENSEMBLE, 0)
@@ -1769,7 +1749,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for DEPTH_CELL_SIZE ======")
 
         # DEPTH_CELL_SIZE: int 80 - 3200
         self.assert_set(TeledyneParameter2.DEPTH_CELL_SIZE, 80)
@@ -1791,7 +1770,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for TRANSMIT_LENGTH ======")
 
         # TRANSMIT_LENGTH: int 0 to 3200
         self.assert_set(TeledyneParameter2.TRANSMIT_LENGTH, 80)
@@ -1812,7 +1790,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for PING_WEIGHT ======")
 
         # PING_WEIGHT: (0/1),
         self.assert_set(TeledyneParameter2.PING_WEIGHT, 0)
@@ -1833,7 +1810,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         test get set of a variety of parameter ranges
         """
-        log.debug("====== Testing ranges for AMBIGUITY_VELOCITY ======")
 
         # AMBIGUITY_VELOCITY: int 2 - 700
         self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY, 2)
@@ -1998,13 +1974,9 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         @retval return the pid to the logger process
         """
         if self.port_agent:
-            log.error("Port agent already initialized")
             return
 
-        log.debug("Startup Port Agent")
-
         config = self.port_agent_config()
-        log.debug("port agent config: %s", config)
 
         port_agents = {}
 
@@ -2033,9 +2005,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         """
         Stop the port agent.
         """
-        log.info("Stop port agent")
         if self.port_agents:
-            log.debug("found port agents, now stop them")
             for agent in self.port_agents.values():
                 agent.stop()
         self.port_agents = {}
@@ -2054,7 +2024,6 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         return config
 
     def init_instrument_agent_client(self):
-        log.info("Start Instrument Agent Client")
 
         # Driver config
         driver_config = {

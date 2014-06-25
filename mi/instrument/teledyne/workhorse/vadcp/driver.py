@@ -3132,7 +3132,6 @@ class Protocol(WorkhorseProtocol):
         # Wake up the device, continuing until autosample prompt seen.
         timeout = kwargs.get('timeout', TIMEOUT)
 
-        # if (self._is_logging(timeout)):
         self._stop_logging(timeout)
         self._stop_logging2(timeout)
 
