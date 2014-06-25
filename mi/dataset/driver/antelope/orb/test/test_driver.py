@@ -30,6 +30,7 @@ from mock import Mock, call
 
 import gevent
 
+from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
@@ -37,8 +38,9 @@ from mi.core.log import get_logger ; log = get_logger()
 import logging
 log.setLevel(logging.TRACE)
 
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.unit_test import MiIntTestCase
-
+from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetTestConfig
@@ -48,6 +50,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 
+
 # Ignore antelope import errors for buildbot
 try:
     from mi.dataset.driver.antelope.orb.driver import AntelopeOrbDataSetDriver
@@ -55,28 +58,15 @@ try:
     from mi.dataset.parser.antelope_orb import StateKey
     from mi.dataset.parser.antelope_orb import ParserConfigKey
 except Exception as e: 
-    log.warn("Failed to import antelope lib: %s", e)
+    log.warn("Failed to import antelope lib: %s", e, exc_info=True)
 
 from mock import patch, MagicMock
 
-#try:
-#    import yappi
-#except ImportError:
-#    log.warning('yappi not available; profiling disabled')
-#    yappi = Mock()
-yappi = Mock()
-
 import cProfile
-profile = cProfile.Profile()
+profile = Mock()
+# NOTE: Uncomment to enable profiling
+#profile = cProfile.Profile()
 
-
-# Ignore antelope import errors for buildbot
-try:
-    from mi.core.kudu.brttpkt import NoData
-    import _Pkt as _pkt
-    from mi.core.kudu.orb import Orb
-except Exception as e: 
-    log.warn("Failed to import antelope lib: %s", e)
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
@@ -124,6 +114,8 @@ def makepacket(data, samprate=666, net='net', sta='sta',
 
     Packet has one channel.
     """
+    from mi.core.kudu import _pkt
+
     pkt = _pkt._newPkt()
     try:
         _pkt._Pkt_pkttype_set(pkt, type)
@@ -175,6 +167,7 @@ def orbserver(packets_to_send, samples_per_packet):
             # give orb server a chance to start up
             gevent.sleep(3) 
             # Empty orbs are wonky; put one packet in
+            from mi.core.kudu.orb import Orb
             with Orb(ORB_NAME, permissions='w') as myorb:
                 # Write packets to ORB
                 pkttype, packet, srcname, time = makepacket([])
@@ -199,9 +192,6 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
     # configuration singleton
 #    test_config = DataSetTestConfig()
 
-#    def __init__(self, *args, **kwargs):
-#        super(IntegrationTest, self).__init__(*args, **kwargs)
-
     def test_harvester_config_exception(self):
         pass
 
@@ -216,6 +206,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
 #        cls.test_config.initialize(*args,**kwargs)
 
     def setUp(self):
+        from mi.core.kudu import _pkt
         log.debug("*********************************************************************")
         log.debug("Starting Dataset Test %s", self._testMethodName)
         log.debug("*********************************************************************")
@@ -273,6 +264,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
+        from mi.core.kudu.brttpkt import NoData
         rvals = [(self.PKT_ID, sn, ts, pkt) for (pt, pkt, sn, ts) in [
                         makepacket(self.PKT_DATA, time=n+1) for n in range(2)]]
         def orbget():
@@ -298,6 +290,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
+        from mi.core.kudu.brttpkt import NoData
         def orbget():
             log.trace('no more packets')
             raise NoData()
@@ -330,6 +323,7 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
+        from mi.core.kudu.brttpkt import NoData
         # Start sampling and watch for an exception
 
         # TODO make some packets, put in mock orb
@@ -340,7 +334,10 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
             raise NoData()
 
         tafter = 999
-        state={'parser_state': {'tafter': tafter,
+        state={'parser_state': {
+            'tafter': tafter,
+            'select': 'deadbeef',
+            'reject': 'deadbeef',
             }}
 
         self.driver = self._get_driver_object(memento=state)
@@ -366,12 +363,101 @@ class IntegrationTestCase(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('ANTELOPE', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-
     def test_missing_directory(self):
         self.skipTest("Not applicable to Antelope ORB driver")
 
     def test_harvester_new_file_exception(self):
         self.skipTest("Not applicable to Antelope ORB driver")
+
+    def test_capabilities(self):
+        """
+        Verify capabilities throughout the agent lifecycle
+        """
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.UNINITIALIZED),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: None,
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: None,
+        }
+
+        ###
+        # DSA State INACTIVE
+        ###
+
+        log.debug("Initialize DataSet agent")
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_state_change(ResourceAgentState.INACTIVE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State IDLE
+        ###
+
+        log.debug("DataSet agent go active")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.IDLE)
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_state_change(ResourceAgentState.IDLE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State COMMAND
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_agent_command(ResourceAgentEvent.RUN)
+        self.assert_state_change(ResourceAgentState.COMMAND)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State STREAMING
+        ###
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.STOP_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_start_sampling()
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State COMMAND Revisited
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_stop_sampling()
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State INACTIVE
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.INACTIVE)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = None
+        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_state_change(ResourceAgentState.INACTIVE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State LOST_CONNECTION
+        ###
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.LOST_CONNECTION)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = None
+        self.assert_agent_command(ResourceAgentEvent.RESET)
+        self.assert_state_change(ResourceAgentState.UNINITIALIZED)
+
+        # Antelopes completely hides it's connection status
+        #self.remove_sample_dir()
+        #self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        #self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        #self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
 
     def assert_all_queue_empty(self):
         """
@@ -391,6 +477,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         with orbserver(PACKETS_TO_SEND, SAMPLES_PER_PACKET):
             log.debug("Started orb server")
+            from mi.core.kudu.orb import Orb
             with Orb(ORB_NAME, permissions='w') as myorb:
                 # Write packets to ORB
                 log.debug("Connected to orb server")
@@ -404,28 +491,49 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_start_sampling()
 
             # Verify we get one sample
-            try:
-                result = self.data_subscribers.get_samples(DataParticleType.ANTELOPE_ORB_PACKET, 2)
-                log.debug("First RESULT: %s", result)
+            result = self.data_subscribers.get_samples(DataParticleType.ANTELOPE_ORB_PACKET + '_chan', 2)
+            log.debug("First RESULT: %s", result)
 
-                # Verify values
-                self.assert_data_values(result, 'first.result.yml')
-            finally:
-                pass
-#            except Exception as e:
-#                log.error("Exception trapped: %s", e)
-#                self.fail("Sample timeout.")
+            # Verify values
+            self.assert_data_values(result, 'first.result.yml')
+
+    def test_parser_exception(self):
+        """
+        Test an exception is raised after the driver is started during
+        record parsing.
+        """
+
+        with orbserver(1, 0):
+            log.debug("Started orb server")
+            from mi.core.kudu.orb import Orb
+            with Orb(ORB_NAME, permissions='w') as myorb:
+                # Write packets to ORB
+                log.debug("Connected to orb server")
+                myorb.putx('dummy', 1, 'deadbeef')
+            log.debug("Sent packets to orb server")
+#            gevent.sleep(1000)
+
+            self.assert_initialize()
+
+            self.event_subscribers.clear_events()
+
+            # Verify an event was raised and we are in our retry state
+            self.assert_event_received(ResourceAgentErrorEvent, 10)
+            self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
 
     def test_performance(self):
         PACKETS_TO_SEND = 200
         SAMPLES_PER_PACKET = 64000
         DATA = range(SAMPLES_PER_PACKET)
         TEST_TIMEOUT = 15
+        MINIMUM_RATE = 6
 
         pkttype, packet, srcname, pkttime = makepacket(DATA)
 
         with orbserver(PACKETS_TO_SEND, SAMPLES_PER_PACKET):
           log.debug("Started orb server")
+          from mi.core.kudu.orb import Orb
           with Orb(ORB_NAME, permissions='w') as myorb:
               # Write packets to ORB
               log.debug("Connected to orb server")
@@ -440,13 +548,13 @@ class QualificationTest(DataSetQualificationTestCase):
           self.assert_start_sampling()
           result = []
           nsamps = 0
+          rate = None
           try:
-              yappi.start()
               profile.enable()
               while True:
                   try:
                       nsamps = len(self.data_subscribers.samples_received.get(
-                                                           DataParticleType.ANTELOPE_ORB_PACKET))
+                                                           DataParticleType.ANTELOPE_ORB_PACKET + '_chan'))
                   except TypeError:
                       log.warning("No samples received")
                   end_time = time.time()
@@ -463,17 +571,17 @@ class QualificationTest(DataSetQualificationTestCase):
 
           finally:
               profile.disable()
-              yappi.stop()
               period = end_time - start_time
+              rate = float(nsamps) / period
               log.critical("Processed %d PACKETS_TO_SEND in %s for a rate of %s pps"
-                  % (nsamps, period,  float(nsamps) / period ))
+                  % (nsamps, period,  rate ))
 
 #            self.assert_reset()
 #            self.stop_dataset_agent_client()
 
         # review published particles
-        with open('yappistats', 'w') as f:
-            yappi.print_stats(out=f)
 
         profile.dump_stats('cprofile')
+
+        self.assertGreater(rate, MINIMUM_RATE)
 

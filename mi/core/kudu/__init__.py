@@ -12,3 +12,11 @@ os.environ['ANTELOPE_PYTHON_GILRELEASE'] = '1'
 # versions.
 sys.path.append('/opt/antelope/5.3/data/python/antelope')
 
+try:
+    import _Pkt as _pkt
+except ImportError:
+    import warnings
+    warnings.warn("Failed to import Antelope libs", RuntimeWarning)
+
+__all__ = ['_pkt']
+

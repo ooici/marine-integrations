@@ -20,13 +20,13 @@ import struct
 import time
 import binascii
 import calendar
-from functools import partial
 from dateutil import parser
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.instrument.chunker import BinaryChunker
+from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.exceptions import RecoverableSampleException, UnexpectedDataException
 
@@ -40,14 +40,14 @@ HEADER_MATCHER = re.compile(HEADER_REGEX, re.DOTALL)
 FOOTER_REGEX = b'#End UIMM Data, (\d+) samples written\r\n'
 FOOTER_MATCHER = re.compile(FOOTER_REGEX)
 
-HEADER_FOOTER_REGEX =  b'#UIMM Status.+DateTime: (\d{8}\s\d{6}).+#ID=(\d+).+#SN=(\d+).+#Volts=(\d+\.\d{2})' \
-                       '.+#Records=(\d+).+#Length=(\d+).+#Events=(\d+).+UIMM Data\r\n#End UIMM Data, (\d+) samples written\r\n'
+HEADER_FOOTER_REGEX = b'#UIMM Status.+DateTime: (\d{8}\s\d{6}).+#ID=(\d+).+#SN=(\d+).+#Volts=(\d+\.\d{2})' \
+    '.+#Records=(\d+).+#Length=(\d+).+#Events=(\d+).+UIMM Data\r\n#End UIMM Data, (\d+) samples written\r\n'
 HEADER_FOOTER_MATCHER = re.compile(HEADER_FOOTER_REGEX, re.DOTALL)
 
 DATA_REGEX = b'(Record\[\d+\]:)([\x00-\xFF]+?)\r\n(Record|#End U)'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
-DATA_REGEX_B = b'(Record\[\d+\]:)([\x00-\xFF]*)(\x6e\x7f[\x00-\xFF]+?)\r\n'
+DATA_REGEX_B = b'(Record\[\d+\]:)([\x00-\xFF]+?)\r\n'
 DATA_MATCHER_B = re.compile(DATA_REGEX_B)
 
 RX_FAILURE_REGEX = b'Record\[\d+\]:ReceiveFailure\r\n'
@@ -57,9 +57,11 @@ HEADER_BYTES = 200
 FOOTER_BYTES = 43
 MIN_DATA_BYTES = 36
 
+
 class DataParticleType(BaseEnum):
     ADCPS_JLN_INS = 'adcps_jln_stc_instrument'
     ADCPS_JLN_META = 'adcps_jln_stc_metadata'
+
 
 class AdcpsJlnStcInstrumentParserDataParticleKey(BaseEnum):
     # params collected for adcps_jln_stc_instrument stream:
@@ -87,8 +89,10 @@ class AdcpsJlnStcInstrumentParserDataParticleKey(BaseEnum):
     ADCPS_JLN_VEL_NORTH = 'adcps_jln_vel_north'
     ADCPS_JLN_VEL_EAST = 'adcps_jln_vel_east'
     
+
 class StateKey(BaseEnum):
-    POSITION='position' # holds the file position
+    POSITION = 'position'  # holds the file position
+
 
 class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
     """
@@ -111,37 +115,37 @@ class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
         try:            
             record_str = match.group(1).strip('Record\[').strip('\]:')
 
-            fields = struct.unpack('<HHIBBBdhhhHIBBB', match.group(3)[0:34])
+            fields = struct.unpack('<HHIBBBdHhhHIBBB', match.group(2)[0:34])
 
             # ID field should always be 7F6E
             if fields[0] != int('0x7F6E', 16):
                 raise ValueError('ID field does not equal 7F6E.')
 
             num_bytes = fields[1]
-            if len(match.group(3)) - 2 != num_bytes:
+            if len(match.group(2)) - 2 != num_bytes:
                 raise ValueError('num bytes %d does not match data length %d'
-                          % (num_bytes, len(match.group(3)) - 2))
+                                 % (num_bytes, len(match.group(2)) - 2))
 
             nbins = fields[14]
             if len(match.group(0)) < (36+(nbins*8)):
-                raise ValueError('Number of bins %d does not fit in data length %d'%(nbins,
-                                                                                     len(match.group(0))))
-            date_fields = struct.unpack('HBBBBBB', match.group(3)[11:19])
+                raise ValueError('Number of bins %d does not fit in data length %d'
+                                 % (nbins, len(match.group(0))))
+            date_fields = struct.unpack('HBBBBBB', match.group(2)[11:19])
 
             # create a string with the right number of shorts to unpack
             struct_format = '<'
-            for i in range(0,nbins):
+            for i in range(0, nbins):
                 struct_format = struct_format + 'h'
 
             bin_len = nbins*2
-            adcps_jln_vel_error = struct.unpack(struct_format, match.group(3)[34:34+bin_len])
-            adcps_jln_vel_up = struct.unpack(struct_format, match.group(3)[(34+bin_len):(34+(bin_len*2))])
-            adcps_jln_vel_north = struct.unpack(struct_format, match.group(3)[(34+(bin_len*2)):(34+(bin_len*3))])
-            adcps_jln_vel_east = struct.unpack(struct_format, match.group(3)[(34+(bin_len*3)):(34+(bin_len*4))])      
+            adcps_jln_vel_error = struct.unpack(struct_format, match.group(2)[34:34+bin_len])
+            adcps_jln_vel_up = struct.unpack(struct_format, match.group(2)[(34+bin_len):(34+(bin_len*2))])
+            adcps_jln_vel_north = struct.unpack(struct_format, match.group(2)[(34+(bin_len*2)):(34+(bin_len*3))])
+            adcps_jln_vel_east = struct.unpack(struct_format, match.group(2)[(34+(bin_len*3)):(34+(bin_len*4))])      
                           
         except (ValueError, TypeError, IndexError) as ex:
             raise RecoverableSampleException("Error (%s) while decoding parameters in data: [0x%s]"
-                                            % (ex, binascii.hexlify(match.group(0))))
+                                             % (ex, binascii.hexlify(match.group(0))))
         result = [self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_RECORD, record_str, int),
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_NUMBER, fields[2], int),
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_UNIT_ID, fields[3], int),
@@ -161,10 +165,15 @@ class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_PRESSURE, fields[11], int),
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_STARTBIN, fields[13], int),
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_BINS, fields[14], int),
-                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_ERROR, adcps_jln_vel_error, list),
-                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_UP, adcps_jln_vel_up, list),
-                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_NORTH, adcps_jln_vel_north, list),
-                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_EAST, adcps_jln_vel_east, list)]
+                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_ERROR,
+                                     adcps_jln_vel_error, list),
+                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_UP,
+                                     adcps_jln_vel_up, list),
+                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_NORTH,
+                                     adcps_jln_vel_north, list),
+                  self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_EAST,
+                                     adcps_jln_vel_east, list)]
+
         return result
     
     @staticmethod
@@ -175,6 +184,7 @@ class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
             fields[4], fields[5], fields[6])
         return zulu_ts
     
+
 class AdcpsJlnStcMetadataParserDataParticleKey(BaseEnum):
     # params collected for adcps_jln_stc_metatdata stream:
     ADCPS_JLN_TIMESTAMP = 'adcps_jln_timestamp'
@@ -186,6 +196,7 @@ class AdcpsJlnStcMetadataParserDataParticleKey(BaseEnum):
     ADCPS_JLN_EVENTS = 'adcps_jln_events'
     ADCPS_JLN_SAMPLES_WRITTEN = 'adcps_jln_samples_written'
     
+
 class AdcpsJlnStcMetadataParserDataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCPS_JLN_META
     
@@ -200,38 +211,46 @@ class AdcpsJlnStcMetadataParserDataParticle(DataParticle):
             raise RecoverableSampleException("AdcpsJlnStcMetadataParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
 
-        result = [self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_TIMESTAMP, match.group(1), str),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_ID, match.group(2), int),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_SERIAL_NUMBER, match.group(3), int),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_VOLTS, match.group(4), float),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_RECORDS, match.group(5), int),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_LENGTH, match.group(6), int),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_EVENTS, match.group(7), int),
-                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_SAMPLES_WRITTEN, match.group(8), int),
+        result = [self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_TIMESTAMP,
+                                     match.group(1), str),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_ID,
+                                     match.group(2), int),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_SERIAL_NUMBER,
+                                     match.group(3), int),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_VOLTS,
+                                     match.group(4), float),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_RECORDS,
+                                     match.group(5), int),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_LENGTH,
+                                     match.group(6), int),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_EVENTS,
+                                     match.group(7), int),
+                  self._encode_value(AdcpsJlnStcMetadataParserDataParticleKey.ADCPS_JLN_SAMPLES_WRITTEN,
+                                     match.group(8), int),
                   ]
         return result
 
 
 class AdcpsJlnStcParser(BufferLoadingParser):
+
     def __init__(self,
                  config,
                  state,
                  stream_handle,
                  state_callback,
                  publish_callback,
-                 exception_callback,
-                 *args, **kwargs):
+                 exception_callback):
+
         self._saved_header = None
         self._read_state = {StateKey.POSITION: 0}
+
         super(AdcpsJlnStcParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          self.sieve_function, 
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
+                                                stream_handle,
+                                                state,
+                                                self.sieve_function,
+                                                state_callback,
+                                                publish_callback,
+                                                exception_callback)
         if state:
             self.set_state(state)
             if state[StateKey.POSITION] == 0:
@@ -275,10 +294,10 @@ class AdcpsJlnStcParser(BufferLoadingParser):
                 st_idx = end_packet_idx
             elif match:
                 # found a real record match
-                end_packet_idx = match.end(0) - 6 + st_idx # string "Record" or "#End U" is length 6
+                end_packet_idx = match.end(0) - 6 + st_idx  # string "Record" or "#End U" is length 6
                 if end_packet_idx < len(raw_data):
                     # Record "ReceiveFailure" and checksum are checked in parse_chunks
-                    return_list.append((match.start(0)+ st_idx, end_packet_idx))                   
+                    return_list.append((match.start(0) + st_idx, end_packet_idx))
                 st_idx = end_packet_idx         
             else:
                 st_idx += 1    
@@ -315,7 +334,7 @@ class AdcpsJlnStcParser(BufferLoadingParser):
             raise SampleException("File is not long enough to read header")
 
         # read the last 43 bytes from the file     
-        self._stream_handle.seek(-FOOTER_BYTES,2)
+        self._stream_handle.seek(-FOOTER_BYTES, 2)
         footer = self._stream_handle.read() 
         footer_match = FOOTER_MATCHER.search(footer)
         
@@ -368,19 +387,17 @@ class AdcpsJlnStcParser(BufferLoadingParser):
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
         self.handle_non_data(non_data, non_end, start)
 
-        while (chunk != None):
+        while chunk is not None:
             match_rx_failure = RX_FAILURE_MATCHER.match(chunk)
             # ignore marked failure records
             if not match_rx_failure:
                 data_match = DATA_MATCHER_B.match(chunk)
                 if data_match:
-                    if data_match.group(2):
-                        # Unpexpected data exception. Extra bytes found prior to ID field = 7F6E. 
-                        self._exception_callback(UnexpectedDataException("Found unexpected data prior to ID field."))
-                    
-                    if len(data_match.group(3)) >= MIN_DATA_BYTES and self.compare_checksum(data_match.group(3)):
-                        # Pull out date string and convert to ntp
-                        date_str = AdcpsJlnStcInstrumentParserDataParticle.unpack_date(data_match.group(3)[11:19])
+                    if len(data_match.group(2)) >= MIN_DATA_BYTES and self.compare_checksum(data_match.group(2)):
+                        # pull out the date string from the data
+                        date_str = AdcpsJlnStcInstrumentParserDataParticle.unpack_date(data_match.group(2)[11:19])
+
+                        # convert to ntp
                         converted_time = float(parser.parse(date_str).strftime("%s.%f"))
                         adjusted_time = converted_time - time.timezone
                         self._timestamp = ntplib.system_to_ntp_time(adjusted_time)
@@ -389,7 +406,8 @@ class AdcpsJlnStcParser(BufferLoadingParser):
 
                         # particle-ize the data block received, return the record
                         # set timestamp here, converted to ntp64. pull out timestamp for this record               
-                        sample = self._extract_sample(AdcpsJlnStcInstrumentParserDataParticle, DATA_MATCHER_B, chunk, self._timestamp)
+                        sample = self._extract_sample(AdcpsJlnStcInstrumentParserDataParticle, DATA_MATCHER_B,
+                                                      chunk, self._timestamp)
 
                         if sample:
                             # create particle
@@ -397,15 +415,16 @@ class AdcpsJlnStcParser(BufferLoadingParser):
                             self._increment_state(len(chunk))
                             result_particles.append((sample, copy.copy(self._read_state)))
                     else:
-                        if len(data_match.group(3)) < MIN_DATA_BYTES:
-                            log.info("Found record with not enough bytes 0x%s", binascii.hexlify(data_match.group(0)))
-                            self._exception_callback(SampleException("Found record with not enough bytes 0x%s" % binascii.hexlify(data_match.group(0))))
+                        if len(data_match.group(2)) < MIN_DATA_BYTES:
+                            log.debug("Found record with not enough bytes 0x%s",
+                                      binascii.hexlify(data_match.group(0)))
+                            self._exception_callback(SampleException("Found record with not enough bytes 0x%s"
+                                                                     % binascii.hexlify(data_match.group(0))))
                         else:
-                            log.info("Found record whose checksum doesn't match 0x%s", binascii.hexlify(data_match.group(0)))
-                            self._exception_callback(SampleException("Found record whose checksum doesn't match 0x%s" % binascii.hexlify(data_match.group(0))))
-                else:          
-                    # The record format is recognized but does not contain the expected ID = 7F6E. Skip this record and try parsing the next.
-                    self._exception_callback(SampleException("ID Field does not equal 7F6E. Skipping record."))
+                            log.debug("Found record whose checksum doesn't match 0x%s",
+                                      binascii.hexlify(data_match.group(0)))
+                            self._exception_callback(SampleException("Found record whose checksum doesn't match 0x%s"
+                                                                     % binascii.hexlify(data_match.group(0))))
             else:
                 log.info("Found RecieveFailure record, ignoring")
 
@@ -425,4 +444,5 @@ class AdcpsJlnStcParser(BufferLoadingParser):
             self._increment_state(len(non_data))
             log.debug("Found %d bytes of unexpected non-data" % len(non_data))
             # if non-data is a fatal error, directly call the exception, if it is not use the _exception_callback
-            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
+            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s"
+                                                             % (len(non_data), non_data)))

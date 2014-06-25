@@ -13,16 +13,13 @@ __license__ = 'Apache 2.0'
 
 import re
 import struct
-import binascii
 import gevent
 import time
 import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
-from mi.core.instrument.chunker import StringChunker
-from mi.core.exceptions import DatasetParserException
-from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.exceptions import DatasetParserException, NotImplementedException
 from mi.dataset.dataset_parser import Parser
 
 # SIO Main controller header and data for ctdmo in binary
@@ -191,8 +188,11 @@ class SioMuleParser(Parser):
             raise DatasetParserException("Invalid state keys")
 
         # store both the start and end point for this read of data within the file
-        self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX],
-                          state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX]]
+        if state_obj[StateKey.UNPROCESSED_DATA] == []:
+            self._position = [0, 0]
+        else:
+            self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX],
+                              state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX]]
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
@@ -214,9 +214,9 @@ class SioMuleParser(Parser):
         unprocessed.  This keeps track of which data has been received,
         since blocks may come out of order or appear at a later time in an already
         processed file.
-        @param timestamp The NTP4 timestamp
+        @param returned_records Number of records to return 
         """
-        log.debug("Incrementing current state: %s", self._read_state)
+        log.trace("Incrementing current state: %s", self._read_state)
 
         while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
             # if we were in the middle of processing, we need to drop the parsed
@@ -234,67 +234,66 @@ class SioMuleParser(Parser):
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][END_IDX] += self._position[START_IDX]
 
         n_removed = 0
-        if returned_records > 0:
-            # need to adjust position to be relative to the entire file, not just the
-            # currently read section, so add the initial position to the in process packets
-            log.debug('records to be returned %d', returned_records)
-            total_remain = returned_records
-            adj_packets = []
-            for packet_idx in range(0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
-                adj_packet_idx = packet_idx - n_removed
-                this_packet = self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx]
-                if this_packet[SAMPLES_PARSED] > 0:
-                    # this packet has data samples in it
-                    this_packet_remain = this_packet[SAMPLES_PARSED] - this_packet[SAMPLES_RETURNED]
-                    # increase the number of samples that have been pulled out
-                    self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] += total_remain
-                    # find out if packet is done, if so remove it
-                    if self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] >= this_packet[SAMPLES_PARSED]:
-                        # this packet has had all the samples pulled out from it, remove it from in process
-                        adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
-                        ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                        n_removed += 1
-                    elif self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] < 0:
-                        self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] = 0
-
-                    total_remain -= this_packet_remain
-
-                else:
-                    # this packet has no samples, no need to process further
+        # need to adjust position to be relative to the entire file, not just the
+        # currently read section, so add the initial position to the in process packets
+        log.debug('records to be returned %d', returned_records)
+        total_remain = returned_records
+        adj_packets = []
+        for packet_idx in range(0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
+            adj_packet_idx = packet_idx - n_removed
+            this_packet = self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx]
+            if this_packet[SAMPLES_PARSED] > 0:
+                # this packet has data samples in it
+                this_packet_remain = this_packet[SAMPLES_PARSED] - this_packet[SAMPLES_RETURNED]
+                # increase the number of samples that have been pulled out
+                self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] += total_remain
+                # find out if packet is done, if so remove it
+                if this_packet[SAMPLES_RETURNED] >= this_packet[SAMPLES_PARSED]:
+                    # this packet has had all the samples pulled out from it, remove it from in process
                     adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
-                    ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                    self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
                     n_removed += 1
+                elif this_packet[SAMPLES_RETURNED] < 0:
+                    self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] = 0
 
-            if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
-                # this is the last of the in process data, now process unprocessed data, so
-                # go back to the beginning of the file
-                log.debug('Resetting position to the start')
-                self._position = [0,0]
-                # clear out the chunker so we don't wrap around data
-                self._chunker.clean_all_chunks()
+                total_remain -= this_packet_remain
 
-            log.trace('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
+            else:
+                # this packet has no samples, no need to process further
+                adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
+                self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                n_removed += 1
 
-            # first combine the in process data packet indicies
-            combined_packets = self._combine_adjacent_packets(adj_packets)
-            # loop over combined packets and remove them from unprocessed data
-            for packet in combined_packets:
-                # find which unprocessed section this packet is in
-                for unproc in self._read_state[StateKey.UNPROCESSED_DATA]:
-                    if packet[START_IDX] >= unproc[START_IDX] and packet[END_IDX] <= unproc[END_IDX]:
-                        # packet is within this unprocessed data, remove it
-                        self._read_state[StateKey.UNPROCESSED_DATA].remove(unproc)
-                        # add back any data still unprocessed on either side
-                        if packet[START_IDX] > unproc[START_IDX]:
-                            self._read_state[StateKey.UNPROCESSED_DATA].append([unproc[START_IDX], packet[START_IDX]])
-                        if packet[END_IDX] < unproc[END_IDX]:
-                            self._read_state[StateKey.UNPROCESSED_DATA].append([packet[END_IDX], unproc[END_IDX]])
-                        # once we have found which unprocessed section this packet is in,
-                        # move on to next packet
-                        break;
-                self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
-                self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
-                    self._read_state[StateKey.UNPROCESSED_DATA])
+        if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
+            # this is the last of the in process data, now process unprocessed data, so
+            # go back to the beginning of the file
+            log.debug('Resetting position to the start')
+            self._position = [0,0]
+            # clear out the chunker so we don't wrap around data
+            self._chunker.clean_all_chunks()
+
+        log.trace('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
+
+        # first combine the in process data packet indicies
+        combined_packets = self._combine_adjacent_packets(adj_packets)
+        # loop over combined packets and remove them from unprocessed data
+        for packet in combined_packets:
+            # find which unprocessed section this packet is in
+            for unproc in self._read_state[StateKey.UNPROCESSED_DATA]:
+                if packet[START_IDX] >= unproc[START_IDX] and packet[END_IDX] <= unproc[END_IDX]:
+                    # packet is within this unprocessed data, remove it
+                    self._read_state[StateKey.UNPROCESSED_DATA].remove(unproc)
+                    # add back any data still unprocessed on either side
+                    if packet[START_IDX] > unproc[START_IDX]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([unproc[START_IDX], packet[START_IDX]])
+                    if packet[END_IDX] < unproc[END_IDX]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([packet[END_IDX], unproc[END_IDX]])
+                    # once we have found which unprocessed section this packet is in,
+                    # move on to next packet
+                    break
+            self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
+            self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
+                self._read_state[StateKey.UNPROCESSED_DATA])
 
     def _combine_adjacent_packets(self, packets):
         """
@@ -322,6 +321,7 @@ class SioMuleParser(Parser):
     def get_num_records(self, num_records):
         """
         Loop through all the in process or unprocessed data until the requested number of records are found
+        @param num records number of records to get
         """
         if self.all_data == None:
             # need to read in the entire data file first and store it because escape sequences shift position of
@@ -442,25 +442,21 @@ class SioMuleParser(Parser):
         """
         Using the UNPROCESSED_DATA state, determine if there are any more unprocessed blocks,
         and if there are read in the next one
+        @param unproc The unprocessed state
         @retval The next unprocessed data packet, or [] if no more unprocessed data
         """
         # see if there is more unprocessed data at a later file position (don't go backwards)
         next_idx = 0
-        log.debug('Getting next unprocessed from %s, last position %d', unproc, self._position[END_IDX])
+        log.trace('Getting next unprocessed from %s, last position %d', unproc, self._position[END_IDX])
         while len(unproc) > next_idx and unproc[next_idx][END_IDX] <= self._position[END_IDX]:
             next_idx = next_idx + 1
 
         if len(unproc) > next_idx:
-            data_len = unproc[next_idx][END_IDX] - unproc[next_idx][START_IDX]
-            # only seek forwards, if we have already read part of a unprocessed section
-            # don't go back to the beginning
-            if unproc[next_idx][START_IDX] > self._position[END_IDX]:
-                self._position[START_IDX] = unproc[next_idx][START_IDX]
             data = self.all_data[unproc[next_idx][START_IDX]:unproc[next_idx][END_IDX]]
-            self._position[END_IDX] = self._position[START_IDX] + data_len
+            self._position = unproc[next_idx]
             log.debug('got %d bytes starting at %d', len(data), self._position[START_IDX])
         else:
-            log.debug('Found no data, %s, next_idx=%d', unproc, next_idx)
+            log.debug('Found no data, next_idx=%d', next_idx)
             data = []
         return data
 
@@ -468,8 +464,8 @@ class SioMuleParser(Parser):
         """
         Get particles out of the buffer and publish them. Update the state
         of what has been published, too.
-        @param num_records The number of particles to remove from the buffer
-        @retval A list with num_records elements from the buffer. If num_records
+        @param num_to_fetch The number of particles to remove from the buffer
+        @retval A list with num_to_fetch elements from the buffer. If num_to_fetch
         cannot be collected (perhaps due to an EOF), the list will have the
         elements it was able to collect.
         """
@@ -489,7 +485,7 @@ class SioMuleParser(Parser):
             # need to keep track of which records have actually been returned
             self._increment_state(num_to_fetch)
             self._state = self._read_state
-            log.debug("Sending parser state [%s] to driver", self._state)
+            log.trace("Sending parser state [%s] to driver", self._state)
             self._state_callback(self._state) # push new state to driver
 
         return return_list

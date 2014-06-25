@@ -292,6 +292,12 @@ class DriverGenerator:
     ###
     #   Public Methods
     ###
+    def create_init_files(self):
+        self._touch_init(self.driver_make_dir())
+        self._touch_init(self.driver_model_dir())
+        self._touch_init(self.driver_dir())
+        self._touch_init(self.driver_test_dir())
+
     def build_directories(self):
         """
         @brief Build directory structure for the new driver
@@ -307,10 +313,7 @@ class DriverGenerator:
         if not os.path.exists(self.resource_dir()):
             os.makedirs(self.resource_dir())
 
-        self._touch_init(self.driver_make_dir())
-        self._touch_init(self.driver_model_dir())
-        self._touch_init(self.driver_dir())
-        self._touch_init(self.driver_test_dir())
+        self.create_init_files()
 
 
     def generate_code(self):

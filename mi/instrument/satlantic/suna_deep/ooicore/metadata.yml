@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Rachel Manoni
+  driver_make: satlantic
+  driver_model: suna_deep
+  driver_name: ooicore
+  email: Rachel.E.Manoni@Raytheon.com
+  release_notes: initial_rev
+  version: 0.0.3

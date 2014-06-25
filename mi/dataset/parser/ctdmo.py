@@ -25,26 +25,26 @@ from mi.core.exceptions import SampleException, RecoverableSampleException, Data
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
 class DataParticleType(BaseEnum):
-    CT = 'ctdmo_ghqr__mule_sio_instrument'
-    CO = 'ctdmo_ghqr__mule_sio_offset'
+    CT = 'ctdmo_ghqr_sio_mule_instrument'
+    CO = 'ctdmo_ghqr_sio_offset'
     
 class CtdmoParserDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = "controller_timestamp"
+    CONTROLLER_TIMESTAMP = "sio_controller_timestamp"
     INDUCTIVE_ID = "inductive_id"
     TEMPERATURE = "temperature"
     CONDUCTIVITY = "conductivity"
     PRESSURE = "pressure"
     CTD_TIME = "ctd_time"
 
-# the [\x16-\x40] is because we need more than just \x0d to correctly
-# identify the split between samples, the data might have \x0d in it also,
-# so since this value has to do with the year, x16 = august 2011 to
-# x40 = july 2034
-DATA_REGEX = b'[\x00-\xFF]{8}([\x00-\xFF]{3}[\x16-\x40]{1})\x0d'
+DATA_REGEX = b'[\x00-\xFF]{8}([\x00-\xFF]{4})\x0d'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 CO_REGEX = b'[\x00-\xFF]{5}\x13'
 CO_MATCHER = re.compile(CO_REGEX)
+
+DATA_SAMPLE_BYTES = 13
+SIO_HEADER_BYTES = 32
+CO_SAMPLE_BYTES = 6
 
 class CtdmoParserDataParticle(DataParticle):
     """
@@ -126,12 +126,12 @@ class CtdmoParserDataParticle(DataParticle):
         """
         return int(int_val, 16)
 
-class CtdmoOffsetParserDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = "controller_timestamp"
+class CtdmoOffsetDataParticleKey(BaseEnum):
+    CONTROLLER_TIMESTAMP = "sio_controller_timestamp"
     INDUCTIVE_ID = "inductive_id"
-    CTD_OFFSET = "ctd_offset"
+    CTD_OFFSET = "ctd_time_offset"
 
-class CtdmoOffsetParserDataParticle(DataParticle):
+class CtdmoOffsetDataParticle(DataParticle):
     """
     Class for parsing data from the CTDMO instrument on a MSFM platform node
     """
@@ -144,7 +144,7 @@ class CtdmoOffsetParserDataParticle(DataParticle):
                  preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                  quality_flag=DataParticleValue.OK,
                  new_sequence=None):
-        super(CtdmoOffsetParserDataParticle, self).__init__(raw_data,
+        super(CtdmoOffsetDataParticle, self).__init__(raw_data,
                                                       port_timestamp=None,
                                                       internal_timestamp=None,
                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
@@ -165,11 +165,11 @@ class CtdmoOffsetParserDataParticle(DataParticle):
                                               parsed sample data: [%s]", self.raw_data[8:])
         # convert binary to hex ascii string
         asciihex = binascii.b2a_hex(match.group(0))
-        result = [self._encode_value(CtdmoOffsetParserDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[0:8],
+        result = [self._encode_value(CtdmoOffsetDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[0:8],
                                      CtdmoParserDataParticle.encode_int_16),
-                  self._encode_value(CtdmoOffsetParserDataParticleKey.INDUCTIVE_ID, asciihex[0:2],
+                  self._encode_value(CtdmoOffsetDataParticleKey.INDUCTIVE_ID, asciihex[0:2],
                                      CtdmoParserDataParticle.encode_int_16),
-                  self._encode_value(CtdmoOffsetParserDataParticleKey.CTD_OFFSET, asciihex[2:10],
+                  self._encode_value(CtdmoOffsetDataParticleKey.CTD_OFFSET, asciihex[2:10],
                                      CtdmoParserDataParticle.encode_int_16)]
         log.trace('CtdmoOffsetParserDataParticle: particle=%s', result)
         return result
@@ -215,50 +215,55 @@ class CtdmoParser(SioMuleParser):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             prev_sample = None
+            # start looping at the end of the header, after \x02
+            chunk_idx = SIO_HEADER_BYTES + 1
+            # last possible chunk index, excluding \x03
+            last_chunk_idx = len(chunk) - 1
+
             if header_match.group(1) == 'CT':
-                log.debug("matched CT chunk header %s", chunk[1:32])
+                log.debug("matched CT chunk header %s", chunk[1:SIO_HEADER_BYTES])
+                while chunk_idx < last_chunk_idx:
+                    data_match = DATA_MATCHER.match(chunk[chunk_idx:chunk_idx+DATA_SAMPLE_BYTES])
+                    if data_match:
+                        if self.compare_inductive_id(data_match):
+                            # particle-ize the data block received, return the record
+                            sample = self._extract_sample(CtdmoParserDataParticle, None,
+                                                          header_match.group(3) + data_match.group(0),
+                                                          None)
+                            if sample:
+                                # create particle
+                                result_particles.append(sample)
+                                sample_count += 1
+                        chunk_idx += DATA_SAMPLE_BYTES
+                    else:
+                        log.error('unknown data found in CT chunk %s at %d, leaving out the rest',
+                                  binascii.b2a_hex(chunk), chunk_idx)
+                        self._exception_callback(SampleException(
+                            'unknown data found in CT chunk at %d, leaving out the rest' % chunk_idx))
+                        break
 
-                for data_match in DATA_MATCHER.finditer(chunk):
-                    # check if the end of the last sample connects to the start of the next sample
-                    if prev_sample is not None:
-                        if data_match.start(0) != prev_sample:
-                            log.error('extra data found between samples, leaving out the rest of this chunk')
-                            break
-                    prev_sample = data_match.end(0)
-                    # the inductive id is part of the data, check that it matches
-                    asciihex_id = binascii.b2a_hex(data_match.group(0)[0:1])
-                    induct_id = int(asciihex_id, 16)
-                    if induct_id == self._config.get('inductive_id'):
-                        # particle-ize the data block received, return the record
-                        sample = self._extract_sample(CtdmoParserDataParticle, None,
-                                                      header_match.group(3) + data_match.group(0),
-                                                      None)
-                        if sample:
-                            # create particle
-                            result_particles.append(sample)
-                            sample_count += 1
             elif header_match.group(1) == 'CO':
-                log.debug("matched CO chunk header %s", chunk[1:32])
+                log.debug("matched CO chunk header %s", chunk[1:SIO_HEADER_BYTES])
+                while chunk_idx < last_chunk_idx:
+                    data_match = CO_MATCHER.match(chunk[chunk_idx:chunk_idx+CO_SAMPLE_BYTES])
+                    if data_match:
+                        if self.compare_inductive_id(data_match):
+                            # particle-ize the data block received, return the record
+                            sample = self._extract_sample(CtdmoOffsetDataParticle, None,
+                                                          header_match.group(3) + data_match.group(0),
+                                                          None)
+                            if sample:
+                                # create particle
+                                result_particles.append(sample)
+                                sample_count += 1
+                        chunk_idx += CO_SAMPLE_BYTES
+                    else:
+                        log.error('unknown data found in CO chunk %s at %d, leaving out the rest',
+                                  binascii.b2a_hex(chunk), chunk_idx)
+                        self._exception_callback(SampleException(
+                            'unknown data found in CO chunk at %d, leaving out the rest' % chunk_idx))
+                        break
 
-                for data_match in CO_MATCHER.finditer(chunk):
-                    # check if the end of the last sample connects to the start of the next sample
-                    if prev_sample is not None:
-                        if data_match.start(0) != prev_sample:
-                            log.error('extra data found between samples, leaving out the rest of this chunk')
-                            break
-                    prev_sample = data_match.end(0)
-                    # the inductive id is part of the data, check that it matches
-                    asciihex_id = binascii.b2a_hex(data_match.group(0)[0:1])
-                    induct_id = int(asciihex_id, 16)
-                    if induct_id == self._config.get('inductive_id'):
-                        # particle-ize the data block received, return the record
-                        sample = self._extract_sample(CtdmoOffsetParserDataParticle, None,
-                                                      header_match.group(3) + data_match.group(0),
-                                                      None)
-                        if sample:
-                            # create particle
-                            result_particles.append(sample)
-                            sample_count += 1
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(sample_count)
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -266,3 +271,14 @@ class CtdmoParser(SioMuleParser):
 
         return result_particles
 
+    def compare_inductive_id(self, data_match):
+        """
+        Compare the inductive id from the data with the configured inductive ID
+        @param data_match block of binary data starting with inductive ID
+        @returns True if IDs match, False if they don't
+        """
+        asciihex_id = binascii.b2a_hex(data_match.group(0)[0:1])
+        induct_id = int(asciihex_id, 16)
+        if induct_id == self._config.get('inductive_id'):
+            return True
+        return False
