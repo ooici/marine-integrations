@@ -121,7 +121,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', DIR_WFP_SIO_MULE, 'node58p1.dat')
-        self.assert_data(SIO_PARTICLES, 'BIG_GIANT_HEAD.yml', count=42062, timeout=1800)
+        self.assert_data(SIO_PARTICLES, count=42062, timeout=1800)
 
         self.driver.stop_sampling()
 
