@@ -770,7 +770,25 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 320)
-        ## A blank sample is taken immediately upon entering autosample state
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              particle_count=3, timeout=1280)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+        self.clear_events()
+
+        #Now verify that no more particles get generated
+        failed = False
+        try:
+            self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                                  timeout=400)
+            failed = True
+        except AssertionError:
+            pass
+        self.assertFalse(failed)
+
+        #Restart autosample
+        self.clear_events()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
                                               particle_count=3, timeout=1280)

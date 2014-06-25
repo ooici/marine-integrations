@@ -762,6 +762,23 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
                                               particle_count=4, timeout=320)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
+        #Now verify that no more particles get generated
+        failed = False
+        try:
+            self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                                  timeout=180)
+            failed = True
+        except AssertionError:
+            pass
+        self.assertFalse(failed)
+
+        #Restart autosample
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              particle_count=4, timeout=320)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+
     def test_polled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)

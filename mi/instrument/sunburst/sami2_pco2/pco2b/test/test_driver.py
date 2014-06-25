@@ -863,12 +863,35 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 80)
+
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
                                               particle_count=4, timeout=400)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample,
                                               particle_count=4)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+        self.clear_events()
+
+        #Now verify that no more particles get generated
+        failed = False
+        try:
+            self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                                  timeout=240)
+            self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample)
+            failed = True
+        except AssertionError:
+            pass
+        self.assertFalse(failed)
+
+        #Restart autosample
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+                                              particle_count=4, timeout=400)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample,
+                                              particle_count=4)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+
 
     def test_polled_sample_state(self):
         self.assert_initialize_driver()
