@@ -8,19 +8,14 @@
 """
 #!/usr/bin/env python
 
-import binascii
-import unittest
 import os
 import ntplib, struct
 from nose.plugins.attrib import attr
-
-from StringIO import StringIO
 
 from mi.core.exceptions import SampleException
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.dataset.parser.sio_mule_common import StateKey
 
 from mi.dataset.parser.dosta_ln_wfp_sio_mule import DostaLnWfpSioMuleParser
@@ -54,15 +49,8 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dosta_ln_wfp_sio_mule',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaLnWfpSioMuleParserDataParticle'
             }
-
-
-
-        # First 'WE' SIO header in noe58p1.dat, E file header.
-        self.particle_e_header = DostaLnWfpSioMuleParserDataParticle(b'\x00\x01\x00\x00\x00' \
-            '\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01Q\xf2V\xb3Q\xf2W.')
-        
-        # First 'WE' SIO header in noe58p1.dat, first record.
-        
+       
+        # First 'WE' SIO header in noe58p1.dat, first record.      
         self.timestamp_1a = self.timestamp_to_ntp('Q\xf2W.') # The record timestamp should be 2986504401
         log.debug("Converted timestamp 1a: %s",self.timestamp_1a)
         self.particle_1a = DostaLnWfpSioMuleParserDataParticle(b'Q\xf2W.\x00\x00\x00\x00A9Y' \
@@ -81,7 +69,6 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
             '\t\xd3\xd7B\x9b\xdc)?\xec\xac\x08\x00:\x00d\x027', internal_timestamp = self.timestamp_1c)    
         
         # Second 'WE' SIO header in noe58p1.dat, first record.
-        self.timestamp_2a  = self.timestamp_to_ntp('Q\xf2\x8fn')
         log.debug("Converted timestamp 2a: %s",self.timestamp_2a)
         self.particle_2a = DostaLnWfpSioMuleParserDataParticle(b'Q\xf2\x8fn\x00\x00\x00\x00A7\xd5f' \
             '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x008\x00a\x02=', internal_timestamp = self.timestamp_2a)
