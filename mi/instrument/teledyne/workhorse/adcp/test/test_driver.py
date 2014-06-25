@@ -25,7 +25,7 @@ from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverUni
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverIntegrationTest
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverQualificationTest
 from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverPublicationTest
-from mi.instrument.teledyne.particles  import DataParticleType
+from mi.instrument.teledyne.particles import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA, PT2_RAW_DATA, PT4_RAW_DATA
@@ -45,8 +45,8 @@ from mi.instrument.teledyne.workhorse.adcp.driver import Capability
 from mi.instrument.teledyne.workhorse.adcp.driver import InstrumentCmds
 
 from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.particles  import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.particles  import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
 
 from mi.instrument.teledyne.workhorse.adcp.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse.adcp.driver import Protocol
@@ -54,7 +54,7 @@ from mi.instrument.teledyne.workhorse.adcp.driver import Protocol
 from mi.instrument.teledyne.workhorse.adcp.driver import ProtocolState
 # ##
 # Driver parameters for tests
-###
+# ##
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.teledyne.workhorse.adcp.driver',
@@ -858,7 +858,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 @attr('INT', group='mi')
 class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def test_autosample_particle_generation(self):
-
         self.assert_initialize_driver()
 
         params = {

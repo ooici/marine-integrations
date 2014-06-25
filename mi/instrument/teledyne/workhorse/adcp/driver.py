@@ -492,7 +492,7 @@ class Protocol(WorkhorseProtocol):
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
                              r'WI (\d) \-+ Clip Data Past Bottom',
                              lambda match: bool(int(match.group(1), base=10)),
-                             self._bool_to_int,
+                             int,
                              type=ParameterDictType.BOOL,
                              display_name="Clip Data Past Bottom",
                              units=ADCPUnits.TRUEFALSE,

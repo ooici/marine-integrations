@@ -26,17 +26,16 @@ from mi.instrument.teledyne.test.test_driver import TeledyneIntegrationTest
 from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
 from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 
-from mi.instrument.teledyne.particles  import DataParticleType
+from mi.instrument.teledyne.particles import DataParticleType
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
 
-from mi.instrument.teledyne.driver import TeledyneScheduledJob
 from mi.instrument.teledyne.workhorse.driver import TeledynePrompt
 from mi.instrument.teledyne.workhorse.driver import NEWLINE
 
-from mi.instrument.teledyne.particles  import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.particles  import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
 
 from mi.core.exceptions import InstrumentCommandException
 
@@ -82,14 +81,14 @@ class WorkhorseDriverUnitTest(TeledyneUnitTest):
 
 # ##############################################################################
 # INTEGRATION TESTS                                #
-###############################################################################
+# ##############################################################################
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
-    ###
-    #    Add instrument specific integration tests
+    # ##
+    # Add instrument specific integration tests
     ###
     def test_parameters(self):
         """
@@ -232,8 +231,8 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assertTrue(lt[:10].upper() in dt.upper())
 
 
-###############################################################################
-#                            QUALIFICATION TESTS                              #
+# ##############################################################################
+# QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
 # integration.  The generally aren't used for instrument debugging and should #
 # be tackled after all unit and integration tests are complete                #
@@ -414,7 +413,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.PITCH, 1)
         self.assert_set_parameter(WorkhorseParameter.ROLL, 1)
         self.assert_set_parameter(WorkhorseParameter.SALINITY, 36)
-        self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 6000, 0)
+        self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 6000, False)
         self.assert_set_parameter(WorkhorseParameter.TRANSDUCER_DEPTH, 0)
 
         self.assert_set_parameter(WorkhorseParameter.TIME_PER_ENSEMBLE, '00:00:01.00')
