@@ -7,18 +7,16 @@ Release notes:
 
 initial release
 """
-from mi.core.util import dict_equal
-
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 import time
 import re
 
+from mi.core.util import dict_equal
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
-
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -38,8 +36,8 @@ from mi.core.instrument.protocol_param_dict import RegexParameter
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from pyon.agent.agent import ResourceAgentState
-
 from mi.core.log import get_logger
+
 
 log = get_logger()
 
@@ -1287,16 +1285,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @param kwargs['startup'] startup boolean: True if we are starting up,
             false otherwise
         @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set
-        parameters not ALL and not a dict, or if parameter can't be properly
-        formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set
-        command.
-        @throws InstrumentProtocolException if set command could not be built
-        or misunderstood.
-        @throws InstrumentParameterException if the parameter configuration
-        doesnt make sense for some reason (maybe invalid parameters or
-        combinations of them)
         """
         next_state = None
         result = self._set_params(*args, **kwargs)
@@ -1307,7 +1295,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         Get device parameters from the parameter dict.
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
         """
         return self._handler_get(*args, **kwargs)
 
@@ -1316,8 +1303,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         Switch into autosample mode.
         @retval (next_state, result) tuple, (ProtocolStates.AUTOSAMPLE,
         None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
         next_state = None
         result = None
@@ -1374,9 +1359,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         sync clock close to a second edge 
         @retval (next_state, result) tuple, (None, None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or
-        misunderstood.
         """
 
         next_state = None
@@ -1420,9 +1402,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         Stop autosample and switch back to command mode.
         @retval (next_state, result) tuple, (ProtocolStates.COMMAND,
         None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or
-        incorrect prompt received.
         """
         next_state = None
         result = None
@@ -1454,8 +1433,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         streaming and then raise that exception.
         @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
         None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
         next_state = None
         next_agent_state = None
