@@ -593,9 +593,16 @@ class Protocol(Pco2wProtocol):
         extract_sample with the appropriate particle objects and REGEXes.
         """
 
-        self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(Pco2wConfigurationDataParticle, PCO2WB_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        if any([
+                self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER,
+                                     chunk, timestamp),
+                self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER,
+                                     chunk, timestamp),
+                self._extract_sample(Pco2wConfigurationDataParticle, PCO2WB_CONFIGURATION_REGEX_MATCHER,
+                                     chunk, timestamp)]):
+            return
+
+
         dev1_sample = self._extract_sample(Pco2wbDev1SampleDataParticle, PCO2WB_DEV1_SAMPLE_REGEX_MATCHER, chunk,
                                            timestamp)
         sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)
@@ -654,7 +661,7 @@ class Protocol(Pco2wProtocol):
                              direct_access=True,
                              default_value=0x0A,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='Mode Bits (set to 00001010)')
+                             display_name='Mode Bits')
 
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, configuration_string_regex,
                              lambda match: int(match.group(8), 16),

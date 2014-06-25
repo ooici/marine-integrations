@@ -825,9 +825,14 @@ class Protocol(SamiProtocol):
         with the appropriate particle objects and REGEXes.
         """
 
-        self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenConfigDataParticle, PHSEN_CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        if any([self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER,
+                                     chunk, timestamp),
+                self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER,
+                                     chunk, timestamp),
+                self._extract_sample(PhsenConfigDataParticle, PHSEN_CONFIGURATION_REGEX_MATCHER,
+                                     chunk, timestamp)]):
+            return
+
         sample = self._extract_sample(PhsenSamiSampleDataParticle, PHSEN_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
         log.debug('Protocol._got_chunk(): get_current_state() == %s', self.get_current_state())
@@ -873,7 +878,7 @@ class Protocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x02,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='Mode Bits (set to 00000010)')
+                             display_name='Mode Bits')
 
         # PCO2 0x04, PHSEN 0x0A
         self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, configuration_string_regex,
