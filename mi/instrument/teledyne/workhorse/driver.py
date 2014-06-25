@@ -7,7 +7,12 @@ Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
+import re
 from mi.core.exceptions import InstrumentProtocolException
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_REGEX_MATCHER, \
+    ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER, ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER, ADCP_TRANSMIT_PATH_REGEX_MATCHER, \
+    ADCP_PD0_PARSED_REGEX_MATCHER, ADCP_COMPASS_CALIBRATION_DataParticle, ADCP_PD0_PARSED_DataParticle, \
+    ADCP_SYSTEM_CONFIGURATION_DataParticle, ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE, ADCP_TRANSMIT_PATH_PARTICLE
 
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
@@ -18,10 +23,16 @@ from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
 from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.instrument.teledyne.driver import TeledyneCapability
-from mi.instrument.teledyne.particles import *
+#from mi.instrument.teledyne.particles import *
 from mi.core.instrument.chunker import StringChunker
 
+from mi.core.log import get_logger
+from struct import *
 
+log = get_logger()
+
+# newline.
+NEWLINE = '\r\n'
 ###############################################################################
 # Driver
 ###############################################################################

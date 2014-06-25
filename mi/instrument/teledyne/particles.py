@@ -1,8 +1,8 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.particles
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/driver.py
-@author Roger Unwin
-@brief Driver particle code for the teledyne 75_khz particles
+@package mi.instrument.teledyne.particles
+@file marine-integrations/mi/instrument/teledyne/driver.py
+@author SUng Ahn
+@brief Driver particle code for the teledyne particles
 Release notes:
 """
 
@@ -10,7 +10,7 @@ __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
 import re
-from struct import *
+from struct import unpack
 import time as time
 import datetime as dt
 
@@ -52,11 +52,17 @@ class DataParticleType(BaseEnum):
     ADCP_PD0_PARSED_EARTH = 'adcp_pd0_earth_parsed'
     ADCP_SYSTEM_CONFIGURATION = 'adcp_system_configuration'
     ADCP_COMPASS_CALIBRATION = 'adcp_compass_calibration'
-    VADCP_4BEAM_SYSTEM_CONFIGURATION = "vadcp_4beam_system_configuration"
-    VADCP_5THBEAM_SYSTEM_CONFIGURATION = "vadcp_5thbeam_system_configuration"
-
     ADCP_ANCILLARY_SYSTEM_DATA = "adcp_ancillary_system_data"
     ADCP_TRANSMIT_PATH = "adcp_transmit_path"
+
+
+class VADCPDataParticleType(DataParticleType):
+    """
+    VADCP Stream types of data particles
+    """
+
+    VADCP_4BEAM_SYSTEM_CONFIGURATION = "vadcp_4beam_system_configuration"
+    VADCP_5THBEAM_SYSTEM_CONFIGURATION = "vadcp_5thbeam_system_configuration"
 
     VADCP_ANCILLARY_SYSTEM_DATA = "vadcp_ancillary_system_data"
     VADCP_TRANSMIT_PATH = "vadcp_transmit_path"
@@ -215,6 +221,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
     """
     ADCP PD0 data particle
+    @throw SampleException if when break happens
     """
     _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse ADCP_PD0_PARSED_DataParticle'
     _slave = False
@@ -236,7 +243,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         # Calculate Checksum
         #
         total = int(0)
-        for i in range(0, length):
+        for i in xrange(0, length):
             total += int(ord(data[i]))
 
         checksum = total & 65535  # bitwise and with 65535 or mod vs 65536
@@ -263,7 +270,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: num_data_types})
 
         offsets = []
-        for offset in range(0, num_data_types):
+        for offset in xrange(0, num_data_types):
             value = unpack('<H', self.raw_data[(2 * offset + 6):(2 * offset + 8)])[0]
             offsets.append(value)
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.OFFSET_DATA_TYPES,
@@ -271,7 +278,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         offsets.append(length - 2)
 
         chunks = []
-        for offset in range(0, num_data_types):
+        for offset in xrange(0, num_data_types):
             chunks.append(self.raw_data[offsets[offset]: offsets[offset + 1]])
 
             variable_leader_id = unpack('!H', chunks[offset][0:2])[0]
@@ -442,8 +449,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        log.error("IN teledyne/parse_variable_chunk")
-        log.error("IN teledyne/parse_variable_chunk" + repr(chunk[0:65]))
+        log.trace("IN teledyne/parse_variable_chunk" + repr(chunk[0:65]))
         rtc = {}
         rtc2k = {}
         (variable_leader_id, ensemble_number,
@@ -591,12 +597,12 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         if 0 == self.coord_transform_type:  # BEAM Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
             if self._slave:
-                self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_BEAM
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_BEAM
             beam_1_velocity = []
             beam_2_velocity = []
             beam_3_velocity = []
             beam_4_velocity = []
-            for row in range(1, N):
+            for row in xrange(1, N):
                 (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 beam_1_velocity.append(a)
                 beam_2_velocity.append(b)
@@ -614,12 +620,12 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         elif 3 == self.coord_transform_type:  # Earth Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             if self._slave:
-                self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_EARTH
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_EARTH
             water_velocity_east = []
             water_velocity_north = []
             water_velocity_up = []
             error_velocity = []
-            for row in range(1, N):
+            for row in xrange(1, N):
                 (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 water_velocity_east.append(a)
                 water_velocity_north.append(b)
@@ -657,7 +663,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         correlation_magnitude_beam2 = []
         correlation_magnitude_beam3 = []
         correlation_magnitude_beam4 = []
-        for row in range(1, N):
+        for row in xrange(1, N):
             (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
             correlation_magnitude_beam1.append(a)
             correlation_magnitude_beam2.append(b)
@@ -693,7 +699,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         echo_intesity_beam2 = []
         echo_intesity_beam3 = []
         echo_intesity_beam4 = []
-        for row in range(1, N):
+        for row in xrange(1, N):
             (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
             echo_intesity_beam1.append(a)
             echo_intesity_beam2.append(b)
@@ -734,12 +740,12 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
             if self._slave:
-                self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_BEAM
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_BEAM
             percent_good_beam1 = []
             percent_good_beam2 = []
             percent_good_beam3 = []
             percent_good_beam4 = []
-            for row in range(1, N):
+            for row in xrange(1, N):
                 (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 percent_good_beam1.append(a)
                 percent_good_beam2.append(b)
@@ -757,12 +763,12 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         elif 3 == self.coord_transform_type:  # Earth Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             if self._slave:
-                self._data_particle_type = DataParticleType.VADCP_PD0_PARSED_EARTH
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_EARTH
             percent_good_3beam = []
             percent_transforms_reject = []
             percent_bad_beams = []
             percent_good_4beam = []
-            for row in range(1, N):
+            for row in xrange(1, N):
                 (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
                 percent_good_3beam.append(a)
                 percent_transforms_reject.append(b)

@@ -20,13 +20,13 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.core.exceptions import NotImplementedException
-from mi.instrument.teledyne.workhorse.driver import DataParticleType
+from mi.instrument.teledyne.particles import DataParticleType
 
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.driver import TeledyneParameter
 
-DEFAULT_CLOCK_DIFF = 500
+DEFAULT_CLOCK_DIFF = 20
 
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
@@ -75,7 +75,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("RESULT TIME = " + str(result_time))
         log.debug("TIME FORMAT = " + time_format)
         result_time_struct = time.strptime(result_time, time_format)
-        log.debug("GOT HERE")
         converted_time = time.mktime(result_time_struct)
 
         if isinstance(expected_time, float):
@@ -132,9 +131,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         @param data_particle: ADCP_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_ADCP_TRANSMIT")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
-        #self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
     def assert_ancillary_data(self, data_particle, verify_values=True):
         """
@@ -142,19 +139,15 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         @param data_particle: ADCP_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_Ancillary_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
-        #self.assert_data_particle_parameters(data_particle, self._pt) # , verify_values
 
     def assert_calibration(self, data_particle, verify_values=True):
-        log.debug("IN assert_Calibration")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
 
     def test_scheduled_interval_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        log.debug("IN test_scheduled_clock_sync_command")
         self.assert_initialize_driver()
         self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:04')
         time.sleep(10)
@@ -166,7 +159,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        log.debug("IN test_scheduled_clock_sync_command")
         self.assert_initialize_driver()
         self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:04')
         time.sleep(10)
@@ -188,7 +180,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         Verify the scheduled acquire status is triggered and functions as expected
         """
 
-        log.debug("IN test_scheduled_acquire_status_autosample")
         self.assert_initialize_driver()
         self.assert_current_state(TeledyneProtocolState.COMMAND)
         self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:04')
@@ -206,7 +197,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         Verify the scheduled clock sync is triggered and functions as expected
         """
 
-        log.debug("IN test_scheduled_clock_sync_autosample")
         self.assert_initialize_driver()
         self.assert_current_state(TeledyneProtocolState.COMMAND)
         self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:04')
@@ -223,7 +213,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         Verify the acquire_status command is functional
         """
 
-        log.debug("IN test_acquire_status")
         self.assert_initialize_driver()
         self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
         self.assert_acquire_status()
@@ -233,7 +222,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for XMIT_POWER ======")
 
         # XMIT_POWER:  -- Int 0-255
         self.assert_set(TeledyneParameter.XMIT_POWER, 0)
@@ -254,7 +242,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for SPEED_OF_SOUND ======")
 
         # SPEED_OF_SOUND:  -- Int 1485 (1400 - 1600)
         self.assert_set(TeledyneParameter.SPEED_OF_SOUND, 1400)
@@ -283,7 +270,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for SALINITY ======")
 
         # SALINITY:  -- Int (0 - 40)
         self.assert_set(TeledyneParameter.SALINITY, 1)
@@ -312,7 +298,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for SENSOR_SOURCE ======")
 
         # SENSOR_SOURCE:  -- (0/1) for 7 positions.
         # note it lacks capability to have a 1 in the #6 position
@@ -345,7 +330,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for TIME_PER_ENSEMBLE ======")
 
         # TIME_PER_ENSEMBLE:  -- String 01:00:00.00 (hrs:min:sec.sec/100)
         self.assert_set(TeledyneParameter.TIME_PER_ENSEMBLE, "00:00:00.00")
@@ -372,7 +356,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for PITCH ======")
         # PITCH:  -- Int -6000 to 6000
         self.assert_set(TeledyneParameter.PITCH, -6000)
         self.assert_set(TeledyneParameter.PITCH, -4000)
@@ -399,7 +382,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for ROLL ======")
         # ROLL:  -- Int -6000 to 6000
         self.assert_set(TeledyneParameter.ROLL, -6000)
         self.assert_set(TeledyneParameter.ROLL, -4000)
@@ -425,7 +407,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for TIME_PER_PING ======")
 
         # TIME_PER_PING: '00:01.00'
         self.assert_set(TeledyneParameter.TIME_PER_PING, '01:00.00')
@@ -450,7 +431,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for FALSE_TARGET_THRESHOLD ======")
 
         # FALSE_TARGET_THRESHOLD: string of 0-255,0-255
         self.assert_set(TeledyneParameter.FALSE_TARGET_THRESHOLD, "000,000")
@@ -477,7 +457,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for BANDWIDTH_CONTROL ======")
 
         # BANDWIDTH_CONTROL: 0/1,
         self.assert_set(TeledyneParameter.BANDWIDTH_CONTROL, 1)
@@ -498,7 +477,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for CORRELATION_THRESHOLD ======")
 
         # CORRELATION_THRESHOLD: int 064, 0 - 255
         self.assert_set(TeledyneParameter.CORRELATION_THRESHOLD, 50)
@@ -523,7 +501,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for ERROR_VELOCITY_THRESHOLD ======")
 
         # ERROR_VELOCITY_THRESHOLD: int (0-5000 mm/s) NOTE it enforces 0-9999
         # decimals are truncated to ints
@@ -550,7 +527,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ======")
 
         # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
         self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 0)
@@ -581,7 +557,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for CLIP_DATA_PAST_BOTTOM ======")
 
         # CLIP_DATA_PAST_BOTTOM: True/False,
         self.assert_set(TeledyneParameter.CLIP_DATA_PAST_BOTTOM, True)
@@ -598,7 +573,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for RECEIVER_GAIN_SELECT ======")
 
         # RECEIVER_GAIN_SELECT: (0/1),
         self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
@@ -620,7 +594,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for NUMBER_OF_DEPTH_CELLS ======")
 
         # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
         self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 1)
@@ -644,7 +617,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for PINGS_PER_ENSEMBLE ======")
 
         # PINGS_PER_ENSEMBLE: -- int  (0-16384) 1,
         self.assert_set(TeledyneParameter.PINGS_PER_ENSEMBLE, 0)
@@ -666,7 +638,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for DEPTH_CELL_SIZE ======")
 
         # DEPTH_CELL_SIZE: int 80 - 3200
         self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, 80)
@@ -687,7 +658,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for TRANSMIT_LENGTH ======")
 
         # TRANSMIT_LENGTH: int 0 to 3200
         self.assert_set(TeledyneParameter.TRANSMIT_LENGTH, 80)
@@ -709,7 +679,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for PING_WEIGHT ======")
 
         # PING_WEIGHT: (0/1),
         self.assert_set(TeledyneParameter.PING_WEIGHT, 0)
@@ -730,7 +699,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for AMBIGUITY_VELOCITY ======")
 
         # AMBIGUITY_VELOCITY: int 2 - 700
         self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 2)

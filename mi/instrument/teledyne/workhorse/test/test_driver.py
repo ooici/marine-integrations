@@ -26,7 +26,7 @@ from mi.instrument.teledyne.test.test_driver import TeledyneIntegrationTest
 from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
 from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 
-from mi.instrument.teledyne.workhorse.driver import DataParticleType
+from mi.instrument.teledyne.particles  import DataParticleType
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
@@ -35,8 +35,8 @@ from mi.instrument.teledyne.driver import TeledyneScheduledJob
 from mi.instrument.teledyne.workhorse.driver import TeledynePrompt
 from mi.instrument.teledyne.workhorse.driver import NEWLINE
 
-from mi.instrument.teledyne.workhorse.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse.driver import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles  import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.particles  import ADCP_COMPASS_CALIBRATION_KEY
 
 from mi.core.exceptions import InstrumentCommandException
 
@@ -263,17 +263,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
-    def test_cycle(self):
-        """
-        Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
-        """
-        self.assert_enter_command_mode()
-
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-
     # need to override this because we are slow and dont feel like modifying the base class lightly
     def assert_set_parameter(self, name, value, verify=True):
         """
@@ -353,7 +342,9 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                 TeledyneProtocolEvent.RUN_TEST_200,
                 TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
                 TeledyneProtocolEvent.FACTORY_SETS,
-                TeledyneProtocolEvent.USER_SETS
+                TeledyneProtocolEvent.USER_SETS,
+                TeledyneProtocolEvent.ACQUIRE_STATUS,
+                TeledyneProtocolEvent.START_DIRECT
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -380,7 +371,9 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+            TeledyneProtocolEvent.STOP_DIRECT
+        ]
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
