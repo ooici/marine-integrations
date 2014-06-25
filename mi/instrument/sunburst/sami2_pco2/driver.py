@@ -286,8 +286,6 @@ class Pco2wProtocol(SamiProtocol):
         @param driver_event Driver process event callback.
         """
 
-        log.debug('Pco2wProtocol.__init__()')
-
         # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
@@ -449,8 +447,6 @@ class Pco2wProtocol(SamiProtocol):
         Acquire a blank sample
         """
 
-        log.debug('Pco2wProtocol._handler_command_acquire_blank_sample()')
-
         next_state = Pco2wProtocolState.POLLED_BLANK_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
         result = None
@@ -461,8 +457,6 @@ class Pco2wProtocol(SamiProtocol):
         """
         Flush with deionized water
         """
-
-        log.debug('Pco2wProtocol._handler_command_deionized_water_flush_100ml()')
 
         next_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH_100ML
         next_agent_state = ResourceAgentState.BUSY
@@ -475,8 +469,6 @@ class Pco2wProtocol(SamiProtocol):
         Flush with reagent
         """
 
-        log.debug('Pco2wProtocol._handler_command_reagent_flush_100ml()')
-
         next_state = Pco2wProtocolState.REAGENT_FLUSH_100ML
         next_agent_state = ResourceAgentState.BUSY
         result = None
@@ -487,8 +479,6 @@ class Pco2wProtocol(SamiProtocol):
         """
         Flush with deionized water
         """
-
-        log.debug('Pco2wProtocol._handler_command_deionized_water_flush()')
 
         next_state = Pco2wProtocolState.DEIONIZED_WATER_FLUSH
         next_agent_state = ResourceAgentState.BUSY
@@ -504,8 +494,6 @@ class Pco2wProtocol(SamiProtocol):
         """
         While in autosample mode, poll for blank samples
         """
-
-        log.debug('Pco2wProtocol._handler_autosample_acquire_blank_sample')
 
         next_state = Pco2wProtocolState.SCHEDULED_BLANK_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
@@ -701,7 +689,7 @@ class Pco2wProtocol(SamiProtocol):
         """
         Parse response to take blank sample instrument command
         """
-        log.debug('Pco2wProtocol._parse_response_blank_sample_sami')
+        pass
 
     ########################################################################
     # Private Methods
@@ -736,8 +724,6 @@ class Pco2wProtocol(SamiProtocol):
         Populate the command dictionary with command.
         """
 
-        log.debug('Pco2wProtocol._build_command_dict')
-
         SamiProtocol._build_command_dict(self)
 
         self._cmd_dict.add(Pco2wCapability.ACQUIRE_BLANK_SAMPLE, display_name="Acquire Blank Sample")
@@ -750,8 +736,6 @@ class Pco2wProtocol(SamiProtocol):
         For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-
-        log.debug('Pco2wProtocol._build_param_dict()')
 
         SamiProtocol._build_param_dict(self)
 

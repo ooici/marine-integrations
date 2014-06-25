@@ -408,8 +408,6 @@ class Protocol(Pco2wProtocol):
         Populate the command dictionary with command.
         """
 
-        log.debug('Protocol._build_command_dict')
-
         Pco2wProtocol._build_command_dict(self)
 
     def _build_param_dict(self):
@@ -417,8 +415,6 @@ class Protocol(Pco2wProtocol):
         For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-
-        log.debug('Protocol._build_param_dict()')
 
         Pco2wProtocol._build_param_dict(self)
 

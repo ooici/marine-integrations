@@ -360,8 +360,6 @@ class SamiThermistorVoltageDataParticle(DataParticle):
         result = [{DataParticleKey.VALUE_ID: SamiThermistorVoltageDataParticleKey.THERMISTOR_VOLTAGE,
                    DataParticleKey.VALUE: int(matched.group(1), 16)}]
 
-        log.debug('SamiProtocol.SamiThermistorVoltageDataParticle(): result = %s', result)
-
         return result
 
 
@@ -713,7 +711,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-        log.debug('SamiProtocol.__init__()')
 
         # Add event handlers for protocol state machine
         self._protocol_fsm.add_handler(
@@ -1185,8 +1182,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Acquire the instrument's status
         """
 
-        log.debug('SamiProtocol._handler_acquire_status()')
-
         next_state = None
         next_agent_state = None
         result = None
@@ -1220,8 +1215,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Enter unknown state.
         """
 
-        log.debug('SamiProtocol._handler_unknown_enter()')
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1230,8 +1223,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit unknown state.
         """
-
-        log.debug('SamiProtocol._handler_unknown_exit()')
+        pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -1239,14 +1231,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result)
         """
 
-        log.debug('SamiProtocol._handler_unknown_discover()')
-
         next_state = None
         result = None
 
-        log.debug("_handler_unknown_discover: starting discover")
         (next_state, next_agent_state) = self._discover()
-        log.debug("_handler_unknown_discover: next agent state: %s", next_agent_state)
 
         return next_state, next_agent_state
 
@@ -1261,8 +1249,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
 
-        log.debug('SamiProtocol._handler_waiting_enter()')
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         # Test to determine what state we truly are in, command or unknown.
@@ -1272,16 +1258,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit discover state.
         """
-
-        log.debug('SamiProtocol._handler_waiting_exit()')
+        pass
 
     def _handler_waiting_discover(self, *args, **kwargs):
         """
         Discover current state; can be UNKNOWN or COMMAND
         @retval (next_state, result)
         """
-
-        log.debug('SamiProtocol._handler_waiting_discover()')
 
         # Exit states can be either COMMAND or back to UNKNOWN.
         next_state = None
@@ -1315,8 +1298,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Enter command state.
         """
 
-        log.debug('SamiProtocol._handler_command_enter()')
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1333,8 +1314,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         initialize parameters
         """
 
-        log.debug('SamiProtocol._handler_command_init_params()')
-
         next_state = None
         result = None
 
@@ -1345,8 +1324,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit command state.
         """
-
-        log.debug('SamiProtocol._handler_command_exit()')
+        pass
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -1397,20 +1375,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Start direct access
         """
 
-        log.debug('SamiProtocol._handler_command_start_direct()')
-
         next_state = SamiProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
         result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
         return next_state, (next_agent_state, result)
 
     def _handler_command_acquire_sample(self):
         """
         Acquire a sample
         """
-
-        log.debug('SamiProtocol._handler_command_acquire_sample()')
 
         next_state = SamiProtocolState.POLLED_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
@@ -1422,8 +1395,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Start autosample mode (spoofed via use of scheduler)
         """
-
-        log.debug('SamiProtocol._handler_command_start_autosample()')
 
         ## Note: start ordering seems important for the scheduler, could be a bug in the base code, scheduler blocks
         ##       until last job added to scheduler hits.  Means an autosample could be missed while waiting for
@@ -1445,7 +1416,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_state = SamiProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
         result = None
-        log.debug("_handler_command_start_autosample: entering Autosample mode")
 
         return next_state, (next_agent_state, result)
 
@@ -1453,8 +1423,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Flush with reagent
         """
-
-        log.debug('SamiProtocol._handler_command_reagent_flush()')
 
         next_state = SamiProtocolState.REAGENT_FLUSH
         next_agent_state = ResourceAgentState.BUSY
@@ -1471,8 +1439,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Enter direct access state.
         """
 
-        log.debug('SamiProtocol._handler_direct_access_enter')
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1483,14 +1449,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-
-        log.debug('SamiProtocol._handler_direct_access_exit')
+        pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
         """
-
-        log.debug('SamiProtocol._handler_direct_access_execute_direct')
 
         next_state = None
         result = None
@@ -1505,17 +1468,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_stop_direct(self):
         """
-        @throw InstrumentProtocolException on invalid command
         """
-
-        log.debug('SamiProtocol._handler_direct_access_stop_direct')
 
         next_state = None
         result = None
 
-        log.debug("_handler_direct_access_stop_direct: starting discover")
         (next_state, next_agent_state) = self._discover()
-        log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
 
         return next_state, (next_agent_state, result)
 
@@ -1527,8 +1485,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Enter Autosample state
         """
-
-        log.debug('SamiProtocol._handler_autosample_enter')
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1555,16 +1511,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Exit autosample state
         """
-
-        log.debug('SamiProtocol._handler_autosample_exit')
+        pass
 
     def _handler_autosample_stop(self, *args, **kwargs):
         """
         Stop autosample
         """
-
-        log.debug('SamiProtocol._handler_autosample_stop')
-        log.debug('SamiProtocol._handler_autosample_stop: Move to command state')
 
         ## Cannot do in exit because we could be transitioning to the scheduled sample state
         self._remove_scheduler(SamiScheduledJob.AUTO_SAMPLE)
@@ -1579,8 +1531,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         While in autosample mode, poll for samples using the scheduler
         """
-
-        log.debug('SamiProtocol._handler_autosample_acquire_sample')
 
         next_state = SamiProtocolState.SCHEDULED_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
@@ -1607,8 +1557,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.error('SamiProtocol._handler_take_sample(): TIMEOUT')
             self._async_raise_fsm_event(SamiProtocolEvent.TIMEOUT)
 
-        log.debug('SamiProtocol._handler_take_sample() EXIT')
-
         return None, None
 
     ########################################################################
@@ -1631,8 +1579,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Populate the command dictionary with command.
         """
 
-        log.debug('SamiProtocol._build_command_dict')
-
         self._cmd_dict.add(SamiCapability.ACQUIRE_SAMPLE, display_name="Acquire Sample")
         self._cmd_dict.add(SamiCapability.ACQUIRE_STATUS, display_name="Acquire Status")
         self._cmd_dict.add(SamiCapability.START_AUTOSAMPLE, display_name="Start Autosample")
@@ -1643,8 +1589,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Populate the driver dictionary with options
         """
-
-        log.debug('SamiProtocol._build_driver_dict')
 
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
@@ -1792,7 +1736,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         if param_config:
             self._verify_not_readonly(param_config, startup=True)
-            for name in param_config.keys():
+            for name in param_config:
                 log.debug("Setting init value for %s to %s", name, param_config[name])
                 self._param_dict.set_init_value(name, param_config[name])
 
@@ -1837,17 +1781,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._set_configuration()
             log.debug('SamiProtocol._discover: _set_configuration END')
 
-        except InstrumentTimeoutException:
+        except (InstrumentTimeoutException, InstrumentProtocolException) as e:
 
-            log.error('SamiProtocol._discover: InstrumentTimeoutException - retry in WAITING state')
-
-            next_state = SamiProtocolState.WAITING
-            next_agent_state = ResourceAgentState.BUSY
-
-        except InstrumentProtocolException:
-
-            log.error('SamiProtocol._discover: InstrumentProtocolException - retry in WAITING state')
-
+            log.error('SamiProtocol._discover: Exception[%s] - retry in WAITING state', e)
             next_state = SamiProtocolState.WAITING
             next_agent_state = ResourceAgentState.BUSY
 
@@ -1866,7 +1802,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param params parameters to set
         @raise InstrumentParameterException params not provided as dict
         """
-        log.debug('SamiProtocol._set_params')
 
         try:
             params = args[0]
@@ -1958,11 +1893,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         if not isinstance(val, int):
             raise InstrumentParameterException('Value %s is not an integer.' % str(val))
-        elif not isinstance(slen, int):
+        if not isinstance(slen, int):
             raise InstrumentParameterException('Value %s is not an integer.' % str(slen))
-        else:
-            hexstr = format(val, 'X')
-            return hexstr.zfill(slen)
+
+        hexstr = format(val, 'X')
+        return hexstr.zfill(slen)
 
     @staticmethod
     def _current_sami_time():
@@ -1971,8 +1906,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval an integer value representing the number of seconds since
             January 1, 1904.
         """
-
-        log.debug('SamiProtocol._current_sami_time')
 
         utcnow = datetime.datetime.utcnow()
         time.sleep((1e6 - utcnow.microsecond) / 1e6)
@@ -1989,13 +1922,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval an 8 character hex string representing the GMT number of seconds
         since January 1, 1904.
         """
-        log.debug('SamiProtocol._current_sami_time_hex_str')
 
         sami_seconds_since_epoch = self._current_sami_time() + SAMI_TIME_WAKEUP_DELAY
         sami_seconds_hex_string = format(int(sami_seconds_since_epoch), 'X')
         sami_seconds_hex_string = sami_seconds_hex_string.zfill(8)
-
-        log.debug('SamiProtocol._current_sami_time_hex_str: sami_seconds_hex_string = %s', sami_seconds_hex_string)
 
         return sami_seconds_hex_string
 
@@ -2076,7 +2006,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param configuration_string
         @raise InstrumentProtocolException Invalid configuration string
         """
-        log.debug('Protocol._verify_and_update_configuration()')
 
         configuration_string_regex = self._get_configuration_string_regex_matcher()
 
@@ -2166,7 +2095,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Verify checksum of sample returned from instrument
         @param chunk returned from instrument
         @param matcher regular expression to match sample
-        @raise SampleException check sum is invalid
+        @raise SampleException checksum is invalid
         """
         matched = matcher.match(chunk)
         record_type = matched.group(3)
@@ -2184,8 +2113,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('Checksum/Calculated Checksum = %d/%d', checksum_int, calculated_checksum)
 
         if checksum_int != calculated_checksum:
-            log.error("Sample Check Sum Invalid %d/%d, throwing exception.", checksum_int, calculated_checksum)
-            raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int, calculated_checksum))
+            log.error("Sample Checksum Invalid %d/%d, throwing exception.", checksum_int, calculated_checksum)
+            raise SampleException("Sample Checksum Invalid %d/%d" % (checksum_int, calculated_checksum))
 
     @staticmethod
     def calc_crc(s):
@@ -2216,8 +2145,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Build the parameter dictionary.  Overridden by device specific subclasses.
         """
-
-        log.debug('SamiProtocol._build_param_dict()')
 
         configuration_string_regex = self._get_configuration_string_regex()
 

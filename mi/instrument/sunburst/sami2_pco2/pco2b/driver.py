@@ -494,8 +494,6 @@ class Protocol(Pco2wProtocol):
         Run external pump
         """
 
-        log.debug('Protocol._handler_command_run_external_pump()')
-
         next_state = ProtocolState.RUN_EXTERNAL_PUMP
         next_agent_state = ResourceAgentState.BUSY
         result = None
@@ -563,7 +561,6 @@ class Protocol(Pco2wProtocol):
         """
         Run external pump and wait for equilibrium
         """
-        log.debug('Protocol._pre_sample_processing():')
 
         self._take_dev1_sample()
 
@@ -624,8 +621,6 @@ class Protocol(Pco2wProtocol):
         Populate the command dictionary with command.
         """
 
-        log.debug('Protocol._build_command_dict')
-
         Pco2wProtocol._build_command_dict(self)
 
         self._cmd_dict.add(Capability.RUN_EXTERNAL_PUMP, display_name="Run External Pump")
@@ -635,8 +630,6 @@ class Protocol(Pco2wProtocol):
         For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-
-        log.debug('Protocol._build_param_dict()')
 
         Pco2wProtocol._build_param_dict(self)
 

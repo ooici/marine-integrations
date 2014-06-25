@@ -606,8 +606,6 @@ class Protocol(SamiProtocol):
         Flush with seawater
         """
 
-        log.debug('Protocol._handler_command_seawater_flush_2750ml()')
-
         next_state = ProtocolState.SEAWATER_FLUSH_2750ML
         next_agent_state = ResourceAgentState.BUSY
         result = None
@@ -619,8 +617,6 @@ class Protocol(SamiProtocol):
         Flush with reagent
         """
 
-        log.debug('Protocol._handler_command_reagent_flush_50ml()')
-
         next_state = ProtocolState.REAGENT_FLUSH_50ML
         next_agent_state = ResourceAgentState.BUSY
         result = None
@@ -631,8 +627,6 @@ class Protocol(SamiProtocol):
         """
         Flush with seawater
         """
-
-        log.debug('Protocol._handler_command_seawater_flush()')
 
         next_state = ProtocolState.SEAWATER_FLUSH
         next_agent_state = ResourceAgentState.BUSY
@@ -853,8 +847,6 @@ class Protocol(SamiProtocol):
         """
         Populate the command dictionary with command.
         """
-
-        log.debug('Protocol._build_command_dict')
 
         SamiProtocol._build_command_dict(self)
         self._cmd_dict.add(Capability.SEAWATER_FLUSH_2750ML, display_name="Seawater Flush 2750 ml")
@@ -1099,7 +1091,6 @@ class Protocol(SamiProtocol):
                              display_name='Flush Duration')
 
     def _get_specific_configuration_string_parameters(self):
-        log.debug('Protocol._build_configuration_string_specific()')
 
         # An ordered list of parameters, can not use unordered dict
         # PCO2W driver extends the base class (SamiParameter)
