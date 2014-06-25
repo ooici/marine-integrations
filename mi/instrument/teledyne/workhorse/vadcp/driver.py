@@ -32,8 +32,6 @@ from mi.core.util import dict_equal
 from mi.core.time import get_timestamp_delayed
 from mi.core.common import InstErrorCode
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
-from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
-from mi.core.instrument.driver_dict import DriverDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
@@ -2792,7 +2790,7 @@ class Protocol(WorkhorseProtocol):
         return next_state, (next_agent_state, result)
 
     # Overridden to invoke Master/Slave instruments
-    def _handler_command_get(self, *args, **kwargs):
+    def _handler_get(self, *args, **kwargs):
         """
         Get device parameters from the parameter dict.
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.

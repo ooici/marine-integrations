@@ -7,7 +7,7 @@ Release notes:
 
 GGeneric test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
-from mi.instrument.teledyne.particles import ADCP_ANCILLARY_SYSTEM_DATA_KEY, ADCP_TRANSMIT_PATH_KEY
+
 
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
@@ -28,6 +28,7 @@ from mi.instrument.teledyne.workhorse.test.test_driver import WorkhorseDriverPub
 from mi.instrument.teledyne.particles import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
+from mi.instrument.teledyne.particles import ADCP_ANCILLARY_SYSTEM_DATA_KEY, ADCP_TRANSMIT_PATH_KEY
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA, PT2_RAW_DATA, PT4_RAW_DATA
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_CALIBRATION_RAW_DATA
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_PS0_RAW_DATA

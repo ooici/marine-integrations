@@ -8,6 +8,7 @@ Release notes:
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
+
 import time
 
 from mi.core.log import get_logger

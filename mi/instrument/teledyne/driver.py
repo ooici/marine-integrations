@@ -19,7 +19,6 @@ from mi.core.time import get_timestamp_delayed
 from mi.core.exceptions import InstrumentParameterException, NotImplementedException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
-from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.log import get_logger
 
@@ -291,7 +290,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.INIT_PARAMS,
                                        self._handler_command_init_params)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET,
-                                       self._handler_command_get)
+                                       self._handler_get)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_AUTOSAMPLE,
                                        self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SET,
@@ -335,7 +334,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.STOP_AUTOSAMPLE,
                                        self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET,
-                                       self._handler_command_get)
+                                       self._handler_get)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC,
                                        self._handler_autosample_clock_sync)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_GET_STATUS,
@@ -1028,62 +1027,62 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        next_state = None
-        result = None
-        error = None
-
-        # Grab a baseline time for calculating expiration time.  It is assumed
-        # that all data if valid if acquired after this time.
-        expire_time = self._param_dict.get_current_timestamp()
-        log.trace("expire_time = " + str(expire_time))
-        # build a list of parameters we need to get
-        param_list = self._get_param_list(*args, **kwargs)
-
-        try:
-            # Take a first pass at getting parameters.  If they are
-            # expired an exception will be raised.
-            result = self._get_param_result(param_list, expire_time)
-        except InstrumentParameterExpirationException as e:
-            # In the second pass we need to update parameters, it is assumed
-            # that _update_params does everything required to refresh all
-            # parameters or at least those that would expire.
-
-            log.trace("in _handler_command_get Parameter expired, refreshing, %s", e)
-
-            if self._is_logging():
-                try:
-                    # Switch to command mode,
-                    self._stop_logging()
-
-                    self._update_params()
-                    # Take a second pass at getting values, this time is should
-                    # have all fresh values.
-                    log.trace("Fetching parameters for the second time")
-                    result = self._get_param_result(param_list, expire_time)
-                # Catch all error so we can put ourselves back into
-                # streaming.  Then rethrow the error
-                except Exception as e:
-                    error = e
-
-                finally:
-                    # Switch back to streaming
-                    self._start_logging()
-
-                if error:
-                    raise error
-            else:
-                self._update_params()
-                # Take a second pass at getting values, this time is should
-                # have all fresh values.
-                log.trace("Fetching parameters for the second time")
-                result = self._get_param_result(param_list, expire_time)
-        return next_state, result
+    # def _handler_command_get(self, *args, **kwargs):
+    #     """
+    #     Get device parameters from the parameter dict.
+    #     @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+    #     @throws InstrumentParameterException if missing or invalid parameter.
+    #     """
+    #     next_state = None
+    #     result = None
+    #     error = None
+    #
+    #     # Grab a baseline time for calculating expiration time.  It is assumed
+    #     # that all data if valid if acquired after this time.
+    #     expire_time = self._param_dict.get_current_timestamp()
+    #     log.trace("expire_time = " + str(expire_time))
+    #     # build a list of parameters we need to get
+    #     param_list = self._get_param_list(*args, **kwargs)
+    #
+    #     try:
+    #         # Take a first pass at getting parameters.  If they are
+    #         # expired an exception will be raised.
+    #         result = self._get_param_result(param_list, expire_time)
+    #     except InstrumentParameterExpirationException as e:
+    #         # In the second pass we need to update parameters, it is assumed
+    #         # that _update_params does everything required to refresh all
+    #         # parameters or at least those that would expire.
+    #
+    #         log.trace("in _handler_command_get Parameter expired, refreshing, %s", e)
+    #
+    #         if self._is_logging():
+    #             try:
+    #                 # Switch to command mode,
+    #                 self._stop_logging()
+    #
+    #                 self._update_params()
+    #                 # Take a second pass at getting values, this time is should
+    #                 # have all fresh values.
+    #                 log.trace("Fetching parameters for the second time")
+    #                 result = self._get_param_result(param_list, expire_time)
+    #             # Catch all error so we can put ourselves back into
+    #             # streaming.  Then rethrow the error
+    #             except Exception as e:
+    #                 error = e
+    #
+    #             finally:
+    #                 # Switch back to streaming
+    #                 self._start_logging()
+    #
+    #             if error:
+    #                 raise error
+    #         else:
+    #             self._update_params()
+    #             # Take a second pass at getting values, this time is should
+    #             # have all fresh values.
+    #             log.trace("Fetching parameters for the second time")
+    #             result = self._get_param_result(param_list, expire_time)
+    #     return next_state, result
 
     def _handler_autosample_get_calibration(self, *args, **kwargs):
         """
@@ -1527,6 +1526,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _parse_get_response(self, response, prompt):
         log.trace("GET RESPONSE = " + repr(response))
+        success = None
         if prompt == TeledynePrompt.ERR:
             raise InstrumentProtocolException(
                 'Protocol._parse_set_response : Set command not recognized: %s' % response)
@@ -1534,7 +1534,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         while (not response.endswith('\r\n>\r\n>')) or ('?' not in response):
             prompt, response = self._get_raw_response(30, TeledynePrompt.COMMAND)
             time.sleep(.05)  # was 1
-        self._param_dict.update(response)
+        success = self._param_dict.update(response)
         for line in response.split(NEWLINE):
             self._param_dict.update(line)
             if not "?" in line and ">" != line:

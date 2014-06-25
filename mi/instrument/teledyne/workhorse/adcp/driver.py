@@ -98,17 +98,6 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
 
 class ADCPUnits(Units):
-    # INTERVALTIME = 'Hour:Minute:Second'
-    # INTERVALTIMEHundredth = 'Hour:Minute:Second.Second/100'
-    # DATETIME = 'CCYY/MM/DD,hh:mm:ss'
-    # PINGTIME = "min:sec.sec/100"
-    # SETTIME = 'CCYY/MM/DD,hh:mm:ss'
-    # SERIALDATAOUT = 'Vel Cor Amp'
-    # FLOWCONTROL = 'BITS: EnsCyc PngCyc Binry Ser Rec'
-    # TRUEFALSE = 'True(1)/False(0)'
-    # NONE = ' '
-    # SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
-    # XMTPOWER = 'XMT Power 0-255'
     CDEGREE = '1/100 degree'
     DM = 'dm'
     MPERS = 'm/s'
@@ -117,6 +106,7 @@ class ADCPUnits(Units):
     ENSEMBLEPERBURST = 'Ensembles Per Burst'
     CMPERSRADIAL = 'cm/s radial'
     TENTHMILLISECOND = '1/10 msec'
+
 
 class ADCPDescription(BaseEnum):
     INTERVALTIME = 'Hour:Minute:Second'
@@ -130,14 +120,7 @@ class ADCPDescription(BaseEnum):
     NONE = ' '
     SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
     XMTPOWER = 'XMT Power 0-255'
-    # CDEGREE = '1/100 degree'
-    # DM = 'dm'
-    # MPERS = 'm/s'
-    # PPTHOUSAND = 'pp thousand'
-    # SELECTION = 'selection'
-    # ENSEMBLEPERBURST = 'Ensembles Per Burst'
-    # CMPERSRADIAL = 'cm/s radial'
-    # TENTHMILLISECOND = '1/10 msec'
+
 
 class Protocol(WorkhorseProtocol):
     """

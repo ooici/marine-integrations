@@ -15,6 +15,7 @@ import time as time
 import datetime as dt
 
 from mi.core.log import get_logger
+
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.instrument.teledyne.driver import NEWLINE
@@ -40,9 +41,9 @@ ADCP_TRANSMIT_PATH_REGEX = r'(IXMT.*\n.*\n.*\n.*)\n>'
 ADCP_TRANSMIT_PATH_REGEX_MATCHER = re.compile(ADCP_TRANSMIT_PATH_REGEX)
 
 
-###############################################################################
+# ##############################################################################
 # Data Particles
-###############################################################################
+# ##############################################################################
 class DataParticleType(BaseEnum):
     """
     Stream types of data particles
@@ -185,7 +186,6 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     LEVEL_7_INTERRUPT = "level_7_interrupt"
     ABSOLUTE_PRESSURE = "pressure"
     PRESSURE_VARIANCE = "pressure_variance"
-    INTERNAL_TIMESTAMP = "internal_timestamp"
     VELOCITY_DATA_ID = "velocity_data_id"
     BEAM_1_VELOCITY = "beam_1_velocity"  # These may live in OOICORE driver as a extension
     BEAM_2_VELOCITY = "beam_2_velocity"  # These may live in OOICORE driver as a extension
@@ -217,7 +217,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     CHECKSUM = "checksum"
 
 
-#The data particle type will be overwritten based on coordinate (Earth/Beam)
+# The data particle type will be overwritten based on coordinate (Earth/Beam)
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
     """
     ADCP PD0 data particle
@@ -728,7 +728,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         # coord_transform_type
         # Coordinate Transformation type:
-        #    0 = None (Beam), 1 = Instrument, 2 = Ship, 3 = Earth.
+        # 0 = None (Beam), 1 = Instrument, 2 = Ship, 3 = Earth.
 
         percent_good_id = unpack("!H", chunk[0:2])[0]
         if 4 != percent_good_id:
@@ -879,50 +879,50 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
 
         # Only availble for ADCP and VADCP master
         if not self._slave:
-            match = self.RE09.match(lines[9-self._offset])
+            match = self.RE09.match(lines[9 - self._offset])
             matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = float(match.group(1))
-            match = self.RE10.match(lines[10-self._offset])
+            match = self.RE10.match(lines[10 - self._offset])
             matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = float(match.group(1))
-            match = self.RE11.match(lines[11-self._offset])
+            match = self.RE11.match(lines[11 - self._offset])
             matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = float(match.group(1))
-            match = self.RE12.match(lines[12-self._offset])
+            match = self.RE12.match(lines[12 - self._offset])
             matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = float(match.group(1))
 
-        match = self.RE14.match(lines[14-self._offset])
+        match = self.RE14.match(lines[14 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = float(match.group(1))
-        match = self.RE16.match(lines[16-self._offset])
+        match = self.RE16.match(lines[16 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
-        match = self.RE17.match(lines[17-self._offset])
+        match = self.RE17.match(lines[17 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL] = match.group(2)
-        match = self.RE18.match(lines[18-self._offset])
+        match = self.RE18.match(lines[18 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE] = match.group(2)
-        match = self.RE19.match(lines[19-self._offset])
+        match = self.RE19.match(lines[19 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE] = match.group(2)
-        match = self.RE20.match(lines[20-self._offset])
+        match = self.RE20.match(lines[20 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION] = match.group(1)
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
-        match = self.RE23.match(lines[23-self._offset])
+        match = self.RE23.match(lines[23 - self._offset])
 
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1)) + "\n"
-        match = self.RE24.match(lines[24-self._offset])
+        match = self.RE24.match(lines[24 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE25.match(lines[25-self._offset])
+        match = self.RE25.match(lines[25 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE26.match(lines[26-self._offset])
+        match = self.RE26.match(lines[26 - self._offset])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
 
         # Only available for ADCP
         if not self._slave and not self._master:
-            match = self.RE27.match(lines[27-self._offset])
+            match = self.RE27.match(lines[27 - self._offset])
             matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-            match = self.RE28.match(lines[28-self._offset])
+            match = self.RE28.match(lines[28 - self._offset])
             matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1))
 
         result = []
-        for (key, value) in matches.iteritems():
+        for key, value in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
         return result
@@ -1029,7 +1029,7 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
         matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = float(match.group(1))
 
         result = []
-        for (key, value) in matches.iteritems():
+        for key, value in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -1070,7 +1070,7 @@ class ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE(DataParticle):
             matches[key] = formatter(match.group(1))
 
         result = []
-        for (key, value) in matches.iteritems():
+        for key, value in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -1107,7 +1107,7 @@ class ADCP_TRANSMIT_PATH_PARTICLE(DataParticle):
             matches[key] = formatter(match.group(1))
 
         result = []
-        for (key, value) in matches.iteritems():
+        for key, value in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 

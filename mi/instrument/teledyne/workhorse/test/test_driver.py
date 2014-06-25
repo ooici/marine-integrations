@@ -215,7 +215,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         new_values = {}
 
         p = WorkhorseParameter.dict()
-        set_dict = {}
         for k, v in new_set.items():
 
             if k not in ('BANNER', 'SERIAL_FLOW_CONTROL', 'SAVE_NVRAM_TO_RECORDER', 'TIME'):

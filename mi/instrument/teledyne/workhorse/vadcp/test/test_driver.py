@@ -6,9 +6,6 @@
 Release notes:
 
 """
-from _pytest import unittest
-import gevent
-from mi.instrument.teledyne.particles import ADCP_TRANSMIT_PATH_KEY, ADCP_ANCILLARY_SYSTEM_DATA_KEY
 
 
 __author__ = 'Sung Ahn'
@@ -19,6 +16,10 @@ import datetime as dt
 from nose.plugins.attrib import attr
 from mock import Mock
 from mi.core.instrument.chunker import StringChunker
+
+import unittest
+import time
+from mi.instrument.teledyne.particles import ADCP_TRANSMIT_PATH_KEY, ADCP_ANCILLARY_SYSTEM_DATA_KEY
 
 from mi.core.log import get_logger
 
@@ -49,9 +50,9 @@ from mi.instrument.teledyne.workhorse.vadcp.driver import ScheduledJob
 from mi.instrument.teledyne.workhorse.vadcp.driver import Capability
 from mi.instrument.teledyne.workhorse.vadcp.driver import InstrumentCmds
 
-from mi.instrument.teledyne.particles  import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.particles  import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.particles  import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.particles import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
 
 from mi.instrument.teledyne.workhorse.vadcp.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse.vadcp.driver import Protocol
@@ -808,7 +809,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_CalibrationDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("in assert_particle_compass_calibration")
         self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
@@ -828,7 +828,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters)  # , verify_values
 
@@ -838,7 +837,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters_earth)  # , verify_values
 
@@ -848,7 +846,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PT2 DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pt2_data")
         self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
         self.assert_data_particle_parameters(data_particle, self._pt2_dict)  # , verify_values
 
@@ -858,7 +855,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PT4 DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pt2_data")
         self.assert_data_particle_header(data_particle, VADCPDataParticleType.ADCP_TRANSMIT_PATH)
         self.assert_data_particle_parameters(data_particle, self._pt4_dict)  # , verify_values
 
@@ -1131,7 +1127,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             log.error("Port agent already initialized")
             return
 
-
         config = self.port_agent_config()
         log.debug("port agent config: %s", config)
 
@@ -1251,7 +1246,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             'And I am important event #2!'
         ]
         self.driver_client.cmd_dvr('test_events', events=events)
-        gevent.sleep(1)
+        time.sleep(1)
 
         # Confirm the events received are as expected.
         self.assertEqual(self.events, events)
@@ -1493,6 +1488,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1010101")
         self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "0101000")
         self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1100100")
+        self.assert_set(TeledyneParameter2.SENSOR_SOURCE, "1100110")
 
         #
         # Reset to good value.
@@ -1672,7 +1668,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         # CLIP_DATA_PAST_BOTTOM: True/False,
         self.assert_set(TeledyneParameter2.CLIP_DATA_PAST_BOTTOM, True)
-        self.assert_set_exception(TeledyneParameter2.CLIP_DATA_PAST_BOTTOM, "LEROY JENKINS")
 
         #
         # Reset to good value.
@@ -1712,11 +1707,9 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 128)
         self.assert_set(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 254)
 
-        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, "LEROY JENKINS")
         self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 256)
         self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 0)
         self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, -1)
-        self.assert_set_exception(TeledyneParameter2.NUMBER_OF_DEPTH_CELLS, 3.1415926)
 
         #
         # Reset to good value.
@@ -1779,7 +1772,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, 3201)
         self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, -1)
         self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, 3.1415926)
-        self.assert_set_exception(TeledyneParameter2.TRANSMIT_LENGTH, "LEROY JENKINS")
         #
         # Reset to good value.
         #
@@ -1834,22 +1826,22 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY,
                         self._driver_parameters_slave[TeledyneParameter2.AMBIGUITY_VELOCITY][self.VALUE])
 
-    #@unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many house for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
-        #self._tst_set_xmit_power()
-        #self._tst_set_speed_of_sound()
-        #self._tst_set_pitch()
-        #self._tst_set_roll()
-        #self._tst_set_salinity()
-        #self._tst_set_sensor_source()
-        #self._tst_set_time_per_ensemble()
-        #self._tst_set_false_target_threshold()
-        #self._tst_set_bandwidth_control()
-        #self._tst_set_correlation_threshold()
-        #self._tst_set_error_velocity_threshold()
-        #self._tst_set_blank_after_transmit()
+        self._tst_set_xmit_power()
+        self._tst_set_speed_of_sound()
+        self._tst_set_pitch()
+        self._tst_set_roll()
+        self._tst_set_salinity()
+        self._tst_set_sensor_source()
+        self._tst_set_time_per_ensemble()
+        self._tst_set_false_target_threshold()
+        self._tst_set_bandwidth_control()
+        self._tst_set_correlation_threshold()
+        self._tst_set_error_velocity_threshold()
+        self._tst_set_blank_after_transmit()
         self._tst_set_clip_data_past_bottom()
         self._tst_set_receiver_gain_select()
         self._tst_set_number_of_depth_cells()

@@ -8,7 +8,6 @@ Release notes:
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
 
-
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
@@ -24,7 +23,6 @@ from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
 from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.instrument.teledyne.driver import TeledyneCapability
-#from mi.instrument.teledyne.particles import *
 from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger
@@ -36,9 +34,9 @@ log = get_logger()
 NEWLINE = '\r\n'
 
 
-###############################################################################
+# ##############################################################################
 # Driver
-###############################################################################
+# ##############################################################################
 class WorkhorseParameter(TeledyneParameter):
     """
     Device parameters
@@ -51,17 +49,18 @@ class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
+
     def __init__(self, evt_callback):
         """
         InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
+        # Construct superclass.
         TeledyneInstrumentDriver.__init__(self, evt_callback)
 
-    ########################################################################
+    # #######################################################################
     # Protocol builder.
-    ########################################################################
+    # #######################################################################
 
     def _build_protocol(self):
         """
@@ -69,9 +68,10 @@ class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
         """
         self._protocol = WorkhorseProtocol(TeledynePrompt, NEWLINE, self._driver_event)
 
-###########################################################################
+
+# ##########################################################################
 # Protocol
-###########################################################################
+# ##########################################################################
 
 
 class WorkhorseProtocol(TeledyneProtocol):
@@ -108,11 +108,11 @@ class WorkhorseProtocol(TeledyneProtocol):
                     l = unpack("H", match.group(1))
                     outer_pos = match.start()
                     ADCP_PD0_PARSED_TRUE_MATCHER = re.compile(r'\x7f\x7f(.{' + str(l[0]) + '})', re.DOTALL)
-                    for match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, outer_pos):
-                        inner_pos = match.start()
+                    for _match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, outer_pos):
+                        inner_pos = _match.start()
 
                         if outer_pos == inner_pos:
-                            return_list.append((match.start(), match.end()))
+                            return_list.append((_match.start(), _match.end()))
             else:
                 for match in matcher.finditer(raw_data):
                     return_list.append((match.start(), match.end()))
@@ -173,9 +173,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._cmd_dict.add(TeledyneCapability.STOP_DIRECT,
                            display_name="Stop Direct Access")
 
-    ########################################################################
+    # #######################################################################
     # Private helpers.
-    ########################################################################
+    # #######################################################################
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.
@@ -190,27 +190,27 @@ class WorkhorseProtocol(TeledyneProtocol):
             log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
         elif (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
-                                 ADCP_PD0_PARSED_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)):
+                                   ADCP_PD0_PARSED_REGEX_MATCHER,
+                                   chunk,
+                                   timestamp)):
             log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
         elif (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
-                                 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)):
+                                   ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
+                                   chunk,
+                                   timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
         elif (self._extract_sample(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
-                                 ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)):
+                                   ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                                   chunk,
+                                   timestamp)):
             log.trace("_got_chunk - successful match for ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE")
 
         elif (self._extract_sample(ADCP_TRANSMIT_PATH_PARTICLE,
-                                 ADCP_TRANSMIT_PATH_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)):
+                                   ADCP_TRANSMIT_PATH_REGEX_MATCHER,
+                                   chunk,
+                                   timestamp)):
             log.trace("_got_chunk - successful match for ADCP_TRANSMIT_PATH_PARTICLE")
 
     def _get_params(self):
