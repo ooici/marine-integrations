@@ -146,9 +146,6 @@ class DriverTestMixinSub(SamiMixin):
                         '30BAB056D06A408030BAA05DC069F08010BAF063406A608070BAE067406A2' + \
                         '08000BAC06AB069E07FF0BAD06D506A2080200000D650636CE' + SAMI_NEWLINE
 
-    ## Control records
-    #VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + NEWLINE
-
     ###
     #  Parameter and Type Definitions
     ###

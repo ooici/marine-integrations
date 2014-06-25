@@ -193,19 +193,18 @@ class Pco2wSamiSampleDataParticle(DataParticle):
     def _build_parsed_values(self):
         """
         Parse SAMI2-PCO2 measurement records from raw data into a dictionary
-        """
 
-        ### SAMI Sample Record
-        # Regular SAMI (PCO2) data records produced by the instrument on either
-        # command or via an internal schedule. Like the control records, the
-        # messages are preceded by a '*' character and terminated with a '\r'.
-        # Sample string:
-        #
-        #   *542705CEE91CC800400019096206800730074C2CE04274003B0018096106800732074E0D82066124
-        #
-        # A full description of the data record strings can be found in the
-        # vendor supplied SAMI Record Format document.
-        ###
+        SAMI Sample Record
+        Regular SAMI (PCO2) data records produced by the instrument on either
+        command or via an internal schedule. Like the control records, the
+        messages are preceded by a '*' character and terminated with a '\r'.
+        Sample string:
+
+          *542705CEE91CC800400019096206800730074C2CE04274003B0018096106800732074E0D82066124
+
+        A full description of the data record strings can be found in the
+        vendor supplied SAMI Record Format document.
+        """
 
         matched = PCO2W_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
@@ -229,7 +228,7 @@ class Pco2wSamiSampleDataParticle(DataParticle):
                 # parse group 5 into 14, 2 byte (4 character) values stored in
                 # an array.
                 light = matched.group(grp_index)
-                light = [int(light[i:i + 4], 16) for i in range(0, len(light), 4)]
+                light = [int(light[i:i + 4], 16) for i in xrange(0, len(light), 4)]
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: light})
             else:

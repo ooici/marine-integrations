@@ -50,7 +50,7 @@ from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
 ###
@@ -426,7 +426,7 @@ class Protocol(Pco2wProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(
+        self._protocol_fsm = ThreadSafeFSM(
             ProtocolState, ProtocolEvent,
             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 

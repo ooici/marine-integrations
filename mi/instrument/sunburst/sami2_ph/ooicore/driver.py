@@ -31,7 +31,7 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -496,7 +496,7 @@ class Protocol(SamiProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(
+        self._protocol_fsm = ThreadSafeFSM(
             ProtocolState, ProtocolEvent,
             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
@@ -697,7 +697,7 @@ class Protocol(SamiProtocol):
 
             self._wakeup()
 
-            for cycle_num in range(flush_cycles):
+            for cycle_num in xrange(flush_cycles):
                 self._do_cmd_resp_no_wakeup(InstrumentCommand.PHSEN_PUMP_REAGENT,
                                             flush_duration_str,
                                             timeout=flush_timeout,
