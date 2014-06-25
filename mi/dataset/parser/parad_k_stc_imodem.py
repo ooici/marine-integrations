@@ -65,10 +65,10 @@ class Parad_k_stc_DataParticle(DataParticle):
             log.error("Found a NaN value in the data")
             raise SampleException("Got a NaN value")
 
-        result = [{DataParticleKey.VALUE_ID: Parad_k_stc_DataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: time_stamp},
-                  {DataParticleKey.VALUE_ID: Parad_k_stc_DataParticleKey.SENSOR_DATA,
-                   DataParticleKey.VALUE: par_value}]
+        result = [self._encode_value(Parad_k_stc_DataParticleKey.TIMESTAMP,
+                                     time_stamp, int),
+                  self._encode_value(Parad_k_stc_DataParticleKey.SENSOR_DATA,
+                                     par_value, float)]
 
         return result
 
