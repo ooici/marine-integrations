@@ -168,10 +168,10 @@ class Vel3dLWfpInstrumentDataParticle(DataParticle):
     """
     Generic class for generating vel3d_l_wfp instrument particles.
     This class is for both recovered and telemetered data.
-    The output particle streams for vel3d_l instrument data have different names,
-    but the contents of the 2 streams are identical.
+    The output particle streams for vel3d_l instrument data have different
+    names, but the contents of the 2 streams are identical.
     """
-    def generate_instrument_particle(self, particle_key_table):
+    def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
@@ -192,9 +192,9 @@ class Vel3dLWfpInstrumentDataParticle(DataParticle):
         field_index = 0
         fields = self.raw_data
 
-        for x in range(0, len(particle_key_table)):
-            key = particle_key_table[x][INDEX_PARTICLE_KEY]
-            data_type = particle_key_table[x][INDEX_VALUE_TYPE]
+        for x in range(0, len(INSTRUMENT_PARTICLE_KEYS)):
+            key = INSTRUMENT_PARTICLE_KEYS[x][INDEX_PARTICLE_KEY]
+            data_type = INSTRUMENT_PARTICLE_KEYS[x][INDEX_VALUE_TYPE]
 
             #
             # The date time array data must be special-cased since multiple
@@ -240,45 +240,21 @@ class Vel3dLWfpInstrumentDataParticle(DataParticle):
 class Vel3dLWfpInstrumentParticle(Vel3dLWfpInstrumentDataParticle):
     """
     Class for generating vel3d_l_wfp instrument telemetered particles.
+    All processing is handled by the parent class as long as the
+    data particle type is set correctly.
     """
 
     _data_particle_type = Vel3dLWfpDataParticleType.SIO_INSTRUMENT_PARTICLE
-
-    def _build_parsed_values(self):
-        """
-        Take something in the data format and turn it into
-        an array of dictionaries defining the data in the particle
-        with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
-        """
-        #
-        # Generate an Instrument data particle.
-        # Note that raw_data already contains the individual fields
-        # extracted and unpacked from the data record.
-        #
-        return self.generate_instrument_particle(INSTRUMENT_PARTICLE_KEYS)
 
 
 class Vel3dLWfpInstrumentRecoveredParticle(Vel3dLWfpInstrumentDataParticle):
     """
     Class for generating vel3d_l_wfp instrument recovered particles.
+    All processing is handled by the parent class as long as the
+    data particle type is set correctly.
     """
 
     _data_particle_type = Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE
-
-    def _build_parsed_values(self):
-        """
-        Take something in the data format and turn it into
-        an array of dictionaries defining the data in the particle
-        with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
-        """
-        #
-        # Generate an Instrument data particle.
-        # Note that raw_data already contains the individual fields
-        # extracted and unpacked from the data record.
-        #
-        return self.generate_instrument_particle(INSTRUMENT_PARTICLE_KEYS)
 
 
 class Vel3dLMetadataParticle(DataParticle):
@@ -405,7 +381,8 @@ class Vel3dLParser(Parser):
                     particle_class = Vel3dLWfpMetadataRecoveredParticle
 
                 # particle-ize the data block received, return the record
-                sample = self._extract_sample(particle_class, None, fields[x][1], 0)
+                sample = self._extract_sample(particle_class, None,
+                                              fields[x][1], None)
                 if sample:
                     #
                     # Add the particle to the list of particles
@@ -600,9 +577,9 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
         """
         # if non-data is expected, handle it here, otherwise it is an error
         if non_data is not None and non_end <= start:
-            # if this non-data is an error, send an UnexpectedDataException and increment the state
+            # increment the state
             self._increment_position(len(non_data))
-            # if non-data is a fatal error, directly call the exception, if it is not use the _exception_callback
+            # use the _exception_callback
             self._exception_callback(UnexpectedDataException(
                 "Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
 

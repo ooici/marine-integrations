@@ -87,7 +87,10 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataTypeKey.VEL3D_L_WFP: {},
+            DataTypeKey.VEL3D_L_WFP_SIO_MULE: {}
+        }
     }
 )
 
@@ -115,7 +118,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("================ START INTEG TEST GET =====================")
 
         # Start sampling.
-        self.clear_sample_data()
         self.driver.start_sampling()
 
         # Generated recovered file has 10 instrument
@@ -141,7 +143,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("=========== START INTEG TEST GET ANY ORDER  ================")
 
         # Start sampling.
-        self.clear_sample_data()
         self.driver.start_sampling()
         self.clear_async_data()
 
@@ -197,7 +198,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         log.info("======== START INTEG TEST SAMPLE EXCEPTION FAMILY ==========")
 
-        self.clear_sample_data()
         self.clear_async_data()
         self.create_sample_data_set_dir('rec_excess.dat', DIR_REC, FILE_REC1)
         self.driver.start_sampling()
@@ -305,7 +305,6 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         log.info("========== START QUAL TEST PARSER EXCEPTION ==========")
 
-        self.clear_sample_data()
         self.event_subscribers.clear_events()
         self.assert_initialize()
         self.create_sample_data_set_dir('rec_excess.dat', DIR_REC, FILE_REC1)
@@ -429,18 +428,19 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_start_sampling()
 
         try:
-            inst_particle = Vel3dLWfpDataParticleType.SIO_INSTRUMENT_PARTICLE
-            meta_particle = Vel3dLWfpDataParticleType.SIO_METADATA_PARTICLE
-
             # Verify that we get 4 instrument particles from the telemetered data file.
             samples = 4
             log.info("===== READ %d TELEMETERED INSTRUMENT PARTICLES =====", samples)
-            result = self.data_subscribers.get_samples(inst_particle, samples, 10)
+            result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.SIO_INSTRUMENT_PARTICLE,
+                samples, 10)
 
             # Verify that we get 1 metadata particle from the telemetered data file.
             samples = 1
             log.info("===== READ %d TELEMETERED METADATA PARTICLES =====", samples)
-            meta_result = self.data_subscribers.get_samples(meta_particle, samples, 10)
+            meta_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.SIO_METADATA_PARTICLE,
+                samples, 10)
 
             # Combine the instrument and metadata particles and verify results.
             result.extend(meta_result)
@@ -463,13 +463,17 @@ class QualificationTest(DataSetQualificationTestCase):
             # Verify that we get 6 instrument particles from the telemetered data file.
             samples = 6
             log.info("===== READ %d TELEMETERED INSTRUMENT PARTICLES =====", samples)
-            inst_result = self.data_subscribers.get_samples(inst_particle, samples, 10)
+            inst_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.SIO_INSTRUMENT_PARTICLE,
+                samples, 10)
             result.extend(inst_result)
 
             # Verify that we get 1 metadata particle from the telemetered data file.
             samples = 1
             log.info("===== READ %d TELEMETERED METADATA PARTICLES =====", samples)
-            meta_result = self.data_subscribers.get_samples(meta_particle, samples, 10)
+            meta_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.SIO_METADATA_PARTICLE,
+                samples, 10)
 
             # Combine the instrument and metadata particles and verify results.
             result.extend(meta_result)
@@ -490,18 +494,19 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_start_sampling()
 
         try:
-            inst_particle = Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE
-            meta_particle = Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE
-
             # Verify that we get 4 instrument particles from the recovered data file.
             samples = 4
             log.info("===== READ %d RECOVERED INSTRUMENT PARTICLES =====", samples)
-            result = self.data_subscribers.get_samples(inst_particle, samples, 10)
+            result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICL,
+                samples, 10)
 
             # Verify that we get 1 metadata particle from the recovered data file.
             samples = 1
             log.info("===== READ %d RECOVERED METADATA PARTICLES =====", samples)
-            meta_result = self.data_subscribers.get_samples(meta_particle, samples, 10)
+            meta_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE,
+                samples, 10)
 
             # Combine the instrument and metadata particles and verify results.
             result.extend(meta_result)
@@ -524,13 +529,17 @@ class QualificationTest(DataSetQualificationTestCase):
             # Verify that we get 6 instrument particles from the recovered data file.
             samples = 6
             log.info("===== READ %d RECOVERED INSTRUMENT PARTICLES =====", samples)
-            inst_result = self.data_subscribers.get_samples(inst_particle, samples, 10)
+            inst_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICL,
+                samples, 10)
             result.extend(inst_result)
 
             # Verify that we get 1 metadata particle from the recovered data file.
             samples = 1
             log.info("===== READ %d RECOVERED METADATA PARTICLES =====", samples)
-            meta_result = self.data_subscribers.get_samples(meta_particle, samples, 10)
+            meta_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE,
+                samples, 10)
 
             # Combine the instrument and metadata particles and verify results.
             result.extend(meta_result)

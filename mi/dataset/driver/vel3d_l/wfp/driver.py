@@ -12,13 +12,14 @@ Initial Release
 __author__ = 'Steve Myerson (Raytheon)'
 __license__ = 'Apache 2.0'
 
-
-#import string
-
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
 
+from mi.core.exceptions import \
+    ConfigurationException
+
 from mi.dataset.dataset_driver import \
+    DataSetDriverConfigKeys, \
     HarvesterType
 
 from mi.dataset.driver.sio_mule.sio_mule_driver import \
@@ -79,11 +80,13 @@ class Vel3dLWfp(SioMuleDataSetDriver):
         # If the key is VEL3D_L_WFP, build the WFP parser.
         #
         if data_key == DataTypeKey.VEL3D_L_WFP:
-            config = self._parser_config
+            config = self._parser_config[data_key]
             config.update({
-                'particle_module': 'mi.dataset.parser.vel3d_l_wfp',
-                'particle_class': ['Vel3dKWfpInstrumentRecoveredParticle',
-                                   'Vel3dKWfpMetadataRecoveredParticle']
+                DataSetDriverConfigKeys.PARTICLE_MODULE:
+                    'mi.dataset.parser.vel3d_l_wfp',
+                DataSetDriverConfigKeys.PARTICLE_CLASS:
+                    ['Vel3dKWfpInstrumentRecoveredParticle',
+                     'Vel3dKWfpMetadataRecoveredParticle']
             })
 
             parser = Vel3dLWfpParser(config, parser_state, file_handle,
@@ -96,11 +99,13 @@ class Vel3dLWfp(SioMuleDataSetDriver):
         # If the key is VEL3D_L_WFP_SIO_MULE, build the WFP SIO Mule parser.
         #
         elif data_key == DataTypeKey.VEL3D_L_WFP_SIO_MULE:
-            config = self._parser_config
+            config = self._parser_config[data_key]
             config.update({
-                'particle_module': 'mi.dataset.parser.vel3d_l_wfp',
-                'particle_class': ['Vel3dKWfpInstrumentParticle',
-                                   'Vel3dLWfpSioMuleMetadataParticle']
+                DataSetDriverConfigKeys.PARTICLE_MODULE:
+                    'mi.dataset.parser.vel3d_l_wfp',
+                DataSetDriverConfigKeys.PARTICLE_CLASS:
+                    ['Vel3dKWfpInstrumentParticle',
+                     'Vel3dLWfpSioMuleMetadataParticle']
             })
 
             parser = Vel3dLWfpSioMuleParser(config, parser_state, file_handle,
@@ -113,7 +118,8 @@ class Vel3dLWfp(SioMuleDataSetDriver):
         # If the key is one that we're not expecting, don't build any parser.
         #
         else:
-            parser = None
+            raise ConfigurationException('Parser configuration key incorrect %s',
+                                         data_key)
 
         return parser
 
@@ -141,6 +147,10 @@ class Vel3dLWfp(SioMuleDataSetDriver):
             if wfp_harvester is not None:
                 harvesters.append(wfp_harvester)
 
+        else:
+            log.warn('Missing harvester configuration for key %s',
+                     DataTypeKey.VEL3D_L_WFP)
+
         #
         # Verify that the SIO Mule harvester has been configured.
         # If so, build the harvester and add it to the list of harvesters.
@@ -155,5 +165,9 @@ class Vel3dLWfp(SioMuleDataSetDriver):
 
             if sio_harvester is not None:
                 harvesters.append(sio_harvester)
+
+        else:
+            log.warn('Missing harvester configuration for key %s',
+                     DataTypeKey.VEL3D_L_WFP)
 
         return harvesters
