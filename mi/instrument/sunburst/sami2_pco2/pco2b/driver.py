@@ -602,7 +602,6 @@ class Protocol(Pco2wProtocol):
                                      chunk, timestamp)]):
             return
 
-
         dev1_sample = self._extract_sample(Pco2wbDev1SampleDataParticle, PCO2WB_DEV1_SAMPLE_REGEX_MATCHER, chunk,
                                            timestamp)
         sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)

@@ -869,7 +869,6 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
                                               particle_count=4)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
-
     def test_polled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
