@@ -18,7 +18,6 @@ __license__ = 'Apache 2.0'
 import unittest
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
@@ -31,13 +30,19 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.driver.dofst_k.wfp.driver import DofstKWfpDataSetDriver, DataSourceKey
-from mi.dataset.parser.dofst_k_wfp import DofstKWfpParserDataParticle, DataParticleType
-from mi.dataset.parser.dofst_k_wfp import DofstKWfpMetadataParserDataParticle
+from mi.dataset.driver.dofst_k.wfp.driver import DofstKWfpDataSetDriver, DataTypeKey
+from mi.dataset.parser.dofst_k_wfp_particles import\
+    DataParticleType,\
+    DofstKWfpRecoveredDataParticle,\
+    DofstKWfpRecoveredMetadataParticle,\
+    DofstKWfpTelemeteredDataParticle,\
+    DofstKWfpTelemeteredMetadataParticle
 from mi.dataset.parser.wfp_c_file_common import StateKey
+
 
 TELEM_TEST_DIR = '/tmp/dsatest'
 RECOV_TEST_DIR = '/tmp/dsatest2'
+
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -50,13 +55,13 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'dofst_k_wfp',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSourceKey.DOFST_K_WFP_TELEMETERED:
+            DataTypeKey.DOFST_K_WFP_TELEMETERED:
             {
                 DataSetDriverConfigKeys.DIRECTORY: TELEM_TEST_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'C*.DAT',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             },
-            DataSourceKey.DOFST_K_WFP_RECOVERED:
+            DataTypeKey.DOFST_K_WFP_RECOVERED:
             {
                 DataSetDriverConfigKeys.DIRECTORY: RECOV_TEST_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'C*.DAT',
@@ -64,12 +69,14 @@ DataSetTestCase.initialize(
             }
         },
         DataSourceConfigKey.PARSER: {
-            DataSourceKey.DOFST_K_WFP_TELEMETERED: {},
-            DataSourceKey.DOFST_K_WFP_RECOVERED: {}
+            DataTypeKey.DOFST_K_WFP_TELEMETERED: {},
+            DataTypeKey.DOFST_K_WFP_RECOVERED: {}
         }
     }
 )
 
+RECOV_PARTICLES = (DofstKWfpRecoveredDataParticle, DofstKWfpRecoveredMetadataParticle)
+TELEM_PARTICLES = (DofstKWfpTelemeteredDataParticle, DofstKWfpTelemeteredMetadataParticle)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -90,23 +97,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data_set_dir('first.DAT', TELEM_TEST_DIR, "C0000001.DAT")
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'first.result.yml', count=4, timeout=10)
+        self.assert_data(TELEM_PARTICLES, 'tel_first.result.yml', count=4, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data_set_dir('second.DAT', TELEM_TEST_DIR, "C0000002.DAT")
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'second.result.yml', count=7, timeout=10)
+        self.assert_data(TELEM_PARTICLES, 'tel_second.result.yml', count=7, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data_set_dir('first.DAT', RECOV_TEST_DIR, "C0000001.DAT")
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'first.result.yml', count=4, timeout=10)
+        self.assert_data(RECOV_PARTICLES, 'rec_first.result.yml', count=4, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data_set_dir('second.DAT', RECOV_TEST_DIR, "C0000002.DAT")
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'second.result.yml', count=7, timeout=10)
+        self.assert_data(RECOV_PARTICLES, 'rec_second.result.yml', count=7, timeout=10)
 
     def test_mid_state(self):
         """
@@ -119,24 +122,24 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Create and store the new driver state
         state = {
-            DataSourceKey.DOFST_K_WFP_TELEMETERED: {
+            DataTypeKey.DOFST_K_WFP_TELEMETERED: {
                 'C0000001.DAT': self.get_file_state(path_1, True, 33),
                 'C0000002.DAT': self.get_file_state(path_2, False, 33)
             },
-            DataSourceKey.DOFST_K_WFP_RECOVERED: {
+            DataTypeKey.DOFST_K_WFP_RECOVERED: {
                 'C0000001.DAT': self.get_file_state(path_1, True, 33),
                 'C0000002.DAT': self.get_file_state(path_2, False, 33)
             }
         }
         # only the position field in the parser state is initialized in get_file_state, need to add the other state fields
-        state[DataSourceKey.DOFST_K_WFP_TELEMETERED]['C0000001.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
-        state[DataSourceKey.DOFST_K_WFP_TELEMETERED]['C0000001.DAT']['parser_state'][StateKey.METADATA_SENT] = True
-        state[DataSourceKey.DOFST_K_WFP_TELEMETERED]['C0000002.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
-        state[DataSourceKey.DOFST_K_WFP_TELEMETERED]['C0000002.DAT']['parser_state'][StateKey.METADATA_SENT] = True
-        state[DataSourceKey.DOFST_K_WFP_RECOVERED]['C0000001.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
-        state[DataSourceKey.DOFST_K_WFP_RECOVERED]['C0000001.DAT']['parser_state'][StateKey.METADATA_SENT] = True
-        state[DataSourceKey.DOFST_K_WFP_RECOVERED]['C0000002.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
-        state[DataSourceKey.DOFST_K_WFP_RECOVERED]['C0000002.DAT']['parser_state'][StateKey.METADATA_SENT] = True
+        state[DataTypeKey.DOFST_K_WFP_TELEMETERED]['C0000001.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
+        state[DataTypeKey.DOFST_K_WFP_TELEMETERED]['C0000001.DAT']['parser_state'][StateKey.METADATA_SENT] = True
+        state[DataTypeKey.DOFST_K_WFP_TELEMETERED]['C0000002.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
+        state[DataTypeKey.DOFST_K_WFP_TELEMETERED]['C0000002.DAT']['parser_state'][StateKey.METADATA_SENT] = True
+        state[DataTypeKey.DOFST_K_WFP_RECOVERED]['C0000001.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
+        state[DataTypeKey.DOFST_K_WFP_RECOVERED]['C0000001.DAT']['parser_state'][StateKey.METADATA_SENT] = True
+        state[DataTypeKey.DOFST_K_WFP_RECOVERED]['C0000002.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
+        state[DataTypeKey.DOFST_K_WFP_RECOVERED]['C0000002.DAT']['parser_state'][StateKey.METADATA_SENT] = True
 
         self.driver = self._get_driver_object(memento=state)
 
@@ -146,8 +149,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'partial_second.result.yml', count=3, timeout=10)
+        self.assert_data(TELEM_PARTICLES, 'tel_partial_second.result.yml', count=3, timeout=10)
         
         # now create the recovered files
         path_3 = self.create_sample_data_set_dir('first.DAT', RECOV_TEST_DIR, "C0000001.DAT")
@@ -155,8 +157,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         
         # the starting state for recovered is the same as telemetered, so do the same compare
         # again for recovered
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'partial_second.result.yml', count=3, timeout=10)
+        self.assert_data(RECOV_PARTICLES, 'rec_partial_second.result.yml', count=3, timeout=10)
 
     def test_ingest_order(self):
         """
@@ -170,16 +171,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data_set_dir('first.DAT', TELEM_TEST_DIR, "C0000001.DAT")
         self.create_sample_data_set_dir('second.DAT', TELEM_TEST_DIR, "C0000002.DAT")
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'first.result.yml', count=4, timeout=10)
-        self.assert_file_ingested("C0000001.DAT", DataSourceKey.DOFST_K_WFP_TELEMETERED)
+        self.assert_data(TELEM_PARTICLES, 'tel_first.result.yml', count=4, timeout=10)
+        self.assert_file_ingested("C0000001.DAT", DataTypeKey.DOFST_K_WFP_TELEMETERED)
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'second.result.yml', count=7, timeout=10)
-        self.assert_file_ingested("C0000002.DAT", DataSourceKey.DOFST_K_WFP_TELEMETERED)
+        self.assert_data(TELEM_PARTICLES, 'tel_second.result.yml', count=7, timeout=10)
+        self.assert_file_ingested("C0000002.DAT", DataTypeKey.DOFST_K_WFP_TELEMETERED)
 
         # now check the same thing for recovered (all the files are not created at the
         # start because there is no guarantee what order telemetered or recovered
@@ -187,16 +186,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir('first.DAT', RECOV_TEST_DIR, "C0000001.DAT")
         self.create_sample_data_set_dir('second.DAT', RECOV_TEST_DIR, "C0000002.DAT")
         
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'first.result.yml', count=4, timeout=10)
-        self.assert_file_ingested("C0000001.DAT", DataSourceKey.DOFST_K_WFP_RECOVERED)
+        self.assert_data(RECOV_PARTICLES, 'rec_first.result.yml', count=4, timeout=10)
+        self.assert_file_ingested("C0000001.DAT", DataTypeKey.DOFST_K_WFP_RECOVERED)
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'second.result.yml', count=7, timeout=10)
-        self.assert_file_ingested("C0000002.DAT", DataSourceKey.DOFST_K_WFP_RECOVERED)
+        self.assert_data(RECOV_PARTICLES, 'rec_second.result.yml', count=7, timeout=10)
+        self.assert_file_ingested("C0000002.DAT", DataTypeKey.DOFST_K_WFP_RECOVERED)
 
     def test_sample_exception_empty_telem(self):
         """
@@ -205,7 +202,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.clear_async_data()
 
-        config = self._driver_config()['startup_config']['harvester'][DataSourceKey.DOFST_K_WFP_TELEMETERED]['pattern']
+        config = self._driver_config()['startup_config']['harvester'][DataTypeKey.DOFST_K_WFP_TELEMETERED]['pattern']
         filename = config.replace("*", "foo")
         self.create_sample_data_set_dir(filename, TELEM_TEST_DIR)
 
@@ -213,7 +210,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested(filename, DataSourceKey.DOFST_K_WFP_TELEMETERED)
+        self.assert_file_ingested(filename, DataTypeKey.DOFST_K_WFP_TELEMETERED)
 
     def test_sample_exception_empty_recov(self):
         """
@@ -222,7 +219,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.clear_async_data()
 
-        config = self._driver_config()['startup_config']['harvester'][DataSourceKey.DOFST_K_WFP_RECOVERED]['pattern']
+        config = self._driver_config()['startup_config']['harvester'][DataTypeKey.DOFST_K_WFP_RECOVERED]['pattern']
         filename = config.replace("*", "foo")
         self.create_sample_data_set_dir(filename, RECOV_TEST_DIR)
 
@@ -230,7 +227,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested(filename, DataSourceKey.DOFST_K_WFP_RECOVERED)
+        self.assert_file_ingested(filename, DataTypeKey.DOFST_K_WFP_RECOVERED)
 
     def test_sample_exception_num_samples(self):
         """
@@ -244,13 +241,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested('C0000001.DAT', DataSourceKey.DOFST_K_WFP_TELEMETERED)
+        self.assert_file_ingested('C0000001.DAT', DataTypeKey.DOFST_K_WFP_TELEMETERED)
         
         # same test for recovered
         self.clear_async_data()
         self.create_sample_data_set_dir('bad_num_samples.DAT', RECOV_TEST_DIR, 'C0000001.DAT')
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested('C0000001.DAT', DataSourceKey.DOFST_K_WFP_RECOVERED)
+        self.assert_file_ingested('C0000001.DAT', DataTypeKey.DOFST_K_WFP_RECOVERED)
 
     def test_timestamp_only(self):
         """
@@ -262,16 +259,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'ts_only.result.yml', count=1, timeout=10)
-        self.assert_file_ingested('C0000001.DAT', DataSourceKey.DOFST_K_WFP_TELEMETERED)
+        self.assert_data(TELEM_PARTICLES, 'tel_ts_only.result.yml', count=1, timeout=10)
+        self.assert_file_ingested('C0000001.DAT', DataTypeKey.DOFST_K_WFP_TELEMETERED)
         
         # same test for recovered
         self.create_sample_data_set_dir('ts_only.DAT', RECOV_TEST_DIR, 'C0000001.DAT')
-        self.assert_data((DofstKWfpMetadataParserDataParticle, DofstKWfpParserDataParticle),
-            'ts_only.result.yml', count=1, timeout=10)
-        self.assert_file_ingested('C0000001.DAT', DataSourceKey.DOFST_K_WFP_RECOVERED)
-        
+        self.assert_data(RECOV_PARTICLES, 'rec_ts_only.result.yml', count=1, timeout=10)
+        self.assert_file_ingested('C0000001.DAT', DataTypeKey.DOFST_K_WFP_RECOVERED)
 
 
 ###############################################################################
@@ -284,10 +278,12 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def assert_all_queue_empty(self):
         """
-        Assert the sample queue for all 3 data streams is empty
+        Assert the sample queue for all 4 data streams are empty
         """
-        self.assert_sample_queue_size(DataParticleType.METADATA, 0)
-        self.assert_sample_queue_size(DataParticleType.DATA, 0)
+        self.assert_sample_queue_size(DataParticleType.TELEMETERED_METADATA, 0)
+        self.assert_sample_queue_size(DataParticleType.TELEMETERED_DATA, 0)
+        self.assert_sample_queue_size(DataParticleType.RECOVERED_METADATA, 0)
+        self.assert_sample_queue_size(DataParticleType.RECOVERED_DATA, 0)
 
     def test_publish_path(self):
         """
@@ -299,17 +295,17 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Verify we get one sample
         try:
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
+            result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA, 1)
             log.debug("First RESULT: %s", result)
 
-            result_2 = self.data_subscribers.get_samples(DataParticleType.DATA, 3)
+            result_2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 3)
             log.debug("Second RESULT: %s", result_2)
 
             result.extend(result_2)
             log.debug("Extended RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'first.result.yml')
+            self.assert_data_values(result, 'tel_first.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -319,17 +315,17 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Verify we get one sample
         try:
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED_METADATA, 1)
             log.debug("First RESULT: %s", result)
 
-            result_2 = self.data_subscribers.get_samples(DataParticleType.DATA, 3)
+            result_2 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 3)
             log.debug("Second RESULT: %s", result_2)
 
             result.extend(result_2)
             log.debug("Extended RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'first.result.yml')
+            self.assert_data_values(result, 'rec_first.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -342,14 +338,14 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         # get results for each of the data particle streams
-        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA,1,10)
-        result2 = self.data_subscribers.get_samples(DataParticleType.DATA,270,40)
+        result1 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA,1,10)
+        result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA,270,40)
 
         # again for recovered
         self.create_sample_data_set_dir('C0000038.DAT', RECOV_TEST_DIR)
         # get results for each of the data particle streams
-        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA,1,10)
-        result2 = self.data_subscribers.get_samples(DataParticleType.DATA,270,40)
+        result1 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_METADATA,1,10)
+        result2 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA,270,40)
 
     def test_stop_start(self):
         """
@@ -367,20 +363,20 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-            result2 = self.data_subscribers.get_samples(DataParticleType.DATA, 3)
+            result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA)
+            result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 3)
             result.extend(result2)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'first.result.yml')
+            self.assert_data_values(result, 'tel_first.result.yml')
             self.assert_all_queue_empty()
 
             # stop sampling between telemetered
             self.create_sample_data_set_dir('second.DAT', TELEM_TEST_DIR, "C0000002.DAT")
             # Now read the first three records (1 metadata, 2 data) of the second file then stop
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-            result2 = self.data_subscribers.get_samples(DataParticleType.DATA, 2)
+            result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA)
+            result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 2)
             result.extend(result2)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
@@ -388,17 +384,17 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 4 records of the file
             self.assert_start_sampling()
-            result3 = self.data_subscribers.get_samples(DataParticleType.DATA, 4)
+            result3 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 4)
             log.debug("got result 2 %s", result3)
             result.extend(result3)
-            self.assert_data_values(result, 'second.result.yml')
+            self.assert_data_values(result, 'tel_second.result.yml')
             self.assert_all_queue_empty()
             
             # stop sampling between recovered
             self.create_sample_data_set_dir('second.DAT', RECOV_TEST_DIR, "C0000002.DAT")
             # Now read the first three records (1 metadata, 2 data) of the second file then stop
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-            result2 = self.data_subscribers.get_samples(DataParticleType.DATA, 2)
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED_METADATA)
+            result2 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 2)
             result.extend(result2)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
@@ -406,10 +402,10 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 4 records of the file
             self.assert_start_sampling()
-            result3 = self.data_subscribers.get_samples(DataParticleType.DATA, 4)
+            result3 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 4)
             log.debug("got result 2 %s", result3)
             result.extend(result3)
-            self.assert_data_values(result, 'second.result.yml')
+            self.assert_data_values(result, 'rec_second.result.yml')
             self.assert_all_queue_empty()
             
         except SampleTimeout as e:
@@ -432,20 +428,20 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-            result2 = self.data_subscribers.get_samples(DataParticleType.DATA, 3)
+            result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA)
+            result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 3)
             result.extend(result2)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'first.result.yml')
+            self.assert_data_values(result, 'tel_first.result.yml')
             self.assert_all_queue_empty()
 
             # stop the dataset agent between telemetered
             self.create_sample_data_set_dir('second.DAT', TELEM_TEST_DIR, "C0000002.DAT")
             # Now read the first three records (1 metadata, 2 data) of the second file then stop
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-            result2 = self.data_subscribers.get_samples(DataParticleType.DATA, 2)
+            result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA)
+            result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 2)
             result.extend(result2)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
@@ -463,16 +459,16 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 4 records of the file
             self.assert_start_sampling()
-            result3 = self.data_subscribers.get_samples(DataParticleType.DATA, 4)
+            result3 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 4)
             log.debug("got result 2 %s", result3)
             result.extend(result3)
-            self.assert_data_values(result, 'second.result.yml')
+            self.assert_data_values(result, 'tel_second.result.yml')
             self.assert_all_queue_empty()
             
             self.create_sample_data_set_dir('second.DAT', RECOV_TEST_DIR, "C0000002.DAT")
             # Now read the first three records (1 metadata, 2 data) of the second file then stop
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-            result2 = self.data_subscribers.get_samples(DataParticleType.DATA, 2)
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED_METADATA)
+            result2 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 2)
             result.extend(result2)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
@@ -487,10 +483,10 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 4 records of the file
             self.assert_start_sampling()
-            result3 = self.data_subscribers.get_samples(DataParticleType.DATA, 4)
+            result3 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 4)
             log.debug("got result 2 %s", result3)
             result.extend(result3)
-            self.assert_data_values(result, 'second.result.yml')
+            self.assert_data_values(result, 'rec_second.result.yml')
             self.assert_all_queue_empty()
 
         except SampleTimeout as e:
@@ -509,10 +505,10 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-        result1 = self.data_subscribers.get_samples(DataParticleType.DATA, 3)
+        result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_METADATA)
+        result1 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED_DATA, 3)
         result.extend(result1)
-        self.assert_data_values(result, 'first.result.yml')
+        self.assert_data_values(result, 'tel_first.result.yml')
         self.assert_all_queue_empty();
 
         # Verify an event was raised and we are in our retry state
@@ -524,10 +520,10 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('bad_num_samples.DAT', RECOV_TEST_DIR, 'C0000001.DAT')
         self.create_sample_data_set_dir('first.DAT', RECOV_TEST_DIR, 'C0000002.DAT')
 
-        result = self.data_subscribers.get_samples(DataParticleType.METADATA)
-        result1 = self.data_subscribers.get_samples(DataParticleType.DATA, 3)
+        result = self.data_subscribers.get_samples(DataParticleType.RECOVERED_METADATA)
+        result1 = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 3)
         result.extend(result1)
-        self.assert_data_values(result, 'first.result.yml')
+        self.assert_data_values(result, 'rec_first.result.yml')
         self.assert_all_queue_empty();
 
         # Verify an event was raised and we are in our retry state

@@ -79,8 +79,26 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {DriverConfigKey.PARAMETERS:
-            {Parameter.PUMP_DELAY: 60,
+            {
+             Parameter.PTYPE: 1,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: True,
+             Parameter.OUTPUT_FORMAT: 0,
              Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True,
              Parameter.CLOCK_INTERVAL: '00:00:00',
              Parameter.STATUS_INTERVAL: '00:00:00'}}
 )
@@ -528,11 +546,14 @@ class SeaBird19plusMixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
+        Capability.DISCOVER : {STATES: [ProtocolState.UNKNOWN]},
+        Capability.ACQUIRE_SAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.START_DIRECT : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT : {STATES: [ProtocolState.DIRECT_ACCESS]},
         Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
 
     }
@@ -728,6 +749,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
                                     'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'PROTOCOL_EVENT_SCHEDULED_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_SET',
@@ -740,6 +762,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
                                        'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'PROTOCOL_EVENT_SCHEDULED_ACQUIRE_STATUS',
                                        'DRIVER_EVENT_ACQUIRE_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
@@ -912,6 +935,10 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
 
+        # Invalid command/state transitions
+        self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
+
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         ####
@@ -938,10 +965,27 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         # Explicitly verify these values after discover.  They should match
         # what the startup values should be
         get_values = {
-            Parameter.PUMP_DELAY: 60,
-            Parameter.NUM_AVG_SAMPLES: 4,
-            Parameter.CLOCK_INTERVAL: '00:00:00',
-            Parameter.STATUS_INTERVAL: '00:00:00'
+             Parameter.PTYPE: 1,
+             Parameter.VOLT0: True,
+             Parameter.VOLT1: True,
+             Parameter.VOLT2: False,
+             Parameter.VOLT3: False,
+             Parameter.VOLT4: False,
+             Parameter.VOLT5: False,
+             Parameter.SBE38: False,
+             Parameter.WETLABS: False,
+             Parameter.GTD: False,
+             Parameter.DUAL_GTD: False,
+             Parameter.SBE63: False,
+             Parameter.OPTODE: True,
+             Parameter.OUTPUT_FORMAT: 0,
+             Parameter.NUM_AVG_SAMPLES: 4,
+             Parameter.MIN_COND_FREQ: 500,
+             Parameter.PUMP_DELAY: 60,
+             Parameter.AUTO_RUN: False,
+             Parameter.IGNORE_SWITCH: True,
+             Parameter.CLOCK_INTERVAL: '00:00:00',
+             Parameter.STATUS_INTERVAL: '00:00:00'
         }
 
         # Change the values of these parameters to something before the
@@ -1024,6 +1068,12 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         # Verify that the event got scheduled
         self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=60)
 
+        # Reset the interval
+        self.assert_set(Parameter.STATUS_INTERVAL, "00:00:10")
+
+        # Verify that the event got scheduled
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=30)
+
         # This should unschedule the acquire status event
         self.assert_set(Parameter.STATUS_INTERVAL, "00:00:00")
 
@@ -1047,13 +1097,13 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         Verify the device status command can be triggered and run in autosample
         """
         self.assert_initialize_driver()
-        self.assert_set(Parameter.STATUS_INTERVAL, "00:01:00")
+        self.assert_set(Parameter.STATUS_INTERVAL, "00:01:15")
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         #verify that the event got scheduled
-        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=90)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -1063,12 +1113,20 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         """
         self.assert_initialize_driver()
 
-        #Set the clock sync interval to 20 seconds
-        self.assert_set(Parameter.CLOCK_INTERVAL, "00:00:20")
-        # Verification: Search log for 'clock sync interval: 00:00:20'
+        #Set the clock sync interval to 10 seconds
+        self.assert_set(Parameter.CLOCK_INTERVAL, "00:00:10")
+        # Verification: Search log for 'clock sync interval: 10'
 
         # Allow for a couple of clock syncs to happen
-        time.sleep(30)
+        time.sleep(25)
+        # Verification: Search log for 'Performing Clock Sync', should be seen at 10 second intervals
+
+        # Reset the interval
+        self.assert_set(Parameter.CLOCK_INTERVAL, "00:00:20")
+        # Verification: Search log for 'clock sync interval: 20'
+
+        # Allow for a couple of clock syncs to happen
+        time.sleep(50)
         # Verification: Search log for 'Performing Clock Sync', should be seen at 20 second intervals
 
         # Set the interval to 0 so that the event is unscheduled
@@ -1085,14 +1143,14 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         #Set the clock sync interval to 90 seconds
         self.assert_set(Parameter.CLOCK_INTERVAL, "00:01:30")
-        # Verification: Search log for 'clock sync interval: 00:01:30'
+        # Verification: Search log for 'clock sync interval: 90'
 
         # Get into autosample mode
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         # Allow for a clock sync to happen
-        time.sleep(60)
+        time.sleep(100)
         # Verification: Search log for 'Performing Clock Sync in autosample mode',
         # should be seen roughly 90 seconds after the interval was set
 
@@ -1308,11 +1366,12 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
             AgentCapabilityType.RESOURCE_COMMAND: [
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
+                ProtocolEvent.ACQUIRE_SAMPLE,
                 ProtocolEvent.RESET_EC,
                 ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.GET_CONFIGURATION,
+                ProtocolEvent.START_DIRECT,
                 ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -1329,7 +1388,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
             ProtocolEvent.GET,
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
-            ProtocolEvent.GET_CONFIGURATION,
             ]
 
         self.assert_start_autosample()
@@ -1341,7 +1399,7 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_DIRECT]
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
