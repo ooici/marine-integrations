@@ -1,6 +1,6 @@
 header:
-    particle_object: Parad_k_stc_imodemDataParticle
-    particle_type: parad_k__stc_imodem_instrument
+    particle_object: Parad_k_stc_imodemRecoveredDataParticle
+    particle_type: parad_k__stc_imodem_instrument_recovered
 
 data:
   - _index: 1
