@@ -62,7 +62,8 @@ rga_startup_config = {
         Parameter.SA: 10,
         Parameter.MI: 1,
         Parameter.MF: 100,
-        Parameter.FL: 1.0
+        Parameter.FL: 1.0,
+        Parameter.HV: 0,
     }
 }
 
@@ -152,6 +153,8 @@ class DriverTestMixinSub(DriverTestMixin):
         'ID?': 'FAKEID',
         'SC1': '\xba\xdd\xca\xfe' * 252,
         'ER?': 0,
+        'HV?': 0,
+        'HV0': 0,
     }
 
     sample_data = list(struct.unpack('<252i', responses['SC1']))
@@ -171,6 +174,7 @@ class DriverTestMixinSub(DriverTestMixin):
         RGAStatusParticleKey.MI: {TYPE: int, VALUE: responses['MI?'], REQUIRED: True},
         RGAStatusParticleKey.MF: {TYPE: int, VALUE: responses['MF?'], REQUIRED: True},
         RGAStatusParticleKey.AP: {TYPE: int, VALUE: responses['AP?'], REQUIRED: True},
+        RGAStatusParticleKey.HV: {TYPE: int, VALUE: responses['HV?'], REQUIRED: True},
         RGAStatusParticleKey.FL: {TYPE: float, VALUE: 1.0, REQUIRED: True},
         RGAStatusParticleKey.FL_ACTUAL: {TYPE: float, VALUE: responses['FL?'], REQUIRED: True},
     }
@@ -187,6 +191,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Parameter.SA: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
         Parameter.MI: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
         Parameter.MF: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
+        Parameter.HV: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
         Parameter.FL: {TYPE: float, READONLY: False, DA: False, STARTUP: True},
         Parameter.FL_ACTUAL: {TYPE: float, READONLY: True, DA: False, STARTUP: True},
         Parameter.ERROR_REASON: {TYPE: str, READONLY: True, DA: False, STARTUP: False},

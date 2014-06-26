@@ -1084,7 +1084,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         time.sleep(1)
 
         # put the MCU in standby
-        self.assert_da_command(_mcu + mcu.InstrumentCommand.STANDBY, '(%s)' % mcu.Prompt.STANDBY, max_retries=20)
+        self.assert_da_command(_mcu + mcu.InstrumentCommand.STANDBY, '(%s)' % mcu.Prompt.STANDBY, max_retries=60)
 
         self.assert_direct_access_stop_telnet()
 
@@ -1095,10 +1095,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_enter_command_mode()
         self.assert_set_parameter(rga.Parameter.NF, 5)
         self.assert_set_parameter(rga.Parameter.MF, 50)
-        self.assert_execute_resource(Capability.ACQUIRE_SAMPLE)
+        self.assert_execute_resource(Capability.ACQUIRE_SAMPLE, timeout=100)
         # particles are verified in slave protocol qual tests... Here we just verify they are published
-        self.assert_particle_async(mcu.DataParticleType.MCU_STATUS, Mock(), timeout=30)
-        self.assert_particle_async(turbo.DataParticleType.TURBO_STATUS, Mock(), particle_count=20, timeout=200)
+        self.assert_particle_async(mcu.DataParticleType.MCU_STATUS, Mock(), timeout=90)
+        self.assert_particle_async(turbo.DataParticleType.TURBO_STATUS, Mock(), particle_count=20, timeout=500)
         self.assert_particle_async(rga.DataParticleType.RGA_STATUS, Mock(), timeout=600)
         self.assert_particle_async(rga.DataParticleType.RGA_SAMPLE, Mock(), particle_count=5, timeout=600)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=100)
@@ -1111,10 +1111,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_set_parameter(rga.Parameter.NF, 5)
         self.assert_set_parameter(rga.Parameter.MF, 50)
         self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 800)
-        self.assert_execute_resource(Capability.START_AUTOSAMPLE)
+        self.assert_execute_resource(Capability.START_AUTOSAMPLE, timeout=100)
         # particles are verified in slave protocol qual tests... Here we just verify they are published
-        self.assert_particle_async(mcu.DataParticleType.MCU_STATUS, Mock(), timeout=60)
-        self.assert_particle_async(turbo.DataParticleType.TURBO_STATUS, Mock(), particle_count=20, timeout=300)
+        self.assert_particle_async(mcu.DataParticleType.MCU_STATUS, Mock(), timeout=90)
+        self.assert_particle_async(turbo.DataParticleType.TURBO_STATUS, Mock(), particle_count=20, timeout=500)
         self.assert_particle_async(rga.DataParticleType.RGA_STATUS, Mock(), timeout=600)
         self.assert_particle_async(rga.DataParticleType.RGA_SAMPLE, Mock(), particle_count=5, timeout=600)
         # to verify we are actually autosampling, wait for another RGA_STATUS, which occurs once per sample cycle
@@ -1129,7 +1129,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         """
         self.assert_enter_command_mode()
         self.assert_execute_resource(Capability.START_NAFION)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=200)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=600)
 
     def test_ion(self):
         """
@@ -1138,7 +1138,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         """
         self.assert_enter_command_mode()
         self.assert_execute_resource(Capability.START_ION)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=200)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, timeout=600)
 
     def test_get_set_parameters(self):
         """
@@ -1156,15 +1156,21 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         constraints.update(rga.ParameterConstraints.dict())
 
         for name, parameter in parameters.iteritems():
-            value = massp_startup_config[DriverConfigKey.PARAMETERS].get(parameter)
-            if value is not None:
-                if name in constraints:
-                    _, minimum, maximum = constraints[name]
-                    self.assert_set_parameter(parameter, minimum + 1)
-                    with self.assertRaises(BadRequest):
-                        self.assert_set_parameter(parameter, maximum + 1)
-                else:
-                    self.assert_set_parameter(parameter, value + 1)
+            if parameter == Parameter.ALL:
+                continue
+            if self._driver_parameters[parameter][self.READONLY]:
+                with self.assertRaises(BadRequest):
+                    self.assert_set_parameter(parameter, 'READONLY')
+            else:
+                value = massp_startup_config[DriverConfigKey.PARAMETERS].get(parameter)
+                if value is not None:
+                    if name in constraints:
+                        _, minimum, maximum = constraints[name]
+                        self.assert_set_parameter(parameter, minimum + 1)
+                        with self.assertRaises(BadRequest):
+                            self.assert_set_parameter(parameter, maximum + 1)
+                    else:
+                        self.assert_set_parameter(parameter, value + 1)
 
     def test_get_capabilities(self):
         """
@@ -1181,7 +1187,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
                                                    ProtocolEvent.ACQUIRE_SAMPLE,
                                                    ProtocolEvent.START_ION,
                                                    ProtocolEvent.START_NAFION,
-                                                   ProtocolEvent.CALIBRATE],
+                                                   ProtocolEvent.CALIBRATE,
+                                                   ProtocolEvent.POWEROFF,
+                                                   ProtocolEvent.START_MANUAL],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }

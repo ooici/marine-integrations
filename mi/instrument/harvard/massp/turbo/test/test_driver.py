@@ -233,6 +233,7 @@ class DriverTestMixinSub(DriverTestMixin):
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT'],
         ProtocolState.ERROR: ['PROTOCOL_EVENT_CLEAR',
                               'PROTOCOL_EVENT_STOP_TURBO',
+                              'DRIVER_EVENT_GET',
                               'DRIVER_EVENT_ACQUIRE_STATUS']
     }
 

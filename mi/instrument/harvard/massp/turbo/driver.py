@@ -359,6 +359,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status),
                 (ProtocolEvent.STOP_TURBO, self._handler_stop_turbo),
                 (ProtocolEvent.CLEAR, self._handler_clear),
+                (ProtocolEvent.GET, self._handler_command_get),
             ],
             ProtocolState.SPINNING_DOWN: [
                 (ProtocolEvent.ENTER, self._handler_generic_enter),

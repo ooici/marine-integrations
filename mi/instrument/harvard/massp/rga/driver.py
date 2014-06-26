@@ -137,6 +137,7 @@ class Parameter(DriverParameter):
     MI = 'rga_initial_mass'
     MF = 'rga_final_mass'
     AP = 'rga_readings_per_scan'
+    HV = 'rga_high_voltage'
     FL = 'rga_filament_emission_set'
     FL_ACTUAL = 'rga_filament_emission_actual'
     ERROR_REASON = 'rga_error_reason'
@@ -163,6 +164,7 @@ class Responses(BaseEnum):
     MI = QUERY
     MF = QUERY
     AP = QUERY
+    HV = STATUS
 
 
 class ParameterConstraints(BaseEnum):
@@ -179,6 +181,7 @@ class ParameterConstraints(BaseEnum):
     SA = (int, 10, 25)
     MI = (int, 1, 200)
     MF = (int, 1, 200)
+    HV = (int, 0, 2490)
 
 
 class Prompt(BaseEnum):
@@ -205,6 +208,7 @@ class InstrumentCommand(BaseEnum):
     INITIAL_MASS = 'MI'
     FINAL_MASS = 'MF'
     ANALOG_SCAN = 'SC'
+    HIGH_VOLTAGE = 'HV'
 
 
 ###############################################################################
@@ -251,6 +255,7 @@ class RGAStatusParticleKey(BaseEnum):
     MI = 'massp_rga_initial_mass'
     MF = 'massp_rga_final_mass'
     AP = 'massp_rga_readings_per_scan'
+    HV = 'massp_rga_high_voltage'
     FL_ACTUAL = 'massp_rga_filament_emission_actual'
 
 
@@ -487,6 +492,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                 val_desc: 'Total number of ion currents to be transmitted.  Does not include the four extra' +
                           'bytes for total pressure included when performing an analog scan.',
                 units: DriverUnits.COUNT
+            },
+            Parameter.HV: {
+                name: 'High Voltage CDEM',
+                desc: 'Electron Multiplier High Voltage Bias setting',
+                val_desc: '0 disables the CDEM, values from 10-2490 enable the CDEM and specify the CDEM bias voltage',
+                units: Units.VOLT
             },
             Parameter.ER: {
                 name: 'Status Byte',

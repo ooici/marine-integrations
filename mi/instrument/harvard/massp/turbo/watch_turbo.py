@@ -49,12 +49,15 @@ class Receiver(Thread):
         while True:
             data = self._conn.recv(4096)
             if data:
-                value = int(data[-9:-4])
-                key = int(data[5:8])
-                if key in names:
-                    print '%-15s : %d' % (names[key], value)
-                else:
-                    print 'Received: %r' % data
+                try:
+                    value = int(data[-9:-4])
+                    key = int(data[5:8])
+                    if key in names:
+                        print '%-15s : %d' % (names[key], value)
+                    else:
+                        print 'Received: %r' % data
+                except ValueError:
+                    pass
 
 
 class Sender(Thread):

@@ -1042,6 +1042,7 @@ class Protocol(InstrumentProtocol):
         Regeneration sequence is complete, return to COMMAND
         @return next_state, (next_agent_state, result)
         """
+        self._async_agent_state_change(ResourceAgentState.COMMAND)
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     def _handler_manual_override_stop(self):
