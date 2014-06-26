@@ -268,8 +268,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('node59p1.dat', TEL_DIR)
         self.assert_initialize()
 
-        self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE,2550,200)
-        self.data_subscribers.get_samples(DataParticleType.TEL_CO_PARTICLE,200,60)
+        self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 2550, 200)
+        self.data_subscribers.get_samples(DataParticleType.TEL_CO_PARTICLE, 100, 60)
 
     def test_stop_start(self):
         """

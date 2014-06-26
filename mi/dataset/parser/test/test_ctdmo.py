@@ -5,6 +5,24 @@
 @file marine-integrations/mi/dataset/parser/test/test_ctdmo.py
 @author Emily Hahn, Steve Myerson (recovered)
 @brief Test code for a Ctdmo data parser
+Files used for Recovered CO:
+  CTD2000.DAT
+    1 CT block
+    0 CO blocks
+  CTD2001.DAT
+    1 CT
+    1 CO w/6 records, 5 valid IDs
+  CTD2002.DAT
+    1 CO w/4 records, 3 valid IDs
+    1 CT
+    1 CO w/5 records, 3 valid IDs
+  CTD2004.DAT
+    1 CT
+    1 CO w/2 records, 0 valid IDs
+    1 CO w/2 records, 1 valid ID
+    1 CO w/5 records, 4 valid IDs
+    1 CT
+    1 CO w/3 records, 3 valid IDs
 """
 
 import gevent
@@ -19,6 +37,10 @@ from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.sio_mule_common import StateKey
 
 from mi.dataset.parser.ctdmo import \
+    CtdmoRecoveredCoParser, \
+    CtdmoRecoveredCtParser, \
+    CtdmoRecoveredInstrumentDataParticle, \
+    CtdmoRecoveredOffsetDataParticle, \
     CtdmoTelemeteredParser, \
     CtdmoTelemeteredInstrumentDataParticle, \
     CtdmoTelemeteredOffsetDataParticle, \
@@ -35,6 +57,26 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
 
 @attr('UNIT', group='mi')
 class CtdmoParserUnitTestCase(ParserUnitTestCase):
+
+    def create_rec_co_parser(self, file_handle, new_state=None):
+        """
+        This function creates a Ctdmo parser for recovered CO data.
+        """
+        if new_state is None:
+            new_state = self.state
+        parser = CtdmoRecoveredCoParser(self.config_rec_co, new_state, file_handle,
+            self.rec_state_callback, self.pub_callback, self.exception_callback)
+        return parser
+
+    def create_rec_ct_parser(self, file_handle, new_state=None):
+        """
+        This function creates a Ctdmo parser for recovered CT data.
+        """
+        if new_state is None:
+            new_state = self.state
+        parser = CtdmoRecoveredCtParser(self.config_rec_ct, new_state, file_handle,
+            self.rec_state_callback, self.pub_callback, self.exception_callback)
+        return parser
 
     def state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """

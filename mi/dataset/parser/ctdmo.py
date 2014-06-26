@@ -275,7 +275,7 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
                         reversed_hex_time,
                         convert_hex_ascii_to_int)]
 
-        log.debug('CtdmoTelemeteredInstrumentDataParticle: particle=%s', particle)
+        #log.debug('CtdmoTelemeteredInstrumentDataParticle: particle=%s', particle)
         return particle
 
 
@@ -494,7 +494,7 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
             chunk_idx = header_match.end(0)
 
             if header_match.group(SIO_HEADER_GROUP_ID) == ID_OFFSET:
-                log.debug("matched recovered CO header %s", chunk[1:chunk_idx - 1])
+                #log.debug("matched recovered CO header %s", chunk[1:chunk_idx - 1])
                 (samples, particles) = self.parse_co_data(
                     CtdmoRecoveredOffsetDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
@@ -549,7 +549,7 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
 
 class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
     """
-    Parser for Ctdmo telemetered data.
+    Parser for Ctdmo telemetered data (SIO Mule).
     This parser handles both CT and CO data from the SIO Mule.
     """
 
@@ -564,14 +564,14 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
         log.debug('Enter CtdmoTelemeteredParser')
         super(CtdmoTelemeteredParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          self.sieve_function,
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
+                                                     stream_handle,
+                                                     state,
+                                                     self.sieve_function,
+                                                     state_callback,
+                                                     publish_callback,
+                                                     exception_callback,
+                                                     *args,
+                                                     **kwargs)
 
         if not CtdmoStateKey.INDUCTIVE_ID in config:
             raise DatasetParserException("Parser config is missing %s"
@@ -589,7 +589,6 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """
         result_particles = []
-        #(nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
         while chunk is not None:
@@ -601,7 +600,7 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
             samples = 0
             if header_match.group(SIO_HEADER_GROUP_ID) == ID_INSTRUMENT:
-                log.debug("matched CT header %s", chunk[1:chunk_idx - 1])
+                #log.debug("matched CT header %s", chunk[1:chunk_idx - 1])
                 (samples, particles) = self.parse_ct_record(
                     CtdmoTelemeteredInstrumentDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
@@ -611,7 +610,7 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
                         result_particles.append(particles[x])
 
             elif header_match.group(SIO_HEADER_GROUP_ID) == ID_OFFSET:
-                log.debug("matched CO chunk header %s", chunk[1:chunk_idx - 1])
+                #log.debug("matched CO chunk header %s", chunk[1:chunk_idx - 1])
                 (samples, particles) = self.parse_co_data(
                     CtdmoTelemeteredOffsetDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
@@ -622,7 +621,6 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(samples)
-            #(nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
         return result_particles
