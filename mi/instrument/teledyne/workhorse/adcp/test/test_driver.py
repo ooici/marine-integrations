@@ -13,6 +13,7 @@ __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
 import datetime as dt
+import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 from mi.core.instrument.chunker import StringChunker
@@ -195,7 +196,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
 
-        Parameter.LATENCY_TRIGGER: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.LATENCY_TRIGGER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.HEADING_ALIGNMENT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
                                       VALUE: '+00000'},
         Parameter.HEADING_BIAS: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
@@ -205,7 +206,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.BUFFERED_OUTPUT_PERIOD: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00:00:00',
                                            VALUE: '00:00:00'},
-        Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
 
         #Engineering parameter
         Parameter.CLOCK_SYNCH_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00',
@@ -771,8 +772,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
-                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_INIT_PARAMS',
                                        'PROTOCOL_EVENT_GET_CALIBRATION',
@@ -884,6 +884,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
     # Test parameter settings
+    @unittest.skip('It takes many house for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 

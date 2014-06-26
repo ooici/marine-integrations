@@ -21,7 +21,6 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.log import get_logger
-
 log = get_logger()
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -236,7 +235,7 @@ class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
+        # Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
                                          DriverEvent.DISCOVER,
@@ -245,7 +244,6 @@ class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
     def _handler_connected_discover(self, event, *args, **kwargs):
         # Redefine discover handler so that we can apply startup params
         # when we discover. Gotta get into command mode first though.
-
         result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
         self.apply_startup_params()
         return result
@@ -489,7 +487,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         time.sleep(1)
         self._get_response(TIMEOUT)
 
-    ########################################################################
+    # #######################################################################
     # Startup parameter handlers
     ########################################################################
     def apply_startup_params(self):
@@ -505,7 +503,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Let's give it a try in unknown state
         if (self.get_current_state() != TeledyneProtocolState.COMMAND and
-                self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
+                    self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         logging = self._is_logging()
@@ -662,13 +660,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             count += 1
             for break_message in break_confirmation:
                 if break_message in self._linebuf:
-                    log.error("GOT A BREAK MATCH ==> " + str(break_message))
+                    log.trace("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
             if count > (timeout * 10):
                 if not found:
                     raise InstrumentTimeoutException("NO BREAK RESPONSE.")
             time.sleep(0.1)
-        self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
+        self._chunker.clean_all_chunks()
         self._promptbuf = ''
         self._linebuf = ''
 
@@ -681,10 +679,30 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _wakeup(self, timeout=3, delay=1):
         """
-        overrides the base class to save a timestamp and update defaults
+        Clear buffers and send a wakeup command to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
         """
+
         self.last_wakeup = time.time()
-        super(TeledyneProtocol, self)._wakeup(timeout, delay)
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+
+        # Grab time for timeout.
+        starttime = time.time()
+        endtime = starttime + float(timeout)
+
+        # Send a line return and wait a sec.
+        log.debug('Sending wakeup. timeout=%s' % timeout)
+        self._send_wakeup()
+        while time.time() < endtime:
+            time.sleep(0.05)
+            for item in self._get_prompts():
+                index = self._promptbuf.find(item)
+                if index >= 0:
+                    log.debug('wakeup got prompt: %s' % repr(item))
+                    return item
+        return None
 
     def _instrument_config_dirty(self):
         """
@@ -1205,19 +1223,19 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
                     TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
                 self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL,
-                                            params[TeledyneParameter.CLOCK_SYNCH_INTERVAL])
+                                           params[TeledyneParameter.CLOCK_SYNCH_INTERVAL])
                 self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
-                                            TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+                                         TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
                 changed = True
 
         if TeledyneParameter.GET_STATUS_INTERVAL in params:
             if (params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(
                     TeledyneParameter.GET_STATUS_INTERVAL)):
                 self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL,
-                                            params[TeledyneParameter.GET_STATUS_INTERVAL])
+                                           params[TeledyneParameter.GET_STATUS_INTERVAL])
                 self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL,
-                                            TeledyneScheduledJob.GET_CONFIGURATION,
-                                            TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+                                         TeledyneScheduledJob.GET_CONFIGURATION,
+                                         TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
                 changed = True
         if changed:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -1273,7 +1291,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         execute a get status on the leading edge of a second change
         @return next_state, (next_agent_state, result) if successful.
-        @throws InstrumentParameterException from _do_cmd_no_resp.
+        @throws InstrumentProtocolException from _do_cmd_no_resp.
         """
 
         next_state = None
@@ -1288,7 +1306,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         except Exception as e:
             log.error("InstrumentProtocolException in _do_cmd_no_resp()")
-            raise InstrumentParameterException(
+            raise InstrumentProtocolException(
                 'InstrumentProtocolException in _do_cmd_no_resp()' + str(e))
 
         return next_state, (next_agent_state, result)

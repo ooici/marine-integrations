@@ -10,7 +10,7 @@ __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
 import time
-
+import unittest
 from mi.core.log import get_logger
 
 log = get_logger()
@@ -28,8 +28,6 @@ from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.driver import TeledyneParameter
 
 DEFAULT_CLOCK_DIFF = 20
-
-from mi.core.instrument.instrument_driver import ResourceAgentState
 
 
 ###############################################################################
@@ -719,6 +717,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
 
     # ReadOnly parameter setting exception tests
+    #@unittest.skip('It takes many house for this test')
     def test_set_parameter_test(self):
         self.assert_initialize_driver()
 

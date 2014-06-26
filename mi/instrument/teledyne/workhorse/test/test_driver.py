@@ -12,7 +12,7 @@ __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
 import time as time
-
+import unittest
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 
@@ -100,6 +100,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
         self.assert_driver_parameters(reply, True)
 
+    #@unittest.skip('It takes many house for this test')
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -160,6 +161,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
+    #@unittest.skip('It takes many house for this test')
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -389,6 +391,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_reset()
         self.assert_capabilities(capabilities)
 
+    @unittest.skip('It takes many house for this test')
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -435,6 +438,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.PING_WEIGHT, 1)
         self.assert_set_parameter(WorkhorseParameter.AMBIGUITY_VELOCITY, 176)
 
+    @unittest.skip('It takes many house for this test')
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
