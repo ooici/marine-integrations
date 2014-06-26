@@ -25,20 +25,26 @@ from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.ctdpf_ckl.wfp_sio_mule.driver import CtdpfCklWfpDataSetDriver, DataTypeKey
 from mi.dataset.parser.ctdpf_ckl_wfp_sio_mule import CtdpfCklWfpSioMuleDataParticle
-from mi.dataset.parser.ctdpf_ckl_wfp_sio_mule import CtdpfCklWfpSioMuleMetadataParticle, DataParticleType
-#from mi.dataset.parser.ctdpf_ckl_wfp import CtdpfCklWfpDataParticle, CtdpfCklWfpMetadataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp_sio_mule import CtdpfCklWfpSioMuleMetadataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp_particles import\
+    DataParticleType,\
+    CtdpfCklWfpRecoveredDataParticle,\
+    CtdpfCklWfpRecoveredMetadataParticle
+
+
+PARSER_STATE = 'parser_state'
+
 
 SIO_PARTICLES = (CtdpfCklWfpSioMuleDataParticle, CtdpfCklWfpSioMuleMetadataParticle)
-#WFP_PARTICLES = (CtdpfCklWfpDataParticle, CtdpfCklWfpMetadataParticle)
+WFP_PARTICLES = (CtdpfCklWfpRecoveredDataParticle, CtdpfCklWfpRecoveredMetadataParticle)
 
 
-DIR_WFP = '/tmp/dsatest1'
-DIR_WFP_SIO_MULE = '/tmp/dsatest'
+DIR_WFP = '/tmp/recov_dsatest'
+DIR_WFP_SIO_MULE = '/tmp/mule_dsatest'
 
 
 # Fill in driver details
@@ -65,7 +71,10 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataTypeKey.CTDPF_CKL_WFP: {},
+            DataTypeKey.CTDPF_CKL_WFP_SIO_MULE: {}
+        }
     }
 )
 
@@ -87,13 +96,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from a small file.
         """
 
+        # Start sampling and watch for an exception
         self.driver.start_sampling()
 
+        # Read the telemetered data
         self.clear_async_data()
         self.create_sample_data_set_dir('WC_ONE.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat')
         self.assert_data(SIO_PARTICLES, 'WC_ONE.yml', count=96, timeout=10)
 
         self.driver.stop_sampling()
+
+        # Read from the recovered data
+        self.clear_async_data()
+        self.create_sample_data_set_dir('first.DAT', REC_DIR, 'C0000001.DAT')
+        self.assert_data(REC_PARTICLES, 'first.result.yml', count=4, timeout=10)
 
     def test_harvester_new_file_exception(self):
         """
@@ -121,7 +137,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', DIR_WFP_SIO_MULE, 'node58p1.dat')
-        self.assert_data(SIO_PARTICLES, 'BIG_GIANT_HEAD.yml', count=42062, timeout=1800)
+        self.assert_data(SIO_PARTICLES, count=42062, timeout=1800)
 
         self.driver.stop_sampling()
 

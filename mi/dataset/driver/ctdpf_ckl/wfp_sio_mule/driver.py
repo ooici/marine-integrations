@@ -50,11 +50,11 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
                  exception_callback):
 
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataTypeKey.CTDPF_CKL_WFP_SIO_MULE, DataTypeKey.CTDPF_CKL_WFP]
+        data_keys = [DataTypeKey.CTDPF_CKL_WFP, DataTypeKey.CTDPF_CKL_WFP_SIO_MULE]
 
-        # link the data keys to the harvester type, multiple or single file harvester
-        harvester_type = {DataTypeKey.CTDPF_CKL_WFP_SIO_MULE: HarvesterType.SINGLE_FILE,
-                          DataTypeKey.CTDPF_CKL_WFP: HarvesterType.SINGLE_DIRECTORY}
+        # link the data keys to the harvester type, single or multiple file harvester
+        harvester_type = {DataTypeKey.CTDPF_CKL_WFP: HarvesterType.SINGLE_DIRECTORY,
+                          DataTypeKey.CTDPF_CKL_WFP_SIO_MULE: HarvesterType.SINGLE_FILE}
 
         super(CtdpfCklWfpDataSetDriver, self).__init__(config,
                                                        memento,
@@ -90,8 +90,8 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
-                    INSTRUMENT_DATA_PARTICLE_CLASS : CtdpfCklWfpRecoveredDataParticle,
-                    METADATA_PARTICLE_CLASS : CtdpfCklWfpRecoveredMetadataParticle
+                    INSTRUMENT_DATA_PARTICLE_CLASS: CtdpfCklWfpRecoveredDataParticle,
+                    METADATA_PARTICLE_CLASS: CtdpfCklWfpRecoveredMetadataParticle
                 }
             })
 
@@ -112,8 +112,8 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp_sio_mule',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
-                    INSTRUMENT_DATA_PARTICLE_CLASS : CtdpfCklWfpSioMuleDataParticle,
-                    METADATA_PARTICLE_CLASS : CtdpfCklWfpSioMuleMetadataParticle
+                    INSTRUMENT_DATA_PARTICLE_CLASS: CtdpfCklWfpSioMuleDataParticle,
+                    METADATA_PARTICLE_CLASS: CtdpfCklWfpSioMuleMetadataParticle
                 }
             })
 
@@ -121,14 +121,12 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
                 config,
                 parser_state,
                 infile,
-                lambda state:
-                    self._save_parser_state(state, DataTypeKey.CTDPF_CKL_WFP_SIO_MULE),
+                lambda state: self._save_parser_state(state, DataTypeKey.CTDPF_CKL_WFP_SIO_MULE),
                 self._data_callback,
                 self._sample_exception_callback
-        )
+            )
         else:
-            raise ConfigurationException\
-                ('Bad Configuration: %s - Failed to build ctdpf_ckl_wfp parser',config)
+            raise ConfigurationException('Bad Configuration: %s - Failed to build ctdpf_ckl_wfp parser', config)
 
         return parser
 
@@ -156,7 +154,7 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
             if harvester is not None:
                 harvesters.append(harvester)
             else:
-                log.warning('CTDPF_CKL_WFP_RECOVERED HARVESTER NOT BUILT')
+                log.warning('CTDPF_CKL_WFP HARVESTER NOT BUILT')
         #
         # Verify that the CTDPF_CKL_WFP_SIO_MULE harvester has been configured.
         # If so, build the CTDPF_CKL_WFP_SIO_MULE harvester and add it to the
@@ -166,8 +164,7 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
             harvester = SingleFileHarvester(
                 self._harvester_config.get(DataTypeKey.CTDPF_CKL_WFP_SIO_MULE),
                 driver_state[DataTypeKey.CTDPF_CKL_WFP_SIO_MULE],
-                lambda file_state:
-                    self._file_changed_callback(file_state, DataTypeKey.CTDPF_CKL_WFP_SIO_MULE),
+                lambda file_state: self._file_changed_callback(file_state, DataTypeKey.CTDPF_CKL_WFP_SIO_MULE),
                 self._exception_callback
             )
 
