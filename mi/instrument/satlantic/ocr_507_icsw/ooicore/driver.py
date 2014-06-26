@@ -16,11 +16,13 @@ PARAD driver. The following changes are required:
 [-] Rework data particles
 [ ] Add spkir_configuration_record stream
 """
+import functools
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_decorator import ChecksumDecorator
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.protocol_param_dict import ParameterDictType, ParameterDictVisibility
+from mi.core.util import dict_equal
 
 __author__ = 'Godfrey Duke'
 __license__ = 'Apache 2.0'
@@ -41,7 +43,7 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentProtocolException, \
-    InstrumentException, InstrumentDataException, InstrumentTimeoutException
+    InstrumentException, InstrumentDataException, InstrumentTimeoutException, InstrumentCommandException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
@@ -69,7 +71,7 @@ CONFIG_PATTERN = '''Satlantic\ OCR.*?
 CONFIG_REGEX = re.compile(CONFIG_PATTERN, re.DOTALL | re.VERBOSE)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
 init_regex = re.compile(init_pattern)
-WRITE_DELAY = 0.2
+WRITE_DELAY = 0.5 # should be 0.2
 RESET_DELAY = 6
 EOLN = "\r\n"
 RETRY = 3
@@ -100,11 +102,11 @@ class Command(BaseEnum):
     SET = 'set'
     RESET = 0x12                # CTRL-R
     BREAK = 0x03                # CTRL-C
-    #SWITCH_TO_POLL = 0x13       # CTRL-S
     SWITCH_TO_AUTOSAMPLE = 0x01 # CTRL-A
     SAMPLE = 0x0D               # CR
     ID = 'id'
     SHOW_ALL = 'show all'
+    INVALID = 'foo'
 
 class SatlanticProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
@@ -118,8 +120,6 @@ class SatlanticProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-    # START_POLL = SatlanticSpecificDriverEvents.START_POLL
-    # STOP_POLL = SatlanticSpecificDriverEvents.STOP_POLL
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
@@ -136,12 +136,9 @@ class SatlanticCapability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    # ACQUIRE_SAMPLE = SatlanticProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = SatlanticProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = SatlanticProtocolEvent.STOP_AUTOSAMPLE
     ACQUIRE_STATUS = SatlanticProtocolEvent.ACQUIRE_STATUS
-    # START_POLL = SatlanticProtocolEvent.START_POLL
-    # STOP_POLL = SatlanticProtocolEvent.STOP_POLL
     RESET = SatlanticProtocolEvent.RESET
     GET = SatlanticProtocolEvent.GET
     SET = SatlanticProtocolEvent.SET
@@ -156,11 +153,9 @@ class Prompt(BaseEnum):
     """
     Command Prompt
     """
-    COMMAND = '$'
-    NULL = ''
-
-class SatlanticProtocolError(BaseEnum):
-    INVALID_COMMAND = "Invalid command"
+    USAGE = 'Usage'
+    INVALID_COMMAND = 'unknown command'
+    COMMAND = ']$'
 
 
 ###############################################################################
@@ -444,7 +439,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         # self._protocol_fsm.add_handler(SatlanticProtocolState.COMMAND, SatlanticProtocolEvent.RESET, self._handler_command_reset)
@@ -466,11 +460,13 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(Command.RESET, self._build_control_command)
         self._add_build_handler(Command.BREAK, self._build_multi_control_command)
         self._add_build_handler(Command.SAMPLE, self._build_control_command)
-        # self._add_build_handler(Command.SWITCH_TO_POLL, self._build_control_command)
+        self._add_build_handler(Command.ID, self._build_id_command)
+        self._add_build_handler(Command.SHOW_ALL, self._build_show_all_command)
+        self._add_build_handler(Command.INVALID, self._build_invalid_command)
 
         self._add_response_handler(Command.GET, self._parse_get_response)
         self._add_response_handler(Command.SET, self._parse_set_response)
-        # self._add_response_handler(Command.SWITCH_TO_POLL, self._parse_silent_response)
+        self._add_response_handler(Command.INVALID, self._parse_invalid_response)
         self._add_response_handler(Command.SAMPLE, self._parse_cmd_prompt_response, SatlanticProtocolState.COMMAND)
         self._add_response_handler(Command.BREAK, self._parse_silent_response, SatlanticProtocolState.COMMAND)
         self._add_response_handler(Command.BREAK, self._parse_header_response, SatlanticProtocolState.AUTOSAMPLE)
@@ -480,7 +476,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.MAX_RATE,
                              r"Maximum\ Frame\ Rate:\ ([(\d|.]+)\ Hz\s*",
                              lambda match : float(match.group(1)),
-                             self._float_to_string,
+                             lambda fVal : '%.1f' % fVal,
                              type=ParameterDictType.FLOAT,
                              display_name="Max Rate",
                              default_value=15,
@@ -489,34 +485,34 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.INIT_AT,
                              r"Initialize Automatic Telemetry: (off|on)",
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match : True if match.group(1) == 'on' else False,
                              self._boolean_to_off_on,
                              type=ParameterDictType.BOOL,
                              display_name="Init AT",
                              default_value='on',
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
 
         self._param_dict.add(Parameter.INIT_SM,
                              r"Initialize Silent Mode: (off|on)",
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match : True if match.group(1) == 'on' else False,
                              self._boolean_to_off_on,
                              type=ParameterDictType.BOOL,
                              display_name="Init SM",
                              default_value='on',
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
 
         self._param_dict.add(Parameter.NET_MODE,
                              r"Network Mode: (off|on)",
-                             lambda match : True if match.group(1) == 'yes' else False,
+                             lambda match : True if match.group(1) == 'on' else False,
                              self._boolean_to_off_on,
                              type=ParameterDictType.BOOL,
                              display_name="Net Mode",
                              default_value='off',
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
 
@@ -526,25 +522,12 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
-        # self._param_dict.add(Parameter.MAXRATE,
-        #                      r'Maximum Frame Rate:\s+(\d+) Hz',
-        #                      lambda match : int(match.group(1)),
-        #                      self._int_to_string,
-        #                      startup_param=True)
-        #
-        # self._param_dict.add(Parameter.INSTRUMENT, HEADER_PATTERN,
-        #     lambda match : match.group(1), str,
-        #     visibility=ParameterDictVisibility.READ_ONLY)
-        #
-        # self._param_dict.add(Parameter.SERIAL, HEADER_PATTERN,
-        #                      lambda match : match.group(2), str,
-        #                      visibility=ParameterDictVisibility.READ_ONLY)
-        #
-        # self._param_dict.add(Parameter.FIRMWARE, HEADER_PATTERN,
-        #                      lambda match : match.group(3), str,
-        #                      visibility=ParameterDictVisibility.READ_ONLY)
-
         self._chunker = StringChunker(self.sieve_function)
+
+        # To "override" this:
+        # super(Protocol, self)._do_cmd_resp
+        self._do_cmd_resp = functools.partial(self._do_cmd_resp,
+                                              expected_prompt=[Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND], write_delay=self.write_delay)
 
     @staticmethod
     def _boolean_to_off_on(v):
@@ -555,7 +538,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentParameterException if value not a bool.
         """
 
-        if not isinstance(v,bool):
+        if not isinstance(v, bool):
             raise InstrumentParameterException('Value %s is not a bool.' % str(v))
         if v:
             return 'on'
@@ -595,49 +578,9 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         Should be a dict of parameters and values
         @throws InstrumentProtocolException On invalid parameter
         """
-        config = self._protocol_fsm.on_event(SatlanticProtocolEvent.GET, [Parameter.MAX_RATE], **kwargs)
-        assert (isinstance(config, dict))
-        assert (config.has_key(Parameter.MAX_RATE))
-
-        # Make sure we get these
-        # TODO: endless loops seem like really bad idea
-        while config[Parameter.MAX_RATE] == InstErrorCode.HARDWARE_ERROR:
-            config[Parameter.MAX_RATE] = self._protocol_fsm.on_event(SatlanticProtocolEvent.GET, [Parameter.MAX_RATE])
-
-        return config
-
-    def _do_cmd_no_resp(self, cmd, *args, **kwargs):
-        """
-        Issue a command to the instrument after clearing of
-        buffers. No response is handled as a result of the command.
-
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup timeout.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built.
-        """
-        timeout = kwargs.get('timeout', 10)
-        write_delay = kwargs.get('write_delay', 0)
-
-
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
-        cmd_line = build_handler(cmd, *args)
-
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        # Send command.
-        log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
-        if (write_delay == 0):
-            self._connection.send(cmd_line)
-        else:
-            for char in cmd_line:
-                self._connection.send(char)
-                time.sleep(write_delay)
+        for param in Parameter.list():
+            if param != Parameter.ALL:
+                self._do_cmd_resp(Command.GET, param, **kwargs)
 
     ########################################################################
     # Unknown handlers.
@@ -651,32 +594,25 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    # TODO: Avoid resetting instrument during discovery (could enter a CR/LF and parse response)
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result), (SBE37ProtocolState.COMMAND or
-        SBE37State.AUTOSAMPLE, None) if successful.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not correspond to
-        an expected state.
+        @retval (next_state, result), (SatlanticProtocolState.COMMAND, ResourceAgentState.IDLE or
+        SatlanticProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING) if successful.
         """
-        next_state = None
-        result = None
+        try:
+            invalidCommandResponse = self._do_cmd_resp(Command.INVALID, timeout=10, expected_prompt=Prompt.INVALID_COMMAND, write_delay=WRITE_DELAY)
+        except InstrumentTimeoutException as ex:
+            invalidCommandResponse = None # The instrument is not in COMMAND: it must be polled or AUTOSAMPLE
 
-        self._do_cmd_no_resp(Command.EXIT_AND_RESET, None, write_delay=self.write_delay)
-        time.sleep(RESET_DELAY)
-
-        # Break to command mode, then set next state to command mode
-        # If we are doing this, we must be connected
-        self._send_break()
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        next_state = SatlanticProtocolState.COMMAND
-        result = ResourceAgentState.IDLE
-
-        log.debug("_handler_unknown_discover complete")
-
-        return (next_state, result)
+        log.debug("_handler_unknown_discover: returned: %s", invalidCommandResponse)
+        if invalidCommandResponse:
+            return SatlanticProtocolState.COMMAND, ResourceAgentState.IDLE
+        else:
+            # Put the instrument back into full autosample
+            self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
+            return SatlanticProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
 
     ########################################################################
     # Command handlers.
@@ -689,66 +625,21 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        self._update_params(timeout=3)
+        # self._update_params(timeout=3)
         self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_command_get(self, params=None, *args, **kwargs):
+    def _handler_command_get(self, *args, **kwargs):
         """Handle getting data from command mode
 
         @param params List of the parameters to pass to the state
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid parameter
         """
-        next_state = None
-        result = None
-        result_vals = {}
-
-        # All parameters that can be set by the instrument.  Explicitly
-        # excludes parameters from the instrument header.
-        if (params == DriverParameter.ALL):
-            params = [Parameter.MAX_RATE]
-
-        if ((params == None) or (not isinstance(params, list))):
-                raise InstrumentParameterException()
-
-        for param in params:
-            if not Parameter.has(param):
-                raise InstrumentParameterException()
-
-            if(param == Parameter.MAX_RATE):
-                result_vals[param] = self._get_from_instrument(param)
-            else:
-                result_vals[param] = self._get_from_cache(param)
-
-        result = result_vals
-
-        log.debug("Get finished, next: %s, result: %s", next_state, result)
-        return (next_state, result)
-
-    def _get_from_cache(self, param):
-        '''
-        Parameters read from the instrument header generated are cached in the
-        protocol.  These currently are firmware, serial number, and instrument
-        type. Currently I assume that the header has already been displayed
-        by the instrument already.  If we can't live with that assumption
-        we should augment this method.
-        @param param: name of the parameter.  None if value not cached.
-        @return: Stored value
-        '''
-
-        if(param == Parameter.FIRMWARE):
-            val = self._firmware
-        elif(param == Parameter.SERIAL):
-            val = self._serial
-        elif(param == Parameter.INSTRUMENT):
-            val = self._instrument
-
-        return val
-
+        return self._handler_get(*args, **kwargs)
 
     def _get_from_instrument(self, param):
         '''
@@ -763,52 +654,22 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                 val = self._do_cmd_resp(Command.GET, param,
                     expected_prompt=Prompt.COMMAND,
                     write_delay=self.write_delay)
-                return val
+                return val.get(param)
             except InstrumentProtocolException as ex:
                 pass   # GET failed, so retry again
         else:
             # retries exhausted, so raise exception
             raise ex
 
-    def _handler_command_set(self, params, *args, **kwargs):
+    def _handler_command_set(self, *args, **kwargs):
         """Handle setting data from command mode
 
         @param params Dict of the parameters and values to pass to the state
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid parameter
         """
-        next_state = None
-        result = None
-        result_vals = {}
-
-        if ((params == None) or (not isinstance(params, dict))):
-            raise InstrumentParameterException()
-        for key in params:
-            if not Parameter.has(key):
-                raise InstrumentParameterException()
-            try:
-                str_val = self._param_dict.format(key, params[key])
-            except KeyError:
-                raise InstrumentParameterException()
-            result_vals[key] = self._do_cmd_resp(Command.SET, key, str_val,
-                                                 expected_prompt=Prompt.COMMAND,
-                                                 write_delay=self.write_delay)
-
-        self._update_params()
-        result = self._do_cmd_resp(Command.SAVE, None, None,
-                                   expected_prompt=Prompt.COMMAND,
-                                   write_delay=self.write_delay)
-
-        """@todo raise a parameter error if there was a bad value"""
-        for key,value in result_vals.iteritems():
-            # Populate with actual value instead of success flag
-            if value:
-                result_vals[key] = params[key]
-            else:
-                raise InstrumentParameterException()
-
-        log.debug("next: %s, result: %s", next_state, result_vals)
-        return (next_state, result_vals)
+        self._set_params(*args, **kwargs)
+        return None, None
 
     def _handler_command_start_autosample(self, params=None, *args, **kwargs):
         """
@@ -839,25 +700,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
-
-    def _handler_command_acquire_sample(self, *args, **kwargs):
-        # TODO FIXME during integration testing. The code below is wrong. We should exit from Command mode, immediately pick up the first auto-sample record, and re-enter command mode
-        """Handle PARProtocolState.POLL PARProtocolEvent.ACQUIRE_SAMPLE
-
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid command
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        # This sometimes takes a few seconds, so stall after our sample cmd
-        # and before the read/parse
-        delay = self.write_delay + 2
-        self._do_cmd_no_resp(Command.SAMPLE, write_delay=delay)
-
-        return (next_state, (next_agent_state, result))
-        # TODO FIXME during integration testing. The code above is wrong. We should exit from Command mode, immediately pick up the first auto-sample record, and re-enter command mode
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """Handle PARProtocolState.POLL PARProtocolEvent.ACQUIRE_SAMPLE
@@ -919,54 +761,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                                               msg="Could not break from autosample!")
 
         return (next_state, (next_agent_state, result))
-
-    def _handler_autosample_start_poll(self, *args, **kwargs):
-        """Handle PARProtocolState.AUTOSAMPLE start poll
-
-        @param params Parameters to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For hardware error
-        """
-        next_state = None
-        result = None
-
-        try:
-            self._switch_to_poll()
-            # Give the instrument a bit to keep up. 1 sec is not enough!
-            time.sleep(5)
-
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-            next_state = SatlanticProtocolState.POLL
-            next_agent_state = ResourceAgentState.COMMAND
-        except InstrumentException:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Could not stop autosample!")
-        return (next_state, (next_agent_state, result))
-
-    # def _handler_autosample_reset(self, *args, **kwargs):
-    #     """Handle PARProtocolState.AUTOSAMPLE reset
-    #
-    #     @param params Dict with "command" enum and "params" of the parameters to
-    #     pass to the state
-    #     @retval return (next state, result)
-    #     @throw InstrumentProtocolException For invalid parameter
-    #     """
-    #     next_state = None
-    #     result = None
-    #
-    #     try:
-    #         self._send_reset()
-    #         time.sleep(RESET_DELAY)
-    #
-    #         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-    #         next_state = SatlanticProtocolState.AUTOSAMPLE
-    #         next_agent_state = ResourceAgentState.COMMAND
-    #     except InstrumentException:
-    #         raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-    #                                           msg="Could not reset autosample!")
-    #
-    #     log.debug("next: %s, result: %s", next_state, result)
-    #     return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Direct access handlers.
@@ -1062,6 +856,33 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         return "%c" % (cmd)
 
+    def _build_id_command(self, cmd, *args):
+        """ Send an invalid command (useful for state discovery)
+
+        @param cmd The command to send
+        @param args Unused arguments
+        @retval The string with the complete command
+        """
+        return "%s%s" % (Command.ID, self.eoln)
+
+    def _build_show_all_command(self, cmd, *args):
+        """ Send an invalid command (useful for state discovery)
+
+        @param cmd The command to send
+        @param args Unused arguments
+        @retval The string with the complete command
+        """
+        return "%s%s" % (Command.SHOW_ALL, self.eoln)
+
+    def _build_invalid_command(self, cmd, *args):
+        """ Send an invalid command (useful for state discovery)
+
+        @param cmd The command to send
+        @param args Unused arguments
+        @retval The string with the complete command
+        """
+        return "%s%s" % (cmd, self.eoln)
+
     def _build_multi_control_command(self, cmd, *args):
         """ Send a quick series of control char command
 
@@ -1094,16 +915,26 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @raise InstrumentProtocolException When a bad response is encountered
         """
         # should end with the response, an eoln, and a prompt
-        split_response = response.split(self.eoln)
-        if (len(split_response) < 2) or (split_response[-1] != Prompt.COMMAND):
-            return InstErrorCode.HARDWARE_ERROR
-        name = self._param_dict.update(split_response[-2])
-        if not name:
-            log.warn("Bad response from instrument")
+        update_dict = self._param_dict.update_many(response)
+        log.debug("GODFREY: %r", update_dict)
+        if not update_dict or len(update_dict) > 1:
+            log.warn("Get response set multiple parameters (%r): expected only 1", update_dict)
             raise InstrumentProtocolException("Invalid response. Bad command?")
 
-        log.debug("Parameter %s set to %s" %(name, self._param_dict.get(name)))
-        return self._param_dict.get(name)
+        return self._param_dict.get_all()
+        #update_dict.values()[0]
+
+    def _parse_invalid_response(self, response, prompt):
+        """ Parse the response from the instrument for a couple of different
+        query responses.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return true iff Prompt.INVALID_COMMAND was returned
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        # should end with the response, an eoln, and a prompt
+        return Prompt.INVALID_COMMAND == prompt
 
     def _parse_silent_response(self, response, prompt):
         """Parse a silent response
@@ -1172,38 +1003,42 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             return InstErrorCode.HARDWARE_ERROR
 
-    def _parse_sample_poll_response(self, response, prompt):
-        """Parse a sample poll response
-
-        @param response What was sent back from the command that was sent
-        @param prompt The prompt that was returned from the device
-        @retval return The sample string
-        """
-        log.debug("Parsing sample poll response of [%s] with prompt [%s]",
-                        response, prompt)
-        if (prompt == ""):
-            # strip the eoln, check for regex, report data,
-            # and leave it in the buffer for return via execute_poll
-            if self.eoln in response:
-                lines = response.split(self.eoln)
-                for line in lines:
-                    if SAMPLE_REGEX.match(line):
-                        # In poll mode, we only care about the first response, right?
-                        return line
-                    else:
-                        return ""
-            elif SAMPLE_REGEX.match(response):
-                return response
-            else:
-                return ""
-
-        else:
-            return InstErrorCode.HARDWARE_ERROR
-
-
     ###################################################################
     # Helpers
     ###################################################################
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        Also called when setting parameters during startup and direct access
+        """
+
+        params = args[0]
+
+        # try:
+        self._verify_not_readonly(*args, **kwargs)
+        old_config = self._param_dict.get_config()
+
+        for key in params:
+            val = self._param_dict.format(key, params[key])
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            # Check for existance in dict (send only on change)
+            if not self._do_cmd_resp(Command.SET, key, val):
+                raise InstrumentCommandException('Error setting: %s = %s', key, val)
+            self._param_dict.set_value(key, params[key])
+
+        self._update_params()
+        result = self._do_cmd_resp(Command.SAVE, None, None,
+                                   expected_prompt=Prompt.COMMAND,
+                                   write_delay=self.write_delay)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        log.debug("new_config: %s == old_config: %s", new_config, old_config)
+        if not dict_equal(old_config, new_config):
+            log.debug("configuration has changed.  Send driver event")
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     def _wakeup(self, timeout):
         """There is no wakeup sequence for this instrument"""
         pass
@@ -1221,6 +1056,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self.get_config()
         new_config = self._param_dict.get_config()
         if (new_config != old_config):
+            log.debug('Whiskey Tango Foxtrot: %r != %r', new_config, old_config)
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _send_reset(self, timeout=10):
@@ -1243,29 +1079,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             time.sleep(RESET_DELAY)
             if self._confirm_autosample_mode():
                 break
-
-    # def _switch_to_poll(self, timeout=10):
-    #     """Send a switch_to_poll command out to the device
-    #
-    #     @retval return InstErrorCode.OK for success or no-op, error code on
-    #     failure
-    #     @throw InstrumentTimeoutException
-    #     @throw InstrumentProtocolException
-    #     @todo handle errors correctly here, deal with repeats at high sample rate
-    #     """
-    #     write_delay = 0.2
-    #     log.debug("Sending switch_to_poll char")
-    #
-    #     counter = 0
-    #     while (counter < 10):
-    #         self._do_cmd_no_resp(Command.SWITCH_TO_POLL, timeout=0,
-    #                              write_delay=write_delay)
-    #
-    #         time.sleep(.5)    # wait a little for samples to stop coming out
-    #         if self._confirm_poll_mode():
-    #             return True
-    #         counter = counter + 1
-    #     return False
 
     def _send_break(self, timeout=10):
         """Send a blind break command to the device, confirm command mode after
@@ -1367,23 +1180,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         time.sleep(0.5)
 
         return True
-
-    def _confirm_poll_mode(self):
-        """Confirm we are in poll mode by waiting for things not to happen.
-
-        Time depends on max data rate
-        @retval True if in poll mode, False if not
-        """
-        log.debug("Confirming poll mode...")
-
-        auto_sample_mode = self._confirm_autosample_mode()
-        cmd_mode = self._confirm_command_mode()
-        if (not auto_sample_mode) and (not cmd_mode):
-            log.debug("Confirmed in poll mode")
-            return True
-        else:
-            log.debug("Confirmed NOT in poll mode")
-            return False
 
 # TODO: verify this
 ####################################################################

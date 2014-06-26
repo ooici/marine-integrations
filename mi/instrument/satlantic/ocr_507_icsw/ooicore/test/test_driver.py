@@ -77,10 +77,10 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.MAX_RATE: '4',
-            Parameter.INIT_SM: 'True',
-            Parameter.INIT_AT: 'True',
-            Parameter.NET_MODE: 'False'
+            Parameter.MAX_RATE: 4.0,
+            Parameter.INIT_SM: True,
+            Parameter.INIT_AT: True,
+            Parameter.NET_MODE: False
         }
     }
 )
@@ -130,10 +130,10 @@ class PARMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.MAX_RATE : {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4},
-        Parameter.INIT_SM : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: 'on'},
-        Parameter.INIT_AT : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: 'on'},
-        Parameter.NET_MODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: 'off'},
+        Parameter.MAX_RATE : {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4.0},
+        Parameter.INIT_SM : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
+        Parameter.INIT_AT : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
+        Parameter.NET_MODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
     }
 
     _sample_parameters = {
@@ -275,7 +275,7 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
-        # self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
+        self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
         self.assert_particle_published(driver, VALID_CONFIG, self.assert_particle_config, True)
 
     # PASSES
@@ -310,7 +310,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
             SatlanticProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                              'DRIVER_EVENT_SET',
                                              'DRIVER_EVENT_START_AUTOSAMPLE',
-                                             'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                              'DRIVER_EVENT_ACQUIRE_STATUS',
                                              'DRIVER_EVENT_START_DIRECT'],
             SatlanticProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
@@ -365,8 +364,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
     # TODO
-    @unittest.skip('temp for debugging')
-    def test_autosample(self):
+    #@unittest.skip('temp for debugging')
+    def test_autosample_and_status_particle_gen(self):
         """
         Verify that we can enter streaming and that all particles are produced
         properly.
@@ -380,14 +379,15 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
         4. command the instrument to STOP AUTOSAMPLE state
         5. verify the particle coming in
         """
-        self.assert_initialize_driver(ProtocolState.COMMAND)
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        self.assert_async_particle_generation(DataParticleType.FLORTD_SAMPLE, self.assert_particle_sample, timeout=10)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_async_particle_generation(DataParticleType.FLORTD_MNU, self.assert_particle_mnu, timeout=10)
+        self.assert_initialize_driver()
+        self.assert_driver_command(SatlanticProtocolEvent.START_AUTOSAMPLE, state=SatlanticProtocolState.AUTOSAMPLE)
+        self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample, timeout=30)
+        self.assert_driver_command(SatlanticProtocolEvent.STOP_AUTOSAMPLE, state=SatlanticProtocolState.COMMAND)
+        self.assert_driver_command(SatlanticProtocolEvent.ACQUIRE_STATUS, state=SatlanticProtocolState.COMMAND)
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_particle_config, timeout=10)
 
     # TODO
-    @unittest.skip('temp for debugging')
+    #@unittest.skip('temp for debugging')
     def test_parameters(self):
         """
         Verify that we can set the parameters
@@ -396,76 +396,47 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
         2. Can set read/write parameters
         3. Can set read/write parameters w/direct access only
         """
-        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_initialize_driver(SatlanticProtocolState.COMMAND)
 
         #test read/write parameter
-        self.assert_set(Parameter.MEASUREMENTS_PER_REPORTED, 20)
+        self.assert_set(Parameter.MAX_RATE, 2.0)
 
         #test setting immutable parameters when startup
         #NOTE: this does not use the startup config because setting a combination of parameters from their default
         #values will cause the instrument to no longer break out of autosample mode.  This is a safe way to test
         #setting startup params without the risk of going into autosample mode.
-        self.assert_set(Parameter.MEASUREMENTS_PER_PACKET, 18, startup=True, no_get=True)
-        self.assert_get(Parameter.MEASUREMENTS_PER_PACKET, 18)
+        self.assert_set(Parameter.INIT_SM, False, startup=True, no_get=True)
+        self.assert_get(Parameter.INIT_SM, False)
 
-        self.assert_set(Parameter.PREDEFINED_OUTPUT_SEQ, 3, startup=True, no_get=True)
-        self.assert_get(Parameter.PREDEFINED_OUTPUT_SEQ, 3)
+        self.assert_set(Parameter.INIT_AT, False, startup=True, no_get=True)
+        self.assert_get(Parameter.INIT_AT, False)
 
-        self.assert_set(Parameter.PACKETS_PER_SET, 10, startup=True, no_get=True)
-        self.assert_get(Parameter.PACKETS_PER_SET, 10)
-
-        self.assert_set(Parameter.RECORDING_MODE, 1, startup=True, no_get=True)
-        self.assert_get(Parameter.RECORDING_MODE, 1)
-
-        self.assert_set(Parameter.MANUAL_MODE, 1, startup=True, no_get=True)
-        self.assert_get(Parameter.MANUAL_MODE, 1)
-
-        self.assert_set(Parameter.RUN_WIPER_INTERVAL, '05:00:23', startup=True, no_get=True)
-        self.assert_get(Parameter.RUN_WIPER_INTERVAL, '05:00:23')
-
-        self.assert_set(Parameter.RUN_CLOCK_SYNC_INTERVAL, '12:00:00', startup=True, no_get=True)
-        self.assert_get(Parameter.RUN_CLOCK_SYNC_INTERVAL, '12:00:00')
-
-        self.assert_set(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, '00:00:30', startup=True, no_get=True)
-        self.assert_get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, '00:00:30')
+        # Set the netmode to True (This should never be True: make sure not to leave it like this...)
+        self.assert_set(Parameter.NET_MODE, True, startup=True, no_get=True)
+        self.assert_get(Parameter.NET_MODE, True)
+        # Set the netmode back to False (Phew! That was close!)
+        self.assert_set(Parameter.NET_MODE, False, startup=True, no_get=True)
+        self.assert_get(Parameter.NET_MODE, False)
 
         #test read only parameter (includes immutable, when not startup)- should not be set, value should not change
-        self.assert_set_exception(Parameter.SERIAL_NUM, '12.123.1234')
-        self.assert_set_exception(Parameter.FIRMWARE_VERSION, 'VER123')
-        self.assert_set_exception(Parameter.MEASUREMENTS_PER_PACKET, 16)
-        self.assert_set_exception(Parameter.MEASUREMENT_1_DARK_COUNT, 10)
-        self.assert_set_exception(Parameter.MEASUREMENT_2_DARK_COUNT, 20)
-        self.assert_set_exception(Parameter.MEASUREMENT_3_DARK_COUNT, 30)
-        self.assert_set_exception(Parameter.MEASUREMENT_1_SLOPE, 12.00)
-        self.assert_set_exception(Parameter.MEASUREMENT_2_SLOPE, 13.00)
-        self.assert_set_exception(Parameter.MEASUREMENT_3_SLOPE, 14.00)
-        self.assert_set_exception(Parameter.PREDEFINED_OUTPUT_SEQ, 0)
-        self.assert_set_exception(Parameter.BAUD_RATE, 2422)
-        self.assert_set_exception(Parameter.PACKETS_PER_SET, 0)
-        self.assert_set_exception(Parameter.RECORDING_MODE, 0)
-        self.assert_set_exception(Parameter.MANUAL_MODE, 0)
-        self.assert_set_exception(Parameter.SAMPLING_INTERVAL, "003000")
-        self.assert_set_exception(Parameter.DATE, get_timestamp_delayed("%m/%d/%y"))
-        self.assert_set_exception(Parameter.TIME, get_timestamp_delayed("%H:%M:%S"))
-        self.assert_set_exception(Parameter.MANUAL_START_TIME, "15:10:45")
-        self.assert_set_exception(Parameter.INTERNAL_MEMORY, 512)
-        self.assert_set_exception(Parameter.RUN_WIPER_INTERVAL, "00:00:00")
-        self.assert_set_exception(Parameter.RUN_CLOCK_SYNC_INTERVAL, "00:00:00")
-        self.assert_set_exception(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, "00:00:00")
+        self.assert_set_exception(Parameter.INIT_SM, True)
+        self.assert_set_exception(Parameter.INIT_AT, True)
+        self.assert_set_exception(Parameter.NET_MODE, True)
+        self.assert_set_exception(Parameter.NET_MODE, False)
 
     # TODO
-    @unittest.skip('temp for debugging')
+    # @unittest.skip('temp for debugging')
     def test_direct_access(self):
         """
         Verify we can enter the direct access state
         """
-        self.assert_initialize_driver(ProtocolState.COMMAND)
-        self.assert_state_change(ProtocolState.COMMAND, 5)
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
-        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+        self.assert_initialize_driver(SatlanticProtocolState.COMMAND)
+        self.assert_state_change(SatlanticProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.START_DIRECT)
+        self.assert_state_change(SatlanticProtocolState.DIRECT_ACCESS, 5)
 
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
-        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', SatlanticProtocolEvent.STOP_DIRECT)
+        self.assert_state_change(SatlanticProtocolState.COMMAND, 5)
         log.debug('leaving direct access')
 # @attr('INT', group='mi')
 # class SatlanticProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
