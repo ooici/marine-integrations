@@ -3,7 +3,7 @@
 """
 @package mi.dataset.parser.test.test_parad_k_stc_imodem
 @file marine-integrations/mi/dataset/parser/test/test_parad_k_stc_imodem.py
-@author Mike Nicoletti
+@author Mike Nicoletti, Steve Myerson (recovered)
 @brief Test code for a Parad_k_stc_imodem data parser
 """
 import struct, ntplib
@@ -15,8 +15,14 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.dataset.parser.parad_k_stc_imodem import Parad_k_stc_imodemParser, Parad_k_stc_imodemParserDataParticle, StateKey
+
+from mi.dataset.parser.parad_k_stc_imodem import \
+    Parad_k_stc_imodemParser,\
+    Parad_k_stc_imodemRecoveredParser, \
+    Parad_k_stc_imodemDataParticle, \
+    Parad_k_stc_imodemRecoveredDataParticle
+
+from mi.dataset.parser.WFP_E_file_common import StateKey
 
 @attr('UNIT', group='mi')
 class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
@@ -65,6 +71,26 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         "\x00\x00\x00\x00\xf2\x00c\x00OR\x9d\xac&C\xbc\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00OR\x9d\xac" \
         "*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O"
 
+    # Has a NaN for par_value
+    TEST_DATA_NAN = \
+        '\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00' \
+        '\x52\x9D\xAB\xA2\x52\x9D\xAC\x19' \
+        '\x52\x9D\xAC\x1D' \
+        '\x00\x00\x00\x00\x41\x3A\x36\xE3\x00\x00\x00\x00' \
+        '\xFF\xC0\x00\x00' \
+        '\x01\x03\x00\x68\x00\x4E'
+
+
+    def create_rec_parser(self, new_state, file_handle):
+        """
+        This function creates a Parad_k_stc parser for recovered data.
+        """
+        if new_state is None:
+            new_state = self.state
+        parser = Parad_k_stc_imodemRecoveredParser(self.rec_config, new_state, file_handle,
+            self.state_callback, self.pub_callback)
+        return parser
+
     def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.file_ingested = file_ingested
@@ -78,11 +104,21 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         
         ParserUnitTestCase.setUp(self)
         self.config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.parad_k_stc_imodem',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: ['Parad_k_stc_imodem_statusParserDataParticle',
-                                                     'Parad_k_stc_imodem_startParserDataParticle',
-                                                     'Parad_k_stc_imodem_engineeringParserDataParticle']
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 
+                'mi.dataset.parser.parad_k_stc_imodem',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 
+                ['Parad_k_stc_imodem_statusParserDataParticle',
+                 'Parad_k_stc_imodem_startParserDataParticle',
+                 'Parad_k_stc_imodem_engineeringParserDataParticle']
             }
+
+        self.rec_config = {
+            DataSetDriverConfigKeys.PARTICLE_MODULE:
+                'mi.dataset.parser.parad_k_stc_imodem',
+            DataSetDriverConfigKeys.PARTICLE_CLASS:
+                ['Parad_k_stc_imodemRecoveredDataParticle']
+        }
+
         self.start_state = {StateKey.POSITION: 0}
 
         # Define test data particles and their associated timestamps which will be 
@@ -90,40 +126,62 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         self.timestamp1_eng = self.timestamp_to_ntp('R\x9d\xac\x1d')
         log.debug("Converted timestamp #1: %s",self.timestamp1_eng)
-        self.particle_a_eng = Parad_k_stc_imodemParserDataParticle(b'R\x9d\xac\x1d' \
+        self.particle_a_eng = Parad_k_stc_imodemDataParticle(b'R\x9d\xac\x1d' \
             '\x00\x00\x00\x00A:6\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x01\x03\x00h\x00N',
             internal_timestamp=self.timestamp1_eng)
 
         self.timestamp2_eng = self.timestamp_to_ntp('R\x9d\xac!')
-        self.particle_b_eng = Parad_k_stc_imodemParserDataParticle(b'R\x9d\xac!C\t' \
+        self.particle_b_eng = Parad_k_stc_imodemDataParticle(b'R\x9d\xac!C\t' \
             '\xf2\xf7A9A!\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf2\x00c\x00O',
             internal_timestamp=self.timestamp2_eng)
 
         self.timestamp3_eng = self.timestamp_to_ntp('R\x9d\xac&')
-        self.particle_c_eng = Parad_k_stc_imodemParserDataParticle(b"R\x9d\xac&C\xbc" \
+        self.particle_c_eng = Parad_k_stc_imodemDataParticle(b"R\x9d\xac&C\xbc" \
             "\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00O",
             internal_timestamp=self.timestamp3_eng)
 
         self.timestamp4_eng = self.timestamp_to_ntp('R\x9d\xac*')
-        self.particle_d_eng = Parad_k_stc_imodemParserDataParticle(b'R\x9d\xac' \
+        self.particle_d_eng = Parad_k_stc_imodemDataParticle(b'R\x9d\xac' \
             '*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O',
             internal_timestamp=self.timestamp4_eng)
 
         self.timestamp_last_eng = self.timestamp_to_ntp('R\x9d\xac\xcf')
-        self.particle_last_eng = Parad_k_stc_imodemParserDataParticle(b'R\x9d\xac\xcfA' \
+        self.particle_last_eng = Parad_k_stc_imodemDataParticle(b'R\x9d\xac\xcfA' \
             '\xfa\xb2:A5\x0b\x0fA\xf2\x8f\\\x00\x00\x00\x00\x00\xaf\x00m\x00P',
             internal_timestamp=self.timestamp_last_eng)
 
+        # Recovered expected particles
+        self.particle_a_eng_rec = Parad_k_stc_imodemRecoveredDataParticle(b'R\x9d\xac\x1d' \
+            '\x00\x00\x00\x00A:6\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x01\x03\x00h\x00N',
+            internal_timestamp=self.timestamp1_eng)
 
-	# uncomment the following to generate particles in yml format for driver testing results files
+        self.particle_b_eng_rec = Parad_k_stc_imodemRecoveredDataParticle(b'R\x9d\xac!C\t' \
+            '\xf2\xf7A9A!\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf2\x00c\x00O',
+            internal_timestamp=self.timestamp2_eng)
+
+        self.particle_c_eng_rec = Parad_k_stc_imodemRecoveredDataParticle(b"R\x9d\xac&C\xbc" \
+            "\x9f\xa7A7'\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc2\x00^\x00O",
+            internal_timestamp=self.timestamp3_eng)
+
+        self.particle_d_eng_rec = Parad_k_stc_imodemRecoveredDataParticle(b'R\x9d\xac' \
+            '*C\xc5\xad\x08A6\xd5\xd0\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb4\x00n\x00O',
+            internal_timestamp=self.timestamp4_eng)
+
+        self.particle_last_eng_rec = Parad_k_stc_imodemRecoveredDataParticle(b'R\x9d\xac\xcfA' \
+            '\xfa\xb2:A5\x0b\x0fA\xf2\x8f\\\x00\x00\x00\x00\x00\xaf\x00m\x00P',
+            internal_timestamp=self.timestamp_last_eng)
+
+        # uncomment the following to generate particles in yml format for driver testing results files
         #self.particle_to_yml(self.particle_a_eng)
-	#self.particle_to_yml(self.particle_b_eng)
-	#self.particle_to_yml(self.particle_c_eng)
-	#self.particle_to_yml(self.particle_d_eng)
+        #self.particle_to_yml(self.particle_b_eng)
+        #self.particle_to_yml(self.particle_c_eng)
+        #self.particle_to_yml(self.particle_d_eng)
 
         self.file_ingested = False
         self.state_callback_value = None
         self.publish_callback_value = None
+        self.state = None
+
     def particle_to_yml(self, particle):
         """
         This is added as a testing helper, not actually as part of the parser tests. Since the same particles
@@ -144,14 +202,13 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
                 fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
         fid.close()
 
-
     def test_simple(self):
         """
         Read test data and pull out data particles one at a time.
         Assert that the results are those we expected.
         """
         self.stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_SHORT) #turn into a data stream to look like file ingestion
-        self.parser =  Parad_k_stc_imodemParser(self.config, self.start_state, self.stream_handle,
+        self.parser = Parad_k_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback) # last one is the link to the data source
         # next get engineering records
         result = self.parser.get_records(1)
@@ -171,11 +228,36 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], self.particle_d_eng)
 
+    def test_simple_recovered(self):
+        """
+        Read recovered test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        """
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_SHORT) #turn into a data stream to look like file ingestion
+        self.parser = self.create_rec_parser(None, stream_handle)
+
+        # next get engineering records
+        result = self.parser.get_records(1)
+        self.assert_result(result, 50, self.particle_a_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 76, self.particle_b_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_rec, True)
+
+        # no data left, don't move the position
+        result = self.parser.get_records(1)
+        self.assertEqual(result, [])
+        self.assertEqual(self.parser._state[StateKey.POSITION], 128)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 128)
+        self.assert_(isinstance(self.publish_callback_value, list))
+        self.assertEqual(self.publish_callback_value[0], self.particle_d_eng_rec)
+
     def timestamp_to_ntp(self, hex_timestamp):
         fields = struct.unpack('>I', hex_timestamp)
         timestamp = int(fields[0])
         return ntplib.system_to_ntp_time(timestamp)
-    
     
     def assert_result(self, result, position, particle, ingested):
         self.assertEqual(result, [particle])
@@ -186,7 +268,6 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], particle)
-
 
     def test_get_many(self):
         """
@@ -208,6 +289,25 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.publish_callback_value[3], self.particle_d_eng)
         self.assertEqual(self.file_ingested, True)
 
+    def test_get_many_recovered(self):
+        """
+        Read recovered test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        """
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = self.create_rec_parser(None, stream_handle)
+
+        # start with the start time record
+        result = self.parser.get_records(4)
+        self.assertEqual(result, [self.particle_a_eng, self.particle_b_eng, self.particle_c_eng, self.particle_d_eng])
+        self.assertEqual(self.parser._state[StateKey.POSITION], 128)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 128)
+        self.assertEqual(self.publish_callback_value[0], self.particle_a_eng_rec)
+        self.assertEqual(self.publish_callback_value[1], self.particle_b_eng_rec)
+        self.assertEqual(self.publish_callback_value[2], self.particle_c_eng_rec)
+        self.assertEqual(self.publish_callback_value[3], self.particle_d_eng_rec)
+        self.assertEqual(self.file_ingested, True)
+
     def test_long_stream(self):
         """
         Test a long stream of data
@@ -216,8 +316,6 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.parser = Parad_k_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
-
-
         result = self.parser.get_records(32)
         self.assertEqual(result[0], self.particle_a_eng)
         self.assertEqual(result[-1], self.particle_last_eng)
@@ -225,7 +323,19 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 856)
         self.assertEqual(self.publish_callback_value[-1], self.particle_last_eng)
 
-        
+    def test_long_stream_recovered(self):
+        """
+        Test a long stream of recovered data
+        """
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA)
+        self.parser = self.create_rec_parser(None, stream_handle)
+
+        result = self.parser.get_records(32)
+        self.assertEqual(result[0], self.particle_a_eng_rec)
+        self.assertEqual(result[-1], self.particle_last_eng_rec)
+        self.assertEqual(self.parser._state[StateKey.POSITION], 856)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 856)
+        self.assertEqual(self.publish_callback_value[-1], self.particle_last_eng_rec)
 
     def test_after_header(self):
         """
@@ -246,6 +356,24 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, 128, self.particle_d_eng, True)
 
+    def test_after_header_recovered(self):
+        """
+        Test starting the parser in a state in the middle of processing
+        """
+        new_state = {StateKey.POSITION:24}
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = self.create_rec_parser(new_state, stream_handle)
+
+        # get engineering records
+        result = self.parser.get_records(1)
+        self.assert_result(result, 50, self.particle_a_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 76, self.particle_b_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_rec, True)
+
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
@@ -258,6 +386,19 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, 102, self.particle_c_eng, False)
         result = self.parser.get_records(1)
         self.assert_result(result, 128, self.particle_d_eng, True)
+
+    def test_mid_state_start_recovered(self):
+        """
+        Test starting the parser in a state in the middle of processing
+        """
+        new_state = {StateKey.POSITION:76}
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = self.create_rec_parser(new_state, stream_handle)
+
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_rec, True)
 
     def test_set_state(self):
         """
@@ -277,6 +418,23 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, 128, self.particle_d_eng, True)
 
+    def test_set_state_recovered(self):
+        """
+        Test changing to a new state after initializing the parser and
+        reading data, as if new data has been found and the state has
+        changed
+        """
+        new_state = {StateKey.POSITION:76}
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_SHORT)
+        self.parser = self.create_rec_parser(None, stream_handle)
+
+        # set the new state, the essentially skips engineering a and b
+        self.parser.set_state(new_state)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 102, self.particle_c_eng_rec, False)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 128, self.particle_d_eng_rec, True)
+
     def test_bad_flags(self):
         """
         test that we don't parse any records when the flags are not what we expect
@@ -285,6 +443,14 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
             self.stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_BAD_FLAGS)
             self.parser = Parad_k_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                     self.state_callback, self.pub_callback)
+
+    def test_bad_flags_recovered(self):
+        """
+        test that we don't parse any records when the flags are not what we expect
+        """
+        with self.assertRaises(SampleException):
+            stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_BAD_FLAGS)
+            self.parser = self.create_rec_parser(None, stream_handle)
 
     def test_bad_data(self):
         """
@@ -295,7 +461,29 @@ class Parad_k_stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.parser = Parad_k_stc_imodemParser(self.config, self.start_state, self.stream_handle,
                                                 self.state_callback, self.pub_callback)
 
-	# next get engineering records
-	result = self.parser.get_records(4)
-	if len(result) == 4:
-	    self.fail("We got 4 records, the bad data should only make 3")
+        # next get engineering records
+        result = self.parser.get_records(4)
+        if len(result) == 4:
+            self.fail("We got 4 records, the bad data should only make 3")
+
+    def test_bad_data_recovered(self):
+        """
+        Ensure that missing data causes us to miss records
+        """
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_BAD_ENG)
+        self.parser = self.create_rec_parser(None, stream_handle)
+
+        # next get engineering records
+        result = self.parser.get_records(4)
+        if len(result) == 4:
+            self.fail("We got 4 records, the bad data should only make 3")
+
+    def test_nan(self):
+        """
+        Verify that an exception occurs when the par_value has a value of NaN.
+        """
+        stream_handle = StringIO(Parad_k_stc_imodemParserUnitTestCase.TEST_DATA_NAN)
+        self.parser = self.create_rec_parser(None, stream_handle)
+
+        with self.assertRaises(SampleException):
+            self.parser.get_records(1)
