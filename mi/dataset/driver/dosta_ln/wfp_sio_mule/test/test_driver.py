@@ -297,7 +297,7 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             # Read the first file, get 2 samples, and verify the data
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
-            log.debug("RESULT: %s", result)
+            log.debug(" *************############################*****************        RESULT: %s", result)
 
             # verify the data
             self.assert_data_values(result, 'firstA.result.yml')
@@ -307,7 +307,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
             
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
-            log.debug("RESULT 2: %s", result2)
+            log.debug(" *************############################*****************        RESULT 2: %s", result2)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
             
