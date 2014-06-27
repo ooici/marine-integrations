@@ -112,7 +112,7 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.state_callback_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
 
     def timestamp_to_ntp(self, hex_timestamp):
-        fields = struct.unpack('<I', hex_timestamp)
+        fields = struct.unpack('>I', hex_timestamp)
         timestamp = float(fields[0])
         return ntplib.system_to_ntp_time(timestamp)
 

@@ -153,8 +153,9 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 			    # particle-ize the data block received, return the record		    			    
 			    if not STATUS_START_MATCHER.match(e_record[0:STATUS_BYTES]):
 				
-				fields = struct.unpack('<I', e_record[0:4])
+				fields = struct.unpack('>I', e_record[0:4])
 				timestampS = float(fields[0])
+				log.debug(' --------------------->>>>>>>>>>>>>>>>>********  %s', timestampS )
 				timestamp = ntplib.system_to_ntp_time(timestampS)
 				
 				if len(e_record) == E_GLOBAL_SAMPLE_BYTES:
