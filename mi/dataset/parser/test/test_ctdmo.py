@@ -15,14 +15,18 @@ Files used for Recovered CO:
   CTD2002.DAT
     1 CO w/4 records, 3 valid IDs
     1 CT
-    1 CO w/5 records, 3 valid IDs
+    1 CO w/6 records, 4 valid IDs
   CTD2004.DAT
     1 CT
     1 CO w/2 records, 0 valid IDs
     1 CO w/2 records, 1 valid ID
     1 CO w/5 records, 4 valid IDs
     1 CT
-    1 CO w/3 records, 3 valid IDs
+    1 CO w/10 records, 10 valid IDs
+  CTD2100.DAT
+    1 CT
+    1 CO w/100 records, 100 valid IDs
+    1 CO w/150 records, 150 valid IDs
 """
 
 import gevent
@@ -34,6 +38,7 @@ from StringIO import StringIO
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
+
 from mi.dataset.parser.sio_mule_common import StateKey
 
 from mi.dataset.parser.ctdmo import \
@@ -51,9 +56,66 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.exceptions import DatasetParserException
 
 from mi.idk.config import Config
-RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
-                 'dataset', 'driver', 'mflm',
-                 'ctd', 'resource')
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver',
+                 'mflm', 'ctd', 'resource')
+
+# Expected tuples for recovered CO data in file CTD02001.DAT
+EXPECTED_CTD02001_1 = [
+    ('51532002', '7', '\xff\xff\xff\xe7'),
+    ('51532002', '7', '\xff\xff\xff\xf1'),
+    ('51532002', '7', '\xff\xff\xff\xfb'),
+    ('51532002', '7', '\x00\x00\x00\x0f'),
+    ('51532002', '7', '\x00\x00\x00\x19')
+]
+
+# Expected tuples for recovered CO data in file CTD02002.DAT
+EXPECTED_CTD02002_1 = [
+    ('51532002', '7', '\xff\xff\xff\x88'),
+    ('51532002', '7', '\xff\xff\xff\xa6'),
+    ('51532002', '7', '\xff\xff\xff\xc4')
+]
+EXPECTED_CTD02002_2 = [
+    ('51532004', '7', '\x00\x00\x00\x00'),
+    ('51532004', '7', '\x00\x00\x00<'),
+    ('51532004', '7', '\x00\x00\x00x'),
+    ('51532004', '7', '\x00\x00\x00\x96')
+]
+
+# Expected tuples for recovered CO data in file CTD02004.DAT
+EXPECTED_CTD02004_1 = []
+
+EXPECTED_CTD02004_2 = [
+    ('51532006', '7', '\xff\xff\xff\xe2')
+]
+
+EXPECTED_CTD02004_3 = [
+    ('51532007', '7', '\x00\x00\x00\n'),
+    ('51532007', '7', '\x00\x00\x00Z'),
+    ('51532007', '7', '\x00\x00\x00\x82'),
+    ('51532007', '7', '\x00\x00\x00\xaa')
+]
+
+EXPECTED_CTD02004_4 = [
+    ('51532009', '7', '\x00\x00\x00\xd2'),
+    ('51532009', '7', '\x00\x00\x00\xfa'),
+    ('51532009', '7', '\x00\x00\x01"'),
+    ('51532009', '7', '\x00\x00\x01J'),
+    ('51532009', '7', '\x00\x00\x01r'),
+    ('51532009', '7', '\x00\x00\x01\x9a'),
+    ('51532009', '7', '\x00\x00\x01\xc2'),
+    ('51532009', '7', '\x00\x00\x01\xea'),
+    ('51532009', '7', '\x00\x00\x02\x12'),
+    ('51532009', '7', '\x00\x00\x02:')
+]
+
+# List of all expected values for file CTD02004.DAT
+EXPECTED_CTD02004 = [
+    EXPECTED_CTD02004_1,
+    EXPECTED_CTD02004_2,
+    EXPECTED_CTD02004_3,
+    EXPECTED_CTD02004_4
+]
+
 
 @attr('UNIT', group='mi')
 class CtdmoParserUnitTestCase(ParserUnitTestCase):
@@ -62,9 +124,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         This function creates a Ctdmo parser for recovered CO data.
         """
-        if new_state is None:
-            new_state = self.state
-        parser = CtdmoRecoveredCoParser(self.config_rec_co, new_state, file_handle,
+        parser = CtdmoRecoveredCoParser(self.config_rec_co, file_handle, new_state,
             self.rec_state_callback, self.pub_callback, self.exception_callback)
         return parser
 
@@ -72,11 +132,14 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         This function creates a Ctdmo parser for recovered CT data.
         """
-        if new_state is None:
-            new_state = self.state
-        parser = CtdmoRecoveredCtParser(self.config_rec_ct, new_state, file_handle,
+        parser = CtdmoRecoveredCtParser(self.config_rec_ct, file_handle, new_state,
             self.rec_state_callback, self.pub_callback, self.exception_callback)
         return parser
+
+    def rec_state_callback(self, state, file_ingested):
+        """ Call back method to watch what comes in via the position callback """
+        self.state_callback_value = state
+        self.file_ingested_value = file_ingested
 
     def state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """
@@ -190,6 +253,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = None
+        self.maxDiff = None
 
     def assert_result(self, result, in_process_data, unprocessed_data, particle):
         self.assertEqual(result, [particle])
@@ -210,9 +274,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                   'node59p1_shorter.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, None,
-            self.stream_handle, self.state_callback,
-            self.pub_callback, self.exception_callback)
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            None, self.state_callback, self.pub_callback, self.exception_callback)
 
         log.debug('===== TEST SIMPLE GET RECORD 1 =====')
         result = self.parser.get_records(1)
@@ -267,8 +330,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
                 'CtdmoTelemeteredInstrumentDataParticle',
             }
         with self.assertRaises(DatasetParserException):
-            self.parser = CtdmoTelemeteredParser(bad_config, self.state,
-                self.stream_handle, self.state_callback,
+            self.parser = CtdmoTelemeteredParser(bad_config, self.stream_handle,
+                self.state, self.state_callback,
                 self.pub_callback, self.exception_callback)
 
     def test_get_many(self):
@@ -280,8 +343,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, self.state,
-            self.stream_handle, self.state_callback,
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            self.state, self.state_callback,
             self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(5)
@@ -301,8 +364,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_longer.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, self.state,
-            self.stream_handle, self.state_callback,
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            self.state, self.state_callback,
             self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(13)
@@ -325,9 +388,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_longest.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, None,
-            self.stream_handle, self.state_callback,
-            self.pub_callback, self.exception_callback)
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle, None,
+            self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(36)
         self.assertEqual(result[0], self.particle_a)
@@ -355,8 +417,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, new_state,
-            self.stream_handle, self.state_callback,
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            new_state, self.state_callback,
             self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -382,8 +444,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, new_state,
-            self.stream_handle, self.state_callback,
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            new_state, self.state_callback,
             self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(2)
@@ -408,8 +470,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, self.state,
-            self.stream_handle, self.state_callback,
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            self.state, self.state_callback,
             self.pub_callback, self.exception_callback)
 
         # there should only be 1 records, make sure we stop there
@@ -437,9 +499,9 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of CT data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replace.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, None,
-             self.stream_handle, self.state_callback,
-             self.pub_callback, self.exception_callback)
+
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle, None,
+             self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(4)
 
@@ -459,8 +521,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of CT data that was missing in the previous file
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoTelemeteredParser(self.config, next_state,
-            self.stream_handle, self.state_callback,
+        self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
+            next_state, self.state_callback,
             self.pub_callback, self.exception_callback)
 
         # first get the old 'in process' records from [6970-7160]
@@ -483,4 +545,227 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle.close()
         self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_big_giant_input(self):
+        """
+        Read a large file and verify that all expected particles can be read.
+        Verification is not done at this time, but will be done during
+        integration and qualification testing.
+        File used for this test has 250 total CO particles.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02100.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        number_expected_results = 250
+
+        # In a single read, get all particles in this file.
+        result = parser.get_records(number_expected_results)
+        self.assertEqual(len(result), number_expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_get_many(self):
+        """
+        Read Recovered CO data and pull out multiple data particles at one time.
+        Verify that the results are those we expected.
+        File used for this test has 2 CO SIO blocks.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02002.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        # Generate a list of expected result particles.
+        expected_results = []
+        for record in range(0, len(EXPECTED_CTD02002_1)):
+            particle = CtdmoRecoveredOffsetDataParticle(
+                EXPECTED_CTD02002_1[record])
+            expected_results.append(particle)
+
+        # In a single read, get all particles for this CO record.
+        result = parser.get_records(len(expected_results))
+        self.assertEqual(result, expected_results)
+
+        # Do it again for the other CO SIO block.
+        expected_results = []
+        for record in range(0, len(EXPECTED_CTD02002_2)):
+            particle = CtdmoRecoveredOffsetDataParticle(
+                EXPECTED_CTD02002_2[record])
+            expected_results.append(particle)
+
+        result = parser.get_records(len(expected_results))
+        self.assertEqual(result, expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_invalid_state(self):
+        """
+        Make sure that an exception is raised when the state is not
+        a dictionary.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02000.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        # Instead of a dictionary, use a list of dictionaries for the state.
+        new_state = [{'POSITION': 0}, {'invalid key': 22}]
+        with self.assertRaises(DatasetParserException):
+            parser.set_state(new_state)
+
+    def test_rec_co_long_stream(self):
+        """
+        Read test data and pull out all particles from a file at once.
+        File used for this test has 3 CO SIO blocks and a total of 15 CO records.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02004.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        # Generate a list of expected result particles.
+        expected_results = []
+
+        for block in range(0, len(EXPECTED_CTD02004)):
+            for record in range(0, len(EXPECTED_CTD02004[block])):
+                particle = CtdmoRecoveredOffsetDataParticle(
+                    EXPECTED_CTD02004[block][record])
+                expected_results.append(particle)
+
+        # In a single read, get all particles in this file.
+        result = parser.get_records(len(expected_results))
+        self.assertEqual(result, expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_mid_state_start(self):
+        """
+        Test starting a recovered CO parser with a state in the
+        middle of processing.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02002.DAT'))
+
+        # Start at the second SIO block.
+        # Value obtained via UltraEdit.
+        initial_state = {StateKey.POSITION: 0x92}
+
+        parser = self.create_rec_co_parser(in_file, new_state=initial_state)
+
+        # Generate the expected results.
+        expected_results = []
+        for record in range(0, len(EXPECTED_CTD02002_2)):
+            particle = CtdmoRecoveredOffsetDataParticle(
+                EXPECTED_CTD02002_2[record])
+            expected_results.append(particle)
+
+        # Read the records from the CO SIO block.
+        # Verify what we read is what we expect.
+        result = parser.get_records(len(expected_results))
+        self.assertEqual(result, expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_missing_inductive_id_config(self):
+        """
+        Make sure that an exception is raised when building the
+        Recovered CO parser if the inductive ID is missing in the config.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02000.DAT'))
+
+        bad_config = {
+            DataSetDriverConfigKeys.PARTICLE_MODULE:
+                'mi.dataset.parser.ctdmo',
+            DataSetDriverConfigKeys.PARTICLE_CLASS:
+                'CtdmoRecoveredOffsetDataParticle',
+            }
+
+        with self.assertRaises(DatasetParserException):
+            CtdmoRecoveredCoParser(bad_config, in_file, None,
+                self.state_callback, self.pub_callback, self.exception_callback)
+
+    def test_rec_co_missing_state_key(self):
+        """
+        Make sure that an exception is raised when the POSITION state key
+        is missing.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02000.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        new_state = {'Not a valid key': 18}
+        with self.assertRaises(DatasetParserException):
+            parser.set_state(new_state)
+
+    def test_rec_co_no_records(self):
+        """
+        Read a Recovered CO data file that has no CO records.
+        Verify that no particles are generated.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02000.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        # Not expecting any particles.
+        expected_results = []
+
+        # Try to get one particle and verify we didn't get any.
+        result = parser.get_records(1)
+        self.assertEqual(result, expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_set_state(self):
+        """
+        test changing the state after initializing
+        File used for this test has 2 CO SIO blocks.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02002.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        # Read 1 record (of the 3 that are in the first SIO block).
+        parser.get_records(1)
+
+        # Skip ahead to the second SIO block.
+        # Value obtained via UltraEdit.
+        new_state = {StateKey.POSITION: 0x92}
+
+        # Set the state.
+        parser.set_state(new_state)
+
+        # Generate the expected results.
+        expected_results = []
+        for record in range(0, len(EXPECTED_CTD02002_2)):
+            particle = CtdmoRecoveredOffsetDataParticle(
+                EXPECTED_CTD02002_2[record])
+            expected_results.append(particle)
+
+        # Read the records from the CO SIO block.
+        # Verify what we read is what we expect.
+        result = parser.get_records(len(expected_results))
+        self.assertEqual(result, expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_rec_co_simple(self):
+        """
+        Read Recovered CO data from the file and pull out data particles
+        one at a time. Verify that the results are those we expected.
+        """
+        in_file = open(os.path.join(RESOURCE_PATH, 'CTD02001.DAT'))
+        parser = self.create_rec_co_parser(in_file)
+
+        for record in range(0, len(EXPECTED_CTD02001_1)):
+            log.debug('===== TEST REC CO SIMPLE GET RECORD %d =====', record + 1)
+
+            # Generate expected particle
+            expected_results = []
+            particle = CtdmoRecoveredOffsetDataParticle(
+                EXPECTED_CTD02001_1[record])
+            expected_results.append(particle)
+
+            # Get record and verify.
+            result = parser.get_records(1)
+            self.assertEqual(result, expected_results)
+
+        in_file.close()
+        self.assertEqual(self.exception_callback_value, None)
+
 

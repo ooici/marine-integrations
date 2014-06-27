@@ -24,8 +24,9 @@ with the CT data being ignored.
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import binascii
 import array
+import binascii
+import copy
 import string
 import re
 import struct
@@ -222,6 +223,7 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
 
     def _build_parsed_values(self):
         """
+        Build parsed values for Telemetered Instrument Data Particle.
         Take something in the binary data values and turn it into a
         particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
@@ -250,32 +252,28 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
             raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        particle = [self._encode_value(
-                        CtdmoInstrumentDataParticleKey.CONTROLLER_TIMESTAMP,
-                        self.raw_data[RAW_INDEX_TEL_CT_SIO_TIMESTAMP],
-                        convert_hex_ascii_to_int),
-                    self._encode_value(
-                        CtdmoInstrumentDataParticleKey.INDUCTIVE_ID,
-                        struct.unpack('>B', self.raw_data[RAW_INDEX_TEL_CT_ID])[0],
-                        int),
-                    self._encode_value(
-                        CtdmoInstrumentDataParticleKey.TEMPERATURE,
-                        science_data[0:5],
-                        convert_hex_ascii_to_int),
-                    self._encode_value(
-                        CtdmoInstrumentDataParticleKey.CONDUCTIVITY,
-                        science_data[5:10],
-                        convert_hex_ascii_to_int),
-                    self._encode_value(
-                        CtdmoInstrumentDataParticleKey.PRESSURE,
-                        pressure,
-                        convert_hex_ascii_to_int),
-                    self._encode_value(
-                        CtdmoInstrumentDataParticleKey.CTD_TIME,
-                        reversed_hex_time,
-                        convert_hex_ascii_to_int)]
+        particle = [
+            self._encode_value(CtdmoInstrumentDataParticleKey.CONTROLLER_TIMESTAMP,
+                               self.raw_data[RAW_INDEX_TEL_CT_SIO_TIMESTAMP],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.INDUCTIVE_ID,
+                               struct.unpack('>B',
+                                   self.raw_data[RAW_INDEX_TEL_CT_ID])[0],
+                               int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.TEMPERATURE,
+                               science_data[0:5],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.CONDUCTIVITY,
+                               science_data[5:10],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.PRESSURE,
+                               pressure,
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.CTD_TIME,
+                               reversed_hex_time,
+                               convert_hex_ascii_to_int)
+        ]
 
-        #log.debug('CtdmoTelemeteredInstrumentDataParticle: particle=%s', particle)
         return particle
 
 
@@ -313,24 +311,24 @@ class CtdmoOffsetDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
+        Build parsed values for Recovered and Telemetered Offset Data Particle.
         Take something in the binary data values and turn it into a
         particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
 
-        particle = [self._encode_value(
-                        CtdmoOffsetDataParticleKey.CONTROLLER_TIMESTAMP,
-                        self.raw_data[RAW_INDEX_CO_SIO_TIMESTAMP],
-                        convert_hex_ascii_to_int),
-                    self._encode_value(
-                        CtdmoOffsetDataParticleKey.INDUCTIVE_ID,
-                        struct.unpack('>B', self.raw_data[RAW_INDEX_CO_ID])[0],
-                        int),
-                    self._encode_value(
-                        CtdmoOffsetDataParticleKey.CTD_OFFSET,
-                        struct.unpack('>i',
-                                      self.raw_data[RAW_INDEX_CO_TIME_OFFSET])[0],
-                        int)]
+        particle = [
+            self._encode_value(CtdmoOffsetDataParticleKey.CONTROLLER_TIMESTAMP,
+                               self.raw_data[RAW_INDEX_CO_SIO_TIMESTAMP],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoOffsetDataParticleKey.INDUCTIVE_ID,
+                                struct.unpack('>B', self.raw_data[RAW_INDEX_CO_ID])[0],
+                                int),
+            self._encode_value(CtdmoOffsetDataParticleKey.CTD_OFFSET,
+                               struct.unpack('>i',
+                                   self.raw_data[RAW_INDEX_CO_TIME_OFFSET])[0],
+                               int)
+        ]
 
         return particle
 
@@ -392,9 +390,6 @@ class CtdmoParser(Parser):
                     #   inductive ID (from chunk)
                     #   Time Offset (from chunk)
                     #
-                    log.debug('COCOCO %s',
-                              (sio_header_timestamp, inductive_id,
-                               co_match.group(CO_GROUP_TIME_OFFSET)))
                     sample = self._extract_sample(particle_class, None,
                         (sio_header_timestamp, inductive_id,
                             co_match.group(CO_GROUP_TIME_OFFSET)),
@@ -432,23 +427,22 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
 
     def __init__(self,
                  config,
-                 state,
                  stream_handle,
+                 state,
                  state_callback,
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
 
-        log.debug('Enter CtdmoRecoveredCoParser')
         super(CtdmoRecoveredCoParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          self.sieve_function,
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
+                                                     stream_handle,
+                                                     state,
+                                                     self.sieve_function,
+                                                     state_callback,
+                                                     publish_callback,
+                                                     exception_callback,
+                                                     *args,
+                                                     **kwargs)
 
         #
         # Verify that the required parameters are in the parser configuration.
@@ -489,7 +483,7 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
             header_timestamp = header_match.group(SIO_HEADER_GROUP_TIMESTAMP)
 
             #
-            # Start looping at the end of the header.
+            # Start processing at the end of the header.
             #
             chunk_idx = header_match.end(0)
 
@@ -501,7 +495,8 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
 
                 if samples > 0:
                     for x in range(0, samples):
-                        result_particles.append(particles[x])
+                        result_particles.append((particles[x],
+                                                 copy.copy(self._read_state)))
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
@@ -517,14 +512,13 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
 
     def __init__(self,
                  config,
-                 state,
                  stream_handle,
+                 state,
                  state_callback,
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
 
-        log.debug('Enter CtdmoRecoveredCtParser')
         super(CtdmoRecoveredCtParser, self).__init__(config,
                                           stream_handle,
                                           state,
@@ -555,14 +549,13 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
     def __init__(self,
                  config,
-                 state,
                  stream_handle,
+                 state,
                  state_callback,
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
 
-        log.debug('Enter CtdmoTelemeteredParser')
         super(CtdmoTelemeteredParser, self).__init__(config,
                                                      stream_handle,
                                                      state,
@@ -576,8 +569,6 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
         if not CtdmoStateKey.INDUCTIVE_ID in config:
             raise DatasetParserException("Parser config is missing %s"
                                          % CtdmoStateKey.INDUCTIVE_ID)
-        log.debug('Exit CtdmoTelemeteredParser %d',
-                  self._config.get(CtdmoStateKey.INDUCTIVE_ID))
 
     def parse_chunks(self):
         """
@@ -600,7 +591,6 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
             samples = 0
             if header_match.group(SIO_HEADER_GROUP_ID) == ID_INSTRUMENT:
-                #log.debug("matched CT header %s", chunk[1:chunk_idx - 1])
                 (samples, particles) = self.parse_ct_record(
                     CtdmoTelemeteredInstrumentDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
@@ -610,7 +600,6 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
                         result_particles.append(particles[x])
 
             elif header_match.group(SIO_HEADER_GROUP_ID) == ID_OFFSET:
-                #log.debug("matched CO chunk header %s", chunk[1:chunk_idx - 1])
                 (samples, particles) = self.parse_co_data(
                     CtdmoTelemeteredOffsetDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
@@ -628,7 +617,11 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
     def parse_ct_record(self, particle_class, chunk, sio_header_timestamp):
         """
         This function parses a Telemetered CT record and
-        returns a list of data particles.
+        returns the number of particles found and a list of data particles.
+        Parameters:
+          particle class - class name of particle to be produced
+          chunk - the input which is being parsed
+          sio_header_timestamp - required for particle, passed through
         """
         particles = []
         sample_count = 0
