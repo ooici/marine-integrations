@@ -29,25 +29,19 @@ from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.ctdpf_ckl.wfp_sio_mule.driver import CtdpfCklWfpDataSetDriver, DataTypeKey
 from mi.dataset.parser.ctdpf_ckl_wfp_sio_mule import CtdpfCklWfpSioMuleDataParticle
-from mi.dataset.parser.ctdpf_ckl_wfp_sio_mule import CtdpfCklWfpSioMuleMetadataParticle
-from mi.dataset.parser.ctdpf_ckl_wfp_particles import\
-    DataParticleType,\
-    CtdpfCklWfpRecoveredDataParticle,\
-    CtdpfCklWfpRecoveredMetadataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp_sio_mule import CtdpfCklWfpSioMuleMetadataParticle, DataParticleType
+from mi.dataset.parser.ctdpf_ckl_wfp_particles import CtdpfCklWfpDataParticle, CtdpfCklWfpMetadataParticle
 
 
-PARSER_STATE = 'parser_state'
+MULE_PARTICLES = (CtdpfCklWfpSioMuleDataParticle, CtdpfCklWfpSioMuleMetadataParticle)
+RECOV_PARTICLES = (CtdpfCklWfpDataParticle, CtdpfCklWfpMetadataParticle)
 
 
-SIO_PARTICLES = (CtdpfCklWfpSioMuleDataParticle, CtdpfCklWfpSioMuleMetadataParticle)
-WFP_PARTICLES = (CtdpfCklWfpRecoveredDataParticle, CtdpfCklWfpRecoveredMetadataParticle)
+RECOV_DATA_DIR = '/tmp/recov_dsatest'
+MULE_DATA_DIR = '/tmp/mule_dsatest'
 
 
-DIR_WFP = '/tmp/recov_dsatest'
-DIR_WFP_SIO_MULE = '/tmp/mule_dsatest'
-
-
-# Fill in driver details
+# Driver details
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.ctdpf_ckl.wfp_sio_mule.driver',
     driver_class='CtdpfCklWfpDataSetDriver',
@@ -60,13 +54,13 @@ DataSetTestCase.initialize(
         {
             DataTypeKey.CTDPF_CKL_WFP:
             {
-                DataSetDriverConfigKeys.DIRECTORY: DIR_WFP,
+                DataSetDriverConfigKeys.DIRECTORY: RECOV_DATA_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'C*.DAT',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             },
             DataTypeKey.CTDPF_CKL_WFP_SIO_MULE:
             {
-                DataSetDriverConfigKeys.DIRECTORY: DIR_WFP_SIO_MULE,
+                DataSetDriverConfigKeys.DIRECTORY: MULE_DATA_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'node58p1.dat',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
@@ -93,23 +87,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_get_simple(self):
         """
-        Test that we can get data from a small file.
+        Test that we can get data from small data files.
         """
-
-        # Start sampling and watch for an exception
         self.driver.start_sampling()
-
-        # Read the telemetered data
         self.clear_async_data()
-        self.create_sample_data_set_dir('WC_ONE.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat')
-        self.assert_data(SIO_PARTICLES, 'WC_ONE.yml', count=96, timeout=10)
+
+        # Test for mule data
+        self.create_sample_data_set_dir('WC_ONE.DAT', MULE_DATA_DIR, 'node58p1.dat')
+        self.assert_data(MULE_PARTICLES, 'WC_ONE.yml', count=96, timeout=10)
+
+        # Test for recovered data
+        self.clear_async_data()
+        self.create_sample_data_set_dir('TEST_TWO.DAT', RECOV_DATA_DIR, 'C0000034.DAT')
+        self.assert_data(RECOV_PARTICLES, 'TEST_TWO.yml', count=96, timeout=10)
 
         self.driver.stop_sampling()
-
-        # Read from the recovered data
-        self.clear_async_data()
-        self.create_sample_data_set_dir('first.DAT', REC_DIR, 'C0000001.DAT')
-        self.assert_data(REC_PARTICLES, 'first.result.yml', count=4, timeout=10)
 
     def test_harvester_new_file_exception(self):
         """
@@ -118,7 +110,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         # create the file so that it is unreadable
-        self.create_sample_data_set_dir('WC_ONE.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat', mode=000)
+        self.create_sample_data_set_dir('WC_ONE.DAT', MULE_DATA_DIR, 'node58p1.dat', mode=000)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -136,8 +128,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', DIR_WFP_SIO_MULE, 'node58p1.dat')
-        self.assert_data(SIO_PARTICLES, count=42062, timeout=1800)
+        self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', MULE_DATA_DIR, 'node58p1.dat')
+        self.assert_data(MULE_PARTICLES, count=42062, timeout=1800)
 
         self.driver.stop_sampling()
 
@@ -161,7 +153,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data_set_dir('WC_ONE.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat')
+        self.create_sample_data_set_dir('WC_ONE.DAT', MULE_DATA_DIR, 'node58p1.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # NOTE: If the processing is not slowed down here, the engineering samples are
@@ -191,7 +183,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent using a file with real data
         """
-        self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', DIR_WFP_SIO_MULE, 'node58p1.dat')
+        self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', MULE_DATA_DIR, 'node58p1.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         self.assert_start_sampling()
@@ -231,7 +223,7 @@ class QualificationTest(DataSetQualificationTestCase):
         then start reading again confirm it reads from the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data_set_dir('WC_TWO.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat')
+        self.create_sample_data_set_dir('WC_TWO.DAT', MULE_DATA_DIR, 'node58p1.dat')
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -247,7 +239,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("got result 1 %s", result)
 
             #Reload the file (make the system think it's a new file)
-            self.create_sample_data_set_dir('WC_TWO.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat')
+            self.create_sample_data_set_dir('WC_TWO.DAT', MULE_DATA_DIR, 'node58p1.dat')
 
             # Now read the last 4 records of the second file then stop
             result2 = self.get_samples(DataParticleType.DATA, 4, 1200)
@@ -270,7 +262,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent using a file with real data
         """
-        self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', DIR_WFP_SIO_MULE, 'node58p1.dat')
+        self.create_sample_data_set_dir('BIG_GIANT_HEAD.dat', MULE_DATA_DIR, 'node58p1.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # NOTE: If the processing is not slowed down here, the engineering samples are
