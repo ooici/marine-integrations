@@ -44,10 +44,11 @@ METADATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) \[.+DLOGP\d+\].+(\r\n?
 METADATA_MATCHER = re.compile(METADATA_REGEX)
 
 class RteDataParticleType(BaseEnum):
-    SAMPLE = 'rte_o_dcl_instrument'
-    
+    INSTRUMENT = 'rte_o_dcl_instrument'
+    RECOVERED = 'rte_o_dcl_recovered'
+
 class StateKey(BaseEnum):
-    POSITION='position' #hold the current file position
+    POSITION='position'  # hold the current file position
 
 class RteODclParserDataParticleKey(BaseEnum):
     RTE_TIME = 'rte_time'
@@ -58,12 +59,12 @@ class RteODclParserDataParticleKey(BaseEnum):
     RTE_HITS = 'rte_hits'
     RTE_STATE = 'rte_state'
 
-class RteODclParserDataParticle(DataParticle):
+class RteODclParserDataAbstractParticle(DataParticle):
     """
-    Class for parsing data from the rte_o_stc data set
+    Abstract Class for parsing data from the rte_o_stc data set
     """
 
-    _data_particle_type = RteDataParticleType.SAMPLE
+    _data_particle_type = RteDataParticleType.INSTRUMENT
     
     def _build_parsed_values(self):
         """
@@ -88,6 +89,22 @@ class RteODclParserDataParticle(DataParticle):
         log.debug('RteODclParserDataParticle: particle=%s', result)
         return result  
 
+
+class RteODclParserDataParticle(RteODclParserDataAbstractParticle):
+    """
+    Class for parsing data from the rte_o_stc data set
+    """
+
+    _data_particle_type = RteDataParticleType.INSTRUMENT
+
+class RteODclParserRecoveredDataParticle(RteODclParserDataAbstractParticle):
+    """
+    Class for parsing data from the rte_o_stc data set
+    """
+
+    _data_particle_type = RteDataParticleType.RECOVERED
+
+
 class RteODclParser(BufferLoadingParser):
 
     def __init__(self,
@@ -105,9 +122,7 @@ class RteODclParser(BufferLoadingParser):
                                                     regex_list=[DATA_MATCHER, METADATA_MATCHER]),
                                             state_callback,
                                             publish_callback,
-                                            exception_callback,
-                                            *args,
-                                            **kwargs)
+                                            exception_callback)
 
         self._read_state = {StateKey.POSITION:0}
 
