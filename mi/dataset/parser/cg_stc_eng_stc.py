@@ -25,7 +25,8 @@ from mi.dataset.dataset_parser import Parser
 from mi.dataset.param_dict import DatasetParameterDict
 
 class CgDataParticleType(BaseEnum):
-    SAMPLE = 'cg_stc_eng_stc'
+    TELEMETERED = 'cg_stc_eng_stc'
+    RECOVERED = 'cg_stc_eng_stc_recovered'
 
 class CgStcEngStcParserDataParticleKey(BaseEnum):
     CG_ENG_PLATFORM_TIME = 'cg_eng_platform_time'
@@ -337,11 +338,12 @@ class CgStcEngStcParserDataParticleKey(BaseEnum):
     CG_ENG_DMGRSTATUS_MAP = 'cg_eng_dmgrstatus_map'
     CG_ENG_DMGRSTATUS_UPDATE = 'cg_eng_dmgrstatus_update'
 
-class CgStcEngStcParserDataParticle(DataParticle):
+
+class CgStcEngStcParserDataAbstractParticle(DataParticle):
     """
-    Class for parsing data from the cg_stc_eng_stc data set
+    Abstract Class for parsing data from the cg_stc_eng_stc data set
     """
-    _data_particle_type = CgDataParticleType.SAMPLE
+    _data_particle_type = None
 
     def _build_parsed_values(self):
         """
@@ -1234,6 +1236,18 @@ class CgStcEngStcParserDataParticle(DataParticle):
         """
         return r'STATUS\.last_err\.%s=(.+?)(\r\n?|\n)' % err_id_str
 
+
+class CgStcEngStcParserDataParticle(CgStcEngStcParserDataAbstractParticle):
+    """
+    Class for parsing data from the cg_stc_eng_stc data set
+    """
+    _data_particle_type = CgDataParticleType.TELEMETERED
+
+
+class CgStcEngStcParserRecoveredDataParticle(CgStcEngStcParserDataAbstractParticle):
+    _data_particle_type = CgDataParticleType.RECOVERED
+
+
 class CgStcEngStcParser(Parser):
     def __init__(self,
                  config,
@@ -1251,8 +1265,7 @@ class CgStcEngStcParser(Parser):
                                                 None,
                                                 state_callback,
                                                 publish_callback,
-                                                exception_callback,
-                                                *args, **kwargs)
+                                                exception_callback)
         # no setting state since there is no state here, 1 file = 1 particle
 
     def process_file(self):
