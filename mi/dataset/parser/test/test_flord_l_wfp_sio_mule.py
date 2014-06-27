@@ -10,6 +10,7 @@ import binascii
 import unittest
 import os
 import ntplib, struct
+from datetime import datetime
 from nose.plugins.attrib import attr
 
 from StringIO import StringIO
@@ -63,48 +64,49 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
             '\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01Q\xf2V\xb3Q\xf2W.')
         
         # First 'WE' SIO header in noe58p1.dat, first record.
-        self.timestamp_1a = self.timestamp_to_ntp('Q\xf2W.') 
-        log.debug("Converted timestamp 1a: %s",self.timestamp_1a)
+        self.timestamp_1a = self.timestamp_to_ntp('Q\xf2W.')
+        log.debug("Converted ntp timestamp 1a: %s",self.timestamp_1a)
         self.particle_1a = FlordLWfpSioMuleParserDataParticle(b'Q\xf2W.\x00\x00\x00\x00A9Y' \
             '\xb4\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x009\x00e\x02:', internal_timestamp = self.timestamp_1a)
         
         # First 'WE' SIO header in noe58p1.dat, second record.
         self.timestamp_1b = self.timestamp_to_ntp('Q\xf2Xq')
-        log.debug("Converted timestamp 1b: %s",self.timestamp_1b)
+        log.debug("Converted ntp timestamp 1b: %s",self.timestamp_1b)
         self.particle_1b = FlordLWfpSioMuleParserDataParticle(b'Q\xf2XqB\x8f\x83DA5\x1e\xb8D' \
             '\xfd\x85qB\x82\x83\x12?\xf9\xba^\x009\x00d\x028',  internal_timestamp = self.timestamp_1b)
         
         # First 'WE' SIO header in noe58p1.dat, third record.
         self.timestamp_1c = self.timestamp_to_ntp('Q\xf2Z\xd3')
-        log.debug("Converted timestamp 1c: %s",self.timestamp_1c)
+        log.debug("Converted ntp timestamp 1c: %s",self.timestamp_1c)
         self.particle_1c = FlordLWfpSioMuleParserDataParticle(b'Q\xf2Z\xd3B\x84\x06GA2\x9a\xd4E' \
             '\t\xd3\xd7B\x9b\xdc)?\xec\xac\x08\x00:\x00d\x027', internal_timestamp = self.timestamp_1c)    
         
         # Second 'WE' SIO header in noe58p1.dat, first record.
         self.timestamp_2a  = self.timestamp_to_ntp('Q\xf2\x8fn')
-        log.debug("Converted timestamp 2a: %s",self.timestamp_2a)
+        log.debug("Converted ntp timestamp 2a: %s",self.timestamp_2a)
         self.particle_2a = FlordLWfpSioMuleParserDataParticle(b'Q\xf2\x8fn\x00\x00\x00\x00A7\xd5f' \
             '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x008\x00a\x02=', internal_timestamp = self.timestamp_2a)
         
         # Last 'WE' SIO header in node58p1.dat, last record (when reading 12).
         self.timestamp_1l = self.timestamp_to_ntp('Q\xf2\x99q')
-        log.debug("Converted timestamp 1l: %s",self.timestamp_1l)
+        log.debug("Converted ntp timestamp 1l: %s",self.timestamp_1l)
         self.particle_1l = FlordLWfpSioMuleParserDataParticle(b'Q\xf2\x99qC"\t\xceA/\x9alEM\x07\\C' \
             '\x07\xd7\n?\xc3\x95\x81\x007\x00_\x02;', internal_timestamp = self.timestamp_1l)    
 
         # Last 'WE' SIO header in node58p1.dat[0:300000], second to last record.
-        self.timestamp_1k  = self.timestamp_to_ntp('Q\xf2\x981')    
-        log.debug("Converted timestamp 1k: %s",self.timestamp_1k)
+        self.timestamp_1k  = self.timestamp_to_ntp('Q\xf2\x981')
+        log.debug("Converted ntp timestamp 1k: %s",self.timestamp_1k)
         self.particle_1k = FlordLWfpSioMuleParserDataParticle(b'Q\xf2\x981C\x10\xe5kA/\xe4&EG\x8c\x00C' \
             '\x04\xc2\x8f?\xc4\xfd\xf4\x006\x00_\x02;', internal_timestamp = self.timestamp_1k)
         
         # Last record of second 'WE' SIO header, the last record when pulling 5000 bytes. 
         self.timestamp_m = self.timestamp_to_ntp('Q\xf2\xa5\xc9')
-        log.debug("Converted timestamp m: %s",self.timestamp_m)
+        log.debug("Converted ntp timestamp m: %s",self.timestamp_m)
           
         self.state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = None
+	
         
     def assert_result(self, result, in_process_data, unprocessed_data, particle):
         self.assertEqual(result, [particle])
@@ -119,9 +121,15 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.state_callback_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
     
     def timestamp_to_ntp(self, hex_timestamp):
-        fields = struct.unpack('<I', hex_timestamp)
+        fields = struct.unpack('>I', hex_timestamp)
         timestamp = float(fields[0])
         return ntplib.system_to_ntp_time(timestamp)
+    
+    def convert_utc_to_zulu(self, hex_timestamp):
+	fields = struct.unpack('>I', hex_timestamp)
+        timestamp = float(fields[0])
+	zulu_time = datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+	return zulu_time
 
     def test_simple(self):
         """

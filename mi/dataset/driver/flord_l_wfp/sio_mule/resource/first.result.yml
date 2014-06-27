@@ -4,7 +4,7 @@ header:
   
 data:      
   - _index: 1
-    internal_timestamp: 2986504401.000000
+    internal_timestamp: '2013-07-26T11:02:06.000000Z'
     particle_object: FlordLWfpSioMuleParserDataParticle
     particle_type: flord_l_wfp_instrument
     raw_signal_chl: 57
@@ -12,7 +12,7 @@ data:
     raw_internal_temp: 570
     wfp_timestamp: 1374836526
   - _index: 2
-    internal_timestamp: 4110643409.000000
+    internal_timestamp: '2013-07-26T11:07:29.000000Z'
     particle_object: FlordLWfpSioMuleParserDataParticle
     particle_type: flord_l_wfp_instrument
     raw_signal_chl: 57
@@ -20,7 +20,7 @@ data:
     raw_internal_temp: 568
     wfp_timestamp: 1374836849
   - _index: 3
-    internal_timestamp: 5754941649.000000
+    internal_timestamp: '2013-07-26T11:17:39.000000Z'
     particle_object: FlordLWfpSioMuleParserDataParticle
     particle_type: flord_l_wfp_instrument
     raw_signal_chl: 58

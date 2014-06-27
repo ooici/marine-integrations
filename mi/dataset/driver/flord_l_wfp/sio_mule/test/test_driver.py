@@ -15,7 +15,6 @@ USAGE:
 __author__ = 'Maria Lutz'
 __license__ = 'Apache 2.0'
 
-import unittest
 import os
 
 from nose.plugins.attrib import attr
@@ -69,15 +68,6 @@ SAMPLE_STREAM = 'flord_l_wfp_instrument'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
- 
-    def clean_file(self):
-        # remove just the file we are using
-        driver_config = self._driver_config()['startup_config']
-        log.debug('startup config %s', driver_config)
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
             
     def test_get(self):
         """
@@ -86,7 +76,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         # Start sampling and watch for an exception. node58p1_1st2WE.dat
         # contains the first 2 WE blocks in node58p1.dat
-        self.clean_file()
         self.clear_async_data()
         self.driver.start_sampling()
         self.create_sample_data('node58p1_1stWE.dat', 'TestData.dat')
@@ -100,7 +89,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        self.clean_file()
         self.create_sample_data("node58p1_1st2WE.dat", "TestData.dat")
         
         driver_config = self._driver_config()['startup_config']
@@ -135,7 +123,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test an exception raised after the driver is started during
         the file read.  Should call the exception callback.
         """
-        self.clean_file()
 
         # create the file so that it is unreadable
         self.create_sample_data("node58p1_step1.dat", "TestData.dat", mode=000)
@@ -149,7 +136,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart sampling, ingesting files in the
         correct order.
         """
-        self.clean_file()
         self.clear_async_data()
         self.driver.start_sampling()
         self.create_sample_data('node58p1_1st2WE.dat', 'TestData.dat')
@@ -199,15 +185,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-
-    def clean_file(self):
-        # remove just the file we are using
-        driver_config = self._driver_config()['startup_config']
-        log.debug('startup config %s', driver_config)
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
-        if os.path.exists(fullfile):
-            os.remove(fullfile) 
     
     def test_publish_path(self):
         """
@@ -318,7 +295,6 @@ class QualificationTest(DataSetQualificationTestCase):
         Test an exception raised after the driver is started during
         the file read.
         """
-        self.clean_file()
         # need to put data in the file, not just make an empty file for this to work
         self.create_sample_data('node58p1_1st6k.dat', 'TestData.dat', mode=000)
 
@@ -328,7 +304,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
-        self.clean_file()
+        self.clear_sample_data()
         self.create_sample_data('node58p1_1st6k.dat', 'TestData.dat')
 
         # Should automatically retry connect and transition to streaming
@@ -339,7 +315,6 @@ class QualificationTest(DataSetQualificationTestCase):
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        self.clean_file()
         # file contains invalid sample values
         self.create_sample_data('bad_e_data3.dat', "TestData.dat")
 

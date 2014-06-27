@@ -130,7 +130,7 @@ class FlordLWfpSioMuleParser(SioMuleParser):
 			    e_record = payload[data_split[ii][0]:data_split[ii][1]]
 			    
                             if not STATUS_START_MATCHER.match(e_record[0:STATUS_BYTES]):				    
-                                fields = struct.unpack('<I', e_record[0:4])
+                                fields = struct.unpack('>I', e_record[0:4])
                                 timestamp = float(fields[0])
                                 self._timestamp = ntplib.system_to_ntp_time(timestamp)
 			    

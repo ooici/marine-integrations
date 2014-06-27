@@ -11,12 +11,10 @@ Initial Release
 __author__ = 'Maria Lutz'
 __license__ = 'Apache 2.0'
 
-import string
-
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_single_driver import SioMuleSingleDataSetDriver
-from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.flord_l_wfp_sio_mule import FlordLWfpSioMuleParser, FlordLWfpSioMuleParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester, SingleFileHarvester
 
@@ -32,9 +30,10 @@ class FlordLWfpSioMuleDataSetDriver(SioMuleSingleDataSetDriver):
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.flord_l_wfp_sio_mule',
-            'particle_class': 'FlordLWfpSioMuleParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flord_l_wfp_sio_mule',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordLWfpSioMuleParserDataParticle'
         })
+           
         log.debug("My Config: %s", config)
         self._parser = FlordLWfpSioMuleParser(
             config,
