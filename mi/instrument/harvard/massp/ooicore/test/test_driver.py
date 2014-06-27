@@ -1272,3 +1272,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_direct_access_telnet_closed(self):
+        """
+        Test that we can properly handle the situation when a direct access
+        session is launched, the telnet is closed, then direct access is stopped.
+        Overridden to increase timeout due to long MCU reset time.
+        """
+        self.assert_enter_command_mode()
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, DriverProtocolState.COMMAND, 120)
