@@ -255,7 +255,7 @@ class RGAStatusParticleKey(BaseEnum):
     MI = 'massp_rga_initial_mass'
     MF = 'massp_rga_final_mass'
     AP = 'massp_rga_readings_per_scan'
-    HV = 'massp_rga_high_voltage'
+    HV = 'massp_rga_high_voltage_cdem'
     FL_ACTUAL = 'massp_rga_filament_emission_actual'
 
 
