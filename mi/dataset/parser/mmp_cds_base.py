@@ -121,7 +121,7 @@ class MmpCdsParser(BufferLoadingParser):
         # Initialize the record buffer to an empty list
         self._record_buffer = []
 
-        # Initialize the read state to the POSITION being 0
+        # Initialize the read state PARTICLES_RETURNED to 0
         self._read_state = {StateKey.PARTICLES_RETURNED: 0}
 
         # Call the superclass constructor
