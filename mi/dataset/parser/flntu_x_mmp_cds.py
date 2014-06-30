@@ -47,10 +47,10 @@ class FlntuXMmpCdsParserDataParticle(MmpCdsParserDataParticle):
         """
 
         chlorophyll = self._encode_value(FlntuXMmpCdsParserDataParticleKey.CHLAFLO,
-                                         dict_data['chlaflo'], int)
+                                         dict_data[FlntuXMmpCdsParserDataParticleKey.CHLAFLO], int)
 
         ntuflo = self._encode_value(FlntuXMmpCdsParserDataParticleKey.NTUFLO,
-                                    dict_data['ntuflo'], int)
+                                    dict_data[FlntuXMmpCdsParserDataParticleKey.NTUFLO], int)
 
         return [chlorophyll, ntuflo]
 
@@ -77,7 +77,7 @@ class FlntuXMmpCdsParser(MmpCdsParser):
         @param publish_callback The function to call to provide particles
         """
 
-        # The the kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
+        # The kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
         # FlntuXMmpCdsParserDataParticle class
         kwargs[DataSetDriverConfigKeys.PARTICLE_CLASS] = FlntuXMmpCdsParserDataParticle
 

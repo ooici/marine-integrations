@@ -47,7 +47,7 @@ class FlcdrXMmpCdsParserDataParticle(MmpCdsParserDataParticle):
         """
 
         cdomflo = self._encode_value(FlcdrXMmpCdsParserDataParticleKey.CDOMFLO,
-                                         dict_data['cdomflo'], int)
+                                         dict_data[FlcdrXMmpCdsParserDataParticleKey.CDOMFLO], int)
 
         return [cdomflo]
 
@@ -74,7 +74,7 @@ class FlcdrXMmpCdsParser(MmpCdsParser):
         @param publish_callback The function to call to provide particles
         """
 
-        # The the kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
+        # The kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
         # FlcdrXMmpCdsParserDataParticle class
         kwargs[DataSetDriverConfigKeys.PARTICLE_CLASS] = FlcdrXMmpCdsParserDataParticle
 

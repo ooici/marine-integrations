@@ -98,6 +98,12 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
 
+        test_data = self.get_dict_from_yml('first.yml')
+        self.assert_result(test_data['data'][0], particles[0])
+
+        test_data = self.get_dict_from_yml('mid.yml')
+        self.assert_result(test_data['data'][0], particles[9])
+
         test_data = self.get_dict_from_yml('get_many_one.yml')
         self.assert_result(test_data['data'][0], particles[19])
 
