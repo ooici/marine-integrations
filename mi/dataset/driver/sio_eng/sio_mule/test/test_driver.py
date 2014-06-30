@@ -20,18 +20,23 @@ import os
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from pyon.agent.agent import ResourceAgentState
 from mi.idk.exceptions import SampleTimeout
+
+from mi.core.log import get_logger ; log = get_logger()
+
+from mi.core.exceptions import SampleException
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.idk.exceptions import SampleTimeout
+
+from interface.objects import ResourceAgentErrorEvent
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_eng.sio_mule.driver import SioEngSioMuleDataSetDriver, DataSourceKey 
-from mi.dataset.parser.sio_eng_sio_mule import SioEngSioMuleParserDataParticle
+from mi.dataset.parser.sio_eng_sio_mule import SioEngSioMuleParserDataParticle, DataParticleType
 
 TELEM_DIR = '/tmp/sio_eng_test'
 F_NAME = 'node59p1.dat'
@@ -48,7 +53,7 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.DIRECTORY: TELEM_DIR,
                 DataSetDriverConfigKeys.PATTERN: F_NAME,
                 DataSetDriverConfigKeys.FREQUENCY: 1,
-                DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 5,
+                DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
             }
         },
         DataSourceConfigKey.PARSER: {
@@ -117,22 +122,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
         
       
-        log.debug("test_stop_resume  ::::  First assert complete")
-        #
         ## Create and store the new driver state
-        #self.memento = {
-        #    DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: {
-        #        F_NAME: {
-        #            DriverStateKey.FILE_SIZE: 5000,
-        #            DriverStateKey.FILE_CHECKSUM: '76749155d86be9caedba4e30b4c8b71a', # test_get = 'dd1b506100c650e70a8e0295674777d6',
-        #            DriverStateKey.FILE_MOD_DATE: mod_time,
-        #            DriverStateKey.PARSER_STATE: {
-        #                'in_process_data': [],
-        #                'unprocessed_data': [[0, 181], [4677, 4995]]
-        #            }
-        #        }
-        #    }
-        #}
+        
         self.memento = {
             DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: {
                 F_NAME: {
@@ -141,7 +132,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_MOD_DATE: mod_time,
                     DriverStateKey.PARSER_STATE: {
                         'in_process_data': [],
-                        'unprocessed_data': [[0, 181], [4677, 4995]]
+                        'unprocessed_data': [[0, 181]]
                     }
                 }
             }
@@ -149,17 +140,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
         
         self.driver = self._get_driver_object(config=driver_config)
         
-        self.driver = SioEngSioMuleDataSetDriver(
-            self._driver_config()['startup_config'],
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.event_callback,
-            self.exception_callback)
-        
         ## create some data to parse
         self.clear_async_data()
-        self.create_sample_data_set_dir("test_stop_resume.dat", TELEM_DIR, F_NAME,
+        self.create_sample_data_set_dir("test_stop_resume2.dat", TELEM_DIR, F_NAME,
                                         copy_metadata=False)
         
         self.driver.start_sampling()
@@ -176,59 +159,42 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.driver.start_sampling()
  
-        # step 2 contains 2 blocks, start with this and get both since we used them
-        # separately in other tests
+        # Using 2 files, one with a block of sio header and data filled with zeros (node59p1_backfill.dat)
+        #   
         self.clear_async_data()
-        self.create_sample_data_set_dir("node59p1_test_get.dat", TELEM_DIR, "node59p1.dat",
+        ## This file has had a section of CS data replaced with 0s
+        self.create_sample_data_set_dir('node59p1_test_backfill.dat', TELEM_DIR, F_NAME,
                                 copy_metadata=False)
-        self.assert_data(SioEngSioMuleParserDataParticle, 'test_get_particle.yml',
-                         count=2)
-        #
-        ## This file has had a section of AD data replaced with 0s
-        #self.create_sample_data_set_dir('node59p1_step3.dat', TELEM_DIR, "node59p1.dat",
-        #                        copy_metadata=False)
-        #self.assert_data(SioEngSioMuleParserDataParticle, 'test_get_particle.yml',
-        #                 count=2)
-        #
-        #
-        ## Now fill in the zeroed section from step3, this should just return the new
-        ## data with a new sequence flag
-        #self.create_sample_data_set_dir('node59p1_test_backfill.dat', TELEM_DIR, "node59p1.dat",
-        #                        copy_metadata=False)
-        #self.assert_data(SioEngSioMuleParserDataParticle, 'test_get_particle.yml',
-        #                 count=1)
+        self.assert_data(SioEngSioMuleParserDataParticle, 'test_back_fill.yml',
+                         count=1)
+        
+        
+        ## Now fill in the zeroed section, and this file also has 2 more CS SIO headers appended
+        #   along with other data at the end. 
+        self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, F_NAME,
+                                copy_metadata=False)
+        self.assert_data(SioEngSioMuleParserDataParticle, 'test_back_fill2.yml',
+                         count=3)
         #
         #
         ## start over now, using step 4
-        #self.driver.shutdown()
-        #self.clear_sample_data()
+        self.driver.shutdown()
+        self.clear_sample_data()
         #
-        ## Reset the driver with no memento
-        #self.memento = None
-        #self.driver = self._get_driver_object()
-        #
-        #self.driver.start_sampling()
-        #
-        #self.clear_async_data()
-        #self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat",
-        #                        copy_metadata=False)
-        #self.assert_data(AdcpsParserDataParticle, 'test_data_1-4.txt.result.yml',
-        #                 count=8, timeout=10)
-    def test_stop_start_resume(self):
-        """
-        Test the ability to stop and restart sampling, ingesting files in the
-        correct order
-        """
-        pass
-
-    def test_sample_exception(self):
-        """
-        Test a case that should produce a sample exception and confirm the
-        sample exception occurs
-        """
-        pass
     
+    def test_bad_data(self):
+        # Put bad data into the file and make sure an exemption is raised
+        
+        ## This file has had a section of CS data replaced with letters
+        self.clear_async_data()
+        self.create_sample_data_set_dir('node59p1_test_get_bad.dat', TELEM_DIR, F_NAME,
+                                copy_metadata=False)
+        self.driver.start_sampling()
+        
+        self.assert_event('ResourceAgentErrorEvent')
 
+        
+ 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -242,32 +208,143 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        self.create_sample_data_set_dir('node59p1_test_get.dat', TELEM_DIR, F_NAME,
+                                        copy_metadata=False)
+        
+        self.assert_initialize()
+        
+        try:
+            log.debug("\n\nInside Try \n\n")    
+            # Verify we get a sample
+            result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_get_particle.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
         """
-        pass
-
+        self.create_sample_data_set_dir('node59p1.dat', TELEM_DIR, F_NAME,
+                                        copy_metadata=False)
+        self.assert_initialize()
+        
+        result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,30,300)
+        
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.info("CONFIG: %s", self._agent_config())
+        self.create_sample_data_set_dir('node59p1_test_get.dat', TELEM_DIR, F_NAME,
+                                        copy_metadata=False)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            
+            result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT: %s", result)
+            # Verify values
+            self.assert_data_values(result, 'test_get_particle.yml')
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+
+            self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, F_NAME,
+                                            copy_metadata=False)
+            # Now read the first records of the second file then stop
+            #result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            #log.debug("RESULT 1: %s", result)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+
+            # Restart sampling and ensure we get the last 2 records of the file
+            self.assert_start_sampling()
+            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT 2: %s", result2)
+            
+            self.assert_data_values(result2, 'test_stop_resume.yml')
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+            
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout .")
+
 
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        pass
+        log.info("CONFIG: %s", self._agent_config())
+        self.create_sample_data_set_dir('node59p1_test_get.dat', TELEM_DIR, F_NAME,
+                                        copy_metadata=False)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            
+            result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT: %s", result)
+            # Verify values
+            self.assert_data_values(result, 'test_get_particle.yml')
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+
+            self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, F_NAME,
+                                            copy_metadata=False)
+            
+            # stop and re-start the agent
+            self.stop_dataset_agent_client()
+            self.init_dataset_agent_client()
+            # re-initialize
+            self.assert_initialize()
+            
+            
+
+            # Restart sampling and ensure we get the last 2 records of the file
+            #self.assert_start_sampling()
+            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT 2: %s", result2)
+            
+            self.assert_data_values(result2, 'test_stop_resume.yml')
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+            
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout .")
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        # file contains invalid sample values
+        self.create_sample_data_set_dir('node59p1_test_get_bad.dat', TELEM_DIR,
+                                        F_NAME)
+        self.event_subscribers.clear_events()
+        self.assert_initialize()
+
+        result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
+
+        # Verify an event was raised and we are in our retry state
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+
 
