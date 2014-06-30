@@ -32,9 +32,8 @@ from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-# ## ## NEW IMPORT
 from mi.dataset.driver.moas.gl.dosta.driver import DataTypeKey
-# ## ## OLD IMPORT
+
 from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver
 
 from mi.dataset.parser.glider import DostaTelemeteredDataParticle, DostaRecoveredDataParticle, DataParticleType
@@ -43,30 +42,9 @@ from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import ResourceAgentErrorEvent
 
-# ## ##  OLD DATASETTESTCASE FUNCTION
-# DataSetTestCase.initialize(
-#     driver_module='mi.dataset.driver.moas.gl.dosta.driver',
-#     driver_class="DOSTADataSetDriver",
-#
-#     agent_resource_id = '123xyz',
-#     agent_name = 'Agent007',
-#     agent_packet_config = DOSTADataSetDriver.stream_config(),
-#     startup_config = {
-#         DataSourceConfigKey.HARVESTER:
-#         {
-#             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dostaTelemeteredTest',
-#             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaTelemeteredTest',
-#             DataSetDriverConfigKeys.PATTERN: '*.mrg',
-#             DataSetDriverConfigKeys.FREQUENCY: 1,
-#         },
-#         DataSourceConfigKey.PARSER: {}
-#     }
-# )
-###############################################################################################
 TELEMETERED_TEST_DIR = '/tmp/dostaTelemeteredTest'
 RECOVERED_TEST_DIR = '/tmp/dostaRecoveredTest'
 
-# ## ##  new DATASETTESTCASE FUNCTION
 DataSetTestCase.initialize(
 
     driver_module='mi.dataset.driver.moas.gl.dosta.driver',
@@ -99,8 +77,6 @@ DataSetTestCase.initialize(
     }
 
 )
-
-SAMPLE_STREAM = 'dosta_abcdjm_glider_instrument'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -109,7 +85,7 @@ SAMPLE_STREAM = 'dosta_abcdjm_glider_instrument'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-    ## DONE
+
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver sampling
@@ -165,7 +141,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                 "unit_363_2013_245_10_6.mrg")
         self.assert_data(DostaRecoveredDataParticle, count=60, timeout=30)
 
-    ## DONE
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -199,7 +174,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced for recovered particle
         self.assert_data(DostaRecoveredDataParticle, 'merged_multiple_dosta_record_recovered.mrg.result.yml', count=3, timeout=10)
 
-    ## DONE
     def test_stop_start_ingest(self):
         """
         Test the ability to stop and restart sampling, and ingesting files in the correct order
@@ -236,7 +210,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(DostaRecoveredDataParticle, 'multiple_dosta_record_recovered.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_7_6.mrg", DataTypeKey.DOSTA_RECOVERED)
 
-    ## DONE
     def test_bad_sample(self):
         """
         Test a bad sample.  To do this we set a state to the middle of a record
@@ -266,7 +239,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced for recovered particle
         self.assert_data(DostaRecoveredDataParticle, 'merged_multiple_dosta_record_recovered.mrg.result.yml', count=3, timeout=10)
 
-    ## DONE
     def test_sample_exception_telemetered(self):
         """
         test that a file is marked as parsed if it has a sample exception (which will happen with an empty file)
@@ -283,7 +255,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_file_ingested(filename, DataTypeKey.DOSTA_TELEMETERED)
 
-    ## DONE
     def test_sample_exception_recovered(self):
         """
         test that a file is marked as parsed if it has a sample exception (which will happen with an empty file)
@@ -310,7 +281,6 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
-    ## DONE
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
@@ -344,7 +314,6 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
-    ## DONE
     def test_large_import(self):
         """
         There is a bug when activating an instrument go_active times out and
@@ -360,7 +329,6 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('unit_363_2013_245_6_6_recovered.mrg', RECOVERED_TEST_DIR)
         result2 = self.data_subscribers.get_samples(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED,60,120)
 
-    ## DONE
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -420,7 +388,6 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    ## DONE
     def test_shutdown_restart(self):
         """
         Test the agents ability to completely stop, then restart
@@ -497,7 +464,6 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    ##DONE
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -512,12 +478,9 @@ class QualificationTest(DataSetQualificationTestCase):
         self.event_subscribers.clear_events()
         self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT, 0)
 
-
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 40)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
-
-
 
 
         # # cause the same error for recovered
@@ -526,7 +489,6 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('non-input_file.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_8.mrg")
 
         self.assert_sample_queue_size(DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED, 0)
-
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 40)

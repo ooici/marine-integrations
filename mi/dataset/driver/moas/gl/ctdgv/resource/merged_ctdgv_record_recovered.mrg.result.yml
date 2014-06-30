@@ -1,8 +1,8 @@
 # Expected Results
 
 header:
-  particle_object: CtdgvTelemeteredDataParticle
-  particle_type: ctdgv_m_glider_instrument
+  particle_object: CtdgvRecoveredDataParticle
+  particle_type: ctdgv_m_glider_instrument_recovered
 
 data:
   - _index: 1
