@@ -33,8 +33,7 @@ from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 
 
 # *** Need to define data regex for this parser ***
-#ENG_REGEX =  r'\x01CS.+\n([-\d]+\.\d+) ([-\d]+\.\d+) ([-\d]+) ([-\d]+) ([-\d]+)\n'
-#ENG_REGEX = r'([-\d]+\.\d+) ([-\d]+\.\d+) ([-\d]+) ([-\d]+) ([-\d]+)\n'
+
 ENG_REGEX = r'\x01CS([0-9]{5})[0-9]{2}_[0-9A-Fa-f]{4}[a-zA-Z]([0-9A-Fa-f]{8})_'\
             '[0-9A-Fa-f]{2}_[0-9A-Fa-f]{4}\x02\n([-\d]+\.\d+) '\
             '([-\d]+\.\d+) ([-\d]+) ([-\d]+) ([-\d]+)\n'
@@ -43,17 +42,17 @@ ENG_MATCHER = re.compile(ENG_REGEX)
 
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'sio_eng_sio_mule_parsed'
+    SAMPLE = 'sio_eng_control_status'
 
 class SioEngSioMuleParserDataParticleKey(BaseEnum):
     # sio_eng_control_status
-    SIO_CONTROLLER_ID = "controller_id"
-    SIO_CONTROLLER_TIMESTAMP = "controller_timestamp"
-    SIO_VOLTAGE_STRING = 'voltage_string'
-    SIO_TEMPERATURE_STRING = 'temperature_string'
-    SIO_ON_TIME = 'on_time'
-    SIO_NUMBER_OF_WAKEUPS = 'number_of_wakeups'
-    SIO_CLOCK_DRIFT = 'clock_drift'
+    SIO_CONTROLLER_ID = "sio_controller_id"
+    SIO_CONTROLLER_TIMESTAMP = "sio_controller_timestamp"
+    SIO_VOLTAGE_STRING = 'sio_eng_voltage'
+    SIO_TEMPERATURE_STRING = 'sio_eng_temperature'
+    SIO_ON_TIME = 'sio_eng_on_time'
+    SIO_NUMBER_OF_WAKEUPS = 'sio_eng_number_of_wakeups'
+    SIO_CLOCK_DRIFT = 'sio_eng_clock_drift'
     
 
 class SioEngSioMuleParserDataParticle(DataParticle):
@@ -89,9 +88,9 @@ class SioEngSioMuleParserDataParticle(DataParticle):
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CLOCK_DRIFT, match.group(7), int)]
         
         # Print Particle
-        log.debug("SIO_CONTROLLER_ID: %d SIO_CONTROLLER_TIMESTAMP: %s SIO_VOLTAGE: %f SIO_TEMP: %f \n" \
-                  "SIO_CONTROLLER_ON_TIME: %d SIO_CONTROLLER_WAKEUPS: %d SIO_CONTROLLER_DRIFT: %d",int(match.group(1)),
-                    match.group(2), float(match.group(3)), float(match.group(4)), int(match.group(5)), int(match.group(6)), int(match.group(7)))
+        #log.debug("SIO_CONTROLLER_ID: %d SIO_CONTROLLER_TIMESTAMP: %s SIO_VOLTAGE: %f SIO_TEMP: %f \n" \
+        #          "SIO_CONTROLLER_ON_TIME: %d SIO_CONTROLLER_WAKEUPS: %d SIO_CONTROLLER_DRIFT: %d",int(match.group(1)),
+        #            match.group(2), float(match.group(3)), float(match.group(4)), int(match.group(5)), int(match.group(6)), int(match.group(7)))
 
         return result
 
@@ -134,6 +133,7 @@ class SioEngSioMuleParser(SioMuleParser):
             sample_count = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
             if header_match.group(1) == 'CS':
+                log.debug('\n\nCS Header detected:::  %s\n\n', header_match.group(0)[1:32])
                 data_match = ENG_MATCHER.match(chunk)
                 if data_match:
                     log.debug('Found data match in chunk: %s', chunk)
@@ -145,11 +145,17 @@ class SioEngSioMuleParser(SioMuleParser):
                               posix_time, self._timestamp)
                     
                     # particle-ize the data block received, return the record
+                    log.debug("Input type _particle_class:%s\n\t\tENG_MATCHER: %s\n\t\tchunk: %s\n\t\tTimestamp:%s",
+                              type(self._particle_class),type(ENG_MATCHER), type(chunk),type(self._timestamp))
                     sample = self._extract_sample(self._particle_class, ENG_MATCHER, chunk, self._timestamp)
                     if sample:
                         # create particle
                         result_particles.append(sample)
                         sample_count +=1
+                else:
+                    log.warn('CS data does not match REGEX')
+                    self._exception_callback(SampleException('CS data does not match REGEX'))
+                    
             self._chunk_sample_count.append(sample_count)
             
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
