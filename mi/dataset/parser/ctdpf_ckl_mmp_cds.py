@@ -55,8 +55,6 @@ class CtdpfCklMmpCdsParserDataParticle(MmpCdsParserDataParticle):
 
         subclass_particle_params = [conductivity, temperature, pressure]
 
-        log.info(subclass_particle_params)
-
         return subclass_particle_params
 
 

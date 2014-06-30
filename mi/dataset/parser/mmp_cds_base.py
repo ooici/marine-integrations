@@ -79,7 +79,7 @@ class MmpCdsParserDataParticle(DataParticle):
 
             ntp_timestamp = ntplib.system_to_ntp_time(raw_time_seconds + raw_time_microseconds/1000000.0)
 
-            log.info("Calculated timestamp from raw %.10f", ntp_timestamp)
+            log.debug("Calculated timestamp from raw %.10f", ntp_timestamp)
 
             self.set_internal_timestamp(ntp_timestamp)
 
@@ -180,8 +180,6 @@ class MmpCdsParser(BufferLoadingParser):
             particles_returned = self._state[StateKey.PARTICLES_RETURNED]
 
         total_num_records = len(self._record_buffer)
-        log.info(total_num_records)
-        log.info(particles_returned)
 
         if total_num_records < num_records:
             num_to_fetch = len(self._record_buffer)
@@ -240,7 +238,7 @@ class MmpCdsParser(BufferLoadingParser):
 
         if data != '':
             self._timestamp = float(ntplib.system_to_ntp_time(time.time()))
-            log.info("Calculated current time timestamp %.10f", self._timestamp)
+            log.debug("Calculated current time timestamp %.10f", self._timestamp)
             self._chunker.add_chunk(data, self._timestamp)
             self.file_complete = True
             return len(data)
@@ -295,13 +293,9 @@ class MmpCdsParser(BufferLoadingParser):
                     if isinstance(unpacked_data, tuple) or isinstance(unpacked_data, list) and \
                             len(unpacked_data) == NUM_MMP_CDS_UNPACKED_ITEMS:
 
-                        log.info("Here0")
-
                         # Extract the sample an provide the particle class which could be different for each
                         # derived MmpCdsParser
                         sample = self._extract_sample(self._particle_class, None, unpacked_data, None)
-
-                        log.info("Here1")
 
                         # If we extracted a sample, add it to the list of samples to retrun
                         if sample:
