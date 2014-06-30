@@ -22,14 +22,12 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER 
-from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, STATUS_BYTES, STATUS_START_MATCHER
+from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, STATUS_BYTES, STATUS_BYTES_AUGMENTED, STATUS_START_MATCHER
 
 E_HEADER_REGEX = b'(\x00\x01\x00{5,5}\x01\x00{7,7}\x01)([\x00-\xff]{8,8})' # E header regex for global sites
 E_HEADER_MATCHER = re.compile(E_HEADER_REGEX)
 
-SIO_HEADER_BYTES = 32
 E_GLOBAL_SAMPLE_BYTES = 30
-STATUS_BYTES_AUGMENTED = 18
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'flord_l_wfp_instrument'
@@ -95,23 +93,22 @@ class FlordLWfpSioMuleParser(SioMuleParser):
         """
 
         result_particles = []
-	(nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        sample_count = 0
+        (timestamp, chunk) = self._chunker.get_next_data()
         
         while (chunk != None):   
             # Parse/match the SIO header
-            sio_header_match = SIO_HEADER_MATCHER.match(chunk)               
+            sio_header_match = SIO_HEADER_MATCHER.match(chunk)
+	    end_of_header = sio_header_match.end(0) 
                 
             sample_count = 0       
             if sio_header_match.group(1) == 'WE':
                 log.trace('read_state: %s', self._read_state)
                         
                 # Parse/match the E file header     
-                e_header_match = E_HEADER_MATCHER.search(chunk[SIO_HEADER_BYTES:SIO_HEADER_BYTES+HEADER_BYTES+1])
+		e_header_match = E_HEADER_MATCHER.search(chunk[end_of_header:end_of_header+HEADER_BYTES])
                 
                 if e_header_match:
-                    payload = chunk[SIO_HEADER_BYTES+HEADER_BYTES+1:]
+		    payload = chunk[end_of_header+HEADER_BYTES:-1] # '-1' to remove the '\x03' end-of-record marker
 		    data_split = self.we_split_function(payload)
                     if data_split:
 			for ii in range(0,len(data_split)):    
@@ -119,8 +116,7 @@ class FlordLWfpSioMuleParser(SioMuleParser):
 			    
                             if not STATUS_START_MATCHER.match(e_record[0:STATUS_BYTES]):				    
                                 fields = struct.unpack('>I', e_record[0:4])
-                                timestamp = float(fields[0])
-                                self._timestamp = ntplib.system_to_ntp_time(timestamp)
+                                self._timestamp = ntplib.system_to_ntp_time(float(fields[0]))
 			    
                                 if len(e_record) == E_GLOBAL_SAMPLE_BYTES:
                                     sample = self._extract_sample(FlordLWfpSioMuleParserDataParticle,
@@ -136,8 +132,7 @@ class FlordLWfpSioMuleParser(SioMuleParser):
                     self._exception_callback(UnexpectedDataException("Found unexpected data."))
 
             self._chunk_sample_count.append(sample_count)    
-	    (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            (timestamp, chunk) = self._chunker.get_next_data()
 
         return result_particles
 
@@ -146,7 +141,7 @@ class FlordLWfpSioMuleParser(SioMuleParser):
         Sort through the raw data to identify new blocks of data that need processing.
         """	
         form_list = []
-        raw_data_len = len(raw_data)	
+	
 	"""
 	The Status messages can have an optional 2 bytes on the end, and since the
 	rest of the data consists of relatively unformated packed binary records,
@@ -155,8 +150,7 @@ class FlordLWfpSioMuleParser(SioMuleParser):
 	We peel this appart by parsing backwards, using the end-of-record as an
 	additional anchor point.
 	"""
-	# '-1' to remove the '\x03' end-of-record marker
-	parse_end_point = raw_data_len - 1
+	parse_end_point = len(raw_data)
         while parse_end_point > 0:
 	    
 	    # look for a status message at postulated message header position
