@@ -12,7 +12,7 @@ from datetime import datetime
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, UnexpectedDataException
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -227,10 +227,11 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
 	self.stream_handle = open(os.path.join(RESOURCE_PATH, 'node58p1_BADFLAGS.dat'))
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
 	    StateKey.IN_PROCESS_DATA:[]}
-        with self.assertRaises(SampleException):
-	    self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
+       
+	self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
-            result = self.parser.get_records(1)
+        result = self.parser.get_records(1)
+	self.assert_(isinstance(self.exception_callback_value, UnexpectedDataException))
     
     def test_in_process_start(self):
         """

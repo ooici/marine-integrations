@@ -176,10 +176,11 @@ class FlordLWfpSioMuleParser(SioMuleParser):
  
             # if the remaining bytes are less than data sample bytes, all we might have left is a status sample
             if parse_end_point != 0 and parse_end_point < STATUS_BYTES and parse_end_point < E_GLOBAL_SAMPLE_BYTES  and parse_end_point < STATUS_BYTES_AUGMENTED:
-		raise SampleException("Error sieving WE data, inferred sample/status alignment incorrect")
+	    	self._exception_callback(UnexpectedDataException("Error sieving WE data, inferred sample/status alignment incorrect"))
+		return_list = []
+		return return_list
 	    
-	# Because we parsed this backwards, we need to reverse the list to deliver the data in the correct order    
-	return_list = []    
+	# Because we parsed this backwards, we need to reverse the list to deliver the data in the correct order     
 	return_list = form_list[::-1]    
         log.debug("returning we sieve/split list %s", return_list)
         return return_list
