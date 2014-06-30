@@ -137,7 +137,7 @@ class Parameter(DriverParameter):
     MI = 'rga_initial_mass'
     MF = 'rga_final_mass'
     AP = 'rga_readings_per_scan'
-    HV = 'rga_high_voltage'
+    HV = 'rga_high_voltage_cdem'
     FL = 'rga_filament_emission_set'
     FL_ACTUAL = 'rga_filament_emission_actual'
     ERROR_REASON = 'rga_error_reason'
