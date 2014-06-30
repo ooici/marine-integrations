@@ -69,7 +69,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.POSITION: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -93,7 +93,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.POSITION: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -125,7 +125,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_concat.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.POSITION: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -153,7 +153,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         stat_info = os.stat(file_path)
 
         # Moving the file position to the end of the first chunk
-        state = {StateKey.POSITION: stat_info.st_size, StateKey.PARTICLES_RETURNED: 20}
+        state = {StateKey.PARTICLES_RETURNED: 20}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -182,13 +182,10 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(file_path, 'rb')
 
         # Moving the file position to the beginning
-        state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
-
-        self.assertEqual(parser._read_state[StateKey.POSITION], 0)
-        self.assertEqual(parser._state[StateKey.POSITION], 0)
 
         particles = parser.get_records(4)
 
@@ -199,9 +196,6 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         log.info(parser._state)
 
         stat_info = os.stat(file_path)
-
-        self.assertEqual(parser._read_state[StateKey.POSITION], stat_info.st_size)
-        self.assertEqual(parser._state[StateKey.POSITION], stat_info.st_size)
 
         test_data = self.get_dict_from_yml('set_state.yml')
         self.assert_result(test_data['data'][3], particles[3])
@@ -218,16 +212,10 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        log.info(parser._read_state[StateKey.POSITION])
-        log.info(parser._state[StateKey.POSITION])
-
-        self.assertEqual(parser._read_state[StateKey.POSITION], stat_info.st_size)
-        self.assertEqual(parser._state[StateKey.POSITION], stat_info.st_size)
-
         self.assert_result(test_data['data'][7], particles[3])
 
         # Give a bad position which will be ignored
-        state = {StateKey.POSITION: 5, StateKey.PARTICLES_RETURNED: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -237,7 +225,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 1)
 
         # Give a bad position which will be ignored
-        state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -249,7 +237,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(test_data['data'][29], particles[29])
 
         # Provide a bad particles returned
-        state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 80}
+        state = {StateKey.PARTICLES_RETURNED: 80}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -268,7 +256,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'ctd_1_20131124T005004_BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.POSITION: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -286,7 +274,7 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.POSITION: 0}
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = CtdpfCklMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -323,11 +311,10 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
                 log.info("internal_timestamp %.10f", particle_data)
 
-            elif key == 'position':
-                particle_data = self.state_callback_value['position']
-                #position corresponds to the position in the file
+            elif key == StateKey.PARTICLES_RETURNED:
+                particle_data = self.state_callback_value[StateKey.PARTICLES_RETURNED]
 
-                log.info("position %d", particle_data)
+                log.info("particles returned %d", particle_data)
 
             else:
                 particle_data = particle_values.get(key)

@@ -25,7 +25,6 @@ log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import DatasetParserException, SampleException
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # The number of items in a list associated unpackaed data within a McLane Moored Profiler cabled docking station
@@ -34,7 +33,6 @@ NUM_MMP_CDS_UNPACKED_ITEMS = 3
 
 
 class StateKey(BaseEnum):
-    POSITION = 'position'  # holds the file position
     PARTICLES_RETURNED = 'particles_returned'  # holds the number of particles returned
 
 
@@ -72,20 +70,28 @@ class MmpCdsParserDataParticle(DataParticle):
         """
         try:
 
-            raw_time_seconds = self._encode_value(MmpCdsParserDataParticleKey.RAW_TIME_SECONDS,
-                                                  self.raw_data[0], int)
-            raw_time_microseconds = self._encode_value(MmpCdsParserDataParticleKey.RAW_TIME_MICROSECONDS,
-                                                       self.raw_data[1], int)
+            raw_time_seconds = self.raw_data[0]
+            raw_time_microseconds = self.raw_data[1]
+            raw_time_seconds_encoded = self._encode_value(MmpCdsParserDataParticleKey.RAW_TIME_SECONDS,
+                                                          raw_time_seconds, int)
+            raw_time_microseconds_encoded = self._encode_value(MmpCdsParserDataParticleKey.RAW_TIME_MICROSECONDS,
+                                                               raw_time_microseconds, int)
+
+            ntp_timestamp = ntplib.system_to_ntp_time(raw_time_seconds + raw_time_microseconds/1000000.0)
+
+            log.info("Calculated timestamp from raw %.10f", ntp_timestamp)
+
+            self.set_internal_timestamp(ntp_timestamp)
 
             subclass_particle_params = self._get_mmp_cds_subclass_particle_params(self.raw_data[2])
 
         except (ValueError, TypeError, IndexError) as ex:
-            log.debug("Raising SampleException as a result of unexpected msgpack data")
+            log.warn("Raising SampleException as a result of unexpected msgpack data")
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        result = [raw_time_seconds,
-                  raw_time_microseconds] + subclass_particle_params
+        result = [raw_time_seconds_encoded,
+                  raw_time_microseconds_encoded] + subclass_particle_params
 
         log.debug('MmpCdsParserDataParticle: particle=%s', result)
         return result
@@ -116,10 +122,7 @@ class MmpCdsParser(BufferLoadingParser):
         self._record_buffer = []
 
         # Initialize the read state to the POSITION being 0
-        self._read_state = {StateKey.POSITION: 0, StateKey.PARTICLES_RETURNED: 0}
-
-        # Pop off the kwargs the key value pairs associated with the DataSetDriverConfigKeys.PARTICLE_CLASS key
-        self._particle_class = kwargs.pop(DataSetDriverConfigKeys.PARTICLE_CLASS)
+        self._read_state = {StateKey.PARTICLES_RETURNED: 0}
 
         # Call the superclass constructor
         super(MmpCdsParser, self).__init__(config,
@@ -145,7 +148,7 @@ class MmpCdsParser(BufferLoadingParser):
             log.debug("Invalid state structure")
             raise DatasetParserException("Invalid state structure")
         # Then we need to make sure that the provided state includes position information
-        if not (StateKey.POSITION in state_obj):
+        if not (StateKey.PARTICLES_RETURNED in state_obj):
             log.debug("Invalid state keys")
             raise DatasetParserException("Invalid state keys")
 
@@ -216,13 +219,6 @@ class MmpCdsParser(BufferLoadingParser):
             self._state_callback(self._state, file_ingested)  # push new state to driver
 
         return return_list
-
-    def _set_position(self, position):
-        """
-        Increment the parser state (i.e. position into the read state)
-        @param increment The updated offset into the read state
-        """
-        self._read_state[StateKey.POSITION] = position
 
     def get_block(self, size=1024):
         """
@@ -299,15 +295,13 @@ class MmpCdsParser(BufferLoadingParser):
                     if isinstance(unpacked_data, tuple) or isinstance(unpacked_data, list) and \
                             len(unpacked_data) == NUM_MMP_CDS_UNPACKED_ITEMS:
 
-                        # Attempt to convert the raw time in seconds (unpacked_data[0]) and raw time in microseconds
-                        # (unpacked_data[1]) to an NTP 64 timestamp
-                        timestamp = ntplib.system_to_ntp_time(unpacked_data[0] + unpacked_data[1]/1000000.0)
-
-                        log.info("Calculated timestamp from raw %.10f", timestamp)
+                        log.info("Here0")
 
                         # Extract the sample an provide the particle class which could be different for each
                         # derived MmpCdsParser
-                        sample = self._extract_sample(self._particle_class, None, unpacked_data, timestamp)
+                        sample = self._extract_sample(self._particle_class, None, unpacked_data, None)
+
+                        log.info("Here1")
 
                         # If we extracted a sample, add it to the list of samples to retrun
                         if sample:
@@ -322,12 +316,9 @@ class MmpCdsParser(BufferLoadingParser):
                     gevent.sleep(0)
 
             except TypeError:
-                log.debug("Raising SampleException as a result of not being able to iterate through the "
-                          "unpacked msgpack data")
+                log.warn("Raising SampleException as a result of not being able to iterate through the "
+                         "unpacked msgpack data")
                 raise SampleException("Invalid ctdpf_ckl_mmp_cds msgpack contents")
-
-            # We're done with this chunk, let's offset the state
-            self._set_position(len(chunk))
 
             # For each sample we retrieved in the chunk, let's create a tuple containing the sample, and the parser's
             # current read state

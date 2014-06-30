@@ -30,6 +30,7 @@ from mi.dataset.parser.ctdpf_ckl_mmp_cds import CtdpfCklMmpCdsParserDataParticle
 from nose.plugins.attrib import attr
 
 from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -253,8 +254,10 @@ class QualificationTest(DataSetQualificationTestCase):
             result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
             log.debug("got result %s", result2)
 
+            # Stop sampling
             self.assert_stop_sampling()
 
+            # Make sure there are no samples in the queue
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
             # Restart sampling and ensure we get the last 3 records of the file
@@ -276,12 +279,78 @@ class QualificationTest(DataSetQualificationTestCase):
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        pass
+        log.info("CONFIG: %s", self._agent_config())
+
+        self.create_sample_data('stop_start1.mpk', 'stop_start1.mpk')
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'stop_start1.yml')
+
+            self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
+
+            self.create_sample_data('stop_start2.mpk', 'stop_start2.mpk')
+
+            # Now read the first three records of the second file then stop
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            log.debug("got result %s", result2)
+
+            # Stop sampling
+            self.assert_stop_sampling()
+
+            # Make sure there are no samples in the queue
+            self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
+
+            # stop the agent
+            self.stop_dataset_agent_client()
+
+            # re-start the agent
+            self.init_dataset_agent_client()
+
+            #re-initialize
+            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+            # Restart sampling and ensure we get the last 3 records of the file
+            self.assert_start_sampling()
+
+            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            log.debug("got result 3 %s", result3)
+            result2.extend(result3)
+            self.assert_data_values(result2, 'stop_start2.yml')
+
+            self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
+
+        except Exception as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Unexpected Exception trapped.")
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        self.assert_initialize()
+
+        # Clear any prior events
+        self.event_subscribers.clear_events()
+
+        filename = 'not-msg-pack.mpk'
+        self.create_sample_data(filename)
+
+        # Verify an event was raised and we are in our retry state
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
 

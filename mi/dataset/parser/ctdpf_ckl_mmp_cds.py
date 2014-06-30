@@ -19,7 +19,6 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.dataset.parser.mmp_cds_base import MmpCdsParserDataParticle, MmpCdsParser
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
 
 class DataParticleType(BaseEnum):
@@ -82,10 +81,6 @@ class CtdpfCklMmpCdsParser(MmpCdsParser):
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
         """
-
-        # The the kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
-        # CtdpfCklMmpCdsParserDataParticle class
-        kwargs[DataSetDriverConfigKeys.PARTICLE_CLASS] = CtdpfCklMmpCdsParserDataParticle
 
         # Call the superclass constructor
         super(CtdpfCklMmpCdsParser, self).__init__(config,
