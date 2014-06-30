@@ -13,30 +13,22 @@ Initial Release
 __author__ = 'Maria Lutz'
 __license__ = 'Apache 2.0'
 
-import copy
 import re
 import struct
 import ntplib
-import binascii
-import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
-#from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
-from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER # the names might change after emily finishes updating sio_mule_common.py
-from mi.dataset.dataset_parser import BufferLoadingParser
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER 
+from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, STATUS_BYTES, STATUS_START_MATCHER
 
 E_HEADER_REGEX = b'(\x00\x01\x00{5,5}\x01\x00{7,7}\x01)([\x00-\xff]{8,8})' # E header regex for global sites
 E_HEADER_MATCHER = re.compile(E_HEADER_REGEX)
-STATUS_START_REGEX = b'\xff\xff\xff[\xfa-\xff]'
-STATUS_START_MATCHER = re.compile(STATUS_START_REGEX)
 
 SIO_HEADER_BYTES = 32
-E_HEADER_BYTES = 24
 E_GLOBAL_SAMPLE_BYTES = 30
-STATUS_BYTES = 16
 STATUS_BYTES_AUGMENTED = 18
 
 class DataParticleType(BaseEnum):
@@ -50,9 +42,6 @@ class FlordLWfpSioMuleParserDataParticleKey(BaseEnum):
     WFP_TIMESTAMP = 'wfp_timestamp'
 
 class FlordLWfpSioMuleParserDataParticle(DataParticle):
-    """
-    Class for parsing data from the flord_l_wfp_sio_mule data set
-    """
 
     _data_particle_type = DataParticleType.SAMPLE
     
@@ -78,7 +67,6 @@ class FlordLWfpSioMuleParserDataParticle(DataParticle):
     
 class FlordLWfpSioMuleParser(SioMuleParser):
     
-    #from adcps as example
     def __init__(self,
                  config,
                  state,
@@ -117,13 +105,13 @@ class FlordLWfpSioMuleParser(SioMuleParser):
                 
             sample_count = 0       
             if sio_header_match.group(1) == 'WE':
-                log.debug('read_state: %s', self._read_state)
+                log.trace('read_state: %s', self._read_state)
                         
                 # Parse/match the E file header     
-                e_header_match = E_HEADER_MATCHER.search(chunk[SIO_HEADER_BYTES:SIO_HEADER_BYTES+E_HEADER_BYTES+1])
+                e_header_match = E_HEADER_MATCHER.search(chunk[SIO_HEADER_BYTES:SIO_HEADER_BYTES+HEADER_BYTES+1])
                 
                 if e_header_match:
-                    payload = chunk[SIO_HEADER_BYTES+E_HEADER_BYTES+1:]
+                    payload = chunk[SIO_HEADER_BYTES+HEADER_BYTES+1:]
 		    data_split = self.we_split_function(payload)
                     if data_split:
 			for ii in range(0,len(data_split)):    
