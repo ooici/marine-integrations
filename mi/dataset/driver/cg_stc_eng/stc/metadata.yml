@@ -4,5 +4,5 @@ driver_metadata:
   driver_name: cg_stc_eng_stc
   driver_path: cg_stc_eng/stc
   email: ehahn@bbn.com
-  release_notes: initial release
-  version: 0.0.1
+  release_notes: merged in recovered harvester
+  version: 0.0.2

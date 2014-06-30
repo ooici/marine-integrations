@@ -1,0 +1,32 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: CtdpfCklWfpTelemeteredMetadataParticle
+    particle_type: ctdpf_ckl_wfp_metadata
+    internal_timestamp: 3589862402.000000
+    wfp_time_on: 1380873602
+    wfp_time_off: 1380873882
+    wfp_number_samples: 3
+  - _index: 2
+    particle_object: CtdpfCklWfpTelemeteredDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3589862402.000000
+    conductivity: 6792
+    temperature: 254779
+    pressure: 1003
+  - _index: 3
+    particle_object: CtdpfCklWfpTelemeteredDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3589862495.333333
+    conductivity: 6796
+    temperature: 254656
+    pressure: 1003
+  - _index: 4
+    particle_object: CtdpfCklWfpTelemeteredDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3589862588.666667
+    conductivity: 6800
+    temperature: 254299
+    pressure: 1003

@@ -704,15 +704,12 @@ class SBE43Protocol(SBE19Protocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        if not (self._extract_sample(SBE43HardwareParticle, SBE43HardwareParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(SBE43DataParticle, SBE43DataParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(SBE43CalibrationParticle, SBE43CalibrationParticle.regex_compiled(), chunk,
-                                         timestamp) or
-                    self._extract_sample(SBE43ConfigurationParticle, SBE43ConfigurationParticle.regex_compiled(), chunk,
-                                         timestamp) or
-                    self._extract_sample(SBE43StatusParticle, SBE43StatusParticle.regex_compiled(), chunk, timestamp)):
-            raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
+        for particle_class in SBE43HardwareParticle, SBE43DataParticle, SBE43CalibrationParticle, \
+                              SBE43ConfigurationParticle, SBE43StatusParticle:
+            if self._extract_sample(particle_class, particle_class.regex_compiled(), chunk, timestamp):
+                return
 
+        raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
 
     def _set_params(self, *args, **kwargs):
         """
@@ -758,26 +755,27 @@ class SBE43Protocol(SBE19Protocol):
         """
         next_state = None
         next_agent_state = None
+        result = []
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE43StatusParticle.regex_compiled(),
-                                   timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_SD, response_regex=SBE43StatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE43HardwareParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_HD, response_regex=SBE43HardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE43ConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CD, response_regex=SBE43ConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE43CalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CC, response_regex=SBE43CalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
 
         #Reset the event counter right after getEC
         self._do_cmd_resp(Command.RESET_EC, timeout=TIMEOUT)
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, ''.join(result))
 
 
     def _handler_autosample_acquire_status(self, *args, **kwargs):
@@ -786,30 +784,31 @@ class SBE43Protocol(SBE19Protocol):
         """
         next_state = None
         next_agent_state = None
+        result = []
 
         # When in autosample this command requires two wakeups to get to the right prompt
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE43StatusParticle.regex_compiled(),
-                                   timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_SD, response_regex=SBE43StatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE43HardwareParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_HD, response_regex=SBE43HardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE43ConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CD, response_regex=SBE43ConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE43CalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CC, response_regex=SBE43CalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetEC Response: %s", result)
 
         #Reset the event counter right after getEC
         self._do_cmd_no_resp(Command.RESET_EC)
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, ''.join(result))
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -915,8 +914,6 @@ class SBE43Protocol(SBE19Protocol):
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             startup_param=False,
-                             direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
@@ -1095,7 +1092,7 @@ class SBE43Protocol(SBE19Protocol):
                              startup_param=True,
                              direct_access=False,
                              default_value=60,
-                             units=ParameterUnit.SECONDS,
+                             units=ParameterUnit.SECOND,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
                              r'autorun = (yes|no)',
