@@ -21,13 +21,12 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException, \
-    RecoverableSampleException
+from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
 # ASCII File with records separated by new line
-RECORD_REGEX = r'.+[\n|\r\n]'
+RECORD_REGEX = r'.*[\n|\r\n]'
 RECORD_MATCHER = re.compile(RECORD_REGEX)
 
 START_OF_DATA_REGEX = r'^:Data'
@@ -49,9 +48,6 @@ START_OF_DATA_MATCHER = re.compile(START_OF_DATA_REGEX)
 #   2962 2004 2438 2496
 #   2960 2002 2437 2494
 
-PH_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = (-?\d+.\d+)C, '\
-             '(AVG Q_RTE Current) = (-?\d+.\d+)A, (AVG RTE Voltage) = (-?\d+.\d+)V, '\
-             '(AVG Supply Voltage) = (-?\d+.\d+)V, (RTE Hits) (\d+), (RTE State) = (\d+)(\r\n?|\n)'
 PH_REGEX = r'(10)'          # record type
 PH_REGEX += r'\t(\d{10})'   # time
 PH_REGEX += r'\t(\d+)'      # starting thermistor
@@ -64,15 +60,6 @@ PH_REGEX += '\t*(\r\n?|\n)'
 
 PH_MATCHER = re.compile(PH_REGEX)
 
-PH_GROUP_RECORD_TYPE = 1
-PH_GROUP_TIME = 2
-PH_GROUP_STARTING_THERMISTOR = 3
-PH_GROUP_REF_LIGHT_MEASURMENT = 4
-PH_GROUP_LIGHT_MEASUREMENT = 5
-PH_GROUP_BATTERY_STATUS = 6
-PH_GROUP_END_THERMISTOR = 7
-
-
 CONTROL_REGEX = r'(\d{3})\t'
 CONTROL_REGEX += r'\d+\t'
 CONTROL_REGEX += r'\d+\t'
@@ -81,27 +68,8 @@ CONTROL_REGEX += r'\d+\t'
 CONTROL_REGEX += r'\d+'
 CONTROL_MATCHER = re.compile(CONTROL_REGEX)
 
-# DATA_CONTROL_REGEX = r'[191|255]\t'
-# DATA_CONTROL_REGEX += r'\d+\t'
-# DATA_CONTROL_REGEX += r'\d+\t'
-# DATA_CONTROL_REGEX += r'\d+\t'
-# DATA_CONTROL_REGEX += r'\d+\t'
-# DATA_CONTROL_REGEX += r'\d+\t'
-# DATA_CONTROL_REGEX += r'\d+'
-# DATA_CONTROL_MATCHER = re.compile(DATA_CONTROL_REGEX)
-#
-# BATTERY_CONTROL_REGEX = r'[192|193]\t'
-# BATTERY_CONTROL_REGEX += r'\d+\t'
-# BATTERY_CONTROL_REGEX += r'\d+\t'
-# BATTERY_CONTROL_REGEX += r'\d+\t'
-# BATTERY_CONTROL_REGEX += r'\d+\t'
-# BATTERY_CONTROL_REGEX += r'\d+\t'
-# BATTERY_CONTROL_REGEX += r'\d+'
-# BATTERY_CONTROL_MATCHER = re.compile(BATTERY_CONTROL_REGEX)
-
-PH_LIGHT_MEASUREMENT_SETS = 23
-PH_REFERENCE_MEASUREMENT_SETS = 4
-MEASUREMENTS_PER_SET = 4
+PH_REFERENCE_MEASUREMENTS = 16
+PH_LIGHT_MEASUREMENTS = 92
 
 BATTERY_CONTROL_TYPE = [192, 193]
 TIMESTAMP_FIELD = 1
@@ -132,14 +100,14 @@ class PhsenRecoveredInstrumentDataParticleKey(PhsenRecoveredDataParticleKey):
 
 class PhsenRecoveredInstrumentDataParticle(DataParticle):
     """
-    Class for parsing data from the phsen_abcdef data set
+    Class for parsing data from the phsen_abcdef ph data set
     """
 
     _data_particle_type = DataParticleType.INSTRUMENT
 
     def _build_parsed_values(self):
         """
-        Take something in the data format and turn it into
+        Take a record in the ph data format and turn it into
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
@@ -152,28 +120,21 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
         field += 1
         starting_thermistor = int(self.raw_data[field], 10)
 
+        # Create array for reference and light measurements.
+        reference_measurements = [0 for x in range (PH_REFERENCE_MEASUREMENTS)]
+        for record_set in range(0, PH_REFERENCE_MEASUREMENTS):
+
+            field += 1
+            reference_measurements[record_set] = int(self.raw_data[field], 10)
+
+        light_measurements = [0 for x in range (PH_LIGHT_MEASUREMENTS)]
+        for record_set in range(0, PH_LIGHT_MEASUREMENTS):
+
+            field += 1
+            light_measurements[record_set]  = int(self.raw_data[field], 10)
 
 
-        # Create 2-D array for reference and light measurements.
-        reference_measurements = [[0 for x in range (MEASUREMENTS_PER_SET)] \
-            for y in range (PH_REFERENCE_MEASUREMENT_SETS)]
-
-        for record_set in range(0, PH_REFERENCE_MEASUREMENT_SETS):
-            for measurements in range(0, MEASUREMENTS_PER_SET):
-
-                field += 1
-                reference_measurements[record_set][measurements] = int(self.raw_data[field], 10)
-
-        light_measurements = [[0 for x in range (MEASUREMENTS_PER_SET)] \
-            for y in range (PH_LIGHT_MEASUREMENT_SETS)]
-
-        for record_set in range(0, PH_LIGHT_MEASUREMENT_SETS):
-            for measurements in range(0, MEASUREMENTS_PER_SET):
-
-                field += 1
-                light_measurements[record_set][measurements] = int(self.raw_data[field], 10)
-
-
+        # Skip unused
         field += 2
 
         battery_voltage = int(self.raw_data[field], 10)
@@ -184,8 +145,8 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
         result = [self._encode_value(PhsenRecoveredDataParticleKey.RECORD_TYPE, record_type, int),
                   self._encode_value(PhsenRecoveredDataParticleKey.RECORD_TIME, record_time, int),
                   self._encode_value(PhsenRecoveredInstrumentDataParticleKey.THERMISTOR_START, starting_thermistor, int),
-                  self._encode_value(PhsenRecoveredInstrumentDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS, reference_measurements,
-                                     list),
+                  self._encode_value(PhsenRecoveredInstrumentDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS,
+                                     reference_measurements, list),
                   self._encode_value(PhsenRecoveredInstrumentDataParticleKey.LIGHT_MEASUREMENTS, light_measurements, list),
                   self._encode_value(PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY, battery_voltage, int),
                   self._encode_value(PhsenRecoveredInstrumentDataParticleKey.THERMISTOR_END, end_thermistor, int)]
@@ -218,14 +179,14 @@ class PhsenRecoveredMetdataDataParticleKey(PhsenRecoveredDataParticleKey):
 
 class PhsenRecoveredMetadataDataParticle(DataParticle):
     """
-    Class for parsing data from the phsen_abcdef data set
+    Class for parsing data from the phsen_abcdef control data set
     """
 
     _data_particle_type = DataParticleType.METADATA
 
     def _build_parsed_values(self):
         """
-        Take something in the data format and turn it into
+        Take a record in the control data format and turn it into
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
@@ -267,20 +228,19 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
             self._encode_value(PhsenRecoveredMetdataDataParticleKey.FLASH_ERASED, (flags>>14)&0x1, int),
             self._encode_value(PhsenRecoveredMetdataDataParticleKey.POWER_ON_INVALID, (flags>>15)&0x1, int),
             self._encode_value(PhsenRecoveredMetdataDataParticleKey.NUM_DATA_RECORDS, num_data_records, int),
-            self._encode_value(PhsenRecoveredMetdataDataParticleKey.NUM_ERROR_RECORDS, num_error_records,
-                             int),
+            self._encode_value(PhsenRecoveredMetdataDataParticleKey.NUM_ERROR_RECORDS, num_error_records, int),
             self._encode_value(PhsenRecoveredMetdataDataParticleKey.NUM_BYTES_STORED, num_bytes_stored, int)]
 
         if record_type in BATTERY_CONTROL_TYPE:
 
             field += 1
             battery_voltage = int(self.raw_data[field], 10)
-            temp_result = self._encode_value(PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY, battery_voltage, int)
-            result.append(temp_result)
+            temp_result = self._encode_value(PhsenRecoveredDataParticleKey, battery_voltage, int)
+            result.extend(temp_result)
         else:
-            result.append({DataParticleKey.VALUE_ID: PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY,
+            # This will handle anything after NUM_ERROR_RECORDS, including data in type 191 and 255.
+            result.extend({DataParticleKey.VALUE_ID: PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY,
                            DataParticleKey.VALUE: None})
-
 
         log.debug('PhsenRecoveredMetadataDataParticle: particle %s', result)
         return result
@@ -297,14 +257,12 @@ class PhsenRecoveredParser(BufferLoadingParser):
                  exception_callback,
                  *args, **kwargs):
 
-        log.debug("entered PhsenRecoveredParser")
         if state is None:
             state = {}
         if not ((StateKey.POSITION in state)):
             state[StateKey.POSITION] = 0
         if not ((StateKey.START_OF_DATA in state)):
 
-            log.debug("in if")
             state[StateKey.START_OF_DATA] = False
 
 
@@ -330,7 +288,6 @@ class PhsenRecoveredParser(BufferLoadingParser):
     def sieve_function(self, input_buffer):
 
         indices_list = []    # initialize the return list to empty
-        log.debug("sieve_function %s", input_buffer)
 
         return indices_list
 
@@ -402,12 +359,10 @@ class PhsenRecoveredParser(BufferLoadingParser):
                         result_particles.append((sample, copy.copy(self._read_state)))
                         # log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
 
-
-
                 elif control_match:
                     record_type = int(control_match.group(1), 10)
                     fields = chunk.split()
-                    if record_type in [128, 129, 131, 133, 192, 193]:
+                    if record_type in [128, 129, 131, 133, 191, 192, 193, 255]:
                         # particle-ize the data block received, return the record
                         sample = self._extract_sample(PhsenRecoveredMetadataDataParticle,
                                                       None, fields, int(fields[TIMESTAMP_FIELD], 10))
