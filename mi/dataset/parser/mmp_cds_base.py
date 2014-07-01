@@ -27,9 +27,21 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import DatasetParserException, SampleException
 from mi.dataset.dataset_parser import BufferLoadingParser
 
-# The number of items in a list associated unpackaed data within a McLane Moored Profiler cabled docking station
+# The number of items in a list associated unpacked data within a McLane Moored Profiler cabled docking station
 # data chunk
 NUM_MMP_CDS_UNPACKED_ITEMS = 3
+
+# A message to be reported when the state provided to the parser is missing PARTICLES_RETURNED
+PARTICLES_RETURNED_MISSING_ERROR_MSG = "PARTICLES_RETURNED missing from state"
+
+# A message to be reported when the mmp cds msgpack data cannot be parsed correctly
+UNABLE_TO_PARSE_MSGPACK_DATA_MSG = "Unable to parse msgpack data into expected parameters"
+
+# A message to be reported when unable to iterate through unpacked msgpack data
+UNABLE_TO_ITERATE_THROUGH_UNPACKED_MSGPACK_MSG = "Unable to iterate through unpacked msgpack data"
+
+# A message to be reported when the format of the unpacked msgpack data does nto match expected
+UNEXPECTED_UNPACKED_MSGPACK_FORMAT_MSG = "Unexpected unpacked msgpack format"
 
 
 class StateKey(BaseEnum):
@@ -85,8 +97,8 @@ class MmpCdsParserDataParticle(DataParticle):
 
             subclass_particle_params = self._get_mmp_cds_subclass_particle_params(self.raw_data[2])
 
-        except (ValueError, TypeError, IndexError) as ex:
-            log.warn("Raising SampleException as a result of unexpected msgpack data")
+        except (ValueError, TypeError, IndexError, KeyError) as ex:
+            log.warn(UNABLE_TO_PARSE_MSGPACK_DATA_MSG)
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
@@ -139,7 +151,7 @@ class MmpCdsParser(BufferLoadingParser):
 
     def set_state(self, state_obj):
         """
-        This method will set or re-set the state of the MmpCdsParser to a given state
+        This method will set the state of the MmpCdsParser to a given state
         @param state_obj the updated state to use
         """
         log.debug("Attempting to set state to: %s", state_obj)
@@ -147,10 +159,10 @@ class MmpCdsParser(BufferLoadingParser):
         if not isinstance(state_obj, dict):
             log.debug("Invalid state structure")
             raise DatasetParserException("Invalid state structure")
-        # Then we need to make sure that the provided state includes position information
+        # Then we need to make sure that the provided state includes particles returned information
         if not (StateKey.PARTICLES_RETURNED in state_obj):
-            log.debug("Invalid state keys")
-            raise DatasetParserException("Invalid state keys")
+            log.debug(PARTICLES_RETURNED_MISSING_ERROR_MSG)
+            raise DatasetParserException(PARTICLES_RETURNED_MISSING_ERROR_MSG)
 
         # Clear out any pre-existing chunks
         self._chunker.clean_all_chunks()
@@ -302,17 +314,16 @@ class MmpCdsParser(BufferLoadingParser):
                             samples.append(sample)
 
                     else:
-                        log.debug("Raising SampleException as a result of a badly formed msgpack file")
-                        raise SampleException("Invalid ctdpf_ckl_mmp_cds msgpack contents")
+                        log.debug(UNEXPECTED_UNPACKED_MSGPACK_FORMAT_MSG)
+                        raise SampleException(UNEXPECTED_UNPACKED_MSGPACK_FORMAT_MSG)
 
                     # Let's call gevent.sleep with 0 to allow for the CPU to be used by another gevent thread just
                     # in case we are dealing with a large list of unpacked msgpack data
                     gevent.sleep(0)
 
             except TypeError:
-                log.warn("Raising SampleException as a result of not being able to iterate through the "
-                         "unpacked msgpack data")
-                raise SampleException("Invalid ctdpf_ckl_mmp_cds msgpack contents")
+                log.warn(UNABLE_TO_ITERATE_THROUGH_UNPACKED_MSGPACK_MSG)
+                raise SampleException(UNABLE_TO_ITERATE_THROUGH_UNPACKED_MSGPACK_MSG)
 
             # For each sample we retrieved in the chunk, let's create a tuple containing the sample, and the parser's
             # current read state
