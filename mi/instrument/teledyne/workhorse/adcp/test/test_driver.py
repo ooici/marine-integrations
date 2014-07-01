@@ -188,7 +188,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                           VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100,
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '100',
                                           VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 800, VALUE: 800},
@@ -221,21 +221,8 @@ class ADCPTMixin(DriverTestMixin):
         Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.CLOCK_SYNC: {STATES: [ProtocolState.COMMAND]},
         Capability.GET_CALIBRATION: {STATES: [ProtocolState.COMMAND]},
-        Capability.GET_CONFIGURATION: {STATES: [ProtocolState.COMMAND]},
-        Capability.SAVE_SETUP_TO_RAM: {STATES: [ProtocolState.COMMAND]},
-        Capability.GET_ERROR_STATUS_WORD: {STATES: [ProtocolState.COMMAND]},
-        Capability.CLEAR_ERROR_STATUS_WORD: {STATES: [ProtocolState.COMMAND]},
-        Capability.GET_FAULT_LOG: {STATES: [ProtocolState.COMMAND]},
-        Capability.CLEAR_FAULT_LOG: {STATES: [ProtocolState.COMMAND]},
         Capability.RUN_TEST_200: {STATES: [ProtocolState.COMMAND]},
-        Capability.FACTORY_SETS: {STATES: [ProtocolState.COMMAND]},
-        Capability.USER_SETS: {STATES: [ProtocolState.COMMAND]},
-
         Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND]},
-        Capability.START_DIRECT: {STATES: [ProtocolState.COMMAND]},
-        Capability.STOP_DIRECT: {STATES: [ProtocolState.COMMAND]},
-
-
     }
 
     EF_CHAR = '\xef'
@@ -779,7 +766,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
                                        'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                        'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                          'EXECUTE_DIRECT'
+                                         ]
         }
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
@@ -884,30 +873,30 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
     # Test parameter settings
-    @unittest.skip('It takes many house for this test')
+    #@unittest.skip('It takes many house for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
-        self._tst_set_xmit_power()
-        self._tst_set_speed_of_sound()
-        self._tst_set_pitch()
-        self._tst_set_roll()
-        self._tst_set_salinity()
-        self._tst_set_sensor_source()
-        self._tst_set_time_per_ensemble()
-        self._tst_set_false_target_threshold()
-        self._tst_set_bandwidth_control()
-        self._tst_set_correlation_threshold()
-        self._tst_set_error_velocity_threshold()
-        self._tst_set_blank_after_transmit()
-        self._tst_set_clip_data_past_bottom()
-        self._tst_set_receiver_gain_select()
+        # self._tst_set_xmit_power()
+        # self._tst_set_speed_of_sound()
+        # self._tst_set_pitch()
+        # self._tst_set_roll()
+        # self._tst_set_salinity()
+        # self._tst_set_sensor_source()
+        # self._tst_set_time_per_ensemble()
+        # self._tst_set_false_target_threshold()
+        # self._tst_set_bandwidth_control()
+        # self._tst_set_correlation_threshold()
+        # self._tst_set_error_velocity_threshold()
+        # self._tst_set_blank_after_transmit()
+        # self._tst_set_clip_data_past_bottom()
+        # self._tst_set_receiver_gain_select()
         self._tst_set_number_of_depth_cells()
-        self._tst_set_pings_per_ensemble()
-        self._tst_set_depth_cell_size()
-        self._tst_set_transmit_length()
-        self._tst_set_ping_weight()
-        self._tst_set_ambiguity_velocity()
+        # self._tst_set_pings_per_ensemble()
+        # self._tst_set_depth_cell_size()
+        # self._tst_set_transmit_length()
+        # self._tst_set_ping_weight()
+        # self._tst_set_ambiguity_velocity()
 
 
 ###############################################################################

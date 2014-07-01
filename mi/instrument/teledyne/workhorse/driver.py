@@ -147,31 +147,10 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="Sync Clock")
         self._cmd_dict.add(TeledyneCapability.GET_CALIBRATION,
                            display_name="Get Calibration")
-        self._cmd_dict.add(TeledyneCapability.GET_CONFIGURATION,
-                           timeout=300,
-                           display_name="Get Configuration")
-        self._cmd_dict.add(TeledyneCapability.SAVE_SETUP_TO_RAM,
-                           display_name="Save Setup To Ram")
-        self._cmd_dict.add(TeledyneCapability.GET_ERROR_STATUS_WORD,
-                           display_name="Get Error Status Word")
-        self._cmd_dict.add(TeledyneCapability.CLEAR_ERROR_STATUS_WORD,
-                           display_name="Clear Error Status Word")
-        self._cmd_dict.add(TeledyneCapability.GET_FAULT_LOG,
-                           display_name="Get Fault Log")
-        self._cmd_dict.add(TeledyneCapability.CLEAR_FAULT_LOG,
-                           display_name="Clear Fault Log")
         self._cmd_dict.add(TeledyneCapability.RUN_TEST_200,
-                           display_name="Run Test 200")
-        self._cmd_dict.add(TeledyneCapability.USER_SETS,
-                           display_name="Set User Sets")
-        self._cmd_dict.add(TeledyneCapability.FACTORY_SETS,
-                           display_name="Set Factory Sets")
+                            display_name="Run Test 200")
         self._cmd_dict.add(TeledyneCapability.ACQUIRE_STATUS,
-                           display_name="Acquire Status")
-        self._cmd_dict.add(TeledyneCapability.START_DIRECT,
-                           display_name="Start Direct Access")
-        self._cmd_dict.add(TeledyneCapability.STOP_DIRECT,
-                           display_name="Stop Direct Access")
+                            display_name="Acquire Status")
 
     # #######################################################################
     # Private helpers.
@@ -229,20 +208,21 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        # self._connection.send_break(delay)
+        log.error("Sung send BREAK ....")
+        self._connection.send_break(delay)
         # Then remove below lines
 
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.error("Failed to connect Break socket")
-            raise InstrumentProtocolException("Init break socket exception")
-
-        try:
-            sock.connect(('10.180.80.178', 2102))
-        except socket.error, msg:
-            log.error("Failed to connect Break socket")
-            raise InstrumentProtocolException("Init break socket exception")
-
-        sock.send("break " + str(delay) + "\r\n")
-        sock.close()
+        # try:
+        #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # except socket.error, msg:
+        #     log.error("Failed to connect Break socket")
+        #     raise InstrumentProtocolException("Init break socket exception")
+        #
+        # try:
+        #     sock.connect(('10.180.80.178', 2102))
+        # except socket.error, msg:
+        #     log.error("Failed to connect Break socket")
+        #     raise InstrumentProtocolException("Init break socket exception")
+        #
+        # sock.send("break " + str(delay) + "\r\n")
+        # sock.close()

@@ -204,19 +204,8 @@ class TeledyneCapability(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = TeledyneProtocolEvent.CLOCK_SYNC
     GET_CALIBRATION = TeledyneProtocolEvent.GET_CALIBRATION
-    GET_CONFIGURATION = TeledyneProtocolEvent.GET_CONFIGURATION
-    SAVE_SETUP_TO_RAM = TeledyneProtocolEvent.SAVE_SETUP_TO_RAM
-    GET_ERROR_STATUS_WORD = TeledyneProtocolEvent.GET_ERROR_STATUS_WORD
-    CLEAR_ERROR_STATUS_WORD = TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD
-    GET_FAULT_LOG = TeledyneProtocolEvent.GET_FAULT_LOG
-    CLEAR_FAULT_LOG = TeledyneProtocolEvent.CLEAR_FAULT_LOG
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
-    FACTORY_SETS = TeledyneProtocolEvent.FACTORY_SETS
-    USER_SETS = TeledyneProtocolEvent.USER_SETS
-
     ACQUIRE_STATUS = TeledyneProtocolEvent.ACQUIRE_STATUS
-    START_DIRECT = TeledyneProtocolEvent.START_DIRECT
-    STOP_DIRECT = TeledyneProtocolEvent.STOP_DIRECT
 
 
 class TeledyneScheduledJob(BaseEnum):

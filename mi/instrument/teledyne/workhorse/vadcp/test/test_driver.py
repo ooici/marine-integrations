@@ -269,7 +269,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                           VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: '022'},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -333,7 +333,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                            VALUE: 0},
         Parameter2.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter2.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
+        Parameter2.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: '022'},
         Parameter2.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter2.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 94, VALUE: 94},
         Parameter2.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -988,7 +988,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
                                        'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                        'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                          'EXECUTE_DIRECT'
+                                         ]
         }
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)

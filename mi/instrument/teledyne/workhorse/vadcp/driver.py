@@ -2146,13 +2146,13 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
                              r'WN (\d+) \-+ Number of depth cells',
-                             lambda match: int(match.group(1), base=10),
-                             self._int_to_string,
-                             type=ParameterDictType.INT,
+                             lambda match: str(match.group(1), base=10),
+                             str,
+                             type=ParameterDictType.STRING,
                              display_name="Number of depth cells",
                              startup_param=True,
                              direct_access=True,
-                             default_value=22)
+                             default_value='022')
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
                              r'WP (\d+) \-+ Pings per Ensemble ',
@@ -2661,13 +2661,13 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.NUMBER_OF_DEPTH_CELLS,
                               r'WN (\d+) \-+ Number of depth cells',
-                              lambda match: int(match.group(1), base=10),
-                              self._int_to_string,
-                              type=ParameterDictType.INT,
+                              lambda match: str(match.group(1)),
+                              str,
+                              type=ParameterDictType.STRING,
                               display_name="Number of depth cells for 5th beam",
                               startup_param=True,
                               direct_access=True,
-                              default_value=22)
+                              default_value='022')
 
         self._param_dict2.add(Parameter2.PINGS_PER_ENSEMBLE,
                               r'WP (\d+) \-+ Pings per Ensemble ',

@@ -505,10 +505,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         # decimals are truncated to ints
         self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 0)
         self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 128)
-        self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 1000)
         self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 2000)
-        self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 3000)
-        self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 4000)
         self.assert_set(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, 5000)
 
         self.assert_set_exception(TeledyneParameter.ERROR_VELOCITY_THRESHOLD, "LEROY JENKINS")
@@ -530,15 +527,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
         self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 0)
         self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 128)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 1000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 2000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 3000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 4000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 5000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 6000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 7000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 8000)
-        self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 9000)
         self.assert_set(TeledyneParameter.BLANK_AFTER_TRANSMIT, 9999)
 
         self.assert_set_exception(TeledyneParameter.BLANK_AFTER_TRANSMIT, "LEROY JENKINS")
@@ -592,13 +580,12 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
 
         # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
-        self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 1)
+        #self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 1)
         self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 128)
-        self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 254)
 
-        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 256)
-        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 0)
-        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, -1)
+        #self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 256)
+        #self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 0)
+        #self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, -1)
 
         #
         # Reset to good value.
@@ -696,12 +683,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # AMBIGUITY_VELOCITY: int 2 - 700
         self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 2)
-        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 111)
-        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 222)
         self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 333)
-        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 444)
-        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 555)
-        self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 666)
         self.assert_set(TeledyneParameter.AMBIGUITY_VELOCITY, 700)
 
         self.assert_set_exception(TeledyneParameter.AMBIGUITY_VELOCITY, 0)
