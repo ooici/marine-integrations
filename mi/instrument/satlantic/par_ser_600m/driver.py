@@ -21,6 +21,7 @@ from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.instrument.data_decorator import ChecksumDecorator
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -28,6 +29,7 @@ from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDrive
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -59,7 +61,8 @@ HEADER_PATTERN = r'Satlantic Digital PAR Sensor\r\nCopyright \(C\) 2003, Satlant
                  r'Instrument: (?P<instr>.*)\r\nS/N: (?P<sernum>\d{4,10})\r\nFirmware: (?P<firm>.*)\r\n'
 HEADER_REGEX = re.compile(HEADER_PATTERN)
 
-COMMAND_PATTERN = r'([Cc]ommand)'
+# COMMAND_PATTERN = r'([Cc]ommand)'
+COMMAND_PATTERN = r'(Command Console)'
 COMMAND_REGEX = re.compile(COMMAND_PATTERN)
 
 MAXRATE_PATTERN = 'Maximum Frame Rate:\s+(?P<maxrate>\d+\.?\d*) Hz'
@@ -78,7 +81,22 @@ GET_REGEX = re.compile(GET_PATTERN)
 INIT_PATTERN = 'Initializing system. Please wait...'
 INIT_REGEX = re.compile(INIT_PATTERN)
 
+INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
+
 EOLN = "\r\n"
+
+
+class ParameterUnits(BaseEnum):
+    HERTZ = 'Hz'
+    TIME_INTERVAL = 'HH:MM:SS'
+    BITS_PER_SECOND = 'bps'
+
+
+class ScheduledJob(BaseEnum):
+    """
+    List of schedulable events
+    """
+    ACQUIRE_STATUS = 'acquire_status'
 
 
 class DataParticleType(BaseEnum):
@@ -89,11 +107,13 @@ class DataParticleType(BaseEnum):
 
 class PARSpecificDriverEvents(BaseEnum):
     RESET = "DRIVER_EVENT_RESET"
+    SCHEDULED_ACQUIRE_STATUS = "DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS"
 
-
-class ScheduledJob(BaseEnum):
-    CLOCK_SYNC = 'clock_sync'   # TODO: delete?
-
+class EngineeringParameter(DriverParameter):
+    """
+    Driver Parameters (aka, engineering parameters)
+    """
+    ACQUIRE_STATUS_INTERVAL = 'AcquireStatusInterval'
 
 ####################################################################
 # Static enumerations for this class
@@ -131,6 +151,7 @@ class PARProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     RESET = PARSpecificDriverEvents.RESET
+    SCHEDULED_ACQUIRE_STATUS = PARSpecificDriverEvents.SCHEDULED_ACQUIRE_STATUS
 
 
 class PARCapability(BaseEnum):
@@ -139,6 +160,7 @@ class PARCapability(BaseEnum):
     """
     ACQUIRE_SAMPLE = PARProtocolEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = PARProtocolEvent.ACQUIRE_STATUS
+    SCHEDULED_ACQUIRE_STATUS = PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS
     START_AUTOSAMPLE = PARProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = PARProtocolEvent.STOP_AUTOSAMPLE
     START_DIRECT = PARProtocolEvent.START_DIRECT
@@ -153,7 +175,7 @@ class Parameter(DriverParameter):
     FIRMWARE = 'firmware'
     SERIAL = 'serial'
     INSTRUMENT = 'instrument'
-
+    ACQUIRE_STATUS_INTERVAL = EngineeringParameter.ACQUIRE_STATUS_INTERVAL
 
 class Prompt(BaseEnum):
     """
@@ -315,8 +337,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     commands and a few set commands.
     Note protocol state machine must be called "self._protocol_fsm"
     """
-    # TODO Check for valid state transitions and handle requests appropriately
-    # possibly using better exceptions from the fsm.on_event() method
 
     #logging level
     __metaclass__ = get_logging_metaclass(log_level='debug')
@@ -332,16 +352,21 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(PARProtocolState.UNKNOWN, PARProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_acquire_status)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_DIRECT, self._handler_command_start_direct)
 
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.RESET, self._handler_autosample_reset)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_autosample_acquire_status)
+
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
@@ -369,7 +394,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              display_name='MaxRate',
                              description='Maximum sampling rate in Hz.',
                              type=ParameterDictType.FLOAT,
-                             units=None,    # TODO: Hz
+                             units=ParameterUnits.HERTZ,
                              value_description='Only certain standard frame rates are accepted by this parameter: \
                              0, 0.125, 0.5, 1, 2, 4, 8, 10, and 12. Any non-integer values are truncated. \
                              To specify an automatic (AUTO) frame rate, input "0" as the value parameter. \
@@ -401,6 +426,17 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Firmware',
                              description='Instrument firmware.')
+
+        self._param_dict.add(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                             INTERVAL_TIME_REGEX,
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="Acquire Status Interval",
+                             description='Interval for gathering status particles',
+                             units=ParameterUnits.TIME_INTERVAL,
+                             default_value='00:00:00',
+                             startup_param=True)
 
         self._chunker = StringChunker(SatlanticPARInstrumentProtocol.sieve_function)
 
@@ -470,43 +506,33 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             self._connection.send("    ".join(map(None, cmd_line)))
 
-            # send eoln until a '$' response
-            while True:
-                time.sleep(0.5)
-                self._connection.send(self.eoln)
+            time.sleep(0.4)
+            self._connection.send(self.eoln)
+            starttime = time.time()
 
+            while True:
                 if expected_prompt != Prompt.COMMAND:
                     break
-                time.sleep(0.5)
+
+                time.sleep(0.1)
+                if time.time() > starttime + 2:
+                    log.debug("Sending eoln again.")
+                    self._connection.send(self.eoln)
+                    starttime = time.time()
+
                 index = self._promptbuf.find(Prompt.COMMAND)
                 if index >= 0:
                     break
 
-        # # wait n time, send eoln, check for $ for 1 second w/ .1 sleep
-        #
-        # time_between_samples = 2
-        # starttime = time.time()
-        # send_flag = True
-        #
-        # time.sleep(0.75)
-        # if expected_prompt == Prompt.COMMAND:
-        #     while True:
-        #         if send_flag:
-        #             self._connection.send(self.eoln)
-        #
-        #         time.sleep(0.1)
-        #         index = self._promptbuf.find(Prompt.COMMAND)
-        #         if index >= 0:
-        #             break   # prompt is found, break out
-        #             # starttime = time.time()
-        #
-        #         elif time.time() > starttime + time_between_samples:
-        #             break
-        #             # send_flag = True
-        #
-        # # time.sleep(3)   # put in test to confirm, sleep based on maxrate
-        #
-        # # send eoln until a '$' response
+        # issue, sending eoln along with command causes random artifact
+        # note, fastest write delay was 0.115
+        # expected response time is 1-2 seconds? try for 1 or 1.5 seconds?
+        """
+            try:
+                send eoln once every 0.25 seconds for 1 second?
+                during the whole time, check for '$' response every 0.1 secondd
+
+        """
 
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
         """
@@ -580,7 +606,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        test = self._do_cmd_resp(Command.SAMPLE, timeout=2, expected_prompt=[PARProtocolError.INVALID_COMMAND, "SATPAR"])
+        try:
+            test = self._do_cmd_resp(Command.SAMPLE, timeout=2, expected_prompt=[PARProtocolError.INVALID_COMMAND, "SATPAR"])
+        except InstrumentTimeoutException:
+            self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
+            return PARProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
+
         log.debug("_handler_unknown_discover: returned: %s", test)
         if test == PARProtocolError.INVALID_COMMAND:
             return PARProtocolState.COMMAND, ResourceAgentState.IDLE
@@ -602,9 +633,63 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Command device to update parameters and send a config change event.
         self._init_params()
 
+        # if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) is not None:
+        #     log.debug("Configuring the scheduler to acquire status %s",
+        #               self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
+        #     if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) != '00:00:00':
+        #         self.start_scheduled_job(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+        #                                  ScheduledJob.ACQUIRE_STATUS, PARProtocolEvent.ACQUIRE_STATUS)
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
+
+    def stop_scheduled_job(self, schedule_job):
+        """
+        Remove the scheduled job
+        """
+        log.debug("Attempting to remove the scheduler")
+        if self._scheduler is not None:
+            try:
+                self._remove_scheduler(schedule_job)
+                log.debug("successfully removed scheduler")
+            except KeyError:
+                log.debug("_remove_scheduler could not find %s", schedule_job)
+
+    def start_scheduled_job(self, param, schedule_job, protocol_event):
+        """
+        Add a scheduled job
+        """
+        interval = self._param_dict.get(param).split(':')
+        hours = interval[0]
+        minutes = interval[1]
+        seconds = interval[2]
+        log.debug("Setting scheduled interval to: %s %s %s", hours, minutes, seconds)
+
+        config = {DriverConfigKey.SCHEDULER: {
+            schedule_job: {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.HOURS: int(hours),
+                    DriverSchedulerConfigKey.MINUTES: int(minutes),
+                    DriverSchedulerConfigKey.SECONDS: int(seconds)
+                }
+            }
+        }
+        }
+
+        log.debug("Adding job %s", schedule_job)
+        try:
+            self._add_scheduler_event(schedule_job, protocol_event)
+        except KeyError:
+            log.debug("scheduler already exists for '%s'", schedule_job)
+
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -658,19 +743,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException
         """
         log.debug("Updating parameter dict")
-        old_config = self._param_dict.get_all()
 
         max_rate_response = self._do_cmd_resp(Command.GET, Parameter.MAXRATE, expected_prompt=Prompt.COMMAND)
         self._param_dict.update(max_rate_response)
 
         if startup:
             self._temp_max_rate(self._get_header_params)
-
-        new_config = self._param_dict.get_all()
-        log.debug("Updated parameter dict: old_config = %s, new_config = %s", old_config, new_config)
-
-        if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _set_params(self, params, startup=False, *args, **kwargs):
         """
@@ -689,21 +767,115 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Retrieve required parameter from args.
         # Raise exception if no parameter provided, or not a dict.
 
+        scheduling_interval_changed = False
+        old_config = self._param_dict.get_all()
+
         if (params is None) or (not isinstance(params, dict)):
             raise InstrumentParameterException('Set params requires a parameter dict.')
         self._verify_not_readonly(params, startup)
         for name in params.keys():
-            if not Parameter.has(name):
+            if EngineeringParameter.has(name):
+                old_val = self._param_dict.get(name)
+                new_val = self._param_dict.format(name, params[name])
+                if old_val != new_val:
+                    self._param_dict.set_value(name, new_val)
+                    scheduling_interval_changed = True
+            elif Parameter.has(name):
+                try:
+                    value = self._param_dict.format(name, params[name])
+                except KeyError:
+                    raise InstrumentParameterException('No existing key for %s' % name)
+
+                if self._do_cmd_resp(Command.SET, name, value, expected_prompt=Prompt.COMMAND):
+                    log.debug('_set_params: %s was updated to %s', name, value)
+            else:
                 raise InstrumentParameterException('No existing key for %s' % name)
-            try:
-                value = self._param_dict.format(name, params[name])
-            except KeyError:
-                raise InstrumentParameterException('No existing key for %s' % name)
-            if self._do_cmd_resp(Command.SET, name, value, expected_prompt=Prompt.COMMAND):
-                log.debug('_set_params: %s was updated to %s', name, value)
 
         self._do_cmd_resp(Command.SAVE, expected_prompt=Prompt.COMMAND)
+
+        if scheduling_interval_changed and not startup:
+            self._setup_scheduler_config()
+
         self._update_params(startup)
+
+        new_config = self._param_dict.get_all()
+        log.debug("Updated parameter dict: old_config = %s, new_config = %s", old_config, new_config)
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _handle_scheduling_params_changed(self, old_config):
+        """
+        Required actions when scheduling parameters change
+        """
+        self._setup_scheduler_config()
+
+    def _setup_scheduler_config(self):
+        """
+        Set up auto scheduler configuration.
+        """
+
+        interval = self._param_dict.format(EngineeringParameter.ACQUIRE_STATUS_INTERVAL).split(':')
+        hours = int(interval[0])
+        minutes = int(interval[1])
+        seconds = int(interval[2])
+        log.debug("Setting scheduled interval to: %s %s %s", hours, minutes, seconds)
+        #
+        # config = {DriverConfigKey.SCHEDULER: {
+        #     schedule_job: {
+        #         DriverSchedulerConfigKey.TRIGGER: {
+        #             DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+        #             DriverSchedulerConfigKey.HOURS: int(hours),
+        #             DriverSchedulerConfigKey.MINUTES: int(minutes),
+        #             DriverSchedulerConfigKey.SECONDS: int(seconds)
+        #         }
+        #     }
+        # }
+        # }
+        #
+        # log.debug("Adding job %s", schedule_job)
+        # try:
+        #     self._add_scheduler_event(schedule_job, protocol_event)
+        # except KeyError:
+        #     log.debug("scheduler already exists for '%s'", schedule_job)
+
+
+
+        log.debug("status interval: %s" % interval)
+
+        if DriverConfigKey.SCHEDULER in self._startup_config:
+            self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.ACQUIRE_STATUS] = {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.HOURS: int(hours),
+                    DriverSchedulerConfigKey.MINUTES: int(minutes),
+                    DriverSchedulerConfigKey.SECONDS: int(seconds)}
+            }
+
+        else:
+
+            self._startup_config[DriverConfigKey.SCHEDULER] = {
+                ScheduledJob.ACQUIRE_STATUS: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.HOURS: int(hours),
+                        DriverSchedulerConfigKey.MINUTES: int(minutes),
+                        DriverSchedulerConfigKey.SECONDS: int(seconds)}
+            },
+            }
+
+        # Start the scheduler if it is not running
+        if not self._scheduler:
+            self.initialize_scheduler()
+
+        #First remove the scheduler, if it exists
+
+        if not self._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS) is None:
+            self._remove_scheduler(ScheduledJob.ACQUIRE_STATUS)
+            log.debug("Removed scheduler for acquire status")
+
+        #Now Add the scheduler
+        if hours > 0 or minutes > 0 or seconds > 0:
+            self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -740,6 +912,14 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Handle PARProtocolState.AUTOSAMPLE PARProtocolEvent.ENTER
         @retval return (next state, result)
         """
+
+        if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) is not None:
+            log.debug("Configuring the scheduler to acquire status %s",
+                      self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
+            if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) != '00:00:00':
+                self.start_scheduled_job(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                                         ScheduledJob.ACQUIRE_STATUS, PARProtocolEvent.ACQUIRE_STATUS)
+
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         return None, None
 
@@ -759,6 +939,20 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         return PARProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
+        """
+        High level command for the operator to get all of the status from the instrument from autosample state:
+        Battery voltage, clock, hw configuration, head configuration, user configuration, and identification string
+        """
+
+        # break out of measurement mode in order to issue the status related commands
+        self._handler_autosample_stop_autosample()
+        self._handler_acquire_status()
+        # return to measurement mode
+        self._handler_command_start_autosample()
+
+        return None, (None, None)
+
     def _handler_autosample_reset(self, *args, **kwargs):
         """
         Handle PARProtocolState.AUTOSAMPLE reset
@@ -774,6 +968,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR, msg="Couldn't reset autosample!")
 
         return PARProtocolState.AUTOSAMPLE, (ResourceAgentState.COMMAND, None)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+        self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
 
     ########################################################################
     # Poll handlers.
@@ -898,8 +1098,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The numerical value of the parameter in the known units
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        # TODO: covert back to splice by eol?
-
         log.debug("_parse_get_response: response=%r", response)
         match = GET_REGEX.search(response)
         if not match:
@@ -923,7 +1121,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             return InstErrorCode.HARDWARE_ERROR
 
-    def _parse_header_response(self, response, prompt): # TODO: rename to exit_reset?
+    def _parse_header_response(self, response, prompt):
         """ Parse what the header looks like to make sure if came up.
 
         @param response What was sent back from the command that was sent
@@ -1001,10 +1199,14 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         :return:
         """
+        send_flag = True
+        starttime = time.time()
         current_maxrate = self._param_dict.get(Parameter.MAXRATE)
         if current_maxrate is None:
             current_maxrate = 0.125     # Assume the slowest sample rate
-        log.debug("Sending reset chars")
+        elif current_maxrate <= 0 or current_maxrate > 8:
+            current_maxrate = 8
+        time_between_samples = (1/current_maxrate)+1
 
         log.debug("_send_break_poll: maxrate = %s", current_maxrate)
 
@@ -1022,7 +1224,24 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                 break
             else:
                 time.sleep(0.1)
-        time.sleep(3)   # put in test to confirm, sleep based on maxrate
+        time.sleep(3.75)
+        # TODO: handle reset and do you want to save?
+
+    def _send_continuous_break(self):
+        """
+        send break every 0.115 seconds until a command regex?
+        """
+
+        while True:
+            time.sleep(0.1)
+            if time.time() > starttime + 0.3:
+                # log.debug("Sending eoln again.")
+                self._connection.send(Command.BREAK)
+                starttime = time.time()
+
+            index = self._promptbuf.find(COMMAND_PATTERN)
+            if index >= 0:
+                break
 
     def _send_break(self):
         self._send_break_poll()
