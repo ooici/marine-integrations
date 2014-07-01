@@ -256,17 +256,19 @@ class QualificationTest(DataSetQualificationTestCase):
     
         try:
             # Read the first file, get 2 samples, and verify data
-            result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
-            self.assert_data_values(result, 'firstA.result.yml')
+            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("      ********************     RESULT 1: %s", result1)
+            self.assert_data_values(result1, 'firstA.result.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             
             # Read the second file, get the next sample, then stop
             self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
-            log.debug("      ********************     RESULT 1: %s", result2)
+            self.assert_stop_sampling()
+
+            log.debug("      ********************     RESULT 2: %s", result2)
             self.assert_data_values(result2, 'firstB.result.yml')
             
-            self.assert_stop_sampling()
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
 
             # Restart sampling and ensure we get the next record, first record
@@ -309,6 +311,8 @@ class QualificationTest(DataSetQualificationTestCase):
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
             log.debug(" *************############################*****************        RESULT 2: %s", result2)
             self.assert_stop_sampling()
+            self.assert_data_values(result2, 'firstB.result.yml')
+ 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
             
             # stop the agent

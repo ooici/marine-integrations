@@ -36,6 +36,21 @@ class SioMuleSingleDataSetDriver(SingleFileDataSetDriver):
         Check if the file has grown larger, if it has update the unprocessed data to add
         the additional section of the file
         """
+        
+        log.debug(' ----------------- #######################                    SMSD_preparse')
+        log.debug(' SMSD_preparse %s %s %s %s %s', self._filename in self._driver_state,
+            DriverStateKey.FILE_SIZE in self._next_driver_state[self._filename],
+            DriverStateKey.FILE_SIZE in self._driver_state[self._filename],
+            DriverStateKey.PARSER_STATE in self._driver_state[self._filename],
+            StateKey.UNPROCESSED_DATA in self._driver_state[self._filename])
+       
+        log.debug(' SMSD_preparse, self._driver_state:  %s ', self._driver_state[self._filename])
+        log.debug(' SMSD_preparse, FILESIZE!!:  %s ', 'file_size' in self._driver_state[self._filename])
+        
+        if self._filename in self._driver_state and 'file_size' in self._driver_state[self._filename]:
+            log.debug(' SMSD_preparse Bsure %s', self._driver_state[self._filename]['file_size'])
+            
+        
         # confirm the current file is in the driver state and the file size is present,
         # and confirm we have a parser state with unprocessed data
         if self._filename in self._driver_state and \
@@ -44,11 +59,14 @@ class SioMuleSingleDataSetDriver(SingleFileDataSetDriver):
             DriverStateKey.PARSER_STATE in self._driver_state[self._filename] and \
             StateKey.UNPROCESSED_DATA in self._driver_state[self._filename][DriverStateKey.PARSER_STATE]:
 
+            
             # shorten names of long state variables
             parser_state = self._driver_state[self._filename].get(DriverStateKey.PARSER_STATE)
             last_size = self._driver_state[self._filename][DriverStateKey.FILE_SIZE]
             next_size = self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE]
 
+            log.debug(' ----------------- ####################### ls %s, ns %s', lst_size, next_size)
+            
             # Check for cases where we need to change the last unprocessed index
             if parser_state[StateKey.UNPROCESSED_DATA] == [] and last_size < next_size:
                 # we have processed up to the last file size, append a
@@ -56,10 +74,11 @@ class SioMuleSingleDataSetDriver(SingleFileDataSetDriver):
                 log.debug('Appending new unprocessed parser %d,%d', last_size, next_size)
                 parser_state[StateKey.UNPROCESSED_DATA].append([last_size, next_size])
                 self._save_parser_state(parser_state)
-
+ 
             elif parser_state[StateKey.UNPROCESSED_DATA] != [] and \
                 parser_state[StateKey.UNPROCESSED_DATA][-1][1] < next_size:
 
+                log.debug(' ----------------- #######################                    SMSD_elif')
                 if last_size > parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
                     # the previous file size is greater than the last unprocessed index so
                     # we have processed up to the last file size, append a
@@ -67,9 +86,11 @@ class SioMuleSingleDataSetDriver(SingleFileDataSetDriver):
                     log.debug('Appending new unprocessed parser %d,%d', last_size, next_size)
                     parser_state[StateKey.UNPROCESSED_DATA].append([last_size, next_size])
                     self._save_parser_state(parser_state)
+                    log.debug(' ----------------- #######################                    SMSD_elif if')
 
                 elif last_size == parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
                     # if the last unprocessed is the last file size, increase the last index
                     log.debug('Replacing last unprocessed parser with %d', next_size)
                     parser_state[StateKey.UNPROCESSED_DATA][-1][1] = next_size
                     self._save_parser_state(parser_state)
+                    log.debug(' ----------------- #######################                    SMSD_elif elif')
