@@ -37,6 +37,7 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.dosta_ln.wfp_sio_mule.driver import DostaLnWfpSioMuleDataSetDriver
 from mi.dataset.parser.dosta_ln_wfp_sio_mule import DostaLnWfpSioMuleParserDataParticle, DataParticleType
+from mi.dataset.parser.sio_mule_common import StateKey
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -117,8 +118,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.memento = {"node58p1.dat": {DriverStateKey.FILE_SIZE: 300,
                         DriverStateKey.FILE_CHECKSUM: 'b9605fd76ed3aff469fe7a874c5e1681',
                         DriverStateKey.FILE_MOD_DATE: mod_time,
-                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[],
+                        DriverStateKey.PARSER_STATE: {StateKey.IN_PROCESS_DATA: [],
+                                                      StateKey.UNPROCESSED_DATA:[],
+                                                      StateKey.FILE_SIZE: 300
                                                      }
                         }
         }
