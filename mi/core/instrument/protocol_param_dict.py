@@ -702,7 +702,7 @@ class ProtocolParameterDict(InstrumentDict):
 
     def update(self, input, target_params=None):
         """
-        Update the dictionaray with a line input. Iterate through all objects
+        Update the dictionary with a line input. Iterate through all objects
         and attempt to match and update a parameter. Only updates the first
         match encountered. If we pass in a target params list then will will
         only iterate through those allowing us to limit upstate to only specific
@@ -727,9 +727,10 @@ class ProtocolParameterDict(InstrumentDict):
             raise InstrumentParameterException("invalid target_params, must be name or list")
 
         for name in params:
-            log.trace("update param dict name: %s", name)
+            log.debug("update param dict name: %s", name)
             val = self._param_dict[name]
             if val.update(input):
+                log.debug('update: %r, %r', name, val.get_value())
                 found = True
         return found
 
