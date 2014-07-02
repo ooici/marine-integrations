@@ -208,21 +208,20 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        log.error("Sung send BREAK ....")
-        self._connection.send_break(delay)
-        # Then remove below lines
+        # self._connection.send_break(delay)
+        #Then remove below lines
 
-        # try:
-        #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # except socket.error, msg:
-        #     log.error("Failed to connect Break socket")
-        #     raise InstrumentProtocolException("Init break socket exception")
-        #
-        # try:
-        #     sock.connect(('10.180.80.178', 2102))
-        # except socket.error, msg:
-        #     log.error("Failed to connect Break socket")
-        #     raise InstrumentProtocolException("Init break socket exception")
-        #
-        # sock.send("break " + str(delay) + "\r\n")
-        # sock.close()
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.error("Failed to connect Break socket")
+            raise InstrumentProtocolException("Init break socket exception")
+
+        try:
+            sock.connect(('10.180.80.178', 2102))
+        except socket.error, msg:
+            log.error("Failed to connect Break socket")
+            raise InstrumentProtocolException("Init break socket exception")
+
+        sock.send("break " + str(delay) + "\r\n")
+        sock.close()

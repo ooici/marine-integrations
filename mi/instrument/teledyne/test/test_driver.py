@@ -27,7 +27,7 @@ from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 from mi.instrument.teledyne.driver import TeledyneParameter
 
-DEFAULT_CLOCK_DIFF = 20
+DEFAULT_CLOCK_DIFF = 5
 
 
 ###############################################################################
@@ -174,6 +174,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
             pass
         self.assertFalse(failed)
 
+    @unittest.skip('It takes many hours for this test')
     def test_scheduled_acquire_status_autosample(self):
         """
         Verify the scheduled acquire status is triggered and functions as expected
@@ -191,6 +192,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.GET_STATUS_INTERVAL, '00:00:00')
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
+    @unittest.skip('It takes many hours for this test')
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -580,12 +582,12 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
 
         # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
-        #self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 1)
+        self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 1)
         self.assert_set(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 128)
 
-        #self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 256)
-        #self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 0)
-        #self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, -1)
+        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 256)
+        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, 0)
+        self.assert_set_exception(TeledyneParameter.NUMBER_OF_DEPTH_CELLS, -1)
 
         #
         # Reset to good value.
@@ -699,12 +701,12 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
 
     # ReadOnly parameter setting exception tests
-    #@unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_set_parameter_test(self):
         self.assert_initialize_driver()
 
-        self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+10000")
-        self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, "+40000")
+        self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, +10000)
+        self.assert_set_exception(TeledyneParameter.HEADING_ALIGNMENT, +40000)
         self.assert_set_exception(TeledyneParameter.ENSEMBLE_PER_BURST, 600)
         self.assert_set_exception(TeledyneParameter.ENSEMBLE_PER_BURST, 70000)
         self.assert_set_exception(TeledyneParameter.LATENCY_TRIGGER, 1)

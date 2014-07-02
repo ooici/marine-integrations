@@ -1025,29 +1025,29 @@ class Protocol(WorkhorseProtocol):
         objects and REGEXes.
         """
         self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
-                                 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(ADCP_PD0_PARSED_DataParticle,
-                                 ADCP_PD0_PARSED_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_PD0_PARSED_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(VADCP_4BEAM_SYSTEM_CONFIGURATION_DataParticle,
-                                 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(ADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
-                                 ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(ADCP_TRANSMIT_PATH_PARTICLE,
-                                 ADCP_TRANSMIT_PATH_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_TRANSMIT_PATH_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
     # for Slave
     def _got_chunk2(self, chunk, timestamp):
@@ -1057,29 +1057,29 @@ class Protocol(WorkhorseProtocol):
         objects and REGEXes.
         """
         self._extract_sample(VADCP_COMPASS_CALIBRATION_DataParticle,
-                                 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(VADCP_PD0_PARSED_DataParticle,
-                                 ADCP_PD0_PARSED_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_PD0_PARSED_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(VADCP_5THBEAM_SYSTEM_CONFIGURATION_DataParticle,
-                                 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(VADCP_ANCILLARY_SYSTEM_DATA_PARTICLE,
-                                 ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_ANCILLARY_SYSTEM_DATA_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
         self._extract_sample(VADCP_TRANSMIT_PATH_PARTICLE,
-                                 ADCP_TRANSMIT_PATH_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)
+                             ADCP_TRANSMIT_PATH_REGEX_MATCHER,
+                             chunk,
+                             timestamp)
 
     # for Master
     def got_raw(self, port_agent_packet):
@@ -1849,27 +1849,27 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.HEADING_ALIGNMENT,
                              r'EA = ([\+\-\d]+) \-+ Heading Alignment',
-                             lambda match: str(match.group(1)),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: int(match.group(1)),
+                             lambda value: '%+06d' % value,
+                             type=ParameterDictType.INT,
                              display_name="Heading alignment",
                              units=ADCPUnits.CDEGREE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              direct_access=True,
                              startup_param=True,
-                             default_value='+00000')
+                             default_value=+00000)
 
         self._param_dict.add(Parameter.HEADING_BIAS,
                              r'EB = ([\+\-\d]+) \-+ Heading Bias',
-                             lambda match: str(match.group(1)),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: int(match.group(1)),
+                             lambda value: '%+06d' % value,
+                             type=ParameterDictType.INT,
                              display_name="Heading Bias",
                              units=ADCPUnits.CDEGREE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
-                             default_value='+00000')
+                             default_value=+00000)
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
                              r'EC = (\d+) \-+ Speed Of Sound',
@@ -2146,13 +2146,13 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
                              r'WN (\d+) \-+ Number of depth cells',
-                             lambda match: str(match.group(1), base=10),
-                             str,
-                             type=ParameterDictType.STRING,
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
                              display_name="Number of depth cells",
                              startup_param=True,
                              direct_access=True,
-                             default_value='022')
+                             default_value=22)
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
                              r'WP (\d+) \-+ Pings per Ensemble ',
@@ -2363,27 +2363,27 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.HEADING_ALIGNMENT,
                               r'EA = ([\+\-\d]+) \-+ Heading Alignment',
-                              lambda match: str(match.group(1)),
-                              str,
-                              type=ParameterDictType.STRING,
+                              lambda match: int(match.group(1)),
+                              lambda value: '%+06d' % value,
+                             type=ParameterDictType.INT,
                               display_name="Heading alignment for 5th beam",
                               units=ADCPUnits.CDEGREE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               direct_access=True,
                               startup_param=True,
-                              default_value='+00000')
+                              default_value=+00000)
 
         self._param_dict2.add(Parameter2.HEADING_BIAS,
                               r'EB = ([\+\-][\d]+) \-+ Heading Bias',
-                              lambda match: str(match.group(1)),
-                              str,
-                              type=ParameterDictType.STRING,
+                              lambda match: int(match.group(1)),
+                              lambda value: '%+06d' % value,
+                             type=ParameterDictType.INT,
                               display_name="Heading Bias for 5th beam",
                               units=ADCPUnits.CDEGREE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
-                              default_value='+00000')
+                              default_value=+00000)
 
         self._param_dict2.add(Parameter2.SPEED_OF_SOUND,
                               r'EC = (\d+) \-+ Speed Of Sound',
@@ -2661,13 +2661,13 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.NUMBER_OF_DEPTH_CELLS,
                               r'WN (\d+) \-+ Number of depth cells',
-                              lambda match: str(match.group(1)),
-                              str,
-                              type=ParameterDictType.STRING,
+                              lambda match: int(match.group(1)),
+                              self._int_to_string,
+                              type=ParameterDictType.INT,
                               display_name="Number of depth cells for 5th beam",
                               startup_param=True,
                               direct_access=True,
-                              default_value='022')
+                              default_value=22)
 
         self._param_dict2.add(Parameter2.PINGS_PER_ENSEMBLE,
                               r'WP (\d+) \-+ Pings per Ensemble ',

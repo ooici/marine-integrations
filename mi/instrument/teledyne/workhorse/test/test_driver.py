@@ -100,7 +100,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
         self.assert_driver_parameters(reply, True)
 
-    #@unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -113,55 +113,55 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
                                    delay=1)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
-        # self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION)
-        # self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
-        # self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
-        # self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        # self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
-        #                            expected="Parameters saved as USER defaults")
-        # self.assert_driver_command(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
-        # self.assert_driver_command(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
-        # self.assert_driver_command(TeledyneProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
-        # self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG,
-        #                            expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
-        # self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
-        # self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
-        # self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
-        # self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION)
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
+        self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
+                                   expected="Parameters saved as USER defaults")
+        self.assert_driver_command(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
+        self.assert_driver_command(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
+        self.assert_driver_command(TeledyneProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
+        self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG,
+                                   expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
+        self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
+        self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
+        self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
+        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS)
 
         ####
         # Test in streaming mode
         ####
         # Put us in streaming
-        # self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
-        #                            delay=1)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        # self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC,
-        #                                      exception_class=InstrumentCommandException)
-        # self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
-        # self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
-        # self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
+                                   delay=1)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC,
+                                             exception_class=InstrumentCommandException)
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
+        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
 
         ####
         # Test a bad command
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    #@unittest.skip('It takes many house for this test')
+    #@unittest.skip('It takes many hours for this test')
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -198,8 +198,9 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.AMBIGUITY_VELOCITY: 175,
             WorkhorseParameter.SERIAL_DATA_OUT: '000 000 000',
             WorkhorseParameter.LATENCY_TRIGGER: 0,
-            WorkhorseParameter.HEADING_ALIGNMENT: '+00000',
-            WorkhorseParameter.HEADING_BIAS: '+00000',
+            WorkhorseParameter.HEADING_ALIGNMENT: +00000,
+            WorkhorseParameter.HEADING_BIAS: +00000,
+            WorkhorseParameter.NUMBER_OF_DEPTH_CELLS: 100,
             WorkhorseParameter.DATA_STREAM_SELECTION: 0,
             WorkhorseParameter.ENSEMBLE_PER_BURST: 0,
             WorkhorseParameter.SAMPLE_AMBIENT_SOUND: 0,
@@ -218,7 +219,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         p = WorkhorseParameter.dict()
         for k, v in new_set.items():
-
             if k not in ('BANNER', 'SERIAL_FLOW_CONTROL', 'SAVE_NVRAM_TO_RECORDER', 'TIME'):
                 new_values[p[k]] = v
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
@@ -277,6 +277,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
 
+    @unittest.skip('It takes time for this test')
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports
@@ -301,6 +302,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_get_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1487)
 
     # Only test when time is sync in startup
+    @unittest.skip('It takes time for this test')
     def _test_execute_clock_sync(self):
         """
         Verify we can synchronize the instrument internal clock
@@ -317,6 +319,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 45)
 
+    @unittest.skip('It takes time for this test')
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -350,9 +353,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             TeledyneProtocolEvent.STOP_AUTOSAMPLE,
-            TeledyneProtocolEvent.CLOCK_SYNC,
             TeledyneProtocolEvent.GET_CALIBRATION,
-            TeledyneProtocolEvent.ACQUIRE_STATUS,
         ]
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
@@ -364,7 +365,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            #TeledyneProtocolEvent.STOP_DIRECT
         ]
 
         self.assert_direct_access_start_telnet()
@@ -383,7 +383,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_reset()
         self.assert_capabilities(capabilities)
 
-    @unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -399,7 +399,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             if self.VALUE in self._driver_parameters[k]:
                 if not self._driver_parameters[k][self.READONLY]:
                     self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
-                    log.error("VERIFYING %s is set to %s appropriately ", k,
+                    log.debug("VERIFYING %s is set to %s appropriately ", k,
                               str(self._driver_parameters[k][self.VALUE]))
 
         self.assert_set_parameter(WorkhorseParameter.XMIT_POWER, 250)
@@ -430,7 +430,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(WorkhorseParameter.PING_WEIGHT, 1)
         self.assert_set_parameter(WorkhorseParameter.AMBIGUITY_VELOCITY, 176)
 
-    @unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -445,7 +445,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             if self.VALUE in self._driver_parameters[k]:
                 if not self._driver_parameters[k][self.READONLY]:
                     self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
-                    log.error("VERIFYING %s is set to %s appropriately ", k,
+                    log.debug("VERIFYING %s is set to %s appropriately ", k,
                               str(self._driver_parameters[k][self.VALUE]))
 
         # Change these values anyway just in case it ran first.

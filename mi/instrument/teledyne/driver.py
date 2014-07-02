@@ -653,7 +653,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     found = True
             if count > (timeout * 10):
                 if not found:
-                    raise InstrumentTimeoutException("NO BREAK RESPONSE.")
+                    raise InstrumentTimeoutException("NO BREAK RESPONSE..")
             time.sleep(0.1)
         self._chunker.clean_all_chunks()
         self._promptbuf = ''

@@ -8,7 +8,6 @@ Release notes:
 GGeneric test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
 
-
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
@@ -97,8 +96,8 @@ InstrumentDriverTestCase.initialize(
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
             Parameter.LATENCY_TRIGGER: 0,
-            Parameter.HEADING_ALIGNMENT: '+00000',
-            Parameter.HEADING_BIAS: '+00000',
+            Parameter.HEADING_ALIGNMENT: +00000,
+            Parameter.HEADING_BIAS: +00000,
             Parameter.TRANSDUCER_DEPTH: 8000,
             Parameter.DATA_STREAM_SELECTION: 0,
             Parameter.ENSEMBLE_PER_BURST: 0,
@@ -113,7 +112,7 @@ InstrumentDriverTestCase.initialize(
     }
 )
 
-###################################################################
+# ##################################################################
 
 ###
 #   Driver constant definitions
@@ -188,7 +187,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                           VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '100',
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100,
                                           VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 800, VALUE: 800},
@@ -197,10 +196,10 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
 
         Parameter.LATENCY_TRIGGER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.HEADING_ALIGNMENT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
-                                      VALUE: '+00000'},
-        Parameter.HEADING_BIAS: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
-                                 VALUE: '+00000'},
+        Parameter.HEADING_ALIGNMENT: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
+                                      VALUE: +00000},
+        Parameter.HEADING_BIAS: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
+                                 VALUE: +00000},
         Parameter.TRANSDUCER_DEPTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 8000, VALUE: 8000},
         Parameter.DATA_STREAM_SELECTION: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
@@ -768,7 +767,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                        'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                           'EXECUTE_DIRECT'
-                                         ]
+            ]
         }
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
@@ -873,30 +872,30 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
     # Test parameter settings
-    #@unittest.skip('It takes many house for this test')
+    #@unittest.skip('It takes many hours for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
-        # self._tst_set_xmit_power()
-        # self._tst_set_speed_of_sound()
-        # self._tst_set_pitch()
-        # self._tst_set_roll()
-        # self._tst_set_salinity()
-        # self._tst_set_sensor_source()
-        # self._tst_set_time_per_ensemble()
-        # self._tst_set_false_target_threshold()
-        # self._tst_set_bandwidth_control()
-        # self._tst_set_correlation_threshold()
-        # self._tst_set_error_velocity_threshold()
-        # self._tst_set_blank_after_transmit()
-        # self._tst_set_clip_data_past_bottom()
-        # self._tst_set_receiver_gain_select()
+        self._tst_set_xmit_power()
+        self._tst_set_speed_of_sound()
+        self._tst_set_pitch()
+        self._tst_set_roll()
+        self._tst_set_salinity()
+        self._tst_set_sensor_source()
+        self._tst_set_time_per_ensemble()
+        self._tst_set_false_target_threshold()
+        self._tst_set_bandwidth_control()
+        self._tst_set_correlation_threshold()
+        self._tst_set_error_velocity_threshold()
+        self._tst_set_blank_after_transmit()
+        self._tst_set_clip_data_past_bottom()
+        self._tst_set_receiver_gain_select()
         self._tst_set_number_of_depth_cells()
-        # self._tst_set_pings_per_ensemble()
-        # self._tst_set_depth_cell_size()
-        # self._tst_set_transmit_length()
-        # self._tst_set_ping_weight()
-        # self._tst_set_ambiguity_velocity()
+        self._tst_set_pings_per_ensemble()
+        self._tst_set_depth_cell_size()
+        self._tst_set_transmit_length()
+        self._tst_set_ping_weight()
+        self._tst_set_ambiguity_velocity()
 
 
 ###############################################################################
@@ -906,6 +905,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
+    @unittest.skip('It takes many hours for this test')
     def test_recover_from_TG(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to

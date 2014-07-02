@@ -7,7 +7,6 @@ Release notes:
 
 """
 
-
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
@@ -80,7 +79,7 @@ from mi.core.common import BaseEnum
 from pyon.core.exception import ResourceError
 
 # ##
-#   Driver parameters for tests
+# Driver parameters for tests
 ###
 
 InstrumentDriverTestCase.initialize(
@@ -269,7 +268,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                           VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: '022'},
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -333,17 +332,17 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                            VALUE: 0},
         Parameter2.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter2.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: '022'},
+        Parameter2.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
         Parameter2.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter2.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 94, VALUE: 94},
         Parameter2.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter2.PING_WEIGHT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter2.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
         Parameter2.LATENCY_TRIGGER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter2.HEADING_ALIGNMENT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
+        Parameter2.HEADING_ALIGNMENT: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
                                        VALUE: '+00000'},
-        Parameter2.HEADING_BIAS: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
-                                  VALUE: '+00000'},
+        Parameter2.HEADING_BIAS: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
+                                  VALUE: +00000},
         Parameter2.TRANSDUCER_DEPTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 2000, VALUE: 2000},
         Parameter2.DATA_STREAM_SELECTION: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter2.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
@@ -990,7 +989,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                        'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                           'EXECUTE_DIRECT'
-                                         ]
+            ]
         }
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
@@ -1881,8 +1880,8 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def test_set_parameter_test_slave(self):
         self.assert_initialize_driver()
 
-        self.assert_set_exception(TeledyneParameter2.HEADING_ALIGNMENT, "+10000")
-        self.assert_set_exception(TeledyneParameter2.HEADING_ALIGNMENT, "+40000")
+        self.assert_set_exception(TeledyneParameter2.HEADING_ALIGNMENT, +10000)
+        self.assert_set_exception(TeledyneParameter2.HEADING_ALIGNMENT, +40000)
         self.assert_set_exception(TeledyneParameter2.ENSEMBLE_PER_BURST, 600)
         self.assert_set_exception(TeledyneParameter2.ENSEMBLE_PER_BURST, 70000)
         self.assert_set_exception(TeledyneParameter2.LATENCY_TRIGGER, 1)

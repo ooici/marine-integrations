@@ -244,28 +244,28 @@ class Protocol(WorkhorseProtocol):
                              default_value=False)
 
         self._param_dict.add(Parameter.HEADING_ALIGNMENT,
-                             r'EA = ([\+\-][\d]+) \-+ Heading Alignment',
-                             lambda match: str(match.group(1)),
-                             str,
-                             type=ParameterDictType.STRING,
+                             r'EA = ([+-]\d+) \-+ Heading Alignment',
+                             lambda match: int(match.group(1)),
+                             lambda value: '%+06d' % value,
+                             type=ParameterDictType.INT,
                              display_name="Heading alignment",
                              units=ADCPUnits.CDEGREE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              direct_access=True,
                              startup_param=True,
-                             default_value='+00000')
+                             default_value=+00000)
 
         self._param_dict.add(Parameter.HEADING_BIAS,
-                             r'EB = ([\+\-\d]+) \-+ Heading Bias',
-                             lambda match: str(match.group(1)),
-                             str,
-                             type=ParameterDictType.STRING,
+                             r'EB = ([+-]\d+) \-+ Heading Bias',
+                             lambda match: int(match.group(1)),
+                             lambda value: '%+06d' % value,
+                             type=ParameterDictType.INT,
                              display_name="Heading Bias",
                              units=ADCPUnits.CDEGREE,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
-                             default_value='+00000')
+                             default_value=+00000)
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
                              r'EC = (\d+) \-+ Speed Of Sound',
@@ -507,14 +507,14 @@ class Protocol(WorkhorseProtocol):
                              default_value=1)
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
-                             r'WN (\d+) \-+ Number Of Depth Cells',
-                             lambda match: str(match.group(1)),
-                             str,
-                             type=ParameterDictType.STRING,
+                             r'WN (\d+) \-+ Number of depth cells',
+                             lambda match: int(match.group(1), base=10),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
                              display_name="Number of Depth Cells",
                              startup_param=True,
                              direct_access=True,
-                             default_value='100')
+                             default_value=100)
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
                              r'WP (\d+) \-+ Pings per Ensemble ',
