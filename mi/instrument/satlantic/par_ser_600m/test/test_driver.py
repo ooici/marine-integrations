@@ -357,37 +357,6 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         # Start validating data particles
         self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
 
-    def test_scheduled_clock_sync_acquire_status(self):
-        """
-        Verify the scheduled clock sync and acquire status is added to the protocol
-        Verify if there is no scheduling, nothing is added to the protocol
-        """
-        mock_callback = Mock(spec="PortAgentClient")
-        protocol = SatlanticPARInstrumentProtocol(mock_callback)
-
-        # #Verify there is nothing scheduled
-        protocol._handler_autosample_enter()
-        self.assertEqual(protocol._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS), None)
-
-        protocol._param_dict.add(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-                                   INTERVAL_TIME_REGEX,
-                                   lambda match: match.group(1),
-                                   str,
-                                   type=ParameterDictType.STRING,
-                                   visibility=ParameterDictVisibility.IMMUTABLE,
-                                   display_name="Acquire Status Interval",
-                                   description='Interval for gathering status particles',
-                                   units=ParameterUnits.TIME_INTERVAL,
-                                   default_value='00:00:02',
-                                   startup_param=True)
-        # #set the values of the dictionary using set_default
-        protocol._param_dict.set_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-                                   protocol._param_dict.get_default_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
-        protocol._handler_autosample_enter()
-
-        #Verify there is scheduled events
-        self.assertTrue(protocol._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS))
-
 
 @attr('INT', group='mi')
 class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
@@ -606,6 +575,21 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         self.assertFalse(failed)
 
         self.assert_current_state(PARProtocolState.COMMAND)
+
+    def test_scheduled_status_autosample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_initialize_driver()
+        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:01:15")
+
+        self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_current_state(PARProtocolState.AUTOSAMPLE)
+
+        #verify that the event got scheduled
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_driver_parameters, timeout=90)
+
+        self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE)
 
 @attr('UNIT', group='mi')
 class SatlanticParDecoratorTest(MiTestCase):
