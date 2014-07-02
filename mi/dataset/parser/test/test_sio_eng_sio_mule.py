@@ -194,7 +194,8 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	# just 1000 bytes, so even though the file is longer it only reads the first
 	# 1000
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 200]],
-	    StateKey.IN_PROCESS_DATA:[]}
+	    StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE: 7}
 	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
 				  self.state_callback, self.pub_callback,self.exception_callback)
 
@@ -231,7 +232,8 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	# 1000
 	
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000],[7800, 8800]],
-	    StateKey.IN_PROCESS_DATA:[]}
+	    StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE: 7}
 	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
 				  self.state_callback, self.pub_callback,self.exception_callback)
 
@@ -270,7 +272,8 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	# 600
 	log.debug('--------------------------------------------------------Starting test_get_many')
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 600]],
-	    StateKey.IN_PROCESS_DATA:[]}
+	    StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE: 7}
 	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
 				  self.state_callback, self.pub_callback,self.exception_callback)
 	result = self.parser.get_records(6)
@@ -300,7 +303,8 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	# just 1000 bytes, so even though the file is longer it only reads the first
 	# 1000
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 700]],
-	    StateKey.IN_PROCESS_DATA:[]}
+	    StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE: 7}
 	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
 				  self.state_callback, self.pub_callback,self.exception_callback)
 	result = self.parser.get_records(12)
@@ -324,7 +328,9 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         Test starting the parser in a state in the middle of processing
         """
         log.debug('-----------------------------------------------------------Starting test_mid_state_start')
-	new_state = {StateKey.IN_PROCESS_DATA:[], StateKey.UNPROCESSED_DATA:[[174, 290]]}
+	new_state = {StateKey.IN_PROCESS_DATA:[],
+	    StateKey.UNPROCESSED_DATA:[[174, 290]],
+	    StateKey.FILE_SIZE: 7}
 	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'STA15908.DAT'))
 	self.parser = SioEngSioMuleParser(self.config, new_state, self.stream_handle,
@@ -344,7 +350,8 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         """
         log.debug('-------------------------------------------------------------Starting test_in_process_start')
 	new_state = {StateKey.IN_PROCESS_DATA:[[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
-	    StateKey.UNPROCESSED_DATA:[[174,600]]}
+	    StateKey.UNPROCESSED_DATA:[[174,600]],
+	    StateKey.FILE_SIZE: 7}
 	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'STA15908.DAT'))
 	self.parser = SioEngSioMuleParser(self.config, new_state, self.stream_handle,
@@ -381,14 +388,17 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	# just 700 bytes, so even though the file is longer it only reads the first
 	# 700
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 700]],
-	    StateKey.IN_PROCESS_DATA:[]}
+	    StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE: 7}
 	self.parser = SioEngSioMuleParser(self.config, self.state, self.stream_handle,
 				  self.state_callback, self.pub_callback,self.exception_callback)
 	
 	result = self.parser.get_records(1)
 	self.assertEqual(result, [self.particle_a])
 	
-	new_state2 = {StateKey.IN_PROCESS_DATA:[[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],StateKey.UNPROCESSED_DATA:[[174,600]]}
+	new_state2 = {StateKey.IN_PROCESS_DATA:[[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
+	    StateKey.UNPROCESSED_DATA:[[174,600]],
+	    StateKey.FILE_SIZE: 7}
 	log.debug("\n******************\nCurrent state: %s", self.parser._read_state)
 	log.debug("----------------- Setting State!------------")
 	log.debug("New_state: %s", new_state2)

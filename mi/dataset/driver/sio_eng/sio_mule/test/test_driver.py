@@ -131,7 +131,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_CHECKSUM: 'dd1b506100c650e70a8e0295674777d6',
                     DriverStateKey.PARSER_STATE: {
                         'in_process_data': [],
-                        'unprocessed_data': [[0, 181]]
+                        'unprocessed_data': [[0, 181]],
+                        'file_size': 4644    
                     }
                 }
             }
@@ -324,7 +325,8 @@ class QualificationTest(DataSetQualificationTestCase):
             
             
 
-            # Restart sampling and ensure we get the last 2 records of the file            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            # Restart sampling and ensure we get the last 2 records of the file
+            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
             log.debug("RESULT 2: %s", result2)        
             self.assert_data_values(result2, 'test_stop_resume.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
