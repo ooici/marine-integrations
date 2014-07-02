@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.2
+  author: Peter Cable
+  driver_model: massp
+  driver_make: harvard
+  driver_name: ooicore
+  release_notes: Driver for the MASSP in-situ mass spectrometer
+  email: petercable@gmail.com
