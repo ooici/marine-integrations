@@ -128,8 +128,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: {
                 F_NAME: {
                     DriverStateKey.FILE_SIZE: 4644,
-                    DriverStateKey.FILE_CHECKSUM: 'dd1b506100c650e70a8e0295674777d6', #'76749155d86be9caedba4e30b4c8b71a'=test_stop_resume.dat
-                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                    DriverStateKey.FILE_CHECKSUM: 'dd1b506100c650e70a8e0295674777d6',
                     DriverStateKey.PARSER_STATE: {
                         'in_process_data': [],
                         'unprocessed_data': [[0, 181]]
@@ -159,7 +158,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.driver.start_sampling()
  
-        # Using 2 files, one with a block of sio header and data filled with zeros (node59p1_backfill.dat)
+        # Using 2 files, one with a block of sio header and data filled with
+        #   zeros (node59p1_backfill.dat)
         #   
         self.clear_async_data()
         ## This file has had a section of CS data replaced with 0s
@@ -169,7 +169,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=1)
         
         
-        ## Now fill in the zeroed section, and this file also has 2 more CS SIO headers appended
+        # Now fill in the zeroed section, and this file also has 2 more CS SIO headers appended
         #   along with other data at the end. 
         self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, F_NAME,
                                 copy_metadata=False)
@@ -177,7 +177,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=3)
         #
         #
-        ## start over now, using step 4
+        # start over now, using step 4
         self.driver.shutdown()
         self.clear_sample_data()
         #
@@ -213,8 +213,7 @@ class QualificationTest(DataSetQualificationTestCase):
         
         self.assert_initialize()
         
-        try:
-            log.debug("\n\nInside Try \n\n")    
+        try:    
             # Verify we get a sample
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
             log.debug("RESULT: %s", result)
@@ -234,6 +233,16 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
         
         result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,30,300)
+        
+    def test_large_import2(self):
+        """
+        Test importing a large number of samples from a different file at once
+        """
+        self.create_sample_data_set_dir('node58p1.dat', TELEM_DIR, F_NAME,
+                                        copy_metadata=False)
+        self.assert_initialize()
+        
+        result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,200,600)    
         
     def test_stop_start(self):
         """
@@ -263,8 +272,6 @@ class QualificationTest(DataSetQualificationTestCase):
             self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, F_NAME,
                                             copy_metadata=False)
             # Now read the first records of the second file then stop
-            #result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
-            #log.debug("RESULT 1: %s", result)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
 
@@ -317,11 +324,8 @@ class QualificationTest(DataSetQualificationTestCase):
             
             
 
-            # Restart sampling and ensure we get the last 2 records of the file
-            #self.assert_start_sampling()
-            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
-            log.debug("RESULT 2: %s", result2)
-            
+            # Restart sampling and ensure we get the last 2 records of the file            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            log.debug("RESULT 2: %s", result2)        
             self.assert_data_values(result2, 'test_stop_resume.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             

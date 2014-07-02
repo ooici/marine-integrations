@@ -157,8 +157,8 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	#self.particle_to_yml(self.particle_12)
 	#self.particle_to_yml(self.particle_AA)
 	#self.particle_to_yml(self.particle_BB)
-	#self.particle_to_yml(self.particle_CC)
-	#self.particle_to_yml(self.particle_DD)
+	self.particle_to_yml(self.particle_CC)
+	self.particle_to_yml(self.particle_DD)
 
 	
         self.file_ingested_value = None
@@ -173,11 +173,9 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         """
         particle_dict = particle.generate_dict()
         # open write append, if you want to start from scratch manually delete this file
-        fid = open('particle.yml', 'a')
+        fid = open('test_get_particle.yml', 'a')
         fid.write('  - _index: 0\n')
         fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
-        fid.write('    particle_object: %s\n' % particle.__class__.__name__)
-        fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
         for val in particle_dict.get('values'):
             if isinstance(val.get('value'), float):
                 fid.write('    %s: %16.20f\n' % (val.get('value_id'), val.get('value')))

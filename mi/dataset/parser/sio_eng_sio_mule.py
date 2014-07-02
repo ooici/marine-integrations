@@ -73,7 +73,6 @@ class SioEngSioMuleParserDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         match = ENG_MATCHER.match(self.raw_data)
-        # Example Output ('1236501', '0018u51EC763C', '04', '8D91', '18.95', '15.9', '1456', '308', '-2')
         if not match:
             raise SampleException("SioEngSioMuleParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
@@ -87,11 +86,6 @@ class SioEngSioMuleParserDataParticle(DataParticle):
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_NUMBER_OF_WAKEUPS, match.group(6), int),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CLOCK_DRIFT, match.group(7), int)]
         
-        # Print Particle
-        #log.debug("SIO_CONTROLLER_ID: %d SIO_CONTROLLER_TIMESTAMP: %s SIO_VOLTAGE: %f SIO_TEMP: %f \n" \
-        #          "SIO_CONTROLLER_ON_TIME: %d SIO_CONTROLLER_WAKEUPS: %d SIO_CONTROLLER_DRIFT: %d",int(match.group(1)),
-        #            match.group(2), float(match.group(3)), float(match.group(4)), int(match.group(5)), int(match.group(6)), int(match.group(7)))
-
         return result
 
 class SioEngSioMuleParser(SioMuleParser):
@@ -141,12 +135,7 @@ class SioEngSioMuleParser(SioMuleParser):
                     posix_time = int(header_match.group(3), 16)
                     log.debug('utc timestamp %s', datetime.utcfromtimestamp(posix_time))
                     self._timestamp = ntplib.system_to_ntp_time(float(posix_time))
-                    log.debug("Converted time \"%s\" (unix: %s) into %s", header_match.group(3),
-                              posix_time, self._timestamp)
-                    
                     # particle-ize the data block received, return the record
-                    log.debug("Input type _particle_class:%s\n\t\tENG_MATCHER: %s\n\t\tchunk: %s\n\t\tTimestamp:%s",
-                              type(self._particle_class),type(ENG_MATCHER), type(chunk),type(self._timestamp))
                     sample = self._extract_sample(self._particle_class, ENG_MATCHER, chunk, self._timestamp)
                     if sample:
                         # create particle

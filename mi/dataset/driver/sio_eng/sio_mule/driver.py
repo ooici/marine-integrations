@@ -61,7 +61,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
             
         elif data_key == DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED:
             parser = self._build_recovered_parser(parser_state, stream_in)
-            log.debug("_build_parser::::  BIULDING RECOVERED PARSER")
+            log.debug("_build_parser::::  BIULDING RECOVERED PARSER, %s",type(parser) )
         return parser
         
         
@@ -71,7 +71,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
         """
-        #log.debug("_build_parser::::  In _build_telemetered_parser")
+        
         config = self._parser_config[DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED]
         config.update({
             'particle_module': 'mi.dataset.parser.sio_eng_sio_mule',
@@ -115,7 +115,6 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         """
         Build and return the harvester
         """
-        # *** Replace the following with harvester in   ialization ***
         self._harvester = []
         if DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED in self._harvester_config:
             telemetered_harvester = SingleFileHarvester(
