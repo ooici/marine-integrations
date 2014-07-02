@@ -38,6 +38,7 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 
 from mi.dataset.driver.mflm.flort.driver import MflmFLORTDDataSetDriver, DataSourceKey
 from mi.dataset.parser.flortd import FlortdParserDataParticle
+from mi.dataset.parser.sio_mule_common import StateKey
 
 
 TELEM_DIR = '/tmp/dsatest1'
@@ -155,8 +156,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_SIZE: 300,
                     DriverStateKey.FILE_CHECKSUM: 'a640fd577c65ed07ed67f1d2e73d34e2',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
-                    DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                  'unprocessed_data':[[0,69], [197,300]]
+                    DriverStateKey.PARSER_STATE: {StateKey.IN_PROCESS_DATA: [],
+                                                  StateKey.UNPROCESSED_DATA:[[0,69], [197,300]],
+                                                  StateKey.FILE_SIZE: 300
                     }
                 }
             }

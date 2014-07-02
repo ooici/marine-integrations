@@ -1947,7 +1947,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):  # Must inh
                 log.debug('Found %d particles and all particles verified', len(samples))
                 return
 
-            log.error("Only found %d samples, looking for %d", len(samples), particle_count)
+            log.trace("Only found %d samples, looking for %d", len(samples), particle_count)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 

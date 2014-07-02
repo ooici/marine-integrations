@@ -35,6 +35,7 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.driver.mflm.phsen.driver import MflmPHSENDataSetDriver, DataSourceKey
 from mi.dataset.parser.phsen import PhsenParserDataParticle, PhsenControlDataParticle
 from mi.dataset.parser.phsen import DataParticleType
+from mi.dataset.parser.sio_mule_common import StateKey
 
 TELEM_DIR = '/tmp/dsatest'
 
@@ -133,8 +134,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
                 DriverStateKey.FILE_MOD_DATE: mod_time,
                 DriverStateKey.PARSER_STATE: {
-                    'in_process_data': [],
-                    'unprocessed_data':[[0, 172]]
+                    StateKey.IN_PROCESS_DATA: [],
+                    StateKey.UNPROCESSED_DATA:[[0, 172]],
+                    StateKey.FILE_SIZE: 911
                 }
             }
         }}

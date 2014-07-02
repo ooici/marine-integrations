@@ -199,10 +199,14 @@ class PolledScheduler(Scheduler):
             for (alias, jobstore) in self._jobstores.items():
                 for job in tuple(jobstore.jobs):
                     log.debug("_process_jobs process job %s" % job)
-                    if(isinstance(job, PolledIntervalJob)):
-                        next_polled_wakeup_time = self._process_polled_job(job, now, alias, jobstore)
+                    if isinstance(job, PolledIntervalJob):
+                        next_polled_wakeup_time_job = self._process_polled_job(job, now, alias, jobstore)
+                        if next_polled_wakeup_time is None: next_polled_wakeup_time = next_polled_wakeup_time_job
+                        next_polled_wakeup_time = min(next_polled_wakeup_time, next_polled_wakeup_time_job)
                     else:
-                        next_wakeup_time = self._process_original_job(job, now, alias, jobstore)
+                        next_wakeup_time_job = self._process_original_job(job, now, alias, jobstore)
+                        if next_wakeup_time is None: next_wakeup_time = next_wakeup_time_job
+                        next_wakeup_time = min(next_wakeup_time, next_wakeup_time_job)
 
             log.debug("_process_jobs loop complete")
             log.debug("_process_jobs next polled wakeup %s" % next_polled_wakeup_time)
@@ -217,7 +221,6 @@ class PolledScheduler(Scheduler):
         finally:
             self._jobstores_lock.release()
             log.debug("_process_jobs lock released")
-
 
     def _process_original_job(self, job, now, alias, jobstore):
         """
