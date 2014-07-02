@@ -41,6 +41,7 @@ class SioMuleSingleDataSetDriver(SingleFileDataSetDriver):
         if self._filename in self._driver_state and \
             DriverStateKey.FILE_SIZE in self._next_driver_state[self._filename] and \
             DriverStateKey.PARSER_STATE in self._driver_state[self._filename] and \
+            self._driver_state[self._filename][DriverStateKey.PARSER_STATE] is not None and \
             StateKey.UNPROCESSED_DATA in self._driver_state[self._filename][DriverStateKey.PARSER_STATE] and \
             StateKey.FILE_SIZE in self._driver_state[self._filename][DriverStateKey.PARSER_STATE]:
 
