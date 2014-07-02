@@ -18,8 +18,10 @@ __license__ = 'Apache 2.0'
 from nose.plugins.attrib import attr
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 from mi.core.log import get_logger
+from mi.core.instrument.instrument_driver import DriverEvent
 log = get_logger()
 from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
@@ -139,6 +141,28 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         self.assert_sample_queue_size(DataParticleType.METADATA, 0)
         self.assert_sample_queue_size(DataParticleType.DATA, 0)
+
+    def test_harvester_new_file_exception(self):
+        """
+        Need to override common test since there is no '*' to replace with foo
+        in this pattern.
+        """
+        # need to put data in the file, not just make an empty file for this to work
+        self.create_sample_data_set_dir('WC_ONE.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat',
+                                        mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir('WC_ONE.DAT', DIR_WFP_SIO_MULE, 'node58p1.dat')
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
     def test_publish_path(self):
         """

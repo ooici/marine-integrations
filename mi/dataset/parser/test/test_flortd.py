@@ -83,7 +83,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         # just 1000 bytes, so even though the file is longer it only reads the first
         # 1000
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 9400}
         self.parser = FlortdParser(self.config, self.state, self.stream_handle,
                                    self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -111,7 +112,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 9400}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, self.state, self.stream_handle,
@@ -152,7 +154,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         data_len = len(data)
         self.stream_handle.seek(0)
         self.state = {StateKey.UNPROCESSED_DATA:[[0, data_len]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: data_len}
         self.parser = FlortdParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -179,7 +182,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[],
-            StateKey.UNPROCESSED_DATA:[[0,69], [197,1000]]}
+            StateKey.UNPROCESSED_DATA:[[0,69], [197,1000]],
+            StateKey.FILE_SIZE: 9400}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, new_state, self.stream_handle,
@@ -202,7 +206,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[[314,390,1,0], [561,637,1,0]],
-            StateKey.UNPROCESSED_DATA:[[0,69],[314,390],[561,637],[944,6150]]}
+            StateKey.UNPROCESSED_DATA:[[0,69],[314,390],[561,637],[944,6150]],
+            StateKey.FILE_SIZE: 9400}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, new_state, self.stream_handle,
@@ -229,9 +234,12 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         """
         test changing the state after initializing
         """
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 9400}
         new_state = {StateKey.UNPROCESSED_DATA:[[0,69],[944,6150]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 9400}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -262,7 +270,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         then using the returned state make a new parser with the test data that has the 0s filled in
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 6150]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 9400}
         # this file has a block of FL data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))
