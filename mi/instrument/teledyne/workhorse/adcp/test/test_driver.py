@@ -872,7 +872,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
     # Test parameter settings
-    #@unittest.skip('It takes many hours for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 

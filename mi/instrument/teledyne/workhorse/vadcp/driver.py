@@ -1860,7 +1860,7 @@ class Protocol(WorkhorseProtocol):
                              default_value=+00000)
 
         self._param_dict.add(Parameter.HEADING_BIAS,
-                             r'EB = ([\+\-\d]+) \-+ Heading Bias',
+                             r'EB = ([+-]\d+) \-+ Heading Bias',
                              lambda match: int(match.group(1)),
                              lambda value: '%+06d' % value,
                              type=ParameterDictType.INT,
@@ -1905,7 +1905,7 @@ class Protocol(WorkhorseProtocol):
                              default_value=0)
 
         self._param_dict.add(Parameter.ROLL,
-                             r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+                             r'ER = ([\+\-]\d+) \-+ Tilt 2 Sensor ',
                              lambda match: int(match.group(1), base=10),
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -2419,7 +2419,7 @@ class Protocol(WorkhorseProtocol):
                               default_value=0)
 
         self._param_dict2.add(Parameter2.ROLL,
-                              r'ER = ([\+\-][\d]+) \-+ Tilt 2 Sensor ',
+                              r'ER = ([\+\-]\d+) \-+ Tilt 2 Sensor ',
                               lambda match: int(match.group(1), base=10),
                               self._int_to_string,
                               type=ParameterDictType.INT,

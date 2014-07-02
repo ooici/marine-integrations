@@ -121,8 +121,8 @@ InstrumentDriverTestCase.initialize(
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
             Parameter.LATENCY_TRIGGER: 0,
-            Parameter.HEADING_ALIGNMENT: '+00000',
-            Parameter.HEADING_BIAS: '+00000',
+            Parameter.HEADING_ALIGNMENT: +00000,
+            Parameter.HEADING_BIAS: +00000,
             Parameter.TRANSDUCER_DEPTH: 2000,
             Parameter.DATA_STREAM_SELECTION: 0,
             Parameter.ENSEMBLE_PER_BURST: 0,
@@ -162,8 +162,8 @@ InstrumentDriverTestCase.initialize(
             Parameter2.PING_WEIGHT: 0,
             Parameter2.AMBIGUITY_VELOCITY: 175,
             Parameter2.LATENCY_TRIGGER: 0,
-            Parameter2.HEADING_ALIGNMENT: '+00000',
-            Parameter2.HEADING_BIAS: '+00000',
+            Parameter2.HEADING_ALIGNMENT: +00000,
+            Parameter2.HEADING_BIAS: +00000,
             Parameter2.TRANSDUCER_DEPTH: 2000,
             Parameter2.DATA_STREAM_SELECTION: 0,
             Parameter2.ENSEMBLE_PER_BURST: 0,
@@ -268,17 +268,17 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                           VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
         Parameter.LATENCY_TRIGGER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.HEADING_ALIGNMENT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
-                                      VALUE: '+00000'},
-        Parameter.HEADING_BIAS: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '+00000',
-                                 VALUE: '+00000'},
+        Parameter.HEADING_ALIGNMENT: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
+                                      VALUE: +00000},
+        Parameter.HEADING_BIAS: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
+                                 VALUE: +00000},
         Parameter.TRANSDUCER_DEPTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 2000, VALUE: 2000},
         Parameter.DATA_STREAM_SELECTION: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
@@ -332,7 +332,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                            VALUE: 0},
         Parameter2.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter2.NUMBER_OF_DEPTH_CELLS: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
+        Parameter2.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
         Parameter2.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter2.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 94, VALUE: 94},
         Parameter2.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -340,7 +340,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter2.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 175, VALUE: 175},
         Parameter2.LATENCY_TRIGGER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter2.HEADING_ALIGNMENT: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
-                                       VALUE: '+00000'},
+                                       VALUE: +00000},
         Parameter2.HEADING_BIAS: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: +00000,
                                   VALUE: +00000},
         Parameter2.TRANSDUCER_DEPTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 2000, VALUE: 2000},
@@ -362,18 +362,8 @@ class ADCPTMixin(DriverTestMixin):
         Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.CLOCK_SYNC: {STATES: [ProtocolState.COMMAND]},
         Capability.GET_CALIBRATION: {STATES: [ProtocolState.COMMAND]},
-        Capability.GET_CONFIGURATION: {STATES: [ProtocolState.COMMAND]},
-        Capability.SAVE_SETUP_TO_RAM: {STATES: [ProtocolState.COMMAND]},
-        Capability.GET_ERROR_STATUS_WORD: {STATES: [ProtocolState.COMMAND]},
-        Capability.CLEAR_ERROR_STATUS_WORD: {STATES: [ProtocolState.COMMAND]},
-        Capability.GET_FAULT_LOG: {STATES: [ProtocolState.COMMAND]},
-        Capability.CLEAR_FAULT_LOG: {STATES: [ProtocolState.COMMAND]},
         Capability.RUN_TEST_200: {STATES: [ProtocolState.COMMAND]},
-        Capability.FACTORY_SETS: {STATES: [ProtocolState.COMMAND]},
-        Capability.USER_SETS: {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND]},
-        Capability.START_DIRECT: {STATES: [ProtocolState.COMMAND]},
-        Capability.STOP_DIRECT: {STATES: [ProtocolState.DIRECT_ACCESS]},
     }
 
     EF_CHAR = '\xef'
@@ -951,48 +941,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         # Verify the parameter definitions
         self.assert_driver_parameter_definition(driver, self._driver_parameters)
-
-    def test_capabilities(self):
-        """
-        Verify the FSM reports capabilities as expected.  All states defined in this dict must
-        also be defined in the protocol FSM.
-        """
-
-        capabilities = {
-            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_CLOCK_SYNC',
-                                    'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_INIT_PARAMS',
-                                    'DRIVER_EVENT_SET',
-                                    'DRIVER_EVENT_START_AUTOSAMPLE',
-                                    'DRIVER_EVENT_START_DIRECT',
-                                    'DRIVER_EVENT_ACQUIRE_STATUS',
-                                    'PROTOCOL_EVENT_CLEAR_ERROR_STATUS_WORD',
-                                    'PROTOCOL_EVENT_CLEAR_FAULT_LOG',
-                                    'PROTOCOL_EVENT_GET_CALIBRATION',
-                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                    'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
-                                    'PROTOCOL_EVENT_GET_FAULT_LOG',
-                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
-                                    'FACTORY_DEFAULT_SETTINGS',
-                                    'USER_DEFAULT_SETTINGS',
-                                    'PROTOCOL_EVENT_RUN_TEST_200',
-                                    'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
-                                    'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'DRIVER_EVENT_GET',
-                                       'DRIVER_EVENT_INIT_PARAMS',
-                                       'PROTOCOL_EVENT_GET_CALIBRATION',
-                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
-                                       'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
-                                          'EXECUTE_DIRECT'
-            ]
-        }
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_capabilities(driver, capabilities)
 
     def test_driver_enums(self):
         """
@@ -1925,8 +1873,8 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             TeledyneParameter2.AMBIGUITY_VELOCITY: 175,
             TeledyneParameter2.SERIAL_DATA_OUT: '000 000 000',
             TeledyneParameter2.LATENCY_TRIGGER: 0,
-            TeledyneParameter2.HEADING_ALIGNMENT: '+00000',
-            TeledyneParameter2.HEADING_BIAS: '+00000',
+            TeledyneParameter2.HEADING_ALIGNMENT: +00000,
+            TeledyneParameter2.HEADING_BIAS: +00000,
             TeledyneParameter2.DATA_STREAM_SELECTION: 0,
             TeledyneParameter2.ENSEMBLE_PER_BURST: 0,
             TeledyneParameter2.SAMPLE_AMBIENT_SOUND: 0,

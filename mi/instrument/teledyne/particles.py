@@ -449,7 +449,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        log.trace("IN teledyne/parse_variable_chunk" + repr(chunk[0:65]))
         rtc = {}
         rtc2k = {}
         (variable_leader_id, ensemble_number,
