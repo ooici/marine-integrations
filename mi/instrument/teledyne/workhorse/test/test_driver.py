@@ -200,7 +200,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.LATENCY_TRIGGER: 0,
             WorkhorseParameter.HEADING_ALIGNMENT: +00000,
             WorkhorseParameter.HEADING_BIAS: +00000,
-            WorkhorseParameter.NUMBER_OF_DEPTH_CELLS: 100,
             WorkhorseParameter.DATA_STREAM_SELECTION: 0,
             WorkhorseParameter.ENSEMBLE_PER_BURST: 0,
             WorkhorseParameter.SAMPLE_AMBIENT_SOUND: 0,

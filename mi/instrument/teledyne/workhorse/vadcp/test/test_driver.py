@@ -268,7 +268,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False,
                                           VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 22, VALUE: 22},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -779,7 +779,7 @@ class ADCPTMixin(DriverTestMixin):
     def assert_sample_data_particle(self, data_particle):
         """
         Verify a particle is a know particle to this driver and verify the particle is  correct
-        @param data_particle: Data particle of unkown type produced by the driver
+        @param data_particle: Data particle of unknown type produced by the driver
         """
 
         if isinstance(data_particle, VADCPDataParticleType.ADCP_PD0_PARSED_BEAM):
@@ -1295,6 +1295,20 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
+        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
+
+    def test_break(self):
+
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_initialize_driver()
+        ####
+        # First test in command mode
+        ####
+        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
+                                   delay=10)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
 
     # This will be called by test_set_ranges_slave()

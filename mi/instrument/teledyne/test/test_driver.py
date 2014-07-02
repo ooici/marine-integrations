@@ -209,6 +209,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL, '00:00:00')
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
+    @unittest.skip('It takes time')
     def test_acquire_status(self):
         """
         Verify the acquire_status command is functional

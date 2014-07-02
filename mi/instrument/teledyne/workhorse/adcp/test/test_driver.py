@@ -623,7 +623,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_CalibrationDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("in assert_particle_compass_calibration")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
@@ -642,7 +641,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCP_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters)  # , verify_values
 
@@ -652,7 +650,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters_earth)  # , verify_values
 
@@ -662,7 +659,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PT2 DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pt2_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_ANCILLARY_SYSTEM_DATA)
         self.assert_data_particle_parameters(data_particle, self._pt2_dict)  # , verify_values
 
@@ -672,7 +668,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PT4 DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        log.debug("IN assert_particle_pt2_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_TRANSMIT_PATH)
         self.assert_data_particle_parameters(data_particle, self._pt4_dict)  # , verify_values
 
