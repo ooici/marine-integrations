@@ -130,7 +130,8 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # NOTE: using the unprocessed data state of 0,5000 limits the file to reading
         # just 5000 bytes, so even though the file is longer, it only reads the first
         # 5000
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[],
+		      StateKey.FILE_SIZE:[]}
         self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
             self.state_callback, self.pub_callback, self.exception_callback) 
         result = self.parser.get_records(1)
@@ -161,7 +162,8 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # NOTE: using the unprocessed data state of 0,5000 limits the file to reading
         # just 5000 bytes, so even though the file is longer, it only reads the first
         # 5000
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE:[]}
         self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
             self.state_callback, self.pub_callback, self.exception_callback)
         
@@ -181,7 +183,8 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         log.debug("Start of test_long_stream.")
         self.stream_handle = open(os.path.join(RESOURCE_PATH, 'node58p1.dat'))
         self.stream_handle.seek(0)
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE:[]}
         self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
             self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -203,7 +206,7 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         """
 	log.debug('Starting test_mid_state_start')
         new_state = {StateKey.IN_PROCESS_DATA:[],
-	    StateKey.UNPROCESSED_DATA:[[2818,2982], [4058,5000]]}
+	    StateKey.UNPROCESSED_DATA:[[2818,2982], [4058,5000]], StateKey.FILE_SIZE:[]}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH, 'node58p1.dat'))
         self.parser = FlordLWfpSioMuleParser(self.config, new_state, self.stream_handle,
@@ -226,7 +229,23 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         """
 	self.stream_handle = open(os.path.join(RESOURCE_PATH, 'node58p1_BADFLAGS.dat'))
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
-	    StateKey.IN_PROCESS_DATA:[]}
+	    StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE:[]}
+       
+	self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
+                                  self.state_callback, self.pub_callback, self.exception_callback)
+        result = self.parser.get_records(1)
+	self.assert_(isinstance(self.exception_callback_value, UnexpectedDataException))
+	
+    def test_bad_e_record(self):
+        """
+        Ensure that the bad record causes a sample exception. The file 'bad_e_record.dat'
+	includes a record containing one byte less than the expected 30 for the
+	flord_l_wfp_sio_mule. The 'Number of Data Bytes' and the 'CRC Checksum' values in the
+	SIO Mule header have been modified accordingly.
+        """
+	self.stream_handle = open(os.path.join(RESOURCE_PATH, 'bad_e_record.dat'))
+	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
+	    StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE:[]}
        
 	self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
@@ -240,7 +259,7 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         log.debug('Starting test_in_process_start')
         #[2818:2982] contains the first WE SIO header
         new_state = {StateKey.IN_PROCESS_DATA:[[2818,2982,3,0], [4059,4673,18,0]],
-            StateKey.UNPROCESSED_DATA:[[2818,2982], [4058,5000]]}
+            StateKey.UNPROCESSED_DATA:[[2818,2982], [4058,5000]], StateKey.FILE_SIZE:[] }
         self.stream_handle = open(os.path.join(RESOURCE_PATH, 'node58p1.dat'))
         self.parser = FlordLWfpSioMuleParser(self.config, new_state, self.stream_handle,
                         self.state_callback, self.pub_callback, self.exception_callback)
@@ -267,9 +286,10 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
 	as if new data has been found and the state has changed
         """
         log.debug('-------------------------------------------------Starting test_set_state')
-        self.state = {StateKey.UNPROCESSED_DATA:[[4059, 4673]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[4059, 4673]], StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE:[] }
         new_state = {StateKey.UNPROCESSED_DATA:[[2818, 2982], [4058, 4059], [4673, 5000]],
-            StateKey.IN_PROCESS_DATA:[[2818, 2982, 3, 0]]}
+            StateKey.IN_PROCESS_DATA:[[2818, 2982, 3, 0]], StateKey.FILE_SIZE:[]}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,'node58p1.dat'))
         self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
@@ -297,7 +317,8 @@ class FlordLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
 	data has not yet been received. 
         """
         log.debug('------------------------------------------------------Starting test_update')
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]], StateKey.IN_PROCESS_DATA:[],
+	    StateKey.FILE_SIZE:[]}
         # this file has first block of WE data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node58p1_1stWE0d.dat'))

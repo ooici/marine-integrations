@@ -50,10 +50,6 @@ class FlordLWfpSioMuleParserDataParticle(DataParticle):
         with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        
-        if len(self.raw_data) != E_GLOBAL_SAMPLE_BYTES:
-            raise SampleException("FlordLWfpSioMuleParserDataParticleKey: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
 
         fields_prof = struct.unpack('>I f f f f f h h h', self.raw_data)     
         result = [self._encode_value(FlordLWfpSioMuleParserDataParticleKey.RAW_SIGNAL_CHL, fields_prof[6], int),
@@ -127,6 +123,8 @@ class FlordLWfpSioMuleParser(SioMuleParser):
 					# create particle
 					result_particles.append(sample)
 					sample_count += 1
+				else:
+				    self._exception_callback(UnexpectedDataException("Found unexpected data."))
                                     
                 else: # no e header match
                     self._exception_callback(UnexpectedDataException("Found unexpected data."))

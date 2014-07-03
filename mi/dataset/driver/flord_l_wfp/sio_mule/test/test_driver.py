@@ -103,7 +103,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
                         DriverStateKey.FILE_CHECKSUM: 'b9605fd76ed3aff469fe7a874c5e1681',
                         DriverStateKey.FILE_MOD_DATE: mod_time,
                         DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,300]]}
+                                                     'unprocessed_data':[[0,300]],
+                                                     'file_size':300 }
                         }}
 
         self.driver = self._get_driver_object(memento=self.memento)
