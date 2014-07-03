@@ -48,10 +48,6 @@ DataSetTestCase.initialize(
     }
 )
 
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -177,8 +173,6 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('optode_1_20131124T005004_458.mpk', 'test_publish_path.mpk')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-        # Slow down processing to 1 per second otherwise samples come in the wrong order
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
         # Verify we get one sample

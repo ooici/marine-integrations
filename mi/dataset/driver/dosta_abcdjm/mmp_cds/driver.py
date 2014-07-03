@@ -51,7 +51,6 @@ class DostaAbcdjmMmpCdsDataSetDriver(SimpleDataSetDriver):
         """
         Build and return the harvester
         """
-        # *** Replace the following with harvester initialization ***
         self._harvester = SingleDirectoryHarvester(
             self._harvester_config,
             driver_state,
