@@ -40,7 +40,7 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 
-from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentCommandException, InstrumentException
 from mi.core.exceptions import InstrumentParameterException, InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException, SampleException
 
@@ -82,6 +82,7 @@ INIT_REGEX = re.compile(INIT_PATTERN)
 
 INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
+WRITE_DELAY = 0.2
 EOLN = "\r\n"
 
 
@@ -161,7 +162,7 @@ class PARCapability(BaseEnum):
     """
     ACQUIRE_SAMPLE = PARProtocolEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = PARProtocolEvent.ACQUIRE_STATUS
-    SCHEDULED_ACQUIRE_STATUS = PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS
+    # SCHEDULED_ACQUIRE_STATUS = PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS
     START_AUTOSAMPLE = PARProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = PARProtocolEvent.STOP_AUTOSAMPLE
     START_DIRECT = PARProtocolEvent.START_DIRECT
@@ -179,16 +180,17 @@ class Parameter(DriverParameter):
     ACQUIRE_STATUS_INTERVAL = EngineeringParameter.ACQUIRE_STATUS_INTERVAL
 
 
+class PARProtocolError(BaseEnum):
+    INVALID_COMMAND = "Invalid command"
+
+
 class Prompt(BaseEnum):
     """
     Command Prompt
     """
     COMMAND = '$'
     NULL = ''
-
-
-class PARProtocolError(BaseEnum):
-    INVALID_COMMAND = "Invalid command"
+    PARProtocolError.INVALID_COMMAND
 
 
 ###############################################################################
@@ -313,9 +315,9 @@ class SatlanticPARConfigParticle(DataParticle):
 
         log.debug("_build_parsed_values: %s, %s, %s, %s, %s", maxrate, baud, self._serial_num, self._firmware, self._instrument)
 
-        if not maxrate:
+        if maxrate is None:
             raise SampleException("No maxrate value parsed")
-        if not baud:
+        if baud is None:
             raise SampleException("No baud rate value parsed")
 
         result = [{DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.BAUD_RATE, DataParticleKey.VALUE: baud},
@@ -377,7 +379,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.SET, self._parse_set_response)
         self._add_response_handler(Command.SAMPLE, self._parse_response)
         self._add_response_handler(Command.EXIT_AND_RESET, self._parse_header_response)
-        self._add_response_handler(Command.RESET, self._parse_reset_response)
+        self._add_response_handler(Command.RESET, self._parse_header_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -492,37 +494,73 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup timeout.
+        @retval The fully built command to be sent
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built.
         """
         expected_prompt = kwargs.get('expected_prompt', None)
+        response_regex = kwargs.get('response_regex', None)
         cmd_line = self._build_default_command(cmd, *args)
+        write_delay = kwargs.get('write_delay', WRITE_DELAY)
 
         # Send command.
         log.debug('_do_cmd: %s, length=%s' % (repr(cmd_line), len(cmd_line)))
         if len(cmd_line) <= 1:
             self._connection.send(cmd_line)
+
         else:
+            # for char in cmd_line:
+            #     self._connection.send(char)
+            #     time.sleep(write_delay)
             self._connection.send("    ".join(map(None, cmd_line)))
 
             time.sleep(0.4)
             self._connection.send(self.eoln)
             starttime = time.time()
 
-            while True:
-                if expected_prompt != Prompt.COMMAND:
-                    break
+            # checkbuf = self._promptbuf
+            # while len(checkbuf) == len(self._promptbuf):
+            #     time.sleep(0.1)
+            #     if time.time() > starttime + 2:
+            #         log.debug("Sending eoln again.")
+            #         self._connection.send(self.eoln)
+            #         starttime = time.time()
 
-                time.sleep(0.1)
-                if time.time() > starttime + 2:
-                    log.debug("Sending eoln again.")
-                    self._connection.send(self.eoln)
-                    starttime = time.time()
+            # check_value = None
+            # if expected_prompt is not None:
+            #     checks = (Prompt.COMMAND, PARProtocolError.INVALID_COMMAND, "SATPAR")
+            #     while True:
+            #         time.sleep(0.1)
+            #         if time.time() > starttime + 2:
+            #             log.debug("Sending eoln again.")
+            #             self._connection.send(self.eoln)
+            #             starttime = time.time()
+            #         for check in checks:
+            #
+            #         if check_value in self._promptbuf:
+            #             break
 
-                index = self._promptbuf.find(Prompt.COMMAND)
-                if index >= 0:
-                    break
+            check_value = None
+            if expected_prompt is not None:
+                checks = (Prompt.COMMAND, "SATPAR")
+                for check in checks:
+                    if check in expected_prompt:
+                        log.debug('_do_cmd: command: %s, check=%s' % (cmd_line, check))
+                        check_value = check
+
+            if check_value is not None:
+                while True:
+                    time.sleep(0.1)
+                    if time.time() > starttime + 2:
+                        log.debug("Sending eoln again.")
+                        self._connection.send(self.eoln)
+                        starttime = time.time()
+                    if check_value in self._promptbuf:
+                        break
+                    if PARProtocolError.INVALID_COMMAND in self._promptbuf:
+                        break
+
+        return cmd_line
 
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
         """
@@ -544,6 +582,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
         response_regex = kwargs.get('response_regex', None)
+        write_delay = kwargs.get('write_delay', WRITE_DELAY)
+        retry_count = kwargs.get('retry_count', 5)
 
         if response_regex and not isinstance(response_regex, RE_PATTERN):
             raise InstrumentProtocolException('Response regex is not a compiled pattern!')
@@ -551,19 +591,43 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         if expected_prompt and response_regex:
             raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
 
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
 
-        self._do_cmd(cmd, *args, **kwargs)
 
-        # Wait for the prompt, prepare result and return, timeout exception
-        if response_regex:
-            prompt = ""
-            result_tuple = self._get_response(timeout, response_regex=response_regex, expected_prompt=expected_prompt)
-            result = "".join(result_tuple)
-        else:
-            (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        retry_num = 0
+        for retry_num in xrange(retry_count):
+            # Clear line and prompt buffers for result.
+            self._linebuf = ''
+            self._promptbuf = ''
+
+            cmd_line = self._do_cmd(cmd, *args, write_delay=write_delay, **kwargs)
+
+            log.debug("_do_cmd_resp: Sending command: %s, %s attempts, expected_prompt=%s, write_delay=%s.",
+                  cmd_line, retry_num, expected_prompt, write_delay)
+
+            # Wait for the prompt, prepare result and return, timeout exception
+            if response_regex:
+                prompt = ""
+                result_tuple = self._get_response(timeout, response_regex=response_regex, expected_prompt=expected_prompt)
+                result = "".join(result_tuple)
+            else:
+                (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+
+            # check for "Invalid command", if received resend for n times then raise an error.
+            # (expected_prompt is not None and PARProtocolError.INVALID_COMMAND not in expected_prompt or
+            if len(cmd_line) > 1 and \
+                (expected_prompt is not None or
+                (response_regex is not None))\
+                    and cmd_line not in result:
+                log.debug("_do_cmd_resp: Send command: %s failed %s attempt, result = %s.", cmd, retry_num, result)
+                if retry_num == retry_count:
+                    raise InstrumentCommandException('_do_cmd_resp: Failed %s attempts sending command: %s' %
+                                                     (retry_count, cmd))
+                write_delay += 0.05
+            else:
+                break
+
+        log.debug("_do_cmd_resp: Sent command: %s, %s attempts, expected_prompt=%s, result=%s, prompt=%s, write_delay=%s.",
+                  cmd_line, retry_num, expected_prompt, result, prompt, write_delay)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
@@ -590,11 +654,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result), (SBE37ProtocolState.COMMAND or
-        SBE37State.AUTOSAMPLE, None) if successful.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not correspond to
-        an expected state.
+        @retval (next_state, result), (PARProtocolState.COMMAND or PARProtocolState.AUTOSAMPLE, None).
         """
         try:
             test = self._do_cmd_resp(Command.SAMPLE, timeout=2, expected_prompt=[PARProtocolError.INVALID_COMMAND, "SATPAR"])
@@ -704,7 +764,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _get_header_params(self):
         # cycle thru reset to get the start-up banner which contains instrument, serial, & firmware values
-        (instr, sernum, firm) = self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt=INIT_PATTERN, timeout=2)
+        # (instr, sernum, firm) = self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt=INIT_PATTERN, timeout=2)
+        # self._do_cmd_no_resp(Command.EXIT)
+        self._do_cmd_resp(Command.EXIT, expected_prompt=["SATPAR", PARProtocolError.INVALID_COMMAND], timeout=15)
+        time.sleep(0.2)
+        (instr, sernum, firm) = self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=5)
         time.sleep(1)
         self._do_cmd_resp(Command.BREAK, response_regex=COMMAND_REGEX, timeout=5)
         self._param_dict.set_value(Parameter.INSTRUMENT, instr)
@@ -780,6 +844,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
+        # TODO: check that the value updated was correct by comparing params to param dictionary
+
     def _handle_scheduling_params_changed(self, old_config):
         """
         Required actions when scheduling parameters change
@@ -847,7 +913,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid parameter
         """
-        self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt=INIT_PATTERN, timeout=2)
+        # self._do_cmd_resp(Command.EXIT_AND_RESET, expected_prompt=INIT_PATTERN, timeout=2)
+        # self._do_cmd_no_resp(Command.EXIT)
+        self._do_cmd_resp(Command.EXIT, expected_prompt=["SATPAR", PARProtocolError.INVALID_COMMAND], timeout=15)
+        self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
+        # self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=2)
         return PARProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     def _handler_command_start_direct(self):
@@ -904,7 +974,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Switch to polled so reset command can be received reliably
         self._send_break_poll()
         try:
-            self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=2)
+            self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=5)
         except InstrumentException:
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR, msg="Couldn't reset autosample!")
 
@@ -925,7 +995,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(Command.SAVE, expected_prompt=Prompt.COMMAND)
 
     def _get_poll(self):
-        self._do_cmd_no_resp(Command.EXIT)
+        # self._do_cmd_no_resp(Command.EXIT)
+        self._do_cmd_resp(Command.EXIT, expected_prompt=["SATPAR", PARProtocolError.INVALID_COMMAND], timeout=15)
         # switch to poll
         time.sleep(0.115)
         self._connection.send(Command.SWITCH_TO_POLL)
@@ -1016,10 +1087,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param response What was sent back from the command that was sent
         @param prompt The prompt that was returned from the device
         """
-        if prompt == Prompt.COMMAND:
-            return True
-        elif response == PARProtocolError.INVALID_COMMAND:
+        if PARProtocolError.INVALID_COMMAND in response:
             return InstErrorCode.SET_DEVICE_ERR
+        elif prompt == Prompt.COMMAND:  # TODO: double check this!
+            return True
         else:
             return InstErrorCode.HARDWARE_ERROR
 
