@@ -509,10 +509,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             self._connection.send(cmd_line)
 
         else:
-            # for char in cmd_line:
-            #     self._connection.send(char)
-            #     time.sleep(write_delay)
-            self._connection.send("    ".join(map(None, cmd_line)))
+            for char in cmd_line:
+                self._connection.send(char)
+                time.sleep(write_delay)
+            # self._connection.send("    ".join(map(None, cmd_line)))
 
             time.sleep(0.4)
             self._connection.send(self.eoln)
