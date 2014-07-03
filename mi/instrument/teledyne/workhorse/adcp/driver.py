@@ -7,7 +7,7 @@ Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
-from mi.core.common import Units
+from mi.core.common import Units, Prefixes
 from mi.core.common import BaseEnum
 from mi.instrument.teledyne.workhorse.driver import WorkhorseInstrumentDriver
 from mi.instrument.teledyne.workhorse.driver import WorkhorseProtocol
@@ -99,25 +99,26 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
 class ADCPUnits(Units):
     CDEGREE = '1/100 degree'
-    DM = 'dm'
+    DM = Prefixes.DECI + Units.METER
     MPERS = 'm/s'
-    PPTHOUSAND = 'pp thousand'
+    PPTHOUSAND = 'ppt'
     ENSEMBLEPERBURST = 'Ensembles Per Burst'
     CMPERSRADIAL = 'cm/s radial'
     TENTHMILLISECOND = '1/10 msec'
 
 
 class ADCPDescription(BaseEnum):
-    INTERVALTIME = 'Hour:Minute:Second'
-    INTERVALTIMEHundredth = 'Hour:Minute:Second.Second/100'
+    INTERVALTIME = 'hh:mm:ss'
+    INTERVALTIMEHundredth = 'hh:mm:ss.ss/100'
     DATETIME = 'CCYY/MM/DD,hh:mm:ss'
-    PINGTIME = "min:sec.sec/100"
+    PINGTIME = "mm:ss.ss/100"
     SETTIME = 'CCYY/MM/DD,hh:mm:ss'
     SERIALDATAOUT = 'Vel Cor Amp'
     FLOWCONTROL = 'BITS: EnsCyc PngCyc Binry Ser Rec'
-    TRUEFALSE = 'True(1)/False(0)'
     SLEEP = '0 = Disable, 1 = Enable, 2 See Manual'
     XMTPOWER = 'XMT Power 0-255'
+    TRUEON = 'False=OFF,True=ON'
+    TRUEOFF = "False=ON,True=OFF"
 
 
 class Protocol(WorkhorseProtocol):
@@ -163,19 +164,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.BANNER,
                              r'CH = (\d) \-+ Suppress Banner',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Banner",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             default_value=0)
+                             default_value=False)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
                              r'CI = (\d+) \-+ Instrument ID ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Instrument id",
@@ -186,7 +187,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SLEEP_ENABLE,
                              r'CL = (\d) \-+ Sleep Enable',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Sleep enable",
@@ -198,11 +199,11 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
                              r'CN = (\d) \-+ Save NVRAM to recorder',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Save nvram to recorder",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEOFF,
                              startup_param=True,
                              default_value=True,
                              direct_access=True,
@@ -210,11 +211,11 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.POLLED_MODE,
                              r'CP = (\d) \-+ PolledMode ',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool( int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Polled Mode",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -222,7 +223,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.XMIT_POWER,
                              r'CQ = (\d+) \-+ Xmt Power ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Xmit Power",
@@ -233,11 +234,11 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.LATENCY_TRIGGER,
                              r'CX = (\d) \-+ Trigger Enable ',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Latency trigger",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -269,7 +270,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
                              r'EC = (\d+) \-+ Speed Of Sound',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Speed of Sound",
@@ -280,7 +281,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
                              r'ED = (\d+) \-+ Transducer Depth ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Transducer Depth",
@@ -291,7 +292,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.PITCH,
                              r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Pitch",
@@ -302,7 +303,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.ROLL,
                              r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Roll",
@@ -313,7 +314,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SALINITY,
                              r'ES = (\d+) \-+ Salinity ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Salinity",
@@ -345,7 +346,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.DATA_STREAM_SELECTION,
                              r'PD = (\d+) \-+ Data Stream Select',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Data Stream Selection",
@@ -356,7 +357,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
                              r'TC (\d+) \-+ Ensembles Per Burst',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ensemble per burst",
@@ -432,7 +433,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
                              r'WB (\d) \-+ Bandwidth Control ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Bandwidth Control",
@@ -443,7 +444,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
                              r'WC (\d+) \-+ Correlation Threshold',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Correlation threshold",
@@ -464,7 +465,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
                              r'WE (\d+) \-+ Error Velocity Threshold',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Error Velocity Threshold",
@@ -475,7 +476,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
                              r'WF (\d+) \-+ Blank After Transmit',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Blank After Transmit",
@@ -486,18 +487,18 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
                              r'WI (\d) \-+ Clip Data Past Bottom',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Clip Data Past Bottom",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              startup_param=True,
                              direct_access=True,
                              default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
                              r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Receiver Gain Select",
@@ -508,7 +509,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
                              r'WN (\d+) \-+ Number of depth cells',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Number of Depth Cells",
@@ -518,7 +519,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
                              r'WP (\d+) \-+ Pings per Ensemble ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Pings Per Ensemble",
@@ -528,19 +529,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
                              r'WQ (\d) \-+ Sample Ambient Sound',
-                             lambda match: bool(int(match.group(1), base=10)),
-                             self._int_to_string,
+                             lambda match: bool(int(match.group(1))),
+                             int,
                              type=ParameterDictType.BOOL,
                              display_name="Sample Ambient Sound",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0)
+                             default_value=False)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
                              r'WS (\d+) \-+ Depth Cell Size \(cm\)',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Depth Cell Size",
@@ -551,7 +552,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
                              r'WT (\d+) \-+ Transmit Length ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Transmit Length",
@@ -562,7 +563,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.PING_WEIGHT,
                              r'WU (\d) \-+ Ping Weighting ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ping Weight",
@@ -573,7 +574,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
                              r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ambiguity Velocity",

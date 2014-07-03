@@ -5,5 +5,5 @@ comm:
   device_port: 2101
   host: localhost
   instrument_command_port: 2102
-  method: ethernet
+  method: rsn
   sniffer_port: 6003

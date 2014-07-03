@@ -702,7 +702,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
                         self._driver_parameters[TeledyneParameter.AMBIGUITY_VELOCITY][self.VALUE])
 
     # ReadOnly parameter setting exception tests
-    @unittest.skip('It takes many hours for this test')
+    #@unittest.skip('It takes many hours for this test')
     def test_set_parameter_test(self):
         self.assert_initialize_driver()
 

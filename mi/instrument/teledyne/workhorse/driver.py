@@ -201,27 +201,8 @@ class WorkhorseProtocol(TeledyneProtocol):
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
 
-    # This is only temporary solution for now until port agent is fixed
     def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
-        # NOTE!!!
-        # Once the port agent can handle BREAK, please enable the following line
-        # self._connection.send_break(delay)
-        #Then remove below lines
-
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.error("Failed to connect Break socket")
-            raise InstrumentProtocolException("Init break socket exception")
-
-        try:
-            sock.connect(('10.180.80.178', 2102))
-        except socket.error, msg:
-            log.error("Failed to connect Break socket")
-            raise InstrumentProtocolException("Init break socket exception")
-
-        sock.send("break " + str(delay) + "\r\n")
-        sock.close()
+        self._connection.send_break(delay)

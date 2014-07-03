@@ -1140,15 +1140,14 @@ class Protocol(WorkhorseProtocol):
         """
 
         count = 0
-        while True:
+        while count < no_tries:
             prompt = self._wakeup2(timeout, delay)
-            if prompt == desired_prompt:
+            if  prompt == desired_prompt:
                 break
-            else:
-                time.sleep(delay)
-                count += 1
-                if count >= no_tries:
-                    raise InstrumentProtocolException('Incorrect prompt.')
+            time.sleep(delay)
+            count += 1
+            if count >= no_tries:
+                raise InstrumentProtocolException('Incorrect prompt.')
 
     # for Master
     def _send_break(self, duration=3000):
@@ -1182,7 +1181,6 @@ class Protocol(WorkhorseProtocol):
         self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
         self._promptbuf = ''
         self._linebuf = ''
-        log.trace("leaving send_break")
         return True
 
     # for Slave
@@ -1217,7 +1215,6 @@ class Protocol(WorkhorseProtocol):
         self._chunker2._clean_buffer(len(self._chunker2.raw_chunk_list))
         self._promptbuf2 = ''
         self._linebuf2 = ''
-        log.trace("leaving send_break")
         return True
 
     # for Master
@@ -1245,7 +1242,7 @@ class Protocol(WorkhorseProtocol):
         # TODO
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        # self._connection_4Beam.send_break(delay)
+        #self._connection_4Beam.send_break(delay)
         # Then remove below lines
 
         try:
@@ -1272,7 +1269,7 @@ class Protocol(WorkhorseProtocol):
         # TODO
         # NOTE!!!
         # Once the port agent can handle BREAK, please enable the following line
-        # self._connection_5thBeam.send_break(delay)
+        #self._connection_5thBeam.send_break(delay)
         # Then remove below lines
 
         try:
@@ -1565,7 +1562,6 @@ class Protocol(WorkhorseProtocol):
         """
         Command the instrument to start logging
         @param timeout: how long to wait for a prompt
-        @return: True if successful
         @throws: InstrumentProtocolException if failed to start logging
         """
         if self._is_logging2():
@@ -1574,14 +1570,11 @@ class Protocol(WorkhorseProtocol):
         log.trace("SENDING START LOGGING2")
         self._do_cmd_no_resp2(TeledyneInstrumentCmds.START_LOGGING, timeout=timeout)
 
-        return True
-
     # for Slave
     def _stop_logging2(self, timeout=TIMEOUT):
         """
         Command the instrument to stop logging
         @param timeout: how long to wait for a prompt
-        @return: True if successful
         @throws: InstrumentTimeoutException if prompt isn't seen
         @throws: InstrumentProtocolException failed to stop logging
         """
@@ -1592,8 +1585,6 @@ class Protocol(WorkhorseProtocol):
         self._wakeup2()
         self._send_break2(duration=3000)
         time.sleep(2)
-        # self._send_break2(duration=3000)
-        # time.sleep(2)
         # Prompt device until command prompt is seen.
         timeout = 3
         self._wakeup_until2(timeout, TeledynePrompt.COMMAND)
@@ -1602,8 +1593,6 @@ class Protocol(WorkhorseProtocol):
 
         if self._is_logging2(timeout):
             raise InstrumentProtocolException("failed to stop logging")
-
-        return True
 
     # for Slave
     def _verify_not_readonly2(self, params_to_set, startup=False):
@@ -1767,19 +1756,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.BANNER,
                              r'CH = (\d) \-+ Suppress Banner',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Banner",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             default_value=0)
+                             default_value=False)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
                              r'CI = (\d+) \-+ Instrument ID ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Instrument id",
@@ -1790,7 +1779,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SLEEP_ENABLE,
                              r'CL = (\d) \-+ Sleep Enable',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Sleep enable",
@@ -1798,15 +1787,15 @@ class Protocol(WorkhorseProtocol):
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             default_value=False)
+                             default_value=0)
 
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
                              r'CN = (\d) \-+ Save NVRAM to recorder',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Save nvram to recorder",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEOFF,
                              startup_param=True,
                              default_value=True,
                              direct_access=True,
@@ -1814,11 +1803,11 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.POLLED_MODE,
                              r'CP = (\d) \-+ PolledMode ',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Polled mode",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              startup_param=True,
                              direct_access=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -1826,7 +1815,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.XMIT_POWER,
                              r'CQ = (\d+) \-+ Xmt Power ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Xmit power",
@@ -1837,11 +1826,11 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.LATENCY_TRIGGER,
                              r'CX = (\d) \-+ Trigger Enable ',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="latency trigger",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1873,7 +1862,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
                              r'EC = (\d+) \-+ Speed Of Sound',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Speed of sound",
@@ -1884,7 +1873,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
                              r'ED = (\d+) \-+ Transducer Depth ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Transducer Depth",
@@ -1895,7 +1884,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.PITCH,
                              r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Pitch",
@@ -1906,7 +1895,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.ROLL,
                              r'ER = ([\+\-]\d+) \-+ Tilt 2 Sensor ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Roll",
@@ -1917,7 +1906,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SALINITY,
                              r'ES = (\d+) \-+ Salinity ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Salinity",
@@ -1949,7 +1938,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.DATA_STREAM_SELECTION,
                              r'PD = (\d+) \-+ Data Stream Select',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Data Stream Selection",
@@ -1971,7 +1960,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.RDS3_MODE_SEL,
                              r'SM = (\d+) \-+ Mode Select',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="RDS3 mode selection",
@@ -1982,7 +1971,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SYNCH_DELAY,
                              r'SW = (\d+) \-+ Synch Delay',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Synch Delay",
@@ -1994,7 +1983,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
                              r'TC (\d+) \-+ Ensembles Per Burst',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ensemble per burst",
@@ -2070,7 +2059,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
                              r'WB (\d) \-+ Bandwidth Control ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Bandwidth control",
@@ -2081,7 +2070,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
                              r'WC (\d+) \-+ Correlation Threshold',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Correlation threshold",
@@ -2102,7 +2091,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
                              r'WE (\d+) \-+ Error Velocity Threshold',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Error velocity threshold",
@@ -2113,7 +2102,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
                              r'WF (\d+) \-+ Blank After Transmit',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Blank after transmit",
@@ -2124,18 +2113,18 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
                              r'WI (\d) \-+ Clip Data Past Bottom',
-                             lambda match: bool(int(match.group(1), base=10)),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Clip data past bottom",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              startup_param=True,
                              direct_access=True,
                              default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
                              r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Receiver gain select",
@@ -2146,7 +2135,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
                              r'WN (\d+) \-+ Number of depth cells',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Number of depth cells",
@@ -2156,7 +2145,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
                              r'WP (\d+) \-+ Pings per Ensemble ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Pings per ensemble",
@@ -2166,19 +2155,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
                              r'WQ (\d) \-+ Sample Ambient Sound',
-                             lambda match: bool(int(match.group(1), base=10)),
-                             self._int_to_string,
+                             lambda match: bool(int(match.group(1))),
+                             int,
                              type=ParameterDictType.BOOL,
                              display_name="Sample ambient sound",
-                             value_description=ADCPDescription.TRUEFALSE,
+                             value_description=ADCPDescription.TRUEON,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0)
+                             default_value=False)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
                              r'WS (\d+) \-+ Depth Cell Size \(cm\)',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Depth cell size",
@@ -2189,7 +2178,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
                              r'WT (\d+) \-+ Transmit Length ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Transmit length",
@@ -2200,7 +2189,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.PING_WEIGHT,
                              r'WU (\d) \-+ Ping Weighting ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ping weight",
@@ -2211,7 +2200,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
                              r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
-                             lambda match: int(match.group(1), base=10),
+                             lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              display_name="Ambiguity velocity",
@@ -2281,19 +2270,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.BANNER,
                               r'CH = (\d) \-+ Suppress Banner',
-                              lambda match: bool(int(match.group(1), base=10)),
+                              lambda match: bool(int(match.group(1))),
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Banner for 5th beam",
-                              value_description=ADCPDescription.TRUEFALSE,
+                              value_description=ADCPDescription.TRUEON,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
-                              default_value=0)
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.INSTRUMENT_ID,
                               r'CI = (\d+) \-+ Instrument ID ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Instrument id for 5th beam",
@@ -2304,7 +2293,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SLEEP_ENABLE,
                               r'CL = (\d) \-+ Sleep Enable',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Sleep enable for 5th beam",
@@ -2316,11 +2305,11 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SAVE_NVRAM_TO_RECORDER,
                               r'CN = (\d) \-+ Save NVRAM to recorder',
-                              lambda match: bool(int(match.group(1), base=10)),
+                              lambda match: bool(int(match.group(1))),
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Save nvram to recorder for 5th beam",
-                              value_description=ADCPDescription.TRUEFALSE,
+                              value_description=ADCPDescription.TRUEOFF,
                               startup_param=True,
                               default_value=True,
                               direct_access=True,
@@ -2328,19 +2317,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.POLLED_MODE,
                               r'CP = (\d) \-+ PolledMode ',
-                              lambda match: bool(int(match.group(1), base=10)),
+                              lambda match: bool(int(match.group(1))),
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Polled mode for 5th beam",
-                              value_description=ADCPDescription.TRUEFALSE,
+                              value_description=ADCPDescription.TRUEON,
                               startup_param=True,
                               direct_access=True,
                               visibility=ParameterDictVisibility.IMMUTABLE,
-                              default_value=0)
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.XMIT_POWER,
                               r'CQ = (\d+) \-+ Xmt Power ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Xmit power for 5th beam",
@@ -2351,15 +2340,15 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.LATENCY_TRIGGER,
                               r'CX = (\d) \-+ Trigger Enable ',
-                              lambda match: bool(int(match.group(1), base=10)),
+                              lambda match: bool(int(match.group(1))),
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="latency trigger for 5th beam",
-                              value_description=ADCPDescription.TRUEFALSE,
+                              value_description=ADCPDescription.TRUEON,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
-                              default_value=0)
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.HEADING_ALIGNMENT,
                               r'EA = ([\+\-\d]+) \-+ Heading Alignment',
@@ -2387,7 +2376,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SPEED_OF_SOUND,
                               r'EC = (\d+) \-+ Speed Of Sound',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Speed of sound for 5th beam",
@@ -2398,7 +2387,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.TRANSDUCER_DEPTH,
                               r'ED = (\d+) \-+ Transducer Depth ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Transducer Depth for 5th beam",
@@ -2409,7 +2398,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.PITCH,
                               r'EP = ([\+\-]\d+) \-+ Tilt 1 Sensor ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Pitch for 5th beam",
@@ -2420,7 +2409,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.ROLL,
                               r'ER = ([\+\-]\d+) \-+ Tilt 2 Sensor ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Roll for 5th beam",
@@ -2431,7 +2420,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SALINITY,
                               r'ES = (\d+) \-+ Salinity ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Salinity for 5th beam",
@@ -2463,7 +2452,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.DATA_STREAM_SELECTION,
                               r'PD = (\d+) \-+ Data Stream Select',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Data Stream Selection for 5th beam",
@@ -2485,7 +2474,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.RDS3_MODE_SEL,
                               r'SM = (\d+) \-+ Mode Select',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="RDS3 mode selection for 5th beam",
@@ -2496,7 +2485,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SLAVE_TIMEOUT,
                               r'ST = (\d+) \-+ Slave Timeout',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Slave timeout for 5th beam",
@@ -2508,7 +2497,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SYNCH_DELAY,
                               r'SW = (\d+) \-+ Synch Delay',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Synch delay for 5th beam",
@@ -2520,7 +2509,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.ENSEMBLE_PER_BURST,
                               r'TC (\d+) \-+ Ensembles Per Burst',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Ensemble per burst for 5th beam",
@@ -2585,7 +2574,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.BANDWIDTH_CONTROL,
                               r'WB (\d) \-+ Bandwidth Control ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Bandwidth control for 5th beam",
@@ -2596,7 +2585,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.CORRELATION_THRESHOLD,
                               r'WC (\d+) \-+ Correlation Threshold',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Correlation threshold for 5th beam",
@@ -2617,7 +2606,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.ERROR_VELOCITY_THRESHOLD,
                               r'WE (\d+) \-+ Error Velocity Threshold',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Error velocity threshold for 5th beam",
@@ -2628,7 +2617,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.BLANK_AFTER_TRANSMIT,
                               r'WF (\d+) \-+ Blank After Transmit',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Blank after transmit for 5th beam",
@@ -2639,18 +2628,18 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.CLIP_DATA_PAST_BOTTOM,
                               r'WI (\d) \-+ Clip Data Past Bottom',
-                              lambda match: bool(int(match.group(1), base=10)),
+                              lambda match: bool(int(match.group(1))),
                               int,
                               type=ParameterDictType.BOOL,
                               display_name="Clip data past bottom for 5th beam",
-                              value_description=ADCPDescription.TRUEFALSE,
+                              value_description=ADCPDescription.TRUEON,
                               startup_param=True,
                               direct_access=True,
-                              default_value=0)
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.RECEIVER_GAIN_SELECT,
                               r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Receiver gain select for 5th beam",
@@ -2671,7 +2660,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.PINGS_PER_ENSEMBLE,
                               r'WP (\d+) \-+ Pings per Ensemble ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Pings per ensemble for 5th beam",
@@ -2681,19 +2670,19 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.SAMPLE_AMBIENT_SOUND,
                               r'WQ (\d) \-+ Sample Ambient Sound',
-                              lambda match: bool(int(match.group(1), base=10)),
-                              self._int_to_string,
+                              lambda match: bool(int(match.group(1))),
+                              int,
                               type=ParameterDictType.BOOL,
                               display_name="Sample ambient sound for 5th beam",
-                              value_description=ADCPDescription.TRUEFALSE,
+                              value_description=ADCPDescription.TRUEON,
                               visibility=ParameterDictVisibility.IMMUTABLE,
                               startup_param=True,
                               direct_access=True,
-                              default_value=0)
+                              default_value=False)
 
         self._param_dict2.add(Parameter2.DEPTH_CELL_SIZE,
                               r'WS (\d+) \-+ Depth Cell Size \(cm\)',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Depth cell size for 5th beam",
@@ -2704,7 +2693,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.TRANSMIT_LENGTH,
                               r'WT (\d+) \-+ Transmit Length ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Transmit length for 5th beam",
@@ -2715,7 +2704,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.PING_WEIGHT,
                               r'WU (\d) \-+ Ping Weighting ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Ping weight for 5th beam",
@@ -2726,7 +2715,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict2.add(Parameter2.AMBIGUITY_VELOCITY,
                               r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
-                              lambda match: int(match.group(1), base=10),
+                              lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,
                               display_name="Ambiguity velocity for 5th beam",
@@ -2786,7 +2775,6 @@ class Protocol(WorkhorseProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
-        log.trace("in _handler_command_get")
         next_state = None
         result = None
         result2 = None
@@ -2947,7 +2935,6 @@ class Protocol(WorkhorseProtocol):
         next_agent_state = None
 
         kwargs['timeout'] = 180  # long time to get params.
-        log.trace("in _handler_command_get_configuration")
         output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))

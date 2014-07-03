@@ -10,6 +10,7 @@
         device_addr: 10.180.80.176
         method: ethernet
         sniffer_port: 6003
+        instrument_command_port: 2102
     5thBeam:
       comm:
         command_port: 2004
@@ -19,3 +20,4 @@
         host: localhost
         method: ethernet
         sniffer_port: 6003
+        instrument_command_port: 2102

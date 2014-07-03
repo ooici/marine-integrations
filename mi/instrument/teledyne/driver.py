@@ -46,6 +46,7 @@ NEWLINE = '\r\n'
 DEFAULT_CMD_TIMEOUT = 20
 DEFAULT_WRITE_DELAY = 0
 
+ZERO_TIME_INTERVAL = '00:00:00'
 
 class TeledynePrompt(BaseEnum):
     """
@@ -742,7 +743,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Command the instrument to start logging
         @param timeout: how long to wait for a prompt
-        @return: True if successful
         @throws: InstrumentProtocolException if failed to start logging
         """
         if self._is_logging():
@@ -753,7 +753,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Command the instrument to stop logging
         @param timeout: how long to wait for a prompt
-        @return: True if successful
         @throws: InstrumentTimeoutException if prompt isn't seen
         @throws: InstrumentProtocolException failed to stop logging
         """
@@ -888,13 +887,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         # start scheduled event for clock synch only if the interval is not "00:00:00
         clock_interval = self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)
-        if clock_interval != '00:00:00':
+        if clock_interval != ZERO_TIME_INTERVAL:
             self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
                                      TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
         # start scheduled event for get_status only if the interval is not "00:00:00
         status_interval = self._param_dict.get(TeledyneParameter.GET_STATUS_INTERVAL)
-        if status_interval != '00:00:00':
+        if status_interval != ZERO_TIME_INTERVAL:
             self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL, TeledyneScheduledJob.GET_CONFIGURATION,
                                      TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
 
@@ -1405,8 +1404,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         logging = self._is_logging()
         if logging:
             return TeledyneProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
-        else:
-            return TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND
+        return TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND
 
     def _handler_direct_access_stop_direct(self):
         """
@@ -1485,10 +1483,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             prompt, response = self._get_raw_response(30, TeledynePrompt.COMMAND)
             time.sleep(.05)  # was 1
         self._param_dict.update(response)
-        #for line in response.split(NEWLINE):
-        #    self._param_dict.update(line)
-        #    if not "?" in line and ">" != line:
-        #        response = line
 
         if self.get_param not in response:
             raise InstrumentParameterException('Failed to get a response for lookup of ' + self.get_param)

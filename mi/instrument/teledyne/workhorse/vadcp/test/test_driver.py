@@ -1297,20 +1297,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
 
-    def test_break(self):
-
-        """
-        Run instrument commands from both command and streaming mode.
-        """
-        self.assert_initialize_driver()
-        ####
-        # First test in command mode
-        ####
-        self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
-        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
-                                   delay=10)
-        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
-
     # This will be called by test_set_ranges_slave()
     def _tst_set_xmit_power_slave(self):
         """
@@ -1879,19 +1865,19 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             TeledyneParameter2.CORRELATION_THRESHOLD: 64,
             TeledyneParameter2.SERIAL_OUT_FW_SWITCHES: '111100000',
             TeledyneParameter2.ERROR_VELOCITY_THRESHOLD: 2000,
-            TeledyneParameter2.CLIP_DATA_PAST_BOTTOM: 0,
+            TeledyneParameter2.CLIP_DATA_PAST_BOTTOM: False,
             TeledyneParameter2.RECEIVER_GAIN_SELECT: 1,
             TeledyneParameter2.PINGS_PER_ENSEMBLE: 1,
             TeledyneParameter2.TRANSMIT_LENGTH: 0,
             TeledyneParameter2.PING_WEIGHT: 0,
             TeledyneParameter2.AMBIGUITY_VELOCITY: 175,
             TeledyneParameter2.SERIAL_DATA_OUT: '000 000 000',
-            TeledyneParameter2.LATENCY_TRIGGER: 0,
+            TeledyneParameter2.LATENCY_TRIGGER: False,
             TeledyneParameter2.HEADING_ALIGNMENT: +00000,
             TeledyneParameter2.HEADING_BIAS: +00000,
             TeledyneParameter2.DATA_STREAM_SELECTION: 0,
             TeledyneParameter2.ENSEMBLE_PER_BURST: 0,
-            TeledyneParameter2.SAMPLE_AMBIENT_SOUND: 0,
+            TeledyneParameter2.SAMPLE_AMBIENT_SOUND: False,
             TeledyneParameter2.BUFFERED_OUTPUT_PERIOD: '00:00:00'
         }
         new_set = {

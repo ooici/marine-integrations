@@ -100,7 +100,13 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
         self.assert_driver_parameters(reply, True)
 
-    @unittest.skip('It takes many hours for this test')
+    def test_break(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE,
+                                   delay=1)
+        self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=10)
+
+    #@unittest.skip('It takes many hours for this test')
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -190,19 +196,19 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.CORRELATION_THRESHOLD: 64,
             WorkhorseParameter.SERIAL_OUT_FW_SWITCHES: '111100000',
             WorkhorseParameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            WorkhorseParameter.CLIP_DATA_PAST_BOTTOM: 0,
+            WorkhorseParameter.CLIP_DATA_PAST_BOTTOM: False,
             WorkhorseParameter.RECEIVER_GAIN_SELECT: 1,
             WorkhorseParameter.PINGS_PER_ENSEMBLE: 1,
             WorkhorseParameter.TRANSMIT_LENGTH: 0,
             WorkhorseParameter.PING_WEIGHT: 0,
             WorkhorseParameter.AMBIGUITY_VELOCITY: 175,
             WorkhorseParameter.SERIAL_DATA_OUT: '000 000 000',
-            WorkhorseParameter.LATENCY_TRIGGER: 0,
+            WorkhorseParameter.LATENCY_TRIGGER: False,
             WorkhorseParameter.HEADING_ALIGNMENT: +00000,
             WorkhorseParameter.HEADING_BIAS: +00000,
             WorkhorseParameter.DATA_STREAM_SELECTION: 0,
             WorkhorseParameter.ENSEMBLE_PER_BURST: 0,
-            WorkhorseParameter.SAMPLE_AMBIENT_SOUND: 0,
+            WorkhorseParameter.SAMPLE_AMBIENT_SOUND: False,
             WorkhorseParameter.BUFFERED_OUTPUT_PERIOD: '00:00:00'
         }
         new_set = {
