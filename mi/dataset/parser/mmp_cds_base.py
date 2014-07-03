@@ -24,7 +24,7 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
-from mi.core.exceptions import DatasetParserException, SampleException
+from mi.core.exceptions import DatasetParserException, SampleException, NotImplementedException
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # The number of items in a list associated unpacked data within a McLane Moored Profiler cabled docking station
@@ -59,7 +59,7 @@ class MmpCdsParserDataParticle(DataParticle):
     a cabled docking station.
     """
 
-    def _get_mmp_cds_subclass_particle_params(self, dict_data):
+    def _get_mmp_cds_subclass_particle_params(self, subclass_specific_msgpack_unpacked_data):
         """
         This method is expected to be implemented by subclasses.  It is okay to let the implemented method to
         allow the following exceptions to propagate: ValueError, TypeError, IndexError, KeyError
@@ -67,17 +67,17 @@ class MmpCdsParserDataParticle(DataParticle):
         @return a list of particle params specific to the subclass
         """
 
-        # This implementation raises a NotImplemented exception to enforce derived classes to implement
+        # This implementation raises a NotImplementedException to enforce derived classes to implement
         # this method.
-        raise NotImplemented
+        raise NotImplementedException
 
     def _build_parsed_values(self):
         """
         This method generates a list of particle parameters using the self.raw_data which is expected to be
         a list of three items.  The first item is expected to be the "raw_time_seconds".  The second item
-        is expected to be the "raw_time_microseconds".  The third item is expected to be a dictionary.  This
-        method depends on an abstract method (_get_mmp_cds_subclass_particle_params) to generate the specific
-        particle parameters from the third list item dictionary content.
+        is expected to be the "raw_time_microseconds".  The third item is an element type specific to the subclass.
+        This method depends on an abstract method (_get_mmp_cds_subclass_particle_params) to generate the specific
+        particle parameters from the third item element.
         @throws SampleException If there is a problem with sample creation
         """
         try:
