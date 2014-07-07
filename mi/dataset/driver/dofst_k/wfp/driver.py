@@ -12,121 +12,153 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import os
-import string
-import gevent
-
 from mi.core.common import BaseEnum
-from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException
-
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys, DriverStateKey
-from mi.dataset.parser.dofst_k_wfp import DofstKWfpParser, DofstKWfpParserDataParticle
-from mi.dataset.parser.dofst_k_wfp import DofstKWfpMetadataParserDataParticle
+from mi.core.log import get_logger
+log = get_logger()
+from mi.core.exceptions import ConfigurationException
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver
+from mi.dataset.parser.dofst_k_wfp import DofstKWfpParser
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
+from mi.dataset.parser.dofst_k_wfp_particles import DofstKWfpRecoveredDataParticle,\
+    DofstKWfpRecoveredMetadataParticle
+from mi.dataset.parser.dofst_k_wfp_particles import DofstKWfpTelemeteredDataParticle,\
+    DofstKWfpTelemeteredMetadataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
-class DataSourceKey(BaseEnum):
+
+class DataTypeKey(BaseEnum):
     DOFST_K_WFP_TELEMETERED = 'dofst_k_wfp_telemetered'
     DOFST_K_WFP_RECOVERED = 'dofst_k_wfp_recovered'
 
+
 class DofstKWfpDataSetDriver(MultipleHarvesterDataSetDriver):
 
+    def __init__(self,
+                 config,
+                 memento,
+                 data_callback,
+                 state_callback,
+                 event_callback,
+                 exception_callback):
+
+        # initialize the possible types of harvester/parser pairs for this driver
+        data_keys = [DataTypeKey.DOFST_K_WFP_TELEMETERED, DataTypeKey.DOFST_K_WFP_RECOVERED]
+
+        super(DofstKWfpDataSetDriver, self).__init__(config,
+                                                     memento,
+                                                     data_callback,
+                                                     state_callback,
+                                                     event_callback,
+                                                     exception_callback,
+                                                     data_keys)
     @classmethod
     def stream_config(cls):
-        return [DofstKWfpMetadataParserDataParticle.type(),
-                DofstKWfpParserDataParticle.type()]
+        return [DofstKWfpRecoveredDataParticle.type(),
+                DofstKWfpRecoveredMetadataParticle.type(),
+                DofstKWfpTelemeteredDataParticle.type(),
+                DofstKWfpTelemeteredMetadataParticle.type()]
 
-    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
-        # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.DOFST_K_WFP_TELEMETERED, DataSourceKey.DOFST_K_WFP_RECOVERED]
-        super(DofstKWfpDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
-                                                     exception_callback, data_keys)
-
-    def _build_parser(self, parser_state, infile, filesize, data_key):
+    def _build_parser(self, parser_state, file_handle, data_key=None):
         """
         Build and return the parser
         """
-        config = self._parser_config
-        config.update({
-            'particle_module': 'mi.dataset.parser.dofst_k_wfp',
-            'particle_class': ['DofstKWfpMetadataParserDataParticle',
-                               'DofstKWfpParserDataParticle']
-        })
-        log.debug("My Config: %s", config)
-        parser = DofstKWfpParser(
-            config,
-            parser_state,
-            infile,
-            lambda state, ingested: self._save_parser_state(state, data_key, ingested),
-            self._data_callback,
-            self._sample_exception_callback,
-            filesize
-        )
+        # Default the parser to None
+        parser = None
+        
+        config = self._parser_config.get(data_key)
+        
+        #
+        # If the key is DOFST_K_WFP_RECOVERED, build the dofst_k_wfp parser and
+        # provide a config that includes the specific recovered particle types.
+        #
+        if data_key == DataTypeKey.DOFST_K_WFP_RECOVERED:
+            config.update({
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dofst_k_wfp_particles',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    'instrument_data_particle_class': DofstKWfpRecoveredDataParticle,
+                    'metadata_particle_class': DofstKWfpRecoveredMetadataParticle
+                }
+            })
+            log.debug("My Config: %s", config)
+            parser = DofstKWfpParser(
+                config,
+                parser_state,
+                file_handle,
+                lambda state, ingested: self._save_parser_state(state, data_key, ingested),
+                self._data_callback,
+                self._sample_exception_callback,
+                os.path.getsize(file_handle.name))
+        #
+        # If the key is DOFST_K_WFP_TELEMETERED, build the dofst_k_wfp parser and
+        # provide a config that includes the specific telemetered particle types.
+        #
+        elif data_key == DataTypeKey.DOFST_K_WFP_TELEMETERED:
+            config.update({
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dofst_k_wfp_particles',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    'instrument_data_particle_class': DofstKWfpTelemeteredDataParticle,
+                    'metadata_particle_class': DofstKWfpTelemeteredMetadataParticle
+                }
+            })
+            log.debug("My Config: %s", config)
+            parser = DofstKWfpParser(
+                config,
+                parser_state,
+                file_handle,
+                lambda state, ingested: self._save_parser_state(state, data_key, ingested),
+                self._data_callback,
+                self._sample_exception_callback,
+                os.path.getsize(file_handle.name))
+        else:
+            raise ConfigurationException\
+                ('Bad Configuration: %s - Failed to build ctdpf_ckl_wfp parser',config)
+
         return parser
 
     def _build_harvester(self, driver_state):
         """
-        Build and return the harvester
+        Build and return the harvesters
         """
-        harvesters = []
-        harvester_telem = self._build_single_dir_harvester(driver_state, DataSourceKey.DOFST_K_WFP_TELEMETERED)
-        if harvester_telem != None:
-            harvesters.append(harvester_telem)
-        harvester_recov = self._build_single_dir_harvester(driver_state, DataSourceKey.DOFST_K_WFP_RECOVERED)
-        if harvester_recov != None:
-            harvesters.append(harvester_recov)
-        return harvesters
 
-    def _build_single_dir_harvester(self, driver_state, data_key):
-        harvester = None
-        if data_key in self._harvester_config:
+        harvesters = []    # list of harvesters to be returned
+
+        #
+        # Verify that the DOFST_K_WFP_RECOVERED harvester has been configured.
+        # If so, build the DOFST_K_WFP_RECOVERED harvester and add it to the
+        # list of harvesters.
+        #
+        if DataTypeKey.DOFST_K_WFP_RECOVERED in self._harvester_config:
             harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(data_key),
-                driver_state[data_key],
-                lambda filename: self._new_file_callback(filename, data_key),
-                lambda modified: self._modified_file_callback(modified, data_key),
+                self._harvester_config.get(DataTypeKey.DOFST_K_WFP_RECOVERED),
+                driver_state[DataTypeKey.DOFST_K_WFP_RECOVERED],
+                lambda filename: self._new_file_callback(filename, DataTypeKey.DOFST_K_WFP_RECOVERED),
+                lambda modified: self._modified_file_callback(modified, DataTypeKey.DOFST_K_WFP_RECOVERED),
                 self._exception_callback
             )
-        else:
-            log.warn('No configuration for %s harvester, not building', data_key)
-        return harvester
 
-    def _get_parser_results(self, file_name, data_key):
-        """
-        Build the parser and get all the records until there are no more available
-        Need to override to pass in the file size to the parser
-        @param file_name name of the file to parse
-        @param data_key The key to index into the harvester and parser
-        """
-        count = 1
-        delay = None
-
-        directory = self._harvester_config[data_key].get(DataSetDriverConfigKeys.DIRECTORY)
-
-        if self._generate_particle_count:
-            # Calculate the delay between grabbing records to publish.
-            delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
-            count = self._generate_particle_count
-
-        # Open the copied file in the storage directory so we know the file won't be
-        # changed while we are reading it
-        path = os.path.join(directory, file_name)
-
-        self._raise_new_file_event(path)
-        log.debug("Open new data source file: %s", path)
-        handle = open(path)
-
-        filesize = os.path.getsize(path)
-
-        self._file_in_process[data_key] = file_name
-
-        # the file directory is initialized in the harvester, so it will exist by this point
-        parser = self._build_parser(self._driver_state[data_key][file_name][DriverStateKey.PARSER_STATE], handle, filesize, data_key)
-
-        while(True):
-            result = parser.get_records(count)
-            if result:
-                log.trace("Record parsed: %r delay: %f", result, delay)
-                if delay:
-                    gevent.sleep(delay)
+            if harvester is not None:
+                harvesters.append(harvester)
             else:
-                break
+                log.debug('DOFST_K_WFP_RECOVERED HARVESTER NOT BUILT')
+        #
+        # Verify that the DOFST_K_WFP_TELEMETERED harvester has been configured.
+        # If so, build the DOFST_K_WFP_TELEMETERED harvester and add it to the
+        # list of harvesters.
+        #
+        if DataTypeKey.DOFST_K_WFP_TELEMETERED in self._harvester_config:
+            harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.DOFST_K_WFP_TELEMETERED),
+                driver_state[DataTypeKey.DOFST_K_WFP_TELEMETERED],
+                lambda filename: self._new_file_callback(filename, DataTypeKey.DOFST_K_WFP_TELEMETERED),
+                lambda modified: self._modified_file_callback(modified, DataTypeKey.DOFST_K_WFP_TELEMETERED),
+                self._exception_callback
+            )
+
+            if harvester is not None:
+                harvesters.append(harvester)
+            else:
+                log.debug('DOFST_K_WFP_TELEMETERED HARVESTER NOT BUILT')
+
+        return harvesters

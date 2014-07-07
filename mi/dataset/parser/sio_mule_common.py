@@ -38,6 +38,7 @@ class StateKey(BaseEnum):
     IN_PROCESS_DATA = "in_process_data" # holds an array of start and end of packets of data,
         # the number of samples in that packet, how many packets have been pulled out currently
         # being processed
+    FILE_SIZE = "file_size"
 
 # constants for accessing unprocessed and in process data
 START_IDX = 0
@@ -83,7 +84,8 @@ class SioMuleParser(Parser):
         self._mid_sample_packets = 0
         # use None flag in unprocessed data to initialize this we read the entire file and get the size of the data
         self._read_state = {StateKey.UNPROCESSED_DATA: None,
-                            StateKey.IN_PROCESS_DATA:[]}
+                            StateKey.IN_PROCESS_DATA:[],
+                            StateKey.FILE_SIZE: 0}
 
         if state:
             self.set_state(self._state)
@@ -184,7 +186,8 @@ class SioMuleParser(Parser):
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
         if not ((StateKey.UNPROCESSED_DATA in state_obj) and \
-            (StateKey.IN_PROCESS_DATA in state_obj)):
+            (StateKey.IN_PROCESS_DATA in state_obj) and \
+            (StateKey.FILE_SIZE in state_obj)):
             raise DatasetParserException("Invalid state keys")
 
         # store both the start and end point for this read of data within the file
@@ -330,10 +333,13 @@ class SioMuleParser(Parser):
             self.all_data = ''
 
             eof = False
+            orig_len = 0
             while not eof:
                 # read data in small blocks in order to not block processing
                 next_data = self._stream_handle.read(1024)
                 if next_data:
+                    # calculate the original file size before any replacement
+                    orig_len = orig_len + len(next_data)
                     if not self._recovered_flag:
                         # if this is telemetered, need to replace escape chars, recovered does not
                         next_data = next_data.replace(b'\x18\x6b', b'\x2b')
@@ -342,11 +348,12 @@ class SioMuleParser(Parser):
                     gevent.sleep(0)
                 else:
                     eof = True
-            log.debug("length of all data %d", len(self.all_data))
+            log.debug("length of file %d, length of data %d", orig_len, len(self.all_data))
 
         # if unprocessed data has not been initialized yet, set it to the entire file
         if self._read_state[StateKey.UNPROCESSED_DATA] == None:
             self._read_state[StateKey.UNPROCESSED_DATA] = [[0, len(self.all_data)]]
+            self._read_state[StateKey.FILE_SIZE] = orig_len
 
         while len(self._record_buffer) < num_records:
             # read unprocessed data packet from the file, starting with in process data
