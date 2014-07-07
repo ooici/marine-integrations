@@ -35,7 +35,6 @@ class DostaLnWfpSioMuleDataParticleKey(BaseEnum):
     WFP_TIMESTAMP = 'wfp_timestamp'
  
 
-# *** Need to define data regex for this parser ***
 
 E_HEADER_REGEX = b'(\x00\x01\x00{5,5}\x01\x00{7,7}\x01)([\x00-\xff]{8,8})' # E header regex for global sites
 E_HEADER_MATCHER = re.compile(E_HEADER_REGEX)
@@ -155,7 +154,6 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 				
 				fields = struct.unpack('>I', e_record[0:4])
 				timestampS = float(fields[0])
-				log.debug(' --------------------->>>>>>>>>>>>>>>>>********  %s', timestampS )
 				timestamp = ntplib.system_to_ntp_time(timestampS)
 				
 				if len(e_record) == E_GLOBAL_SAMPLE_BYTES:
@@ -170,7 +168,8 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 		                		
 		                
 		else: # no e header match
-		    log.debug("*****************************************************BAD E HEADER %s", chunk)
+		    log.debug("*****************************************************BAD E HEADER 0x%s",
+			       ":".join("{:02x}".format(ord(c)) for c in chunk))
 		    self._exception_callback(UnexpectedDataException("Found unexpected data."))
 		
             else: #no sio_header_match
@@ -180,8 +179,6 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
             self._chunk_sample_count.append(sample_count)
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
 
         return result_particles
 
