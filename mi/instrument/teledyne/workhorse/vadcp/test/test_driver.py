@@ -1036,6 +1036,8 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                 result[name] = self.create_ethernet_comm_config(config)
             elif config.method() == ConfigTypes.SERIAL:
                 result[name] = self.create_serial_comm_config(config)
+            elif config.method() == ConfigTypes.RSN:
+                result[name] = self.create_rsn_comm_config(config)
         return result
 
     def port_agent_config(self):
