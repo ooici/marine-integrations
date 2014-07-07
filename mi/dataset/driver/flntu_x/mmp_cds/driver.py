@@ -1,8 +1,7 @@
 """
 @package mi.dataset.driver.flntu_x.mmps_cds.driver
-@file marine-integrations/mi/dataset/driver/FLORT_KN/STC_IMODEM/driver.py
+@file marine-integrations/mi/dataset/driver/flntu_x/mmp_cds/driver.py
 @author Jeremy Amundson
-@brief Driver for the FLORT_KN__STC_IMODEM
 Release notes:
 
 initial release
