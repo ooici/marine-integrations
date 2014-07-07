@@ -79,7 +79,7 @@ class FlntuXMmpCdsParser(MmpCdsParser):
 
         # The kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
         # FlntuXMmpCdsParserDataParticle class
-        kwargs[DataSetDriverConfigKeys.PARTICLE_CLASS] = FlntuXMmpCdsParserDataParticle
+        #kwargs[DataSetDriverConfigKeys.PARTICLE_CLASS] = FlntuXMmpCdsParserDataParticle
 
         # Call the superclass constructor
         super(FlntuXMmpCdsParser, self).__init__(config,

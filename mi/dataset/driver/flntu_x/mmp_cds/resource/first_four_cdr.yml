@@ -1,0 +1,33 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243026.3667879105
+    raw_time_microseconds: 366788
+    raw_time_seconds: 1385254226.0000000000
+    cdomflo: 180
+  - _index: 2
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243023.2157659531
+    raw_time_microseconds: 215766
+    raw_time_seconds: 1385254223.0000000000
+    cdomflo: 127
+  - _index: 3
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243033.7332420349
+    raw_time_microseconds: 733242
+    raw_time_seconds: 1385254233.0000000000
+    cdomflo: 183
+  - _index: 4
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243035.4668102264
+    raw_time_microseconds: 466810
+    raw_time_seconds: 1385254235.0000000000
+    cdomflo: 114

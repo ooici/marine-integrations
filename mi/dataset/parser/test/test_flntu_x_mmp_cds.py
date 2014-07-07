@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.test.test_flntu_x_mmp_cds
-@file marine-integrations/mi/dataset/parser/test/test_flntu_x_mmp_cds.py
-@author Jeremy Amundson
-@brief Test code for a flntu_x_mmp_cds data parser
+@package mi.dataset.parser.test.test_flcdrpf_ckl_mmp_cds
+@file marine-integrations/mi/dataset/parser/test/test_flcdrpf_ckl_mmp_cds.py
+@author Mark Worden
+@brief Test code for a flcdrpf_ckl_mmp_cds data parser
 """
 
 import os
 import numpy
 import yaml
+import copy
 
 from nose.plugins.attrib import attr
 
@@ -17,15 +18,17 @@ from mi.core.log import get_logger
 from mi.idk.config import Config
 
 log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, DatasetParserException
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.flntu_x_mmp_cds import FlntuXMmpCdsParser
 from mi.dataset.parser.mmp_cds_base import StateKey
 
-# Resource path for flntu x mmp cds
+# Resource path for flntupf ckl mmp cds
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flntu_x', 'mmp_cds', 'resource')
+
+MSGPACK_TEST_FILE_LENGTH = 5278
 
 # The list of generated tests are the suggested tests, but there may
 # be other tests needed to fully test your parser
@@ -33,7 +36,7 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'fl
 @attr('UNIT', group='mi')
 class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
     """
-    flntu_x_mmp_cds Parser unit test suite
+    flntupf_ckl_mmp_cds Parser unit test suite
     """
 
     def state_callback(self, state, file_ingested):
@@ -58,8 +61,6 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
 
-        self.start_state = {StateKey.POSITION: 0}
-
     def test_simple(self):
         """
         This test reads in a small number of particles and verifies the result of one of the particles.
@@ -68,7 +69,9 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        parser = FlntuXMmpCdsParser(self.config, self.start_state, stream_handle,
+        state = {StateKey.PARTICLES_RETURNED: 0}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(6)
@@ -90,24 +93,20 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        self.parser = FlntuXMmpCdsParser(self.config, self.start_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
-        particles = self.parser.get_records(20)
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(20)
 
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
 
-        test_data = self.get_dict_from_yml('first.yml')
-        self.assert_result(test_data['data'][0], particles[0])
-
-        test_data = self.get_dict_from_yml('mid.yml')
-        self.assert_result(test_data['data'][0], particles[9])
-
         test_data = self.get_dict_from_yml('get_many_one.yml')
         self.assert_result(test_data['data'][0], particles[19])
 
-        particles = self.parser.get_records(30)
+        particles = parser.get_records(30)
 
         # Should end up with 30 particles
         self.assertTrue(len(particles) == 30)
@@ -126,15 +125,17 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_concat.mpk')
         stream_handle = open(file_path, 'rb')
 
-        self.parser = FlntuXMmpCdsParser(self.config, self.start_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        state = {StateKey.PARTICLES_RETURNED: 0}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
         # Attempt to retrieve 200 particles, but we will retrieve less
-        particles = self.parser.get_records(200)
+        particles = parser.get_records(200)
 
         log.info(len(particles))
 
-        # Should end up with 184 particles
+        # Should end up with 172 particles
         self.assertTrue(len(particles) == 184)
 
         stream_handle.close()
@@ -146,65 +147,104 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         """
 
         # Using two concatenated msgpack files to simulate two chunks.
-        file_path = os.path.join(RESOURCE_PATH, 'flntu_concat.mpk')
+        file_path = os.path.join(RESOURCE_PATH, 'set_state.mpk')
         stream_handle = open(file_path, 'rb')
 
+        stat_info = os.stat(file_path)
+
         # Moving the file position to the end of the first chunk
-        new_state = {StateKey.POSITION: 5278}
+        state = {StateKey.PARTICLES_RETURNED: 20}
 
-        self.parser = FlntuXMmpCdsParser(self.config, new_state, stream_handle,
-                                           self.state_callback, self.pub_callback)
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
-        particles = self.parser.get_records(4)
+        particles = parser.get_records(4)
 
         log.info(len(particles))
 
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        test_data = self.get_dict_from_yml('mid_state_start.yml')
-        self.assert_result(test_data['data'][0], particles[3])
+        test_data = self.get_dict_from_yml('set_state.yml')
+        self.assert_result(test_data['data'][23], particles[3])
 
         stream_handle.close()
 
     def test_set_state(self):
         """
         This test exercises setting the state past one chunk, retrieving particles, verifying one
-        of the particles, and then setting the state back to the begging, retrieving a few particles, and
+        of the particles, and then setting the state back to the beginning, retrieving a few particles, and
         verifying one of the particles.
         """
 
-        # Using two concatenated msgpack files to simulate two chunks.
-        filepath = os.path.join(RESOURCE_PATH, 'flntu_concat.mpk')
-        stream_handle = open(filepath, 'rb')
+        # Using the default mspack test file.
+        file_path = os.path.join(RESOURCE_PATH, 'set_state.mpk')
+        stream_handle = open(file_path, 'rb')
 
-        # Moving the file position past the first chunk
-        new_state = {StateKey.POSITION: 2752}
+        # Moving the file position to the beginning
+        state = {StateKey.PARTICLES_RETURNED: 0}
 
-        self.parser = FlntuXMmpCdsParser(self.config, new_state, stream_handle,
-                                         self.state_callback, self.pub_callback)
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
-        particles = self.parser.get_records(4)
+        particles = parser.get_records(4)
 
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        test_data = self.get_dict_from_yml('mid_state_start.yml')
-        self.assert_result(test_data['data'][0], particles[3])
+        log.info(parser._read_state)
+        log.info(parser._state)
 
-        # Moving the file position past the header and three records
-        new_state = {StateKey.POSITION: 0}
+        stat_info = os.stat(file_path)
 
-        self.parser = FlntuXMmpCdsParser(self.config, new_state, stream_handle,
-                                         self.state_callback, self.pub_callback)
+        test_data = self.get_dict_from_yml('set_state.yml')
+        self.assert_result(test_data['data'][3], particles[3])
 
-        particles = self.parser.get_records(20)
+        state = copy.copy(parser._state)
 
-        # Should end up with 20 particles
-        self.assertTrue(len(particles) == 20)
+        log.info(state)
 
-        test_data = self.get_dict_from_yml('get_many_one.yml')
-        self.assert_result(test_data['data'][0], particles[19])
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(4)
+
+        # Should end up with 4 particles
+        self.assertTrue(len(particles) == 4)
+
+        self.assert_result(test_data['data'][7], particles[3])
+
+        # Give a bad position which will be ignored
+        state = {StateKey.PARTICLES_RETURNED: 0}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(1)
+
+        self.assertTrue(len(particles) == 1)
+
+        # Give a bad position which will be ignored
+        state = {StateKey.PARTICLES_RETURNED: 0}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(1000)
+
+        self.assertTrue(len(particles) == 30)
+
+        self.assert_result(test_data['data'][29], particles[29])
+
+        # Provide a bad particles returned
+        state = {StateKey.PARTICLES_RETURNED: 80}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
+
+        particles = parser.get_records(1)
+
+        self.assertTrue(len(particles) == 0)
 
         stream_handle.close()
 
@@ -216,8 +256,10 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_1_20131124T005004_458-BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        parser = FlntuXMmpCdsParser(self.config, self.start_state, stream_handle,
-                                    self.state_callback, self.pub_callback)
+        state = {StateKey.PARTICLES_RETURNED: 0}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
             parser.get_records(1)
@@ -232,8 +274,10 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        parser = FlntuXMmpCdsParser(self.config, self.start_state, stream_handle,
-                                    self.state_callback, self.pub_callback)
+        state = {StateKey.PARTICLES_RETURNED: 0}
+
+        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+                                      self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
             parser.get_records(1)
@@ -267,11 +311,10 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
                 log.info("internal_timestamp %.10f", particle_data)
 
-            elif key == 'position':
-                particle_data = self.state_callback_value['position']
-                #position corresponds to the position in the file
+            elif key == StateKey.PARTICLES_RETURNED:
+                particle_data = self.state_callback_value[StateKey.PARTICLES_RETURNED]
 
-                log.info("position %d", particle_data)
+                log.info("particles returned %d", particle_data)
 
             else:
                 particle_data = particle_values.get(key)
