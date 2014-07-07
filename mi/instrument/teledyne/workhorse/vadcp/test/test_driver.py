@@ -1922,7 +1922,6 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
             return
 
         config = self.port_agent_config()
-
         port_agents = {}
 
         if config['instrument_type'] != ConfigTypes.MULTI:
@@ -1967,6 +1966,17 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
                 'cmd_port': cmd_port
             }
         return config
+
+    def create_multi_comm_config(self, comm_config):
+        result = {}
+        for name, config in comm_config.configs.items():
+            if config.method() == ConfigTypes.ETHERNET:
+                result[name] = self.create_ethernet_comm_config(config)
+            elif config.method() == ConfigTypes.SERIAL:
+                result[name] = self.create_serial_comm_config(config)
+            elif config.method() == ConfigTypes.RSN:
+                result[name] = self.create_rsn_comm_config(config)
+        return result
 
     def init_instrument_agent_client(self):
 
