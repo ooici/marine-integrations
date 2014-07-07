@@ -1236,7 +1236,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
     # test commands in different modes
-    @unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_commands(self):
 
         """
@@ -1776,7 +1776,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set(TeledyneParameter2.AMBIGUITY_VELOCITY,
                         self._driver_parameters_slave[TeledyneParameter2.AMBIGUITY_VELOCITY][self.VALUE])
 
-    @unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_set_ranges(self):
         self.assert_initialize_driver()
 
@@ -1801,7 +1801,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._tst_set_ping_weight()
         self._tst_set_ambiguity_velocity()
 
-    @unittest.skip('It takes many house for this test')
+    @unittest.skip('It takes many hours for this test')
     def test_set_ranges_slave(self):
         self.assert_initialize_driver()
 

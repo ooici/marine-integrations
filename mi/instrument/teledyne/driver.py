@@ -48,6 +48,7 @@ DEFAULT_WRITE_DELAY = 0
 
 ZERO_TIME_INTERVAL = '00:00:00'
 
+
 class TeledynePrompt(BaseEnum):
     """
     Device i/o prompts..

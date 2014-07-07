@@ -457,7 +457,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
                 try:
                     addr = config['addr']
                     port = config['port']
-                    cmd_port = config.get('comd_port')
+                    cmd_port = config.get('cmd_port')
 
                     if isinstance(addr, str) and isinstance(port, int) and len(addr) > 0:
                         connections[name] = AdcpPortAgentClient(addr, port, cmd_port)
@@ -1142,7 +1142,7 @@ class Protocol(WorkhorseProtocol):
         count = 0
         while count < no_tries:
             prompt = self._wakeup2(timeout, delay)
-            if  prompt == desired_prompt:
+            if prompt == desired_prompt:
                 break
             time.sleep(delay)
             count += 1
@@ -1234,58 +1234,18 @@ class Protocol(WorkhorseProtocol):
         self._connection_5thBeam.send(NEWLINE)
 
     # For Master
-    # This is only temporary solution for now until port agent is fixed
     def _send_break_cmd_4beam(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
-        # TODO
-        # NOTE!!!
-        # Once the port agent can handle BREAK, please enable the following line
-        #self._connection_4Beam.send_break(delay)
-        # Then remove below lines
-
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error:
-            log.error("Failed to init Break socket(Master)")
-            raise InstrumentProtocolException("Failed to open socket for master break")
-
-        try:
-            sock.connect(('10.180.80.176', 2102))
-        except socket.error:
-            log.error("Failed to connect Break socket (Master)")
-            raise InstrumentProtocolException("Failed to connect socket for master break")
-
-        sock.send("break " + str(delay) + "\r\n\r\n")
-        sock.close()
+        self._connection_4Beam.send_break(delay)
 
     # for Slave
-    # This is only temporary solution for now until port agent is fixed
     def _send_break_cmd_5thBeam(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
-        # TODO
-        # NOTE!!!
-        # Once the port agent can handle BREAK, please enable the following line
-        #self._connection_5thBeam.send_break(delay)
-        # Then remove below lines
-
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error:
-            log.error("Failed to init break socket (slave)")
-            raise InstrumentParameterException("Failed to open socket for slave break")
-
-        try:
-            sock.connect(('10.180.80.179', 2102))
-        except socket.error:
-            log.error("Failed to connect Break socket (Slave)")
-            raise InstrumentParameterException("Failed to connect socket for slave break")
-
-        sock.send("break " + str(delay) + "\r\n\r\n")
-        sock.close()
+        self._connection_5thBeam.send_break(delay)
 
     # for Master and Slave
     def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
@@ -1837,7 +1797,7 @@ class Protocol(WorkhorseProtocol):
                              default_value=False)
 
         self._param_dict.add(Parameter.HEADING_ALIGNMENT,
-                             r'EA = ([\+\-\d]+) \-+ Heading Alignment',
+                             r'EA = ([+-]\d+) \-+ Heading Alignment',
                              lambda match: int(match.group(1)),
                              lambda value: '%+06d' % value,
                              type=ParameterDictType.INT,
@@ -1883,7 +1843,7 @@ class Protocol(WorkhorseProtocol):
                              default_value=2000)
 
         self._param_dict.add(Parameter.PITCH,
-                             r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+                             r'EP = ([+-]\d+) \-+ Tilt 1 Sensor ',
                              lambda match: int(match.group(1)),
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -2351,10 +2311,10 @@ class Protocol(WorkhorseProtocol):
                               default_value=False)
 
         self._param_dict2.add(Parameter2.HEADING_ALIGNMENT,
-                              r'EA = ([\+\-\d]+) \-+ Heading Alignment',
+                              r'EA = ([+-]\d+) \-+ Heading Alignment',
                               lambda match: int(match.group(1)),
                               lambda value: '%+06d' % value,
-                             type=ParameterDictType.INT,
+                              type=ParameterDictType.INT,
                               display_name="Heading alignment for 5th beam",
                               units=ADCPUnits.CDEGREE,
                               visibility=ParameterDictVisibility.IMMUTABLE,
@@ -2363,7 +2323,7 @@ class Protocol(WorkhorseProtocol):
                               default_value=+00000)
 
         self._param_dict2.add(Parameter2.HEADING_BIAS,
-                              r'EB = ([\+\-]\d+) \-+ Heading Bias',
+                              r'EB = ([+-]\d+) \-+ Heading Bias',
                               lambda match: int(match.group(1)),
                               lambda value: '%+06d' % value,
                              type=ParameterDictType.INT,
@@ -2397,7 +2357,7 @@ class Protocol(WorkhorseProtocol):
                               default_value=2000)
 
         self._param_dict2.add(Parameter2.PITCH,
-                              r'EP = ([\+\-]\d+) \-+ Tilt 1 Sensor ',
+                              r'EP = ([+-]\d+) \-+ Tilt 1 Sensor ',
                               lambda match: int(match.group(1)),
                               self._int_to_string,
                               type=ParameterDictType.INT,

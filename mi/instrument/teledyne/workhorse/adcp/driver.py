@@ -211,7 +211,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.POLLED_MODE,
                              r'CP = (\d) \-+ PolledMode ',
-                             lambda match: bool( int(match.group(1))),
+                             lambda match: bool(int(match.group(1))),
                              int,
                              type=ParameterDictType.BOOL,
                              display_name="Polled Mode",
