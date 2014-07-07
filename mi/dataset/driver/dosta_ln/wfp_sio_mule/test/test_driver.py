@@ -17,6 +17,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
+import gevent
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -56,8 +57,6 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.PARSER: {}
     }
 )
-
-SAMPLE_STREAM = 'dosta_ln_wfp_sio_mule_parsed'
 
 
 # The integration and qualification tests generated here are suggested tests,
@@ -248,6 +247,7 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         log.info("CONFIG: %s", self._agent_config())
         self.create_sample_data('node58p1_1stWE.dat', 'node58p1.dat')
+        
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -263,10 +263,10 @@ class QualificationTest(DataSetQualificationTestCase):
             
             # Read the second file, get the next sample, then stop
             self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
+            
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
-            self.assert_stop_sampling()
-
             log.debug("      ********************     RESULT 2: %s", result2)
+            self.assert_stop_sampling()
             self.assert_data_values(result2, 'firstB.result.yml')
             
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
@@ -274,13 +274,18 @@ class QualificationTest(DataSetQualificationTestCase):
             # Restart sampling and ensure we get the next record, first record
             # of the 2nd WE sio mule header.
             self.assert_start_sampling()
+            
             result3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
-            log.debug("      ********************     RESULT 3: %s", result3)
             self.assert_data_values(result3, 'second.result.yml')
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+            log.debug("      ********************     RESULT 3: %s", result3)
             
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
+
+
+
 
     def test_shutdown_restart(self):
         """
@@ -299,21 +304,22 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             # Read the first file, get 2 samples, and verify the data
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
-            log.debug(" *************############################*****************        RESULT: %s", result)
-
+            log.debug(" *********##*****************        RESULT: %s", result)
             # verify the data
             self.assert_data_values(result, 'firstA.result.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             
             # Read the second file, get the next record, then stop
+            #gevent.sleep(5)
+            
             self.create_sample_data('node58p1_1st2WE.dat', 'node58p1.dat')
             
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
-            log.debug(" *************############################*****************        RESULT 2: %s", result2)
+            log.debug(" *******#####*****************        RESULT 2: %s", result2)
             self.assert_stop_sampling()
             self.assert_data_values(result2, 'firstB.result.yml')
  
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             
             # stop the agent
             self.stop_dataset_agent_client()
@@ -325,11 +331,15 @@ class QualificationTest(DataSetQualificationTestCase):
             # Restart sampling and ensure we get the next record
             result3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
             self.assert_data_values(result3, 'second.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            log.debug("      ********************     RESULT 3: %s", result3)
             
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
+
+
+
+
 
 
     def test_large_import(self):
