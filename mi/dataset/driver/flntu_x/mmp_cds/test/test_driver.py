@@ -1,8 +1,8 @@
 """
 @package mi.dataset.driver.flntu_x.mmp_cds.test.test_driver
-@file marine-integrations/mi/dataset/driver/FLORT_KN/STC_IMODEM/driver.py
-@author Emily Hahn
-@brief Test cases for FLORT_KN__STC_IMODEM driver
+@file marine-integrations/mi/dataset/driver/flntu_x/mmp_cds/driver.py
+@author Jeremy Amundson
+@brief Test cases for Flntu/Flcdr-x-mmps-cds driver
 
 USAGE:
  Make tests verbose and provide stdout
