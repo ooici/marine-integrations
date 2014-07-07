@@ -129,7 +129,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         state = {StateKey.UNPROCESSED_DATA:[[0, 9000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 17600}
         self.parser = PhsenParser(self.config, state, stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -158,7 +159,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         state = {StateKey.UNPROCESSED_DATA:[[0, 17600]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 17600}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = PhsenParser(self.config, state, stream_handle, self.state_callback,
@@ -188,7 +190,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.IN_PROCESS_DATA:[],
             StateKey.UNPROCESSED_DATA:[[0, 172], [4100, 4171], [5899, 5968],
-                [7697, 7764], [8636, 16000]]}
+                [7697, 7764], [8636, 16000]],
+            StateKey.FILE_SIZE: 17600}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'node59p1_shorter.dat'))
         self.parser = PhsenParser(self.config, new_state, stream_handle,
@@ -211,7 +214,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.IN_PROCESS_DATA:[[1804, 2308, 1, 0]],
             StateKey.UNPROCESSED_DATA:[[0, 172], [1804, 2308], [4100, 4171], [5899, 5968],
-                                       [7697, 7764], [8636, 16000]]}
+                                       [7697, 7764], [8636, 16000]],
+            StateKey.FILE_SIZE: 17600}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'node59p1_shorter.dat'))
         self.parser = PhsenParser(self.config, new_state, stream_handle,
@@ -233,10 +237,12 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 9000]], StateKey.IN_PROCESS_DATA:[]}
+        state = {StateKey.UNPROCESSED_DATA:[[0, 9000]], StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE:17600}
         new_state = {StateKey.UNPROCESSED_DATA:[[0, 172], [4100, 4171], [5899, 5968],
                                                 [7697, 7764], [8636, 14700]],
-                     StateKey.IN_PROCESS_DATA:[]}
+                     StateKey.IN_PROCESS_DATA:[],
+                     StateKey.FILE_SIZE: 17600}
 
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -264,7 +270,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         """
         log.debug('Starting test_update')
         state = {StateKey.UNPROCESSED_DATA:[[0, 14700]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 17600}
         # this file has a block of FL data replaced by 0s
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'node59p1_replaced.dat'))
