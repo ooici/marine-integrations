@@ -53,7 +53,6 @@ SIO_HEADER_REGEX += b'([0-9a-fA-F]{2})' # Block Number (hex)
 SIO_HEADER_REGEX += b'_'                # Spacer (0x5F)
 SIO_HEADER_REGEX += b'([0-9a-fA-F]{4})' # CRC Checksum (hex)
 SIO_HEADER_REGEX += SIO_HEADER_END      # End of SIO Header (binary data follows)
-
 SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
 
 # The SIO_HEADER_MATCHER produces the following groups:
@@ -72,8 +71,7 @@ class StateKey(BaseEnum):
     IN_PROCESS_DATA = "in_process_data"  # holds an array of start and end of packets of data,
         # the number of samples in that packet, how many packets have been pulled out currently
         # being processed
-
-    POSITION = 'position'             # file position for recovered data only
+    FILE_SIZE = "file_size"
 
 # constants for accessing unprocessed and in process data
 START_IDX = 0
@@ -84,7 +82,8 @@ SAMPLES_RETURNED = 3
 class SioParser(BufferLoadingParser):
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback):
+                 state_callback, publish_callback, exception_callback,
+                 recovered=True):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like file handle
@@ -100,6 +99,7 @@ class SioParser(BufferLoadingParser):
            be published into ION
         @param exception_callback The callback from the agent driver to
            send an exception to
+        @param recovered True (default) if recovered data, False if telemetered
         """
         super(SioParser, self).__init__(config,
                                         stream_handle,
@@ -109,20 +109,23 @@ class SioParser(BufferLoadingParser):
                                         publish_callback,
                                         exception_callback)
 
-        #
-        # The POSITION state is required.
-        # If one was not supplied, a default of 0 is provided.
-        #
-        if state is not None:
-            if not (StateKey.POSITION in state):
-                state[StateKey.POSITION] = 0
-        else:
-            state = {StateKey.POSITION: 0}
-
+        self.all_data = None
+        self._chunk_sample_count = []
         self.input_file = stream_handle
+        self._mid_sample_packets = 0
+        self._position = [0,0] # store both the start and end point for this read of data within the file
         self._record_buffer = []  # holds list of records
+        self.recovered = recovered
+        self._samples_to_throw_out = None
 
-        self.set_state(state)
+        # use None flag in unprocessed data to initialize this
+        # we read the entire file and get the size of the data
+        self._read_state = {StateKey.UNPROCESSED_DATA: None,
+                            StateKey.IN_PROCESS_DATA: [],
+                            StateKey.FILE_SIZE: 0}
+
+        if state is not None:
+            self.set_state(state)
 
     def calc_checksum(self, data):
         """
@@ -155,168 +158,6 @@ class SioParser(BufferLoadingParser):
             crc = '000' + crc
         log.trace("calculated checksum %s", crc)
         return crc
-
-    def _increment_position(self, bytes_read):
-        """
-        Increment the parser position
-        @param bytes_read The number of bytes just read
-        """
-        self._read_state[StateKey.POSITION] += bytes_read
-
-    def read_file(self):
-        """
-        This function reads the entire input file.
-        Returns:
-            A string containing the contents of the entire file.
-        """
-        input_buffer = ''
-
-        while True:
-            # read data in small blocks in order to not block processing
-            next_data = self._stream_handle.read(1024)
-            if next_data != '':
-                input_buffer = input_buffer + next_data
-                gevent.sleep(0)
-            else:
-                break
-
-        return input_buffer
-
-    def set_state(self, state_obj):
-        """
-        Set the value of the state object for this parser
-        @param state_obj The object to set the state to.
-        @throws DatasetParserException if there is a bad state structure
-        """
-        if not isinstance(state_obj, dict):
-            raise DatasetParserException("Invalid state structure - not a dictionary")
-
-        if not (StateKey.POSITION in state_obj):
-            raise DatasetParserException("State key %s missing" % StateKey.POSITION)
-
-        self._record_buffer = []
-        self._state = state_obj
-        self._read_state = state_obj
-
-        self.input_file.seek(state_obj[StateKey.POSITION])
-
-    def sieve_function(self, raw_data):
-        """
-        Sieve function for SIO Parser.
-        Sort through the raw data to identify blocks of data that need processing.
-        This sieve identifies the SIO header, verifies the checksum,
-        calculates the end of the SIO block, and returns a list of
-        start,end indices.
-        @param raw_data The raw data to search
-        @retval list of matched start,end index found in raw_data
-        """
-        return_list = []
-
-        #
-        # Search the entire input buffer to find all possible SIO headers.
-        #
-        for match in SIO_HEADER_MATCHER.finditer(raw_data):
-            #
-            # Calculate the expected end index of the SIO block.
-            # If there are enough bytes to comprise an entire SIO block,
-            # continue processing.
-            # If there are not enough bytes, we're done parsing this input.
-            #
-            data_len = int(match.group(SIO_HEADER_GROUP_DATA_LENGTH), 16)
-            end_packet_idx = match.end(0) + data_len
-
-            if end_packet_idx < len(raw_data):
-                # log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
-                #           match.group(0)[1:32], match.end(0), end_packet_idx,
-                #           match.start(0), data_len)
-                #
-                # Get the last byte of the SIO block
-                # and make sure it matches the expected value.
-                #
-                end_packet = raw_data[end_packet_idx]
-                if end_packet == SIO_BLOCK_END:
-                    #
-                    # Calculate the checksum on the data portion of the
-                    # SIO block (excludes start of header, header,
-                    # and end of header).
-                    #
-                    actual_checksum = self.calc_checksum(
-                        raw_data[match.end(0):end_packet_idx])
-
-                    expected_checksum = match.group(SIO_HEADER_GROUP_CHECKSUM)
-
-                    #
-                    # If the checksums match, add the start,end indices to
-                    # the return list.  The end of SIO block byte is included.
-                    #
-                    if actual_checksum == expected_checksum:
-                        return_list.append((match.start(0), end_packet_idx+1))
-                    else:
-                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
-                                  actual_checksum, expected_checksum,
-                                  match.group(0)[1:32],
-                                  match.end(0), end_packet_idx)
-                else:
-                    log.debug('End packet at %d is not x03 for header %s',
-                              end_packet_idx, match.group(0)[1:32])
-        return return_list
-
-
-class SioMuleParser(SioParser):
-
-    def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback,
-                 recovered_flag=False):
-        """
-        @param config The configuration parameters to feed into the parser
-        @param stream_handle An already open file-like file handle
-        @param state The location in the file to start parsing from.
-           This reflects what has already been published.
-        @param sieve_fn A sieve function that might be added to a handler
-           to appropriate filter out the data
-        @param state_callback The callback method from the agent driver
-           (ultimately the agent) to call back when a state needs to be
-           updated
-        @param publish_callback The callback from the agent driver (and
-           ultimately from the agent) where we send our sample particle to
-           be published into ION
-        @param exception_callback The callback from the agent driver to
-           send an exception to
-        @param recovered_flag Flag to turn off escape characters present in
-            telemetered but not present in recovered data
-        """
-        if state is not None:
-            if not (StateKey.UNPROCESSED_DATA in state) \
-              or not (StateKey.IN_PROCESS_DATA in state):
-                state[StateKey.UNPROCESSED_DATA] = None
-                state[StateKey.IN_PROCESS_DATA] = []
-            new_state = state
-        else:
-            new_state = {
-                StateKey.UNPROCESSED_DATA: None,
-                StateKey.IN_PROCESS_DATA: []
-            }
-
-        super(SioMuleParser, self).__init__(config,
-                                            stream_handle,
-                                            new_state,
-                                            self.sieve_function,
-                                            state_callback,
-                                            publish_callback,
-                                            exception_callback)
-
-        self._position = [0,0] # store both the start and end point for this read of data within the file
-        self._recovered_flag = recovered_flag
-        self.all_data = None
-        self._chunk_sample_count = []
-        self._samples_to_throw_out = None
-        self._mid_sample_packets = 0
-
-        # use None flag in unprocessed data to initialize this we read the entire file and get the size of the data
-        self._read_state = {StateKey.UNPROCESSED_DATA: None,
-                            StateKey.IN_PROCESS_DATA: []}
-
-        self.set_state(new_state)
 
     def _combine_adjacent_packets(self, packets):
         """
@@ -372,16 +213,20 @@ class SioMuleParser(SioParser):
             # need to read in the entire data file first and store it because escape sequences shift position of
             # in process and unprocessed blocks
             self.all_data = self.read_file()
+            orig_len = len(self.all_data)
 
-            if not self._recovered_flag:
-                # if this is telemetered, need to replace escape chars, recovered does not
+            # need to replace escape chars if telemetered data
+            if not self.recovered:
                 self.all_data = self.all_data.replace(b'\x18\x6b', b'\x2b')
                 self.all_data = self.all_data.replace(b'\x18\x58', b'\x18')
-            #log.debug("length of all data after replace %d", len(self.all_data))
+
+            log.debug("length of file %d, length of data %d",
+                      orig_len, len(self.all_data))
 
         # if unprocessed data has not been initialized yet, set it to the entire file
         if self._read_state[StateKey.UNPROCESSED_DATA] is None:
             self._read_state[StateKey.UNPROCESSED_DATA] = [[0, len(self.all_data)]]
+            self._read_state[StateKey.FILE_SIZE] = orig_len
 
         while len(self._record_buffer) < num_records:
             # read unprocessed data packet from the file, starting with in process data
@@ -547,6 +392,25 @@ class SioMuleParser(SioParser):
             self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
                 self._read_state[StateKey.UNPROCESSED_DATA])
 
+    def read_file(self):
+        """
+        This function reads the entire input file.
+        Returns:
+            A string containing the contents of the entire file.
+        """
+        input_buffer = ''
+
+        while True:
+            # read data in small blocks in order to not block processing
+            next_data = self._stream_handle.read(1024)
+            if next_data != '':
+                input_buffer = input_buffer + next_data
+                gevent.sleep(0)
+            else:
+                break
+
+        return input_buffer
+
     def packet_exists(self, start, end):
         """
         Determine if this packet is already in the in process data
@@ -569,14 +433,18 @@ class SioMuleParser(SioParser):
         """
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure - not a dictionary")
+
+        # Verify that all required state keys are present.
         if not ((StateKey.UNPROCESSED_DATA in state_obj) \
-                  and (StateKey.IN_PROCESS_DATA in state_obj)):
-            raise DatasetParserException("State key %s or %s missing"
-                % (StateKey.UNPROCESSED_DATA, StateKey.IN_PROCESS_DATA))
+                  and (StateKey.IN_PROCESS_DATA in state_obj) \
+                  and (StateKey.FILE_SIZE in state_obj)):
+            raise DatasetParserException("State key %s, %s or %s missing"
+                % (StateKey.UNPROCESSED_DATA,
+                   StateKey.IN_PROCESS_DATA,
+                   StateKey.FILE_SIZE))
 
         # store both the start and end point for this read of data within the file
-        if state_obj[StateKey.UNPROCESSED_DATA] is None \
-          or state_obj[StateKey.UNPROCESSED_DATA] == []:
+        if state_obj[StateKey.UNPROCESSED_DATA] is None:
             self._position = [0, 0]
         else:
             self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX],
@@ -595,6 +463,139 @@ class SioMuleParser(SioParser):
 
         # make sure we have cleaned the chunker out of old data so there are no wrap arounds
         self._chunker.clean_all_chunks()
+
+    def sieve_function(self, raw_data):
+        """
+        Sieve function for SIO Parser.
+        Sort through the raw data to identify blocks of data that need processing.
+        This sieve identifies the SIO header, verifies the checksum,
+        calculates the end of the SIO block, and returns a list of
+        start,end indices.
+        @param raw_data The raw data to search
+        @retval list of matched start,end index found in raw_data
+        """
+        return_list = []
+
+        #
+        # Search the entire input buffer to find all possible SIO headers.
+        #
+        for match in SIO_HEADER_MATCHER.finditer(raw_data):
+            #
+            # Calculate the expected end index of the SIO block.
+            # If there are enough bytes to comprise an entire SIO block,
+            # continue processing.
+            # If there are not enough bytes, we're done parsing this input.
+            #
+            data_len = int(match.group(SIO_HEADER_GROUP_DATA_LENGTH), 16)
+            end_packet_idx = match.end(0) + data_len
+
+            if end_packet_idx < len(raw_data):
+                # log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
+                #           match.group(0)[1:32], match.end(0), end_packet_idx,
+                #           match.start(0), data_len)
+                #
+                # Get the last byte of the SIO block
+                # and make sure it matches the expected value.
+                #
+                end_packet = raw_data[end_packet_idx]
+                if end_packet == SIO_BLOCK_END:
+                    #
+                    # Calculate the checksum on the data portion of the
+                    # SIO block (excludes start of header, header,
+                    # and end of header).
+                    #
+                    actual_checksum = self.calc_checksum(
+                        raw_data[match.end(0):end_packet_idx])
+
+                    expected_checksum = match.group(SIO_HEADER_GROUP_CHECKSUM)
+
+                    #
+                    # If the checksums match, add the start,end indices to
+                    # the return list.  The end of SIO block byte is included.
+                    #
+                    if actual_checksum == expected_checksum:
+                        # even if this is not the right instrument, keep track that
+                        # this packet was processed
+                        if not self.packet_exists(match.start(0), end_packet_idx+1):
+                            self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0),
+                                                                               end_packet_idx+1,
+                                                                               None, 0])
+                        return_list.append((match.start(0), end_packet_idx+1))
+                    else:
+                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
+                                  actual_checksum, expected_checksum,
+                                  match.group(0)[1:32],
+                                  match.end(0), end_packet_idx)
+                else:
+                    log.debug('End packet at %d is not x03 for header %s',
+                              end_packet_idx, match.group(0)[1:32])
+
+        log.debug('SIEVE %s', return_list)
+        return return_list
+
+    def _yank_particles(self, num_to_fetch):
+        """
+        Get particles out of the buffer and publish them. Update the state
+        of what has been published, too.
+        @param num_to_fetch The number of particles to remove from the buffer
+        @retval A list with num_to_fetch elements from the buffer. If num_to_fetch
+        cannot be collected (perhaps due to an EOF), the list will have the
+        elements it was able to collect.
+        """
+        return_list = []
+        if self._samples_to_throw_out is not None:
+            records_to_return = self._record_buffer[self._samples_to_throw_out:(num_to_fetch+self._samples_to_throw_out)]
+            self._record_buffer = self._record_buffer[(num_to_fetch+self._samples_to_throw_out):]
+            # reset samples to throw out
+            self._samples_to_throw_out = None
+        else:
+            records_to_return = self._record_buffer[:num_to_fetch]
+            self._record_buffer = self._record_buffer[num_to_fetch:]
+        if len(records_to_return) > 0:
+            for item in records_to_return:
+                return_list.append(item)
+            self._publish_sample(return_list)
+            # need to keep track of which records have actually been returned
+            self._increment_state(num_to_fetch)
+            self._state = self._read_state
+            #log.trace("Sending parser state [%s] to driver", self._state)
+            self._state_callback(self._state)  # push new state to driver
+
+        return return_list
+
+class SioMuleParser(SioParser):
+
+    def __init__(self, config, stream_handle, state, sieve_fn,
+                 state_callback, publish_callback, exception_callback):
+        """
+        @param config The configuration parameters to feed into the parser
+        @param stream_handle An already open file-like file handle
+        @param state The location in the file to start parsing from.
+           This reflects what has already been published.
+        @param sieve_fn A sieve function that might be added to a handler
+           to appropriate filter out the data
+        @param state_callback The callback method from the agent driver
+           (ultimately the agent) to call back when a state needs to be
+           updated
+        @param publish_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our sample particle to
+           be published into ION
+        @param exception_callback The callback from the agent driver to
+           send an exception to
+        """
+
+        #
+        # By default, the SIO Parser assumes recovered data.
+        # All SIO Mule Parsers are for telemetered data.
+        #
+        super(SioMuleParser, self).__init__(config,
+                                            stream_handle,
+                                            state,
+                                            self.sieve_function,
+                                            state_callback,
+                                            publish_callback,
+                                            exception_callback,
+                                            recovered=False)
 
     def sieve_function(self, raw_data):
         """
@@ -637,32 +638,4 @@ class SioMuleParser(SioParser):
                               end_packet_idx, match.group(0)[1:32])
         return return_list
 
-    def _yank_particles(self, num_to_fetch):
-        """
-        Get particles out of the buffer and publish them. Update the state
-        of what has been published, too.
-        @param num_to_fetch The number of particles to remove from the buffer
-        @retval A list with num_to_fetch elements from the buffer. If num_to_fetch
-        cannot be collected (perhaps due to an EOF), the list will have the
-        elements it was able to collect.
-        """
-        return_list = []
-        if self._samples_to_throw_out is not None:
-            records_to_return = self._record_buffer[self._samples_to_throw_out:(num_to_fetch+self._samples_to_throw_out)]
-            self._record_buffer = self._record_buffer[(num_to_fetch+self._samples_to_throw_out):]
-            # reset samples to throw out
-            self._samples_to_throw_out = None
-        else:
-            records_to_return = self._record_buffer[:num_to_fetch]
-            self._record_buffer = self._record_buffer[num_to_fetch:]
-        if len(records_to_return) > 0:
-            for item in records_to_return:
-                return_list.append(item)
-            self._publish_sample(return_list)
-            # need to keep track of which records have actually been returned
-            self._increment_state(num_to_fetch)
-            self._state = self._read_state
-            #log.trace("Sending parser state [%s] to driver", self._state)
-            self._state_callback(self._state)  # push new state to driver
 
-        return return_list

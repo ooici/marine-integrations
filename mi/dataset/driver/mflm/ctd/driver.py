@@ -68,7 +68,6 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
 
     @classmethod
     def stream_config(cls):
-        # Once the recovered parser exists, particles should be added here
         return [CtdmoRecoveredInstrumentDataParticle.type(),
                 CtdmoRecoveredOffsetDataParticle.type(),
                 CtdmoTelemeteredInstrumentDataParticle.type(),
@@ -99,8 +98,8 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
 
             parser = CtdmoTelemeteredParser(
                 config,
-                parser_state,
                 stream_in,
+                parser_state,
                 lambda state:
                     self._save_parser_state(state,
                                             DataTypeKey.CTDMO_GHQR_SIO_MULE),
@@ -122,8 +121,8 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
 
             parser = CtdmoRecoveredCoParser(
                 config,
-                parser_state,
                 stream_in,
+                parser_state,
                 lambda state, ingested:
                     self._save_parser_state(state, data_key, ingested),
                 self._data_callback,
@@ -144,8 +143,8 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
 
             parser = CtdmoRecoveredCtParser(
                 config,
-                parser_state,
                 stream_in,
+                parser_state,
                 lambda state, ingested:
                     self._save_parser_state(state, data_key, ingested),
                 self._data_callback,

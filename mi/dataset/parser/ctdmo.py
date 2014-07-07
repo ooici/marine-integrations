@@ -6,7 +6,7 @@
 @author Emily Hahn (original telemetered), Steve Myerson (recovered)
 @brief A CTDMO-specific data set agent parser
 
-This file contains code for the CTDMO parsers and to produce data particles.
+This file contains code for the CTDMO parsers and code to produce data particles.
 For telemetered data, there is one parser which produces two data particles.
 For recovered data, there are two parsers, with each parser producing one data particle.
 
@@ -15,7 +15,7 @@ CT, aka instrument, sensor or science data.
 CO, aka offset data.
 
 For telemetered data, both types (CT, CO) of data are in SIO Mule files.
-For recovered data, the CT data is stored in a separate file.
+For recovered data, the CT data is stored in a separate fi le.
 Additionally, both CT and CO data are stored in another file (SIO Controller file),
 but only the CO data in the SIO Controller file is processed here,
 with the CT data being ignored.
@@ -59,16 +59,41 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey, Data
 ID_INSTRUMENT = 'CT'    # ID for instrument (science) data
 ID_OFFSET = 'CO'        # ID for time offset data
 
-# Recovered CT Data record (hex ascii):
-REC_CT_RECORD_END = b'\x0D'             # records separated by a new line
+# Recovered CT file format (file is ASCII, lines separated by new line):
+#   Several lines of unformatted ASCII text and key value pairs (ignored here)
+#   Configuration information in XML format (only serial number is of interest)
+#   *END* record (IDD says *end* so we'll check for either)
+#   Instrument data in HEX ASCII (need to extract these values)
 
+NEW_LINE = r'[\n|\r\n]'           # Handle either type of new line
+
+REC_CT_RECORD = r'.*'             # Any number of ASCII characters
+REC_CT_RECORD += NEW_LINE         # separated by a new line
+REC_CT_RECORD_MATCHER = re.compile(REC_CT_RECORD)
+
+# For Recovered CT files, the serial number is in the Configuration XML section.
+REC_CT_SERIAL_REGEX = r'^'        # At the beginning of the record
+REC_CT_SERIAL_REGEX += r'\* <HardwareData DeviceType=\'SBE37-IM\' SerialNumber=\''
+REC_CT_SERIAL_REGEX += r'(\d+)'   # Serial number is any number of digits
+REC_CT_SERIAL_REGEX += r'\'>'     # the rest of the XML syntax
+REC_CT_SERIAL_MATCHER = re.compile(REC_CT_SERIAL_REGEX)
+
+# The REC_CT_SERIAL_MATCHER produces the following group:
+REC_CT_SERIAL_GROUP_SERIAL_NUMBER = 1
+
+# The end of the Configuration XML section is denoted by a *END* record.
+REC_CT_CONFIGURATION_END = r'^'                    # At the beginning of the record
+REC_CT_CONFIGURATION_END += r'[\*END\*|\*end\*]'   # *END* or *end*
+REC_CT_CONFIGURATION_END += NEW_LINE               # separated by a new line
+REC_CT_CONFIGURATION_END_MATCHER = re.compile(REC_CT_CONFIGURATION_END)
+
+# Recovered CT Data record (hex ascii):
 REC_CT_REGEX = b'([0-9a-fA-F]{6})'      # Temperature
 REC_CT_REGEX += b'([0-9a-fA-F]{6})'     # Conductivity
 REC_CT_REGEX += b'([0-9a-fA-F]{6})'     # Pressure
 REC_CT_REGEX += b'([0-9a-fA-F]{4})'     # Pressure Temperature
 REC_CT_REGEX += b'([0-9a-fA-F]{8})'     # Time since Jan 1, 2000
-REC_CT_REGEX += REC_CT_RECORD_END       # CT Record separator
-
+REC_CT_REGEX += NEW_LINE                # separated by a new line
 REC_CT_MATCHER = re.compile(REC_CT_REGEX)
 
 # The REC_CT_MATCHER produces the following groups:
@@ -86,7 +111,6 @@ TEL_CT_REGEX = b'([\x00-\xFF])'       # Inductive ID
 TEL_CT_REGEX += b'([\x00-\xFF]{7})'   # Temperature, Conductivity, Pressure (reversed)
 TEL_CT_REGEX += b'([\x00-\xFF]{4})'   # Time since Jan 1, 2000 (bytes reversed)
 TEL_CT_REGEX += TEL_CT_RECORD_END     # CT Record separator
-
 TEL_CT_MATCHER = re.compile(TEL_CT_REGEX)
 
 # The TEL_CT_MATCHER produces the following groups:
@@ -101,7 +125,6 @@ CO_SAMPLE_BYTES = 6
 CO_REGEX = b'([\x00-\xFF])'        # Inductive ID
 CO_REGEX += b'([\x00-\xFF]{4})'    # Time offset in seconds
 CO_REGEX += CO_RECORD_END          # CO Record separator
-
 CO_MATCHER = re.compile(CO_REGEX)
 
 # The CO_MATCHER produces the following groups:
@@ -322,14 +345,15 @@ class CtdmoOffsetDataParticle(DataParticle):
                                self.raw_data[RAW_INDEX_CO_SIO_TIMESTAMP],
                                convert_hex_ascii_to_int),
             self._encode_value(CtdmoOffsetDataParticleKey.INDUCTIVE_ID,
-                                struct.unpack('>B', self.raw_data[RAW_INDEX_CO_ID])[0],
-                                int),
+                               struct.unpack('>B', self.raw_data[RAW_INDEX_CO_ID])[0],
+                               int),
             self._encode_value(CtdmoOffsetDataParticleKey.CTD_OFFSET,
                                struct.unpack('>i',
                                    self.raw_data[RAW_INDEX_CO_TIME_OFFSET])[0],
                                int)
         ]
 
+        #log.debug('BUILDING CO %s', particle)
         return particle
 
 
@@ -421,6 +445,8 @@ class CtdmoParser(Parser):
 
 
 class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
+#class CtdmoRecoveredCoParser(SioMuleParser, CtdmoParser):
+
     """
     Parser for Ctdmo recovered CO data.
     """
@@ -434,6 +460,7 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
                  exception_callback,
                  *args, **kwargs):
 
+        log.debug('ENTER CtdmoRecoveredCoParser')
         super(CtdmoRecoveredCoParser, self).__init__(config,
                                                      stream_handle,
                                                      state,
@@ -458,7 +485,7 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
         # if non-data is expected, handle it here, otherwise it is an error
         if non_data is not None and non_end <= start:
             # if this non-data is an error, send an UnexpectedDataException and increment the state
-            self._increment_position(len(non_data))
+            self._increment_state(len(non_data))
             self._exception_callback(UnexpectedDataException(
                 "Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
 
@@ -477,8 +504,6 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
         self.handle_non_data(non_data, non_end, start)
 
         while chunk is not None:
-            self._increment_position(len(chunk))
-
             header_match = SIO_HEADER_MATCHER.match(chunk)
             header_timestamp = header_match.group(SIO_HEADER_GROUP_TIMESTAMP)
 
@@ -495,17 +520,24 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
 
                 if samples > 0:
                     for x in range(0, samples):
-                        result_particles.append((particles[x],
-                                                 copy.copy(self._read_state)))
+                        result_particles.append(particles[x])
+
+            else:
+                samples = 0
+
+            # keep track of how many samples were found in this chunk
+            self._chunk_sample_count.append(samples)
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             self.handle_non_data(non_data, non_end, start)
 
+        log.debug('SIO SET PARSE %d', len(result_particles))
         return result_particles
 
 
 class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
+
     """
     Parser for Ctdmo recovered CT data.
     """
@@ -675,7 +707,7 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
                 log.error('unknown data found in CT chunk %s at %d, leaving out the rest',
                     binascii.b2a_hex(chunk), start_chunk_idx)
                 self._exception_callback(SampleException(
-                    'unknown data found in CT chunk at %d, leaving out the rest' % chunk_idx))
+                    'unknown data found in CT chunk at %d, leaving out the rest' % start_chunk_idx))
                 break
 
         #

@@ -5,25 +5,25 @@
 @file marine-integrations/mi/dataset/parser/test/test_ctdmo.py
 @author Emily Hahn, Steve Myerson (recovered)
 @brief Test code for a Ctdmo data parser
-Files used for Recovered CO:
-  CTD2000.DAT
+Recovered CO files:
+  CTD02000.DAT
     1 CT block
     0 CO blocks
-  CTD2001.DAT
+  CTD02001.DAT
     1 CT
     1 CO w/6 records, 5 valid IDs
-  CTD2002.DAT
+  CTD02002.DAT
     1 CO w/4 records, 3 valid IDs
     1 CT
     1 CO w/6 records, 4 valid IDs
-  CTD2004.DAT
+  CTD02004.DAT
     1 CT
     1 CO w/2 records, 0 valid IDs
     1 CO w/2 records, 1 valid ID
     1 CO w/5 records, 4 valid IDs
     1 CT
     1 CO w/10 records, 10 valid IDs
-  CTD2100.DAT
+  CTD02100.DAT
     1 CT
     1 CO w/100 records, 100 valid IDs
     1 CO w/150 records, 150 valid IDs
@@ -124,16 +124,18 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         This function creates a Ctdmo parser for recovered CO data.
         """
-        parser = CtdmoRecoveredCoParser(self.config_rec_co, file_handle, new_state,
-            self.rec_state_callback, self.pub_callback, self.exception_callback)
+        parser = CtdmoRecoveredCoParser(self.config_rec_co, file_handle,
+            new_state, self.state_callback, self.pub_callback,
+            self.exception_callback)
         return parser
 
     def create_rec_ct_parser(self, file_handle, new_state=None):
         """
         This function creates a Ctdmo parser for recovered CT data.
         """
-        parser = CtdmoRecoveredCtParser(self.config_rec_ct, file_handle, new_state,
-            self.rec_state_callback, self.pub_callback, self.exception_callback)
+        parser = CtdmoRecoveredCtParser(self.config_rec_ct, file_handle,
+            new_state, self.rec_state_callback, self.pub_callback,
+            self.exception_callback)
         return parser
 
     def rec_state_callback(self, state, file_ingested):
@@ -320,7 +322,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         Make sure that the driver complains about a missing inductive ID in the config
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 8000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         bad_config = {
@@ -340,7 +343,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 7500]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
@@ -361,7 +365,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
     def test_long_stream(self):
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 14000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 14000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_longer.dat'))
         self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
@@ -414,7 +419,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[],
-            StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]]}
+            StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]],
+            StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = CtdmoTelemeteredParser(self.config, self.stream_handle,
@@ -440,7 +446,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
                     [7534,7724,1,0]],
             StateKey.UNPROCESSED_DATA:
                 [[0, 12], [336, 394], [5349,5539], [5924,5927],
-                    [6313,6503], [6889,7148], [7534,7985]]}
+                    [6313,6503], [6889,7148], [7534,7985]],
+            StateKey.FILE_SIZE: 8000}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -462,11 +469,13 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         test changing the state after initializing
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 500]],
-                      StateKey.IN_PROCESS_DATA:[]}
+                      StateKey.IN_PROCESS_DATA:[],
+                      StateKey.FILE_SIZE: 8000}
 
         new_state = {
             StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 8000}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -643,8 +652,9 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         in_file = open(os.path.join(RESOURCE_PATH, 'CTD02002.DAT'))
 
         # Start at the second SIO block.
-        # Value obtained via UltraEdit.
-        initial_state = {StateKey.POSITION: 0x92}
+        initial_state = {StateKey.IN_PROCESS_DATA:[],
+            StateKey.UNPROCESSED_DATA:[[58, 146], [146, 216]],
+            StateKey.FILE_SIZE: 216}
 
         parser = self.create_rec_co_parser(in_file, new_state=initial_state)
 
@@ -723,8 +733,9 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         parser.get_records(1)
 
         # Skip ahead to the second SIO block.
-        # Value obtained via UltraEdit.
-        new_state = {StateKey.POSITION: 0x92}
+        new_state = {StateKey.IN_PROCESS_DATA:[],
+            StateKey.UNPROCESSED_DATA:[[58, 146], [146, 216]],
+            StateKey.FILE_SIZE: 216}
 
         # Set the state.
         parser.set_state(new_state)
