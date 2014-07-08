@@ -40,7 +40,8 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
-import binascii
+# sgm import binascii
+import hashlib
 from nose.plugins.attrib import attr
 from mock import Mock
 
@@ -77,6 +78,10 @@ from mi.dataset.parser.ctdmo import \
     CtdmoTelemeteredOffsetDataParticle, \
     CtdmoStateKey, \
     DataParticleType
+
+# from mi.idk.config import Config
+# RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver',
+#                  'mflm', 'ctd', 'resource')
 
 REC_DIR = '/tmp/dsatest_rec'
 TEL_DIR = '/tmp/dsatest_tel'
@@ -121,6 +126,12 @@ DataSetTestCase.initialize(
     }
 )
 
+# Stolen from the harvester.
+def calculate_file_checksum(filename):
+    with open(filename, 'rb') as file_handle:
+        checksum = hashlib.md5(file_handle.read()).hexdigest()
+    file_handle.close()
+    return checksum
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -257,8 +268,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(full_file)
 
         # Create the data for the Recovered CO parser.
-        rec_co_path = self.create_sample_data_set_dir('CTD02002.DAT', REC_DIR,
-                                                      'CTD02002.DAT')
+        rec_co_filename = 'CTD02002.DAT'
+        self.create_sample_data_set_dir(rec_co_filename, REC_DIR, rec_co_filename)
+
+        # Calculate the Recovered CO file checksum and get the file mod time.
+        rec_co_file_path = os.path.join(
+            driver_config['harvester'][DataTypeKey.CTDMO_GHQR_CO]['directory'],
+            rec_co_filename)
+        rec_co_file_checksum = str(calculate_file_checksum(rec_co_file_path))
+        rec_co_mod_time = os.path.getmtime(rec_co_file_path)
+        log.debug('ZZZ file %s', rec_co_file_path)
+        log.debug('XXX chk %s', rec_co_file_checksum)
+        log.debug('QQQ time %s', str(rec_co_mod_time))
 
         # Create and store the new driver state
         memento = {
@@ -276,12 +297,25 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 }
             },
             DataTypeKey.CTDMO_GHQR_CO: {
-                'CTD02002.DAT': self.get_file_state(rec_co_path, False, 0x92)
+                rec_co_filename: {
+                    DriverStateKey.FILE_SIZE: 216,
+                    DriverStateKey.FILE_CHECKSUM: rec_co_file_checksum,
+                    DriverStateKey.FILE_MOD_DATE: rec_co_mod_time,
+                    DriverStateKey.INGESTED: False,
+                    DriverStateKey.PARSER_STATE: {
+                         StateKey.IN_PROCESS_DATA: [],
+                         StateKey.UNPROCESSED_DATA:
+                             [[58, 146], [146, 216]],
+                         StateKey.FILE_SIZE: 216
+                    }
+                }
             },
             DataTypeKey.CTDMO_GHQR_CT: {
 
             }
         }
+
+        log.debug('MMM %s', memento)
         driver = MflmCtdmoDataSetDriver(
             self._driver_config()['startup_config'],
             memento,
@@ -384,9 +418,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Test a full stop of the dataset agent, then restart the agent and
         confirm it restarts at the correct spot.
         """
-        self.create_sample_data_set_dir('CTD02002.DAT', REC_DIR, 'CTD02002.DAT')
         self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
-
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -402,10 +434,6 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
             self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
             self.assert_sample_queue_size(DataParticleType.TEL_CO_PARTICLE, 0)
-
-            # Read and verify the first 3 records from the Recovered CO file.
-            rec_co_result = self.data_subscribers.get_samples(DataParticleType.REC_CO_PARTICLE, 3)
-            self.assert_data_values(rec_co_result, 'CTD02002_first3.yml')
 
             # Update the Telemetered file.
             self.create_sample_data_set_dir('node59p1_step4.dat', TEL_DIR, "node59p1.dat")
@@ -424,12 +452,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last record of the file
             result2 = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 2)
-
-            # Read and verify the last 4 records from the Recovered CO file.
-            rec_co_result = self.data_subscribers.get_samples(DataParticleType.REC_CO_PARTICLE, 4)
-            self.assert_data_values(rec_co_result, 'CTD02002_last4.yml')
-
-            # Back to the telemetered file.
             result3 = self.data_subscribers.get_samples(DataParticleType.TEL_CO_PARTICLE, 1)
             result = result1
             result.extend(result2)
@@ -444,28 +466,56 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    def test_stop_start(self):
+    def test_shutdown_restart_rec_co(self):
         """
-        Test the agents ability to start data flowing, stop, then restart
-        at the correct spot.
+        Test a full stop of the dataset agent, then restart the agent and
+        confirm it restarts at the correct spot.
         """
-        self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
-        self.create_sample_data_set_dir('CTD02004.DAT', REC_DIR, 'CTD02004.DAT')
-
+        self.create_sample_data_set_dir('CTD02002.DAT', REC_DIR, 'CTD02002.DAT')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        co_particle = DataParticleType.REC_CO_PARTICLE
+        # Verify we get the correct samples
+        try:
+            # Read the first 3 records from the Recovered CO file.
+            rec_co_result1 = self.data_subscribers.get_samples(
+                DataParticleType.REC_CO_PARTICLE, 3)
+
+            # stop and re-start the agent
+            self.stop_dataset_agent_client()
+            self.init_dataset_agent_client()
+            # re-initialize
+            self.assert_initialize()
+
+           # Read the last 4 records from the Recovered CO file.
+            rec_co_result2 = self.data_subscribers.get_samples(
+                DataParticleType.REC_CO_PARTICLE, 4)
+
+            # Verify the results.
+            self.assert_data_values(rec_co_result1, 'CTD02002_first3.yml')
+            self.assert_data_values(rec_co_result2, 'CTD02002_last4.yml')
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+    def test_stop_start(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot.
+        """
+        self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
         # Verify we get the correct samples
         try:
-            # Read and verify the first 5 records from the Recovered CO file.
-            #rec_co_result = self.data_subscribers.get_samples(co_particle, 5, 10)
-            #self.assert_data_values(rec_co_result, 'CTD02004_first5.yml')
-
             # Read the first telemetered file and verify the data
             result = self.data_subscribers.get_samples(DataParticleType.TEL_CT_PARTICLE, 4)
 
@@ -492,67 +542,39 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'test_data_2.txt.result.yml')
             self.assert_sample_queue_size(DataParticleType.TEL_CT_PARTICLE, 0)
 
-            # Read and verify the last 10 records from the Recovered CO file.
-            #rec_co_result = self.data_subscribers.get_samples(co_particle, 10, 20)
-            #self.assert_data_values(rec_co_result, 'CTD02004_last10.yml')
-
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
         log.debug('======= END OF QUAL TEST STOP START ======')
 
-    def test_stop_start_rec(self):
+    def test_stop_start_rec_co(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
         co_particle = DataParticleType.REC_CO_PARTICLE
-
-        #self.create_sample_data_set_dir('CTD02002.DAT', REC_DIR, 'CTD02002.DAT')
-        #expected_particles = 7
-
         self.create_sample_data_set_dir('CTD02004.DAT', REC_DIR, 'CTD02004.DAT')
-        expected_particles = 15
-
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
-        log.debug('SIO SET QQQ0 %d',
-                  len(self.data_subscribers.samples_received.get(co_particle)))
 
         # Verify we get the correct samples
         try:
-            first_read = 1
-            second_read = expected_particles - first_read
-
-            log.debug('SIO SET QQQ1 %d',
-                      len(self.data_subscribers.samples_received.get(co_particle)))
-
             # Get the first 5 Recovered CO particles.
-            if first_read > 0:
-                result1 = self.data_subscribers.get_samples(co_particle, first_read, 20)
-            else:
-                result1 = []
-
-            log.debug('SIO SET QQQ2 %d',
-                      len(self.data_subscribers.samples_received.get(co_particle)))
+            result1 = self.data_subscribers.get_samples(co_particle, 5, 20)
 
             # Stop and then restart sampling.
             self.assert_stop_sampling()
             self.assert_start_sampling()
-            log.debug('SIO SET QQQ3 %d',
-                      len(self.data_subscribers.samples_received.get(co_particle)))
 
             # Get the last 10 Recovered CO particles.
-            #result2 = self.data_subscribers.get_samples(co_particle, 10, 20)
-            result2 = self.data_subscribers.get_samples(co_particle, second_read, 20)
+            result2 = self.data_subscribers.get_samples(co_particle, 10, 20)
 
             # Verify values
             result1.extend(result2)
-            #self.assert_data_values(result1, 'CTD02002.yml')
             self.assert_data_values(result1, 'CTD02004.yml')
 
         except SampleTimeout as e:
@@ -562,28 +584,23 @@ class QualificationTest(DataSetQualificationTestCase):
         log.debug('======= END OF QUAL TEST STOP START REC ======')
 
     def test_simple(self):
+        """
+        Verify that all records from a single file can be obtained in a single read.
+        """
 
         self.create_sample_data_set_dir('CTD02004.DAT', REC_DIR, 'CTD02004.DAT')
-
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # Slow down processing to 1 per second to give us time to stop
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        co_particle = DataParticleType.REC_CO_PARTICLE
-
         # Verify we get the correct samples
         try:
-            # Get the first 5 Recovered CO particles.
-            result1 = self.data_subscribers.get_samples(co_particle, 5, 10)
+            # Get the Recovered CO particles.
+            result = self.data_subscribers.get_samples(
+                DataParticleType.REC_CO_PARTICLE, 15, 20)
 
-            # Get the last 10 Recovered CO particles.
-            result2 = self.data_subscribers.get_samples(co_particle, 10, 20)
-
-            # Verify values
-            result1.extend(result2)
-            self.assert_data_values(result1, 'CTD02004.yml')
+            # Verify result
+            self.assert_data_values(result, 'CTD02004.yml')
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)

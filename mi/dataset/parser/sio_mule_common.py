@@ -220,8 +220,8 @@ class SioParser(BufferLoadingParser):
                 self.all_data = self.all_data.replace(b'\x18\x6b', b'\x2b')
                 self.all_data = self.all_data.replace(b'\x18\x58', b'\x18')
 
-            log.debug("length of file %d, length of data %d",
-                      orig_len, len(self.all_data))
+            #log.debug("length of file %d, length of data %d",
+            #          orig_len, len(self.all_data))
 
         # if unprocessed data has not been initialized yet, set it to the entire file
         if self._read_state[StateKey.UNPROCESSED_DATA] is None:
@@ -248,6 +248,8 @@ class SioParser(BufferLoadingParser):
 
                 # this unprocessed block has now been parsed, increment the state, using
                 # last samples timestamp to update the state timestamp
+                #log.debug("KKKK Get %d. Sending parser state [%s] to driver",
+                #              num_records, self._state)
                 self._increment_state()
 
                 # clear out any non matching data.  Don't do this during parsing because
@@ -530,7 +532,6 @@ class SioParser(BufferLoadingParser):
                     log.debug('End packet at %d is not x03 for header %s',
                               end_packet_idx, match.group(0)[1:32])
 
-        log.debug('SIEVE %s', return_list)
         return return_list
 
     def _yank_particles(self, num_to_fetch):
@@ -558,7 +559,8 @@ class SioParser(BufferLoadingParser):
             # need to keep track of which records have actually been returned
             self._increment_state(num_to_fetch)
             self._state = self._read_state
-            #log.trace("Sending parser state [%s] to driver", self._state)
+            #log.debug("KKKK Yank %d. Sending parser state [%s] to driver",
+            #              num_to_fetch, self._state)
             self._state_callback(self._state)  # push new state to driver
 
         return return_list
@@ -596,46 +598,3 @@ class SioMuleParser(SioParser):
                                             publish_callback,
                                             exception_callback,
                                             recovered=False)
-
-    def sieve_function(self, raw_data):
-        """
-        Sieve function for SIO Mule Parser.
-        Sort through the raw data to identify new blocks of data that need processing.
-        This sieve identifies the SIO header and returns just the data block identified
-        inside the header.
-        @param raw_data The raw data to search
-        @retval list of matched start,end index found in raw_data
-        """
-        return_list = []
-
-        for match in SIO_HEADER_MATCHER.finditer(raw_data):
-            data_len = int(match.group(SIO_HEADER_GROUP_DATA_LENGTH), 16)
-            checksum = match.group(SIO_HEADER_GROUP_CHECKSUM)
-            end_packet_idx = match.end(0) + data_len
-            if end_packet_idx < len(raw_data):
-                end_packet = raw_data[end_packet_idx]
-                # log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
-                #           match.group(0)[1:32], match.end(0), end_packet_idx,
-                #           match.start(0), data_len)
-
-                if end_packet == SIO_BLOCK_END:
-                    packet_data = raw_data[match.end(0):end_packet_idx]
-                    chksum = self.calc_checksum(packet_data)
-                    if chksum == checksum:
-                        # even if this is not the right instrument, keep track that
-                        # this packet was processed
-                        if not self.packet_exists(match.start(0), end_packet_idx+1):
-                            self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0),
-                                                                               end_packet_idx+1,
-                                                                               None, 0])
-                        return_list.append((match.start(0), end_packet_idx+1))
-                    else:
-                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
-                                  chksum, checksum, match.group(0)[1:32],
-                                  match.end(0), end_packet_idx)
-                else:
-                    log.debug('End packet at %d is not x03 for header %s',
-                              end_packet_idx, match.group(0)[1:32])
-        return return_list
-
-

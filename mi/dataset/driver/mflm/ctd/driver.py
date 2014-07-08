@@ -12,6 +12,7 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import ConfigurationException
 from mi.core.log import get_logger; log = get_logger()
 
 from mi.dataset.harvester import \
@@ -94,15 +95,15 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                     ['CtdmoTelemeteredInstrumentDataParticle',
                      'CtdmoTelemeteredOffsetDataParticle']
             })
-            log.debug("MYCONFIG Telemetered: %s", config)
+            log.debug("MYCONFIG Telemetered: CONFIG %s, STATE %s",
+                      config, parser_state)
 
             parser = CtdmoTelemeteredParser(
                 config,
                 stream_in,
                 parser_state,
                 lambda state:
-                    self._save_parser_state(state,
-                                            DataTypeKey.CTDMO_GHQR_SIO_MULE),
+                    self._save_parser_state(state, data_key),
                 self._data_callback,
                 self._sample_exception_callback)
 
@@ -117,14 +118,15 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_CLASS:
                     'CtdmoRecoveredOffsetDataParticle'
             })
-            log.debug("MYCONFIG CO Recovered: %s", config)
+            log.debug("MYCONFIG CO Recovered:CONFIG %s, STATE %s",
+                      config, parser_state)
 
             parser = CtdmoRecoveredCoParser(
                 config,
                 stream_in,
                 parser_state,
-                lambda state, ingested:
-                    self._save_parser_state(state, data_key, ingested),
+                lambda state:
+                    self._save_parser_state(state, data_key),
                 self._data_callback,
                 self._sample_exception_callback)
 
@@ -139,7 +141,8 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_CLASS:
                     'CtdmoRecoveredInstrumentDataParticle'
             })
-            log.debug("MYCONFIG CT Recovered: %s", config)
+            log.debug("MYCONFIG CT Recovered: CONFIG %s, STATE %s",
+                      config, parser_state)
 
             parser = CtdmoRecoveredCtParser(
                 config,
@@ -155,7 +158,8 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
         # No parser for you!
         #
         else:
-            parser = None
+            raise ConfigurationException('Parser configuration incorrect %s',
+                                         data_key)
 
         return parser
 

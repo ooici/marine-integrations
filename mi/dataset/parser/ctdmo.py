@@ -460,7 +460,7 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
                  exception_callback,
                  *args, **kwargs):
 
-        log.debug('ENTER CtdmoRecoveredCoParser')
+        log.debug('ENTER CtdmoRecoveredCoParser %s', state)
         super(CtdmoRecoveredCoParser, self).__init__(config,
                                                      stream_handle,
                                                      state,
