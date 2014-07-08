@@ -85,8 +85,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
                                                                 '2959', '1449', '2439', '2059',
                                                                 '2963', '1521', '2442', '2120',
                                                                 '2962', '1585', '2439', '2171',
-                                                                '0', '2857', '2297'],
-                                                               internal_timestamp=3456975600)
+                                                                '0', '2857', '2297'])
 
         self.particle_b = PhsenRecoveredInstrumentDataParticle(['10', '3456975899', '2342',
                                                                 '2969', '1989', '2461', '2501',
@@ -116,8 +115,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
                                                                 '2969', '1417', '2467', '2142',
                                                                 '2969', '1487', '2469', '2187',
                                                                 '2969', '1553', '2468', '2234',
-                                                                '0', '2856', '2351'],
-                                                               internal_timestamp=3456975899)
+                                                                '0', '2856', '2351'])
 
         self.particle_c = PhsenRecoveredInstrumentDataParticle(['10', '3456976199',	'2371',
                                                                 '2976', '1973',	'2498',	'2509',
@@ -147,8 +145,12 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
                                                                 '2981', '1382',	'2506',	'2179',
                                                                 '2984', '1456',	'2508',	'2227',
                                                                 '2982', '1524',	'2502',	'2269',
-                                                                '0',	'2854',	'2373'],
-                                                               internal_timestamp=3456976199)
+                                                                '0',	'2854',	'2373'])
+
+        self.particle_128 = PhsenRecoveredMetadataDataParticle(['128',	'3456970176', '65', '1', '0', '512'])
+
+        self.particle_129 = PhsenRecoveredMetadataDataParticle(['129',	'3456975599', '67', '4', '0', '566'])
+
 
         self.state_callback_value = None
         self.publish_callback_value = None
@@ -173,129 +175,83 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
                                            self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['128',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = self.particle_128
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['133',	'3456974356', '65', '2', '0', '530'],
-                                                            internal_timestamp=3456974356)
+        expected_value = PhsenRecoveredMetadataDataParticle(['133',	'3456974356', '65', '2', '0', '530'])
         self.assertEqual(result, [expected_value])
 
         # skipping over second 133 record
         self.parser.get_records(1)
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['129',	'3456975599', '67', '4', '0', '566'],
-                                                            internal_timestamp=3456975599)
+        expected_value = self.particle_129
         self.assertEqual(result, [expected_value])
 
         # next record is 191, which we handle but should not get
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['191',	'3456975599', '67', '4', '0', '566', '666'],
-                                                            internal_timestamp=3456975599)
+        expected_value = PhsenRecoveredMetadataDataParticle(['191',	'3456975599', '67', '4', '0', '566', '666'])
         self.assertEqual(result, [expected_value])
 
         # next record is 255, which we handle but should not get
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['255',	'3456975599', '67', '4', '0', '566', '777'],
-                                                            internal_timestamp=3456975599)
+        expected_value = PhsenRecoveredMetadataDataParticle(['255',	'3456975599', '67', '4', '0', '566', '777'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['192',	'3456975599', '67', '4', '0', '566', '888'],
-                                                            internal_timestamp=3456975599)
+        expected_value = PhsenRecoveredMetadataDataParticle(['192',	'3456975599', '67', '4', '0', '566', '888'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['193',	'3456975599', '67', '4', '0', '566', '999'],
-                                                            internal_timestamp=3456975599)
+        expected_value = PhsenRecoveredMetadataDataParticle(['193',	'3456975599', '67', '4', '0', '566', '999'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['134',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['134',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['135',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['135',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['190',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['190',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['194',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['194',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['195',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['195',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['196',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['196',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['197',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['197',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['198',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['198',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['254',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = PhsenRecoveredMetadataDataParticle(['254',	'3456970176', '65', '1', '0', '512'])
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredInstrumentDataParticle(['10', '3456975600', '2276',
-                                                               '2955', '2002', '2436', '2495',
-                                                               '2962', '1998', '2440', '2492',
-                                                               '2960', '2001', '2440', '2494',
-                                                               '2964', '2002', '2444', '2496',
-                                                               '2962', '2004', '2438', '2496',
-                                                               '2960', '2002', '2437', '2494',
-                                                               '2959', '1977', '2438', '2477',
-                                                               '2963', '1653', '2440', '2219',
-                                                               '2961', '1121', '2441', '1757',
-                                                               '2962', '694', '2437', '1327',
-                                                               '2963', '465', '2439', '1059',
-                                                               '2958', '365', '2436', '933',
-                                                               '2959', '343', '2434', '901',
-                                                               '2961', '370', '2443', '937',
-                                                               '2960', '425', '2441', '1013',
-                                                               '2961', '506', '2438', '1118',
-                                                               '2962', '602', '2441', '1232',
-                                                               '2963', '707', '2439', '1356',
-                                                               '2964', '828', '2440', '1484',
-                                                               '2962', '948', '2439', '1604',
-                                                               '2962', '1065', '2440', '1716',
-                                                               '2968', '1173', '2444', '1816',
-                                                               '2962', '1273', '2440', '1910',
-                                                               '2961', '1363', '2442', '1986',
-                                                               '2959', '1449', '2439', '2059',
-                                                               '2963', '1521', '2442', '2120',
-                                                               '2962', '1585', '2439', '2171',
-                                                               '0', '2857', '2297'],
-                                                              internal_timestamp=3456975600)
+        expected_value = self.particle_a
 
         # log.debug("actual %s", result[0].raw_data)
         # log.debug("expected %s", expected_value.raw_data)
         self.assertEqual(result, [expected_value])
 
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['131',	'3456982799', '71', '29', '0', '6128'],
-                                                            internal_timestamp=3456982799)
+        expected_value = PhsenRecoveredMetadataDataParticle(['131',	'3456982799', '71', '29', '0', '6128'])
         self.assertEqual(result, [expected_value])
         stream_handle.close()
 
@@ -448,8 +404,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
         self.parser = PhsenRecoveredParser(self.config, new_state, stream_handle,
                                            self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['128',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = self.particle_128
         self.assertEqual(result, [expected_value])
         stream_handle.close()
 
@@ -463,8 +418,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
         self.parser = PhsenRecoveredParser(self.config, new_state, stream_handle,
                                            self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['129',	'3456975599', '67', '4', '0', '566'],
-                                                            internal_timestamp=3456975599)
+        expected_value = self.particle_129
 
         self.assertEqual(result, [expected_value])
         stream_handle.close()
@@ -479,36 +433,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
         self.parser = PhsenRecoveredParser(self.config, new_state, stream_handle,
                                            self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredInstrumentDataParticle(['10', '3456975600', '2276',
-                                                               '2955', '2002', '2436', '2495',
-                                                               '2962', '1998', '2440', '2492',
-                                                               '2960', '2001', '2440', '2494',
-                                                               '2964', '2002', '2444', '2496',
-                                                               '2962', '2004', '2438', '2496',
-                                                               '2960', '2002', '2437', '2494',
-                                                               '2959', '1977', '2438', '2477',
-                                                               '2963', '1653', '2440', '2219',
-                                                               '2961', '1121', '2441', '1757',
-                                                               '2962', '694', '2437', '1327',
-                                                               '2963', '465', '2439', '1059',
-                                                               '2958', '365', '2436', '933',
-                                                               '2959', '343', '2434', '901',
-                                                               '2961', '370', '2443', '937',
-                                                               '2960', '425', '2441', '1013',
-                                                               '2961', '506', '2438', '1118',
-                                                               '2962', '602', '2441', '1232',
-                                                               '2963', '707', '2439', '1356',
-                                                               '2964', '828', '2440', '1484',
-                                                               '2962', '948', '2439', '1604',
-                                                               '2962', '1065', '2440', '1716',
-                                                               '2968', '1173', '2444', '1816',
-                                                               '2962', '1273', '2440', '1910',
-                                                               '2961', '1363', '2442', '1986',
-                                                               '2959', '1449', '2439', '2059',
-                                                               '2963', '1521', '2442', '2120',
-                                                               '2962', '1585', '2439', '2171',
-                                                               '0', '2857', '2297'],
-                                                              internal_timestamp=3456975600)
+        expected_value = self.particle_a
 
         self.assertEqual(result, [expected_value])
         stream_handle.close()
@@ -525,8 +450,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
                                            self.state_callback, self.pub_callback, self.exception_callback)
         # there should only be 4 records, make sure we stop there
         result = self.parser.get_records(1)
-        expected_value = PhsenRecoveredMetadataDataParticle(['128',	'3456970176', '65', '1', '0', '512'],
-                                                            internal_timestamp=3456970176)
+        expected_value = self.particle_128
         self.assertEqual(result, [expected_value])
 
         new_state = {StateKey.POSITION: 0x6db, StateKey.START_OF_DATA: True}
@@ -534,36 +458,7 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
         self.parser.set_state(new_state)
         result = self.parser.get_records(1)
 
-        expected_value = PhsenRecoveredInstrumentDataParticle(['10', '3456975600', '2276',
-                                                               '2955', '2002', '2436', '2495',
-                                                               '2962', '1998', '2440', '2492',
-                                                               '2960', '2001', '2440', '2494',
-                                                               '2964', '2002', '2444', '2496',
-                                                               '2962', '2004', '2438', '2496',
-                                                               '2960', '2002', '2437', '2494',
-                                                               '2959', '1977', '2438', '2477',
-                                                               '2963', '1653', '2440', '2219',
-                                                               '2961', '1121', '2441', '1757',
-                                                               '2962', '694', '2437', '1327',
-                                                               '2963', '465', '2439', '1059',
-                                                               '2958', '365', '2436', '933',
-                                                               '2959', '343', '2434', '901',
-                                                               '2961', '370', '2443', '937',
-                                                               '2960', '425', '2441', '1013',
-                                                               '2961', '506', '2438', '1118',
-                                                               '2962', '602', '2441', '1232',
-                                                               '2963', '707', '2439', '1356',
-                                                               '2964', '828', '2440', '1484',
-                                                               '2962', '948', '2439', '1604',
-                                                               '2962', '1065', '2440', '1716',
-                                                               '2968', '1173', '2444', '1816',
-                                                               '2962', '1273', '2440', '1910',
-                                                               '2961', '1363', '2442', '1986',
-                                                               '2959', '1449', '2439', '2059',
-                                                               '2963', '1521', '2442', '2120',
-                                                               '2962', '1585', '2439', '2171',
-                                                               '0', '2857', '2297'],
-                                                              internal_timestamp=3456975600)
+        expected_value = self.particle_a
 
         self.assertEqual(result, [expected_value])
 
