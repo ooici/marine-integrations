@@ -29,15 +29,15 @@ class DataParticleType(BaseEnum):
 
 class Vel3dAMmpCdsParserDataParticleKey(BaseEnum):
 
-    VA = 'va'
-    VB = 'vb'
-    VC = 'vc'
-    VD = 'vd'
-    HX = 'hx'
-    HY = 'hy'
-    HZ = 'hz'
-    TX = 'tx'
-    TY = 'ty'
+    VA = 'vel3d_a_va'
+    VB = 'vel3d_a_vb'
+    VC = 'vel3d_a_vc'
+    VD = 'vel3d_a_vd'
+    HX = 'vel3d_a_hx'
+    HY = 'vel3d_a_hy'
+    HZ = 'vel3d_a_hz'
+    TX = 'vel3d_a_tx'
+    TY = 'vel3d_a_ty'
 
 
 class Vel3dAMmpCdsParserDataParticle(MmpCdsParserDataParticle):
@@ -55,23 +55,23 @@ class Vel3dAMmpCdsParserDataParticle(MmpCdsParserDataParticle):
         """
 
         va = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VA,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.VA], float)
+                                         dict_data['va'], float)
         vb = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VB,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.VB], float)
+                                         dict_data['vb'], float)
         vc = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VC,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.VC], float)
+                                         dict_data['vc'], float)
         vd = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VD,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.VD], float)
+                                         dict_data['vd'], float)
         hx = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.HX,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.HX], float)
+                                         dict_data['hx'], float)
         hy = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.HY,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.HY], float)
+                                         dict_data['hy'], float)
         hz = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.HZ,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.HZ], float)
+                                         dict_data['hz'], float)
         tx = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.TX,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.TX], float)
+                                         dict_data['tx'], float)
         ty = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.TY,
-                                         dict_data[Vel3dAMmpCdsParserDataParticleKey.TY], float)
+                                         dict_data['ty'], float)
 
         return [va, vb, vc, vd, hx, hy, hz, tx, ty]
 

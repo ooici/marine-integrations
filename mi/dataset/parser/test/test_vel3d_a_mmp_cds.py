@@ -28,8 +28,6 @@ from mi.dataset.parser.mmp_cds_base import StateKey
 # Resource path for acmpf ckl mmp cds
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'vel3d_a', 'mmp_cds', 'resource')
 
-MSGPACK_TEST_FILE_LENGTH = 5278
-
 # The list of generated tests are the suggested tests, but there may
 # be other tests needed to fully test your parser
 
@@ -80,7 +78,9 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
             print particle.generate_dict()
 
         test_data = self.get_dict_from_yml('good.yml')
-        self.assert_result(test_data['data'][5], particles[5])
+
+        for n in range(5):
+            self.assert_result(test_data['data'][5], particles[5])
 
         stream_handle.close()
 
@@ -104,7 +104,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 20)
 
         test_data = self.get_dict_from_yml('good.yml')
-        self.assert_result(test_data['data'][19], particles[19])
+        for n in range(19):
+            self.assert_result(test_data['data'][n], particles[n])
 
         particles = parser.get_records(30)
 
@@ -129,12 +130,12 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
 
-        # Attempt to retrieve 200 particles, but we will retrieve less
+        # Attempt to retrieve 400 particles, but we will retrieve less
         particles = parser.get_records(400)
 
         log.info(len(particles))
 
-        # Should end up with 172 particles
+        # Should end up with 386 particles
         self.assertTrue(len(particles) == 386)
 
         stream_handle.close()
@@ -165,7 +166,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 4)
 
         test_data = self.get_dict_from_yml('good_2.yml')
-        self.assert_result(test_data['data'][3], particles[3])
+        for n in range(3):
+            self.assert_result(test_data['data'][n], particles[n])
 
         stream_handle.close()
 
