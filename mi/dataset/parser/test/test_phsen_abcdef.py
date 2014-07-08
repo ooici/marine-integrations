@@ -425,6 +425,19 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_no_data_tag(self):
+        """
+        Test that we do not create a particle if the file does not contain the ':Data' tag
+        """
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'SAMI_P0080_180713_no_data_tag.txt'))
+        self.parser = PhsenRecoveredParser(self.config, None, stream_handle, self.state_callback,
+                                           self.pub_callback, self.exception_callback)
+
+        result = self.parser.get_records(1)
+        self.assertEqual(result, [])
+
+        stream_handle.close()
+
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
