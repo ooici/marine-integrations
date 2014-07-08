@@ -17,10 +17,11 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import ConfigurationException
 
-from mi.dataset.harvester import SingleFileHarvester
+from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle, PhsenControlDataParticle
+from mi.dataset.parser.phsen_abcdef import PhsenRecoveredParser
 
 class DataSourceKey(BaseEnum):
     """
@@ -87,8 +88,20 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
         """
         Build and return the parser
         """
-        # recovered parser is not written yet
-        parser = None
+        config = self._parser_config.get(DataSourceKey.PHSEN_ABCDEF)
+        config.update({
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.phsen_abcdef',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: ['PhsenRecoveredInstrumentDataParticle',
+                                                     'PhsenRecoveredMetadataDataParticle']
+        })
+
+        log.debug("MYCONFIG: %s", config)
+
+        parser = PhsenRecoveredParser(config, parser_state, stream_in,
+                               lambda state, ingested:
+                               self._save_parser_state(state, DataSourceKey.PHSEN_ABCDEF, ingested),
+                               self._data_callback, self._sample_exception_callback)
+
         return parser
 
     def _build_harvester(self, driver_state):
@@ -108,6 +121,17 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.PHSEN_ABCDEF_SIO_MULE)
 
-        # Need to add recovered harvester when adding recovered parser here
+        if DataSourceKey.PHSEN_ABCDEF in self._harvester_config:
+
+            recov_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.PHSEN_ABCDEF),
+                driver_state[DataSourceKey.PHSEN_ABCDEF],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.PHSEN_ABCDEF),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.PHSEN_ABCDEF),
+                self._exception_callback)
+
+            harvesters.append(recov_harvester)
+        else:
+            log.warn('No configuration for %s harvester, not building', DataSourceKey.PHSEN_ABCDEF)
 
         return harvesters
