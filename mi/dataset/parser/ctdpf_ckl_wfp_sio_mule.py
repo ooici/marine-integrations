@@ -52,7 +52,8 @@ EOP_MATCHER = re.compile(EOP_REGEX)
 class DataParticleType(BaseEnum):
     DATA = 'ctdpf_ckl_wfp_instrument'
     METADATA = 'ctdpf_ckl_wfp_sio_mule_metadata'
-
+    RECOVERED_DATA = 'ctdpf_ckl_wfp_instrument_recovered'
+    RECOVERED_METADATA = 'ctdpf_ckl_wfp_metadata_recovered'
 
 class CtdpfCklWfpSioMuleDataParticleKey(BaseEnum):
     CONDUCTIVITY = 'conductivity'
@@ -175,10 +176,8 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
         @retval True (good header), False (bad header)
         """
         header = chunk[0:HEADER_BYTES]
-        log.trace('HEADER %s', header)
         match = WC_HEADER_MATCHER.search(header)
         if match:
-            log.trace('Header is good')
             self._dataLength = int(match.group(2), 16)
             self._startIndex = match.start(0)
             self._endIndex = match.end(0) + self._dataLength
@@ -186,7 +185,6 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
             self._goodHeader = True
         else:
             self._goodHeader = False
-            log.trace('Not a WC header (%s) - chunk not parsed', header)
 
     def process_footer(self, chunk):
         """
@@ -202,7 +200,6 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
             self._numberOfRecords = ((self._dataLength + 1) - FOOTER_BYTES) / 11
             self._decimationFactor = struct.unpack('>H', final_match.group(3))[0]
             self._goodFooter = True
-            log.trace('PROCESS_FOOTER: Decimation factor found')
         elif std_match:
             footerStart = std_match.start(0)
             footerEnd = std_match.end(0)
@@ -211,7 +208,6 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
             self._numberOfRecords = ((self._dataLength + 1) - (FOOTER_BYTES - DECIMATION_SPACER)) / 11
             self._decimationFactor = 0
             self._goodFooter = True
-            log.trace('PROCESS_FOOTER: NO decimation factor found')
         else:
             self._goodFooter = False
             log.warning('CTDPF_CKL_SIO_MULE: Bad footer detected, cannot parse chunk')
@@ -246,7 +242,6 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
                 if self._goodFooter:
                     timestamp = float(ntplib.system_to_ntp_time(self._startTime))
                     self._footerData = (self._startTime, self._endTime, self._numberOfRecords, self._decimationFactor)
-                    log.trace('FOOTER %s',self._footerData)
                     sample = self.extract_metadata_particle(self._footerData, timestamp)
                     result_particles.append(sample)
 
