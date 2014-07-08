@@ -15,12 +15,14 @@ __license__ = 'Apache 2.0'
 
 import copy
 import re
+import time
 from functools import partial
+from dateutil import parser
 
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
@@ -31,7 +33,6 @@ RECORD_MATCHER = re.compile(RECORD_REGEX)
 
 START_OF_DATA_REGEX = r'^:Data'
 START_OF_DATA_MATCHER = re.compile(START_OF_DATA_REGEX)
-
 
 # This is an example of the input string for a PH record
 #   10 -> Type is pH
@@ -120,6 +121,24 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
 
     _data_particle_type = DataParticleType.INSTRUMENT
 
+    def __init__(self, raw_data,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
+        super(PhsenRecoveredInstrumentDataParticle, self).__init__(raw_data,
+                                                                   port_timestamp,
+                                                                   internal_timestamp,
+                                                                   preferred_timestamp,
+                                                                   quality_flag,
+                                                                   new_sequence)
+
+        # use the timestamp from the sio header as internal timestamp
+        sec_since_1904 = int(self.raw_data[TIMESTAMP_FIELD])
+        unix_time = PhsenRecoveredMetadataDataParticle.time_to_unix_time(sec_since_1904)
+        self.set_internal_timestamp(unix_time=unix_time)
+
     def _build_parsed_values(self):
         """
         Take a record in the ph data format and turn it into
@@ -201,6 +220,37 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
     """
 
     _data_particle_type = DataParticleType.METADATA
+
+    def __init__(self, raw_data,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
+        super(PhsenRecoveredMetadataDataParticle, self).__init__(raw_data,
+                                                                 port_timestamp,
+                                                                 internal_timestamp,
+                                                                 preferred_timestamp,
+                                                                 quality_flag,
+                                                                 new_sequence)
+
+        # use the timestamp from the sio header as internal timestamp
+        sec_since_1904 = int(self.raw_data[TIMESTAMP_FIELD])
+        unix_time = PhsenRecoveredMetadataDataParticle.time_to_unix_time(sec_since_1904)
+        self.set_internal_timestamp(unix_time=unix_time)
+
+    @staticmethod
+    def time_to_unix_time(sec_since_1904):
+        """
+        Convert between seconds since 1904 into unix time (epoch time)
+        @param sec_since_1904 ascii string of seconds since Jan 1 1904
+        @retval sec_since_1970 epoch time
+        """
+        local_dt_1904 = parser.parse("1904-01-01T00:00:00.00Z")
+        elapse_1904 = float(local_dt_1904.strftime("%s.%f"))
+        #log.debug('seconds since 1904 %d, elapsed 1904 %d', sec_since_1904, elapse_1904)
+        sec_since_1970 = sec_since_1904 + elapse_1904 - time.timezone
+        return sec_since_1970
 
     def _build_parsed_values(self):
         """
@@ -365,7 +415,7 @@ class PhsenRecoveredParser(BufferLoadingParser):
 
                     # particle-ize the data block received, return the record
                     sample = self._extract_sample(PhsenRecoveredInstrumentDataParticle,
-                                                  None, fields, int(fields[TIMESTAMP_FIELD], 10))
+                                                  None, fields, None)
 
                     if sample:
                         # create particle
