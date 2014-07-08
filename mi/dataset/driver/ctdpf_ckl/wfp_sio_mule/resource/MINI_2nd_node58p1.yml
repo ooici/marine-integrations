@@ -1,0 +1,75 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 16
+    particle_object: CtdpfCklWfpSioMuleMetadataParticle
+    particle_type: ctdpf_ckl_wfp_sio_mule_metadata
+    internal_timestamp: 3583839603.000000
+    wfp_time_on: 1374850803
+    wfp_time_off: 1374856780
+    wfp_number_samples: 74
+    wfp_decimation_factor: 0
+  - _index: 17
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583839603.000000
+    conductivity: 316721
+    temperature: 66842
+    pressure: 258165
+  - _index: 18
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583839683.770270
+    conductivity: 316731
+    temperature: 66839
+    pressure: 258328
+  - _index: 19
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583839764.540541
+    conductivity: 316761
+    temperature: 66814
+    pressure: 259273
+  - _index: 20
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583839845.310811
+    conductivity: 316774
+    temperature: 66708
+    pressure: 261554
+  - _index: 21
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583839926.081081
+    conductivity: 316816
+    temperature: 66639
+    pressure: 263840
+  - _index: 22
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583840006.851351
+    conductivity: 316851
+    temperature: 66564
+    pressure: 266104
+  - _index: 23
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583840087.621622
+    conductivity: 316907
+    temperature: 66513
+    pressure: 268361
+  - _index: 24
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583840168.391892
+    conductivity: 316946
+    temperature: 66441
+    pressure: 270613
+  - _index: 25
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583840249.162162
+    conductivity: 316975
+    temperature: 66361
+    pressure: 272858

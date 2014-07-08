@@ -1,0 +1,19 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: CtdpfCklWfpSioMuleMetadataParticle
+    particle_type: ctdpf_ckl_wfp_sio_mule_metadata
+    internal_timestamp: 3583882802.000000
+    wfp_time_on: 1374894002
+    wfp_time_off: 1374901660
+    wfp_number_samples: 95
+    wfp_decimation_factor: 0
+  - _index: 2
+    particle_object: CtdpfCklWfpSioMuleDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument
+    internal_timestamp: 3583882802.000000
+    conductivity: 321416
+    temperature: 65058
+    pressure: 414939
