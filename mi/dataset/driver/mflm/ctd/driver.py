@@ -107,6 +107,9 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                 self._data_callback,
                 self._sample_exception_callback)
 
+            if parser is None:
+                raise ConfigurationException('Unable to build CTDMO Telemetered Parser')
+
         #
         # Build the recovered parser for CO data if requested.
         #
@@ -129,6 +132,9 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                     self._save_parser_state(state, data_key),
                 self._data_callback,
                 self._sample_exception_callback)
+
+            if parser is None:
+                raise ConfigurationException('Unable to build CTDMO Recovered CO Parser')
 
         #
         # Build the recovered parser for CT data if requested.
@@ -153,12 +159,15 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                 self._data_callback,
                 self._sample_exception_callback)
 
+            if parser is None:
+                raise ConfigurationException('Unable to build CTDMO Recovered CT Parser')
+
         #
         # Not one of the keys we recognize?
         # No parser for you!
         #
         else:
-            raise ConfigurationException('Parser configuration incorrect %s',
+            raise ConfigurationException('CTDMO Parser configuration incorrect %s',
                                          data_key)
 
         return parser
