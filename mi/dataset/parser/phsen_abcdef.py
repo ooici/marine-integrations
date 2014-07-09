@@ -27,8 +27,8 @@ from mi.core.exceptions import SampleException, DatasetParserException, Unexpect
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
-# ASCII File with records separated by new line
-RECORD_REGEX = r'.*[\n|\r\n]'
+# ASCII File with records separated by carriage return
+RECORD_REGEX = r'.*[\r|\n|\r\n]'
 RECORD_MATCHER = re.compile(RECORD_REGEX)
 
 START_OF_DATA_REGEX = r'^:Data'
@@ -63,7 +63,7 @@ PH_REGEX += r'(\d+\t){92}'  # light measurements
 PH_REGEX += r'\d+'          # unused
 PH_REGEX += r'\t(\d+)'      # battery status
 PH_REGEX += r'\t(\d+)'      # end thermistor
-PH_REGEX += '\t*(\r\n?|\n)'
+PH_REGEX += '\t*(\r|\r\n|\n)'
 PH_MATCHER = re.compile(PH_REGEX)
 
 CONTROL_REGEX = r'(\d{3})\t'
@@ -89,6 +89,20 @@ CONTROL_MSG_NUM_FIELDS = 6
 SPECIAL_CONTROL_MSG_NUM_FIELDS = 7
 
 TIMESTAMP_FIELD = 1
+
+
+def time_to_unix_time(sec_since_1904):
+        """
+        Convert between seconds since 1904 into unix time (epoch time)
+        @param sec_since_1904 ascii string of seconds since Jan 1 1904
+        @retval sec_since_1970 epoch time
+        """
+        local_dt_1904 = parser.parse("1904-01-01T00:00:00.00Z")
+        elapse_1904 = float(local_dt_1904.strftime("%s.%f"))
+        # log.debug('seconds since 1904 %d, elapsed 1904 %d', sec_since_1904, elapse_1904)
+        sec_since_1970 = sec_since_1904 + elapse_1904 - time.timezone
+        # log.debug("seconds since 1904 %d seconds since 1970 %f", sec_since_1904, sec_since_1970)
+        return sec_since_1970
 
 
 class StateKey(BaseEnum):
@@ -136,7 +150,7 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
 
         # use the timestamp from the sio header as internal timestamp
         sec_since_1904 = int(self.raw_data[TIMESTAMP_FIELD])
-        unix_time = PhsenRecoveredMetadataDataParticle.time_to_unix_time(sec_since_1904)
+        unix_time = time_to_unix_time(sec_since_1904)
         self.set_internal_timestamp(unix_time=unix_time)
 
     def _build_parsed_values(self):
@@ -146,13 +160,13 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         field = 0
-        record_type = int(self.raw_data[field], 10)
+        record_type = self.raw_data[field]
 
         field += 1
-        record_time = int(self.raw_data[field], 10)
+        record_time = self.raw_data[field]
 
         field += 1
-        starting_thermistor = int(self.raw_data[field], 10)
+        starting_thermistor = self.raw_data[field]
 
         # Create array for reference and light measurements.
         # noinspection PyUnusedLocal
@@ -160,6 +174,7 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
         for record_set in range(0, PH_REFERENCE_MEASUREMENTS):
 
             field += 1
+            # We cast to int here as _encode_value does not cast elements in the list
             reference_measurements[record_set] = int(self.raw_data[field], 10)
 
         # noinspection PyUnusedLocal
@@ -167,15 +182,16 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
         for record_set in range(0, PH_LIGHT_MEASUREMENTS):
 
             field += 1
+            # We cast to int here as _encode_value does not cast elements in the list
             light_measurements[record_set] = int(self.raw_data[field], 10)
 
         # Skip unused
         field += 2
 
-        battery_voltage = int(self.raw_data[field], 10)
+        battery_voltage = self.raw_data[field]
 
         field += 1
-        end_thermistor = int(self.raw_data[field], 10)
+        end_thermistor = self.raw_data[field]
 
         result = [self._encode_value(PhsenRecoveredDataParticleKey.RECORD_TYPE, record_type, int),
                   self._encode_value(PhsenRecoveredDataParticleKey.RECORD_TIME, record_time, int),
@@ -236,21 +252,8 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
 
         # use the timestamp from the sio header as internal timestamp
         sec_since_1904 = int(self.raw_data[TIMESTAMP_FIELD])
-        unix_time = PhsenRecoveredMetadataDataParticle.time_to_unix_time(sec_since_1904)
+        unix_time = time_to_unix_time(sec_since_1904)
         self.set_internal_timestamp(unix_time=unix_time)
-
-    @staticmethod
-    def time_to_unix_time(sec_since_1904):
-        """
-        Convert between seconds since 1904 into unix time (epoch time)
-        @param sec_since_1904 ascii string of seconds since Jan 1 1904
-        @retval sec_since_1970 epoch time
-        """
-        local_dt_1904 = parser.parse("1904-01-01T00:00:00.00Z")
-        elapse_1904 = float(local_dt_1904.strftime("%s.%f"))
-        #log.debug('seconds since 1904 %d, elapsed 1904 %d', sec_since_1904, elapse_1904)
-        sec_since_1970 = sec_since_1904 + elapse_1904 - time.timezone
-        return sec_since_1970
 
     def _build_parsed_values(self):
         """
@@ -260,22 +263,23 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
         """
 
         field = 0
-        record_type = int(self.raw_data[field], 10)
+        record_type = self.raw_data[field]
 
         field += 1
-        record_time = int(self.raw_data[field], 10)
+        record_time = self.raw_data[field]
 
         field += 1
+        # the flags are individual bits and must be encoded outside of the _encode_value function.
         flags = int(self.raw_data[field], 10)
 
         field += 1
-        num_data_records = int(self.raw_data[field], 10)
+        num_data_records = self.raw_data[field]
 
         field += 1
-        num_error_records = int(self.raw_data[field], 10)
+        num_error_records = self.raw_data[field]
 
         field += 1
-        num_bytes_stored = int(self.raw_data[field], 10)
+        num_bytes_stored = self.raw_data[field]
 
         result = [self._encode_value(PhsenRecoveredDataParticleKey.RECORD_TYPE, record_type, int),
                   self._encode_value(PhsenRecoveredDataParticleKey.RECORD_TIME, record_time, int),
@@ -308,7 +312,7 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
 
         if record_type in BATTERY_CONTROL_TYPE:
             field += 1
-            battery_voltage = int(self.raw_data[field], 10)
+            battery_voltage = self.raw_data[field]
             temp_result = self._encode_value(PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY, battery_voltage, int)
             result.append(temp_result)
         else:
@@ -439,7 +443,7 @@ class PhsenRecoveredParser(BufferLoadingParser):
                         else:
                             # particle-ize the data block received, return the record
                             sample = self._extract_sample(PhsenRecoveredMetadataDataParticle,
-                                                          None, fields, int(fields[TIMESTAMP_FIELD], 10))
+                                                          None, fields, None)
 
                             if sample:
                                 # create particle
