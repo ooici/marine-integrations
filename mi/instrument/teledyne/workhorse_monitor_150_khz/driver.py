@@ -28,7 +28,10 @@ from mi.instrument.teledyne.driver import TeledyneScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_150_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_DataParticle
 
+import base64
 
 class WorkhorsePrompt(TeledynePrompt):
     pass
@@ -174,6 +177,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._add_build_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._build_simple_command)
         self._add_response_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._parse_restore_factory_params_response)
 
+        self._add_build_handler(WorkhorseInstrumentCmds.POWER_DOWN, self._build_simple_command)
+        self._add_response_handler(WorkhorseInstrumentCmds.POWER_DOWN, self._parse_restore_factory_params_response)
+
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
     def _get_params(self):
@@ -293,8 +299,89 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         return [x for x in events if WorkhorseCapability.has(x)]
 
-    def _handler_command_power_down(self):
-        pass
+    def _handler_command_power_down(self, *args, **kwargs):
 
-    def _handler_command_restore_factory_params(self):
-        pass
+        """
+        execute command power down.
+        For this command we have to move the instrument
+        into command mode, get configuration, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None #WorkhorseProtocolState.POWER_DOWN
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            self._stop_logging(*args, **kwargs)
+
+            # Sync the clock
+            timeout = kwargs.get('timeout', TIMEOUT)
+            output = self._do_cmd_resp(TeledyneInstrumentCmds.POWER_DOWN, *args, **kwargs)
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging()
+
+        if(error):
+            raise error
+
+        result = self._sanitize(base64.b64decode(output))
+
+        return (next_state, (next_agent_state, result))
+
+
+    def _handler_command_restore_factory_params(self, *args, **kwargs):
+        """
+        execute restore factory params.
+        For this command we have to move the instrument
+        into command mode, get configuration, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            self._stop_logging(*args, **kwargs)
+
+            # Sync the clock
+            timeout = kwargs.get('timeout', TIMEOUT)
+            output = self._do_cmd_resp(TeledyneInstrumentCmds.RESTORE_FACTORY_PARAMS, *args, **kwargs)
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging()
+
+        if(error):
+            raise error
+
+        result = self._sanitize(base64.b64decode(output))
+
+        return (next_state, (next_agent_state, result))
+
