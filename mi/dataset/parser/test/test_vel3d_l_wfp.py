@@ -1598,7 +1598,8 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         # the first 2 instrument records in SIO block 2.
         new_state = {
             StateKey.UNPROCESSED_DATA: [[515, 1122]],
-            StateKey.IN_PROCESS_DATA: [[515, 1122, 6, 2]]}
+            StateKey.IN_PROCESS_DATA: [[515, 1122, 6, 2]],
+            StateKey.FILE_SIZE: 1122}
         self.parser = self.create_tel_parser(input_file, new_state)
 
         log.info("TEL MID STATE VERIFY RECORD 2_10")
@@ -1682,7 +1683,8 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("TEL SET STATE SKIP IN SIO BLOCK 1")
         new_state = {
             StateKey.UNPROCESSED_DATA: [[0, 1122]],
-            StateKey.IN_PROCESS_DATA: [[0, 515, 5, 4], [515, 1122, None, 0]]}
+            StateKey.IN_PROCESS_DATA: [[0, 515, 5, 4], [515, 1122, None, 0]],
+            StateKey.FILE_SIZE: 1122}
         self.parser.set_state(new_state)
 
         log.info("TEL SET STATE VERIFY RECORD 1_META")
@@ -1693,7 +1695,8 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("TEL SET STATE SKIP IN SIO BLOCK 2")
         new_state = {
             StateKey.UNPROCESSED_DATA: [[515, 1122]],
-            StateKey.IN_PROCESS_DATA: [[515, 1122, 7, 1]]}
+            StateKey.IN_PROCESS_DATA: [[515, 1122, 7, 1]],
+            StateKey.FILE_SIZE: 1122}
         self.parser.set_state(new_state)
 
         log.info("TEL SET STATE VERIFY RECORD 2_2")

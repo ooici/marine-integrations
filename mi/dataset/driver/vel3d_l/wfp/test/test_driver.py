@@ -498,7 +498,7 @@ class QualificationTest(DataSetQualificationTestCase):
             samples = 4
             log.info("===== READ %d RECOVERED INSTRUMENT PARTICLES =====", samples)
             result = self.data_subscribers.get_samples(
-                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICL,
+                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE,
                 samples, 10)
 
             # Verify that we get 1 metadata particle from the recovered data file.
@@ -530,7 +530,7 @@ class QualificationTest(DataSetQualificationTestCase):
             samples = 6
             log.info("===== READ %d RECOVERED INSTRUMENT PARTICLES =====", samples)
             inst_result = self.data_subscribers.get_samples(
-                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICL,
+                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE,
                 samples, 10)
             result.extend(inst_result)
 

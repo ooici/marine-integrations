@@ -53,7 +53,7 @@ class Vel3dLWfp(SioMuleDataSetDriver):
     def __init__(self, config, memento, data_callback, state_callback,
                  event_callback, exception_callback):
 
-        data_keys = [DataTypeKey.VEL3D_L_WFP, DataTypeKey.VEL3D_L_WFP_SIO_MULE]
+        data_keys = DataTypeKey.list()
 
         harvester_type = {
             DataTypeKey.VEL3D_L_WFP: HarvesterType.SINGLE_DIRECTORY,
@@ -95,6 +95,9 @@ class Vel3dLWfp(SioMuleDataSetDriver):
                 self._data_callback,
                 self._sample_exception_callback)
 
+            if parser is None:
+                raise ConfigurationException('Unable to build Vel3d_L_Wfp Parser')
+
         #
         # If the key is VEL3D_L_WFP_SIO_MULE, build the WFP SIO Mule parser.
         #
@@ -114,11 +117,14 @@ class Vel3dLWfp(SioMuleDataSetDriver):
                 self._data_callback,
                 self._sample_exception_callback)
 
+            if parser is None:
+                raise ConfigurationException('Unable to build Vel3d_L_Wfp_Sio_Mule Parser')
+
         #
         # If the key is one that we're not expecting, don't build any parser.
         #
         else:
-            raise ConfigurationException('Parser configuration key incorrect %s',
+            raise ConfigurationException('Vel3d_L Parser configuration key incorrect %s',
                                          data_key)
 
         return parser

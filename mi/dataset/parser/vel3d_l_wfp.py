@@ -34,16 +34,12 @@ from mi.dataset.dataset_parser import \
 
 from mi.dataset.parser.sio_mule_common import \
     SioMuleParser, \
-    SIO_HEADER_MATCHER
+    SIO_HEADER_MATCHER, \
+    SIO_HEADER_GROUP_ID, \
+    SIO_HEADER_GROUP_TIMESTAMP
+
 
 ID_VEL3D_L_WFP_SIO_MULE = 'WA'    # The type of instrument for telemetered data
-
-#
-# These groups are derived from SIO_HEADER_MATCHER
-#
-SIO_HEADER_GROUP_ID = 1           # Header group number for instrument ID
-SIO_HEADER_GROUP_DATA_LENGTH = 2  # Header group number for data length
-SIO_HEADER_GROUP_TIMESTAMP = 3    # Header group number for timestamp
 
 #
 # File format (this does not include the SIO header
@@ -173,15 +169,14 @@ class Vel3dLWfpInstrumentDataParticle(DataParticle):
     """
     def _build_parsed_values(self):
         """
-        Take something in the data format and turn it into
-        an array of dictionaries defining the data in the particle
-        with the appropriate tag.
+        Take something in the data format and turn it into an array of
+        dictionaries defining the data in the particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         Parameters:
             particle_key_table - list of particle keywords to be matched against the
                 raw_data which has the parsed fields in the same order as the keys
         Returns:
-            list of instrument particles
+            list of instrument particle values
         """
         #
         # Generate an Instrument data particle.
@@ -214,8 +209,7 @@ class Vel3dLWfpInstrumentDataParticle(DataParticle):
 
                 timestamp = (year, month, day, hour, minute, second, 0, 0, 0)
                 elapsed_seconds = calendar.timegm(timestamp)
-                ntp_time = ntplib.system_to_ntp_time(elapsed_seconds)
-                self.set_internal_timestamp(timestamp=ntp_time)
+                self.set_internal_timestamp(unix_time=elapsed_seconds)
 
                 #
                 # Generate the date time array to be stored in the particle.
@@ -265,9 +259,8 @@ class Vel3dLMetadataParticle(DataParticle):
 
     def generate_metadata_particle(self, particle_key_table):
         """
-        Take something in the data format and turn it into
-        an array of dictionaries defining the data in the particle
-        with the appropriate tag.
+        Take something in the data format and turn it into an array of
+        dictionaries defining the data in the particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         Parameters:
             particle_key_table - list of particle keywords to be matched against the
@@ -288,10 +281,9 @@ class Vel3dLMetadataParticle(DataParticle):
         # The timestamp for the Metadata particle varies depending on whether
         # this is recovered or telemetered data.
         # This determination is made when the input file is parsed.
+        # Here, whatever value is sent is used as the timestamp.
         #
-        seconds = fields[FIELD_METADATA_TIMESTAMP]
-        ntp_time = ntplib.system_to_ntp_time(seconds)
-        self.set_internal_timestamp(timestamp=ntp_time)
+        self.set_internal_timestamp(unix_time=fields[FIELD_METADATA_TIMESTAMP])
 
         #
         # Extract the metadata particle fields from the parsed values.
@@ -380,7 +372,12 @@ class Vel3dLParser(Parser):
                 else:
                     particle_class = Vel3dLWfpMetadataRecoveredParticle
 
-                # particle-ize the data block received, return the record
+                #
+                # Since the record has already been parsed,
+                # the individual fields are passed to be stored and used
+                # when generating the particle key/value pairs.
+                # Timestamp is None since the particle generation handles that.
+                #
                 sample = self._extract_sample(particle_class, None,
                                               fields[x][1], None)
                 if sample:
@@ -538,8 +535,8 @@ class Vel3dLParser(Parser):
 
 class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
 
-    _state = None
-    _read_state = None
+    #_state = None
+    #_read_state = None
 
     def __init__(self, config, state, file_handle,
                  state_callback, publish_callback, exception_callback):
@@ -557,19 +554,15 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
         @param exception_callback The callback from the agent driver to
            send an exception to
         """
-        self.input_file = file_handle
-
-        if state is not None:
-            if not (Vel3dLWfpStateKey.POSITION in state):
-                state[Vel3dLWfpStateKey.POSITION] = 0
-            self.set_state(state)
-
-        else:
-            initial_state = {Vel3dLWfpStateKey.POSITION: 0}
-            self.set_state(initial_state)
 
         super(Vel3dLWfpParser, self).__init__(config, file_handle, state,
             self.sieve_function, state_callback, publish_callback, exception_callback)
+
+        self.input_file = file_handle
+        self._read_state = {Vel3dLWfpStateKey.POSITION: 0}
+
+        if state is not None:
+            self.set_state(state)
 
     def handle_non_data(self, non_data, non_end, start):
         """
