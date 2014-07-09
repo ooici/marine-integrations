@@ -92,8 +92,10 @@ class FlntuXMmpCdsDataSetDriver(MultipleHarvesterDataSetDriver):
                 self._data_callback,
                 self._sample_exception_callback
             )
+        else:
+            raise ConfigurationException('flntu/flcdr parser not built due to missing key')
         if parser is None:
-            raise ConfigurationException('flntu/flcdr parser not built')
+            raise ConfigurationException('flntu/flcdr parser not built due to failed instantiation')
         return parser
 
     def _build_harvester(self, driver_state):

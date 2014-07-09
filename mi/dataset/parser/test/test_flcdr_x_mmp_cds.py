@@ -82,6 +82,12 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         test_data = self.get_dict_from_yml('good_cdr.yml')
         self.assert_result(test_data['data'][0], particles[5])
 
+        test_data = self.get_dict_from_yml('second_cdr.yml')
+        self.assert_result(test_data['data'][0], particles[1])
+
+        test_data = self.get_dict_from_yml('first_cdr.yml')
+        self.assert_result(test_data['data'][0], particles[0])
+
         stream_handle.close()
 
     def test_get_many(self):
@@ -102,6 +108,9 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
+
+        test_data = self.get_dict_from_yml('first_cdr.yml')
+        self.assert_result(test_data['data'][0], particles[0])
 
         test_data = self.get_dict_from_yml('get_many_one_cdr.yml')
         self.assert_result(test_data['data'][0], particles[19])
@@ -166,6 +175,9 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 4)
 
         test_data = self.get_dict_from_yml('set_state_cdr.yml')
+        self.assert_result(test_data['data'][20], particles[0])
+
+        test_data = self.get_dict_from_yml('set_state_cdr.yml')
         self.assert_result(test_data['data'][23], particles[3])
 
         stream_handle.close()
@@ -198,6 +210,8 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         stat_info = os.stat(file_path)
 
         test_data = self.get_dict_from_yml('set_state_cdr.yml')
+        self.assert_result(test_data['data'][0], particles[0])
+        self.assert_result(test_data['data'][2], particles[2])
         self.assert_result(test_data['data'][3], particles[3])
 
         state = copy.copy(parser._state)
@@ -212,6 +226,7 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
+        self.assert_result(test_data['data'][6], particles[2])
         self.assert_result(test_data['data'][7], particles[3])
 
         # Give a bad position which will be ignored
@@ -235,7 +250,8 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 30)
 
         self.assert_result(test_data['data'][29], particles[29])
-
+        self.assert_result(test_data['data'][20], particles[20])
+        self.assert_result(test_data['data'][0], particles[0])
         # Provide a bad particles returned
         state = {StateKey.PARTICLES_RETURNED: 80}
 

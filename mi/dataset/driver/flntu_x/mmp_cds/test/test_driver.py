@@ -303,14 +303,14 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_start_sampling()
 
         try:
-            resulta = self.data_subscribers.get_samples(DataParticleType.FLNTU_X_MMP_CDS_INSTRUMENT, 1)
-            resultb = self.data_subscribers.get_samples(DataParticleType.FLCDR_X_MMP_CDS_INSTRUMENT, 1)
+            resulta = self.data_subscribers.get_samples(DataParticleType.FLNTU_X_MMP_CDS_INSTRUMENT, 4)
+            resultb = self.data_subscribers.get_samples(DataParticleType.FLCDR_X_MMP_CDS_INSTRUMENT, 4)
             log.debug("RESULT: %s", resulta)
             log.debug("RESULT: %s", resultb)
 
             # Verify values
-            self.assert_data_values(resulta, 'first1.yml')
-            self.assert_data_values(resultb, 'first1_cdr.yml')
+            self.assert_data_values(resulta, 'first_four.yml')
+            self.assert_data_values(resultb, 'first_four_cdr.yml')
 
         except Exception as e:
             log.error("Exception trapped: %s", e)
@@ -341,7 +341,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get one sample
+        # Verify we get two samples
         try:
 
 

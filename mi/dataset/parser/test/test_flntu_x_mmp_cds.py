@@ -79,6 +79,13 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         for particle in particles:
             print particle.generate_dict()
 
+
+        test_data = self.get_dict_from_yml('first.yml')
+        self.assert_result(test_data['data'][0], particles[0])
+
+        test_data = self.get_dict_from_yml('second.yml')
+        self.assert_result(test_data['data'][0], particles[1])
+
         test_data = self.get_dict_from_yml('good.yml')
         self.assert_result(test_data['data'][0], particles[5])
 
@@ -103,6 +110,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
 
+        test_data = self.get_dict_from_yml('first.yml')
+        self.assert_result(test_data['data'][0], particles[0])
         test_data = self.get_dict_from_yml('get_many_one.yml')
         self.assert_result(test_data['data'][0], particles[19])
 
@@ -167,6 +176,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         test_data = self.get_dict_from_yml('set_state.yml')
         self.assert_result(test_data['data'][23], particles[3])
+        self.assert_result(test_data['data'][22], particles[2])
+        self.assert_result(test_data['data'][20], particles[0])
 
         stream_handle.close()
 
@@ -199,6 +210,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         test_data = self.get_dict_from_yml('set_state.yml')
         self.assert_result(test_data['data'][3], particles[3])
+        self.assert_result(test_data['data'][1], particles[1])
+        self.assert_result(test_data['data'][0], particles[0])
 
         state = copy.copy(parser._state)
 
@@ -212,6 +225,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
+        self.assert_result(test_data['data'][4], particles[0])
+        self.assert_result(test_data['data'][6], particles[2])
         self.assert_result(test_data['data'][7], particles[3])
 
         # Give a bad position which will be ignored
@@ -234,6 +249,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 30)
 
+        self.assert_result(test_data['data'][0], particles[0])
+        self.assert_result(test_data['data'][14], particles[14])
         self.assert_result(test_data['data'][29], particles[29])
 
         # Provide a bad particles returned
