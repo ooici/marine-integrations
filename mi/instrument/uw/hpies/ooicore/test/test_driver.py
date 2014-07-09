@@ -25,7 +25,6 @@ from mi.core.log import get_logger
 
 log = get_logger()
 
-# MI imports.
 from mi.idk.unit_test import \
     InstrumentDriverTestCase, ParameterTestConfigKey, AgentCapabilityType, InstrumentDriverUnitTestCase, \
     InstrumentDriverIntegrationTestCase, InstrumentDriverQualificationTestCase, DriverTestMixin
@@ -95,10 +94,6 @@ InstrumentDriverTestCase.initialize(
 # Qualification tests are driven through the instrument_agent                 #
 #                                                                             #
 ###############################################################################
-
-###
-#   Driver constant definitions
-###
 
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
@@ -199,8 +194,8 @@ class UtilMixin(DriverTestMixin):
             {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
         Parameter.INITIAL_COMPASS:
             {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
-        Parameter.INITIAL_COMPASS_DELAY:  # float or int??
-            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 1, REQUIRED: False},
+        Parameter.INITIAL_COMPASS_DELAY:
+            {TYPE: float, READONLY: True, DA: True, STARTUP: True, VALUE: 0.5, REQUIRED: False},
         Parameter.MOTOR_SAMPLES:
             {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
         Parameter.EF_SAMPLES:
@@ -419,10 +414,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
+    def test_driver_schema(self):
+        """
+        Get the driver schema and verify it is configured properly.
+        """
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -565,7 +567,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
             DataParticleType.TIMESTAMP,
             DataParticleType.MOTOR_CURRENT,
         )
-        self.assert_async_particle_not_generated(particle_list, timeout=60)
+        self.assert_async_particle_not_generated(particle_list, timeout=120)
 
         # put driver back in autosample mode
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
@@ -634,6 +636,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
     def test_invalid_command(self):
         self.assert_initialize_driver()
         self.assert_driver_command_exception('BOGUS_COMMAND', exception_class=InstrumentCommandException)
+
+        # check improper command - stop autosample from command (can only stop from autosample)
+        self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
 
     def test_incomplete_config(self):
         # TODO - only required it is determined that some startup parameters are required
@@ -705,11 +710,41 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assertTrue(self.tcp_client)
 
         # set direct access parameters (these should be reset upon return from direct access)
-        self.tcp_client.send_data('dcpwm 1')  # read-only, direct access
-        self.tcp_client.expect_regex(' = ')
+        direct_access_parameters = {
+            Parameter.DEBUG_LEVEL: 1,
+            Parameter.WSRUN_PINCH: 60,
+            Parameter.NFC_CALIBRATE: 30,
+            Parameter.CAL_HOLD: 39.94,
+            Parameter.CAL_SKIP: 39.94,
+            Parameter.NHC_COMPASS: 122,
+            Parameter.COMPASS_SAMPLES: 2,
+            Parameter.COMPASS_DELAY: 20,
+            Parameter.INITIAL_COMPASS: 20,
+            Parameter.INITIAL_COMPASS_DELAY: 0.5,
+            Parameter.MOTOR_SAMPLES: 20,
+            Parameter.EF_SAMPLES: 20,
+            Parameter.CAL_SAMPLES: 20,
+            Parameter.CONSOLE_TIMEOUT: 400,
+            Parameter.WSRUN_DELAY: 1,
+            Parameter.MOTOR_DIR_NHOLD: 1,
+            Parameter.MOTOR_DIR_INIT: 'r',
+            Parameter.POWER_COMPASS_W_MOTOR: 1,
+            Parameter.KEEP_AWAKE_W_MOTOR: 1,
+            Parameter.MOTOR_TIMEOUTS_1A: 30,
+            Parameter.MOTOR_TIMEOUTS_1B: 30,
+            Parameter.MOTOR_TIMEOUTS_2A: 30,
+            Parameter.MOTOR_TIMEOUTS_2B: 30,
+            Parameter.RSN_CONFIG: False,
+            Parameter.INVERT_LED_DRIVERS: True,
+            Parameter.M1A_LED: 3,
+            Parameter.M2A_LED: 1,
+        }
 
-        self.tcp_client.send_data('m1a_tmoc 30')  # read-write, direct access
-        self.tcp_client.expect_regex(' = ')
+        for key in direct_access_parameters.keys():
+            command = '#3_%s %s' % (key, direct_access_parameters[key])
+            self.tcp_client.send_data(command)
+            self.tcp_client.expect_regex(' = ')
+            self.assert_get_parameter(key, self._driver_parameters[key][self.VALUE])
 
         # without saving the parameters, the values will be reset on reboot (which is part of wakeup)
         self.tcp_client.send_data('#3_params save')  # read-write, direct access
@@ -718,13 +753,22 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assert_direct_access_stop_telnet()
 
         # verify that all direct access parameters are restored
-        parameters = Parameter.dict()
         for key in self._driver_parameters.keys():
             # verify access of parameters - default values
             if self._driver_parameters[key][self.DA]:
                 log.debug('checking direct access parameter: %s', key)
-                # verify we cannot set readonly parameters
                 self.assert_get_parameter(key, self._driver_parameters[key][self.VALUE])
+
+    def test_direct_access_telnet_timeout(self):
+        """
+        Verify that direct access times out as expected and the agent transitions back to command mode.
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_direct_access_start_telnet(timeout=30)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
 
     def test_autosample(self):
         """
@@ -732,7 +776,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
         """
         self.assert_enter_command_mode()
         self.assert_start_autosample()
-        # TODO - verify data particle
+
+        self.assert_async_particle_generation(
+            DataParticleType.HPIES_DATA_HEADER, self.assert_data_header_particle, timeout=20)
+
         self.assert_stop_autosample()
 
     def test_get_set_parameters(self):
