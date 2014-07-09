@@ -1,0 +1,65 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: Vel3dAMmpCdsParserDataParticle
+    particle_type: vel3d_a_mmp_cds_instrument
+    internal_timestamp: 3594243015.5525207520
+    raw_time_microseconds: 552521
+    raw_time_seconds: 1385254215.0000000000
+    vel3d_a_va: 7.380000
+    vel3d_a_vb: -3.380000
+    vel3d_a_vc: 1.890000
+    vel3d_a_vd: -7.500000
+    vel3d_a_hx: -0.331100
+    vel3d_a_hy: -0.218300
+    vel3d_a_hz: -0.918000
+    vel3d_a_tx: -1.520000
+    vel3d_a_ty: 0.310000
+  - _index: 2
+    particle_object: Vel3dAMmpCdsParserDataParticle
+    particle_type: vel3d_a_mmp_cds_instrument
+    internal_timestamp: 3594243015.5717740059
+    raw_time_microseconds: 571774
+    raw_time_seconds: 1385254215.0000000000
+    vel3d_a_va: 7.290000
+    vel3d_a_vb: -3.950000
+    vel3d_a_vc: 1.740000
+    vel3d_a_vd: -7.200000
+    vel3d_a_hx: -0.335000
+    vel3d_a_hy: -0.214100
+    vel3d_a_hz: -0.917600
+    vel3d_a_tx: -1.520000
+    vel3d_a_ty: 0.620000
+  - _index: 3
+    particle_object: Vel3dAMmpCdsParserDataParticle
+    particle_type: vel3d_a_mmp_cds_instrument
+    internal_timestamp: 3594243015.5795850754
+    raw_time_microseconds: 579585
+    raw_time_seconds: 1385254215.0000000000
+    vel3d_a_va: 7.630000
+    vel3d_a_vb: -3.620000
+    vel3d_a_vc: 2.320000
+    vel3d_a_vd: -6.740000
+    vel3d_a_hx: -0.340700
+    vel3d_a_hy: -0.204000
+    vel3d_a_hz: -0.917800
+    vel3d_a_tx: -1.520000
+    vel3d_a_ty: 0.620000
+  - _index: 4
+    particle_object: Vel3dAMmpCdsParserDataParticle
+    particle_type: vel3d_a_mmp_cds_instrument
+    internal_timestamp: 3594243015.5987586975
+    raw_time_microseconds: 598759
+    raw_time_seconds: 1385254215.0000000000
+    vel3d_a_va: 7.550000
+    vel3d_a_vb: -3.450000
+    vel3d_a_vc: 1.920000
+    vel3d_a_vd: -6.900000
+    vel3d_a_hx: -0.344000
+    vel3d_a_hy: -0.197300
+    vel3d_a_hz: -0.918000
+    vel3d_a_tx: -1.520000
+    vel3d_a_ty: 0.470000
