@@ -28,6 +28,7 @@ from mi.dataset.parser.mmp_cds_base import StateKey
 # Resource path for acmpf ckl mmp cds
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'vel3d_a', 'mmp_cds', 'resource')
 
+
 # The list of generated tests are the suggested tests, but there may
 # be other tests needed to fully test your parser
 
@@ -64,7 +65,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         This test reads in a small number of particles and verifies the result of one of the particles.
         """
 
-        file_path = os.path.join(RESOURCE_PATH, 'acm_1_20131124T005004_458.mpk')
+        file_path = os.path.join(RESOURCE_PATH, 'first_data.mpk')
         stream_handle = open(file_path, 'rb')
 
         state = {StateKey.PARTICLES_RETURNED: 0}
@@ -77,10 +78,10 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         for particle in particles:
             print particle.generate_dict()
 
-        test_data = self.get_dict_from_yml('good.yml')
+        test_data = self.get_dict_from_yml('first_data.yml')
 
-        for n in range(5):
-            self.assert_result(test_data['data'][5], particles[5])
+        for n in range(6):
+            self.assert_result(test_data['data'][n], particles[n])
 
         stream_handle.close()
 
@@ -90,7 +91,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
          and verifies the 30th particle.
         """
 
-        file_path = os.path.join(RESOURCE_PATH, 'acm_1_20131124T005004_458.mpk')
+        file_path = os.path.join(RESOURCE_PATH, 'first_data.mpk')
         stream_handle = open(file_path, 'rb')
 
         state = {StateKey.PARTICLES_RETURNED: 0}
@@ -103,8 +104,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
 
-        test_data = self.get_dict_from_yml('good.yml')
-        for n in range(19):
+        test_data = self.get_dict_from_yml('first_data.yml')
+        for n in range(20):
             self.assert_result(test_data['data'][n], particles[n])
 
         particles = parser.get_records(30)
@@ -165,7 +166,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        test_data = self.get_dict_from_yml('good_2.yml')
+        test_data = self.get_dict_from_yml('second_data.yml')
         for n in range(3):
             self.assert_result(test_data['data'][n], particles[n])
 
@@ -198,7 +199,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         stat_info = os.stat(file_path)
 
-        test_data = self.get_dict_from_yml('good.yml')
+        test_data = self.get_dict_from_yml('first_data.yml')
         self.assert_result(test_data['data'][3], particles[3])
 
         state = copy.copy(parser._state)
@@ -235,7 +236,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 213)
 
-        test_data = self.get_dict_from_yml('good_2.yml')
+        test_data = self.get_dict_from_yml('second_data.yml')
 
         self.assert_result(test_data['data'][19], particles[212])
 
