@@ -37,7 +37,7 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.dosta_ln.wfp_sio_mule.driver import DostaLnWfpSioMuleDataSetDriver
-from mi.dataset.parser.dosta_ln_wfp_sio_mule import DostaLnWfpSioMuleParserDataParticle, DataParticleType
+from mi.dataset.parser.dosta_ln_wfp_sio_mule import DostaLnWfpSioMuleParser, DostaLnWfpSioMuleParserDataParticle, DataParticleType
 from mi.dataset.parser.sio_mule_common import StateKey
 
 # Fill in driver details
@@ -394,4 +394,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
+            
+                    
+        
         
