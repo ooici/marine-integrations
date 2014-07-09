@@ -667,7 +667,8 @@ class QualificationTest(DataSetQualificationTestCase):
         log.info("========== END QUAL TEST STOP START ===============")
 
     def test_tel_large_import(self):
-        """
+        """'vel3d_l_wfp_sio_mule'
+
         Test importing a large number of samples at once from the telemetered file
         """
         log.info("======= START QUAL TEST TELEMETERED LARGE IMPORT =============")
