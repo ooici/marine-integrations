@@ -1,0 +1,23 @@
+ comm:
+  method: multi
+  configs:
+    4Beam:
+      comm:
+        command_port: 2006
+        data_port: 2003
+        host: localhost
+        device_port: 2101
+        device_addr: 10.180.80.176
+        method: rsn
+        sniffer_port: 6003
+        instrument_command_port: 2102
+    5thBeam:
+      comm:
+        command_port: 2004
+        data_port: 2005
+        device_addr: 10.180.80.179
+        device_port: 2101
+        host: localhost
+        method: rsn
+        sniffer_port: 6003
+        instrument_command_port: 2102

@@ -96,7 +96,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # just 6300 bytes, so even though the file is longer it only reads the first
         # 6300
         state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False}
+            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
         self.parser = DostadParser(self.config, state, stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -147,7 +147,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False}
+            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, state, stream_handle,
@@ -198,7 +198,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.IN_PROCESS_DATA:[],
             StateKey.UNPROCESSED_DATA:[[0,69], [314,6300]],
-            StateKey.METADATA_SENT: True}
+            StateKey.METADATA_SENT: True,
+            StateKey.FILE_SIZE: 9400}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, new_state, stream_handle,
@@ -227,7 +228,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.IN_PROCESS_DATA:[[390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]],
             StateKey.UNPROCESSED_DATA:[ [390,6300]],
-            StateKey.METADATA_SENT: True}
+            StateKey.METADATA_SENT: True,
+            StateKey.FILE_SIZE: 9400}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, new_state, stream_handle,
@@ -251,9 +253,11 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         test changing the state after initializing
         """
         state = {StateKey.UNPROCESSED_DATA:[[0, 1000]], StateKey.IN_PROCESS_DATA:[],
-            StateKey.METADATA_SENT: False}
+            StateKey.METADATA_SENT: False,
+            StateKey.FILE_SIZE: 9400}
         new_state = {StateKey.UNPROCESSED_DATA:[[0,69],[944,6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: True}
+            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: True,
+            StateKey.FILE_SIZE: 9400}
 
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -287,7 +291,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         then using the returned state make a new parser with the test data that has the 0s filled in
         """
         state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False}
+            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
         # this file has a block of DO data replaced by 0s
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))

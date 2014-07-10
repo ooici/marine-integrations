@@ -140,10 +140,11 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         # Add the qualification test log
         self._add_file(self.log_path(), description = 'qualification tests results')
 
-        # Store parameter/command string description file
-        self._add_file("%s/%s" % (self.generator.resource_dir(), self.string_file()),
-                       'resource', 'driver string file')
-        
+        # Store parameter/command string description file if it exists, it is not required
+        string_file_path = os.path.join(self.generator.resource_dir(), self.string_file())
+        if os.path.exists(string_file_path):
+            self._add_file(string_file_path, 'resource', 'driver string file')
+
         # Store additional resource files
         self._store_resource_files()
 
@@ -163,8 +164,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
             for file in os.listdir(resource_dir):
                 if file != stringfile:
                     log.debug("    ++ found: " + file)
-                    desc = prompt.text('Describe ' + file)
-                    self._add_file(resource_dir + "/" + file, 'resource', desc)
+                    self._add_file(resource_dir + "/" + file, 'resource', 'test file')
         else:
             log.debug(" --- No resource directory found, skipping...")
     

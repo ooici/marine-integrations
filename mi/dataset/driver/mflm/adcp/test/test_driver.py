@@ -34,6 +34,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 
+from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.driver.mflm.adcp.driver import MflmADCPSDataSetDriver, DataSourceKey
 from mi.dataset.parser.adcps import \
     AdcpsParserDataParticle, \
@@ -166,8 +167,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_SIZE: 1300,
                     DriverStateKey.FILE_CHECKSUM: 'e56e28e6bd67c6b00c6702c9f9a13f93',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
-                    DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                  'unprocessed_data': [[0, 32], [607, 678], [1254, 1300]],
+                    DriverStateKey.PARSER_STATE: {StateKey.IN_PROCESS_DATA: [],
+                                                  StateKey.UNPROCESSED_DATA: [[0, 32], [607, 678], [1254, 1300]],
+                                                  StateKey.FILE_SIZE: 1300
                                                   }}
                 },
             DataSourceKey.ADCPS_JLN: {

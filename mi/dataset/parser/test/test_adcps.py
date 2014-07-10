@@ -185,7 +185,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         # just 5000 bytes, so even though the file is longer it only reads the first
         # 5000
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 22000}
         self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -207,7 +207,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         """
         log.debug('Starting test_get_many')
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 22000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 
@@ -235,7 +235,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         data_len = len(data)
         self.stream_handle.seek(0)
         self.state = {StateKey.UNPROCESSED_DATA:[[0, data_len]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: data_len}
         self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -260,7 +260,8 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         """
         log.debug('Starting test_mid_state_start')
         new_state = {StateKey.IN_PROCESS_DATA:[],
-            StateKey.UNPROCESSED_DATA:[[0,32], [607, 678], [1444,5000]]}
+            StateKey.UNPROCESSED_DATA:[[0,32], [607, 678], [1444,5000]],
+            StateKey.FILE_SIZE: 22000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, new_state, self.stream_handle,
@@ -281,7 +282,8 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA: [[868,1254,1,0],[1444,1830,1,0],[2020,2406,1,0],
             [2665,3050,1,0],[3240,3627,1,0],[3817,4204,1,0],[4461,4847,1,0]],
             StateKey.UNPROCESSED_DATA: [[0,32],[607,678],[868,1254],[1444,1830],
-                [2020,2475],[2665,3050],[3240,3627],[3817,4271],[4461,5000]]}
+                [2020,2475],[2665,3050],[3240,3627],[3817,4271],[4461,5000]],
+            StateKey.FILE_SIZE: 22000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, new_state, self.stream_handle,
@@ -302,10 +304,10 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         test changing the state after initializing
         """
         log.debug('Starting test_set_state')
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 3800]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 3800]], StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 22000}
         # add in c particle as unprocessed
         new_state = {StateKey.UNPROCESSED_DATA:[[0,32],[607,678],[1444,1830],[2406,2475],[2665,3050],[3800,5000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 22000}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -337,7 +339,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         """
         log.debug('Starting test_update')
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 22000}
         # this file has a block of AD data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))
