@@ -194,9 +194,9 @@ class UtilMixin(DriverTestMixin):
         Parameter.COMPASS_DELAY:
             {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
         Parameter.INITIAL_COMPASS:
-            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
+            {TYPE: int, READONLY: True, DA: False, STARTUP: False, VALUE: 10, REQUIRED: False},
         Parameter.INITIAL_COMPASS_DELAY:
-            {TYPE: float, READONLY: True, DA: True, STARTUP: True, VALUE: 0.5, REQUIRED: False},
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.5, REQUIRED: False},
         Parameter.MOTOR_SAMPLES:
             {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
         Parameter.EF_SAMPLES:
@@ -724,12 +724,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
             Parameter.WSRUN_PINCH: 60,
             Parameter.NFC_CALIBRATE: 30,
             Parameter.CAL_HOLD: 39.94,
-            Parameter.CAL_SKIP: 39.94,
             Parameter.NHC_COMPASS: 122,
             Parameter.COMPASS_SAMPLES: 2,
             Parameter.COMPASS_DELAY: 20,
-            Parameter.INITIAL_COMPASS: 20,
-            Parameter.INITIAL_COMPASS_DELAY: 0.5,
             Parameter.MOTOR_SAMPLES: 20,
             Parameter.EF_SAMPLES: 20,
             Parameter.CAL_SAMPLES: 20,
@@ -774,10 +771,12 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
         """
         self.assert_enter_command_mode()
 
-        self.assert_direct_access_start_telnet(timeout=30)
+        #self.assert_direct_access_start_telnet(timeout=30)
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=30)
         self.assertTrue(self.tcp_client)
 
-        self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
+        #self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 180)
 
     def test_autosample(self):
         """

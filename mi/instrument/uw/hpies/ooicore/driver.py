@@ -1076,7 +1076,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    __metaclass__ = get_logging_metaclass(log_level='info')
+    __metaclass__ = get_logging_metaclass(log_level='debug')
 
     particles = [
         DataHeaderParticle,  # HPIES_DATA_HEADER
@@ -1275,7 +1275,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name='Calibrate Skip',
                              description='Time to wait before using data after changing the calibration signal state',
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             default_value=10,
                              startup_param=False,
                              direct_access=False)
         self._param_dict.add(Parameter.NHC_COMPASS,
@@ -1324,10 +1323,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name='Initial Compass Run',
                              description='Initial compass measurement',
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             default_value=10,
                              startup_param=False,
                              direct_access=False)
-        # INITIAL_COMPASS_DELAY = 'icompass dsecs'  #
         self._param_dict.add(Parameter.INITIAL_COMPASS_DELAY,
                              r'icompass dsecs\s+= (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
@@ -1337,7 +1334,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name='Compass Samples',
                              description='Initial compass delay',
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             default_value=0.5,
                              startup_param=False,
                              direct_access=False)
         # FILE_LENGTH = 'secs per ofile'  # seconds per file (default 86400 - one day)
