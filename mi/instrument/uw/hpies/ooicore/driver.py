@@ -218,7 +218,6 @@ class Parameter(DriverParameter):
     M2A_LED = 'm2a_led'  # 3
 
     # Inverter Echo Sounder parameters - all these are read-only
-    IES_TIME = 'date_time'  # current time from IES internal clock
     ECHO_SAMPLES = 'Travel Time Measurements: 4 pings every 10 minutes'
     WATER_DEPTH = 'Estimated Water Depth: 3000 meters'
     ACOUSTIC_LOCKOUT = 'Acoustic Lockout: 3.60 seconds'
@@ -1573,7 +1572,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'Acoustic Output: (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
-                             type=ParameterDictType.FLOAT,
+                             type=ParameterDictType.INT,
                              units=Units.DECIBEL,
                              display_name='Acoustic Output',
                              description='',
@@ -1592,9 +1591,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COLLECT_TELEMETRY,
                              r'Telemetry data file (enabled|disabled)',
-                             lambda match: match.group(1),
+                             lambda match: True if match.group(1) == 'enabled' else False,
                              None,
-                             type=ParameterDictType.STRING,
+                             type=ParameterDictType.BOOL,
                              display_name='Telemetry Data File',
                              description='',
                              startup_param=False,
