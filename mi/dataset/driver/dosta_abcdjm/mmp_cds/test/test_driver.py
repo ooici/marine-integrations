@@ -195,7 +195,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('large_import.mpk', 'test_large_import.mpk')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-        # Slow down processing to 1 per second otherwise samples come in the wrong order
+        # Speed up to 10 records per second
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 10})
         self.assert_start_sampling()
 

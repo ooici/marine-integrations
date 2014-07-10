@@ -67,15 +67,10 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'optode_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = DostaAbcdjmMmpCdsParser(self.config, state, stream_handle,
+        parser = DostaAbcdjmMmpCdsParser(self.config, None, stream_handle,
                                          self.state_callback, self.pub_callback)
 
         particles = parser.get_records(6)
-
-        for particle in particles:
-            print particle.generate_dict()
 
         test_data = self.get_dict_from_yml('good.yml')
         self.assert_result(test_data['data'][0], particles[5])
@@ -91,9 +86,7 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'optode_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = DostaAbcdjmMmpCdsParser(self.config, state, stream_handle,
+        parser = DostaAbcdjmMmpCdsParser(self.config, None, stream_handle,
                                          self.state_callback, self.pub_callback)
 
         particles = parser.get_records(20)
@@ -127,11 +120,16 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
         parser = DostaAbcdjmMmpCdsParser(self.config, state, stream_handle,
                                          self.state_callback, self.pub_callback)
 
-        # Attempt to retrieve 500 particles, but we will retrieve less
+        # Attempt to retrieve 500 particles
         particles = parser.get_records(500)
 
         # Should end up with 500 particles
         self.assertTrue(len(particles) == 500)
+
+        test_data = self.get_dict_from_yml('large_import.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         stream_handle.close()
 
@@ -161,7 +159,9 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 4)
 
         test_data = self.get_dict_from_yml('set_state.yml')
-        self.assert_result(test_data['data'][23], particles[3])
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][20+i], particles[i])
 
         stream_handle.close()
 
@@ -187,13 +187,14 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        log.info(parser._read_state)
         log.info(parser._state)
 
         stat_info = os.stat(file_path)
 
         test_data = self.get_dict_from_yml('set_state.yml')
-        self.assert_result(test_data['data'][3], particles[3])
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         state = copy.copy(parser._state)
 
@@ -207,7 +208,8 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        self.assert_result(test_data['data'][7], particles[3])
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][4+i], particles[i])
 
         # Give a bad position which will be ignored
         state = {StateKey.PARTICLES_RETURNED: 0}
@@ -229,7 +231,8 @@ class DostaAbcdjmMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 30)
 
-        self.assert_result(test_data['data'][29], particles[29])
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         # Provide a bad particles returned
         state = {StateKey.PARTICLES_RETURNED: 80}
