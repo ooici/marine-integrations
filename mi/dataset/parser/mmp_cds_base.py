@@ -13,7 +13,6 @@ initial release
 __author__ = 'Mark Worden'
 __license__ = 'Apache 2.0'
 
-import copy
 import gevent
 import msgpack
 import ntplib
@@ -24,7 +23,7 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
-from mi.core.exceptions import DatasetParserException, SampleException
+from mi.core.exceptions import DatasetParserException, SampleException, NotImplementedException
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # The number of items in a list associated unpacked data within a McLane Moored Profiler cabled docking station
@@ -45,7 +44,7 @@ UNEXPECTED_UNPACKED_MSGPACK_FORMAT_MSG = "Unexpected unpacked msgpack format"
 
 
 class StateKey(BaseEnum):
-    PARTICLES_RETURNED = 'particles_returned'  # holds the number of particles returned
+    PARTICLES_RETURNED = 'particles_returned' # holds the number of particles returned
 
 
 class MmpCdsParserDataParticleKey(BaseEnum):
@@ -55,31 +54,31 @@ class MmpCdsParserDataParticleKey(BaseEnum):
 
 class MmpCdsParserDataParticle(DataParticle):
     """
-    Class for building a data particle given parsed data as received from a McLane Moored Profiler connected to
-    a cabled docking station.
-    """
+Class for building a data particle given parsed data as received from a McLane Moored Profiler connected to
+a cabled docking station.
+"""
 
-    def _get_mmp_cds_subclass_particle_params(self, dict_data):
+    def _get_mmp_cds_subclass_particle_params(self, subclass_specific_msgpack_unpacked_data):
         """
-        This method is expected to be implemented by subclasses.  It is okay to let the implemented method to
-        allow the following exceptions to propagate: ValueError, TypeError, IndexError
-        @param dict_data the dictionary data containing the specific particle parameter name value pairs
-        @return a list of particle params specific to the subclass
-        """
+This method is expected to be implemented by subclasses. It is okay to let the implemented method to
+allow the following exceptions to propagate: ValueError, TypeError, IndexError, KeyError
+@param dict_data the dictionary data containing the specific particle parameter name value pairs
+@return a list of particle params specific to the subclass
+"""
 
-        # This implementation raises a NotImplemented exception to enforce derived classes to implement
+        # This implementation raises a NotImplementedException to enforce derived classes to implement
         # this method.
-        raise NotImplemented
+        raise NotImplementedException
 
     def _build_parsed_values(self):
         """
-        This method generates a list of particle parameters using the self.raw_data which is expected to be
-        a list of three items.  The first item is expected to be the "raw_time_seconds".  The second item
-        is expected to be the "raw_time_microseconds".  The third item is expected to be a dictionary.  This
-        method depends on an abstract method (_get_mmp_cds_subclass_particle_params) to generate the specific
-        particle parameters from the third list item dictionary content.
-        @throws SampleException If there is a problem with sample creation
-        """
+This method generates a list of particle parameters using the self.raw_data which is expected to be
+a list of three items. The first item is expected to be the "raw_time_seconds". The second item
+is expected to be the "raw_time_microseconds". The third item is an element type specific to the subclass.
+This method depends on an abstract method (_get_mmp_cds_subclass_particle_params) to generate the specific
+particle parameters from the third item element.
+@throws SampleException If there is a problem with sample creation
+"""
         try:
 
             raw_time_seconds = self.raw_data[0]
@@ -111,8 +110,8 @@ class MmpCdsParserDataParticle(DataParticle):
 
 class MmpCdsParser(BufferLoadingParser):
     """
-    Class for parsing data as received from a McLane Moored Profiler connected to a cabled docking station.
-    """
+Class for parsing data as received from a McLane Moored Profiler connected to a cabled docking station.
+"""
 
     def __init__(self,
                  config,
@@ -122,19 +121,19 @@ class MmpCdsParser(BufferLoadingParser):
                  publish_callback,
                  *args, **kwargs):
         """
-        This method is a constructor that will instantiate an MmpCdsParser object.
-        @param config The configuration for this MmpCdsParser parser
-        @param state The state the MmpCdsParser should use to initialize itself
-        @param stream_handle The handle to the data stream containing the MmpCds data
-        @param state_callback The function to call upon detecting state changes
-        @param publish_callback The function to call to provide particles
-        """
+This method is a constructor that will instantiate an MmpCdsParser object.
+@param config The configuration for this MmpCdsParser parser
+@param state The state the MmpCdsParser should use to initialize itself
+@param stream_handle The handle to the data stream containing the MmpCds data
+@param state_callback The function to call upon detecting state changes
+@param publish_callback The function to call to provide particles
+"""
 
         # Initialize the record buffer to an empty list
         self._record_buffer = []
 
-        # Initialize the read state PARTICLES_RETURNED to 0
-        self._read_state = {StateKey.PARTICLES_RETURNED: 0}
+        if state is None:
+            state = {StateKey.PARTICLES_RETURNED: 0}
 
         # Call the superclass constructor
         super(MmpCdsParser, self).__init__(config,
@@ -145,19 +144,19 @@ class MmpCdsParser(BufferLoadingParser):
                                            publish_callback,
                                            *args, **kwargs)
 
-        # If provided a state, set it.  This needs to be done post superclass __init__
-        if state:
+        # If provided a state, set it. This needs to be done post superclass __init__
+        if state is not None:
             self.set_state(state)
 
     def set_state(self, state_obj):
         """
-        This method will set the state of the MmpCdsParser to a given state
-        @param state_obj the updated state to use
-        """
+This method will set the state of the MmpCdsParser to a given state
+@param state_obj the updated state to use
+"""
         log.debug("Attempting to set state to: %s", state_obj)
         # First need to make sure the state type is a dict
         if not isinstance(state_obj, dict):
-            log.debug("Invalid state structure")
+            log.warn("Invalid state structure")
             raise DatasetParserException("Invalid state structure")
         # Then we need to make sure that the provided state includes particles returned information
         if not (StateKey.PARTICLES_RETURNED in state_obj):
@@ -171,21 +170,22 @@ class MmpCdsParser(BufferLoadingParser):
 
         # Set the state and read state to the provide state
         self._state = state_obj
-        self._read_state = state_obj
 
         # Always seek to the beginning of the buffer to read all records
         self._stream_handle.seek(0)
 
     def _yank_particles(self, num_records):
         """
-        Get particles out of the buffer and publish them. Update the state
-        of what has been published, too.
-        @param num_records The number of particles to remove from the buffer
-        @retval A list with num_records elements from the buffer. If num_records
-        cannot be collected (perhaps due to an EOF), the list will have the
-        elements it was able to collect.
-        """
+Get particles out of the buffer and publish them. Update the state
+of what has been published, too.
+@param num_records The number of particles to remove from the buffer
+@retval A list with num_records elements from the buffer. If num_records
+cannot be collected (perhaps due to an EOF), the list will have the
+elements it was able to collect.
+"""
         particles_returned = 0
+
+        log.info("_yank_particles Here")
 
         if self._state is not None and StateKey.PARTICLES_RETURNED in self._state and \
                 self._state[StateKey.PARTICLES_RETURNED] > 0:
@@ -194,7 +194,7 @@ class MmpCdsParser(BufferLoadingParser):
         total_num_records = len(self._record_buffer)
 
         if total_num_records < num_records:
-            num_to_fetch = len(self._record_buffer)
+            num_to_fetch = total_num_records
         else:
             num_to_fetch = num_records
 
@@ -208,17 +208,16 @@ class MmpCdsParser(BufferLoadingParser):
 
         records_to_return = self._record_buffer[particles_returned:end_range]
         if len(records_to_return) > 0:
-            # Get the state of the last tuple entry
-            self._state = records_to_return[-1][1]
+
+            log.info(records_to_return)
 
             # Update the number of particles returned
             self._state[StateKey.PARTICLES_RETURNED] = particles_returned+num_to_fetch
-            self._read_state = self._state
 
             # strip the state info off of them now that we have what we need
             for item in records_to_return:
                 log.debug("Record to return: %s", item)
-                return_list.append(item[0])
+                return_list.append(item)
 
             self._publish_sample(return_list)
             log.trace("Sending parser state [%s] to driver", self._state)
@@ -226,17 +225,17 @@ class MmpCdsParser(BufferLoadingParser):
             if self.file_complete and total_num_records == self._state[StateKey.PARTICLES_RETURNED]:
                 # file has been read completely and all records pulled out of the record buffer
                 file_ingested = True
-            self._state_callback(self._state, file_ingested)  # push new state to driver
+            self._state_callback(self._state, file_ingested) # push new state to driver
 
         return return_list
 
     def get_block(self, size=1024):
         """
-        This function overrides the get_block function in BufferLoadingParser
-        to read the entire file rather than break it into chunks.
-        @return The length of data retrieved.
-        @throws EOFError when the end of the file is reached.
-        """
+This function overrides the get_block function in BufferLoadingParser
+to read the entire file rather than break it into chunks.
+@return The length of data retrieved.
+@throws EOFError when the end of the file is reached.
+"""
         # Read in data in blocks so as to not tie up the CPU.
         eof = False
         data = ''
@@ -254,29 +253,29 @@ class MmpCdsParser(BufferLoadingParser):
             self._chunker.add_chunk(data, self._timestamp)
             self.file_complete = True
             return len(data)
-        else:  # EOF
+        else: # EOF
             self.file_complete = True
             raise EOFError
 
     def sieve_function(self, raw_data):
         """
-        This method sorts through the raw data to identify new blocks of data that need processing.  This method
-        identifies the start index as 0 and the length of the input raw_data as the end.
-        @param raw_data the raw msgpack data for which to return the chunk location information
-        @return the list of tuples containing the start index and range for each chunk
-        """
+This method sorts through the raw data to identify new blocks of data that need processing. This method
+identifies the start index as 0 and the length of the input raw_data as the end.
+@param raw_data the raw msgpack data for which to return the chunk location information
+@return the list of tuples containing the start index and range for each chunk
+"""
 
         # The raw_data provided as input is considered the full recovered file byte stream, and will be
-        # considered a single chunk.  In a file containing msgpack serialized data, there are not multiple
+        # considered a single chunk. In a file containing msgpack serialized data, there are not multiple
         # headers and records.
         return [(0, len(raw_data))]
 
     def parse_chunks(self):
         """
-        This method parses each chunk and attempts to extract samples to return.
-        @return for each discovered sample, a list of tuples containing each particle and associated state position
-        # information
-        """
+This method parses each chunk and attempts to extract samples to return.
+@return for each discovered sample, a list of tuples containing each particle and associated state position
+# information
+"""
         # Initialize the resultant particle list to return to an emtpy list
         result_particles = []
 
@@ -328,6 +327,6 @@ class MmpCdsParser(BufferLoadingParser):
             # For each sample we retrieved in the chunk, let's create a tuple containing the sample, and the parser's
             # current read state
             for sample in samples:
-                result_particles.append((sample, copy.copy(self._read_state)))
+                result_particles.append(sample)
 
         return result_particles
