@@ -19,6 +19,7 @@ from nose.plugins.attrib import attr
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 import os
+import hashlib
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -74,10 +75,11 @@ DataSetTestCase.initialize(
     }
 )
 
-
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
+def calculate_file_checksum(filename):
+    with open(filename, 'rb') as file_handle:
+        checksum = hashlib.md5(file_handle.read()).hexdigest()
+    file_handle.close()
+    return checksum
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -151,39 +153,40 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.stop_sampling()
 
- #*************************************************************************************
+#*************************************************************************************
     def test_stop_resume(self):
         """
         Test the capability to stop and restart the process
-        Bullshit, make believe unicorn test
-            1) read 10 records - including the metadata?
-            2) reset the state to start at the 127th record
-            3) read 10 morerecords
         """
-        self.create_sample_data_set_dir('MINI_node58p1.dat', MULE_DATA_DIR, 'node58p1.dat')
+        self.create_sample_data_set_dir('SMALL_node58p1.dat', MULE_DATA_DIR, 'node58p1.dat')
 
         driver_config = self._driver_config()['startup_config']
+
         ctdpf_ckl_wfp_sio_mule_config =\
             driver_config[DataSetDriverConfigKeys.HARVESTER][DataTypeKey.CTDPF_CKL_WFP_SIO_MULE]
-        fullfile = os.path.join(ctdpf_ckl_wfp_sio_mule_config[DataSetDriverConfigKeys.DIRECTORY],
-                                ctdpf_ckl_wfp_sio_mule_config[DataSetDriverConfigKeys.PATTERN])
+
+        fullfile = os.path.join(
+            driver_config['harvester'][DataTypeKey.CTDPF_CKL_WFP_SIO_MULE]['directory'],
+            driver_config['harvester'][DataTypeKey.CTDPF_CKL_WFP]['directory'])
+
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {
+        memento = {
             DataTypeKey.CTDPF_CKL_WFP_SIO_MULE: {
                 'node58p1.dat': {
-                    DriverStateKey.FILE_SIZE: 12054,
-                    DriverStateKey.FILE_CHECKSUM: 'd6345ceadd35fc1048954c4ec254309c',
+                    DriverStateKey.FILE_SIZE: 9866,
+                    DriverStateKey.FILE_CHECKSUM: '86584e1b27baa938c920495f7ed4d388',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
-                    DriverStateKey.PARSER_STATE: {'in_process_data': [[7936, 8730, 14, 13]],
-                                                  'unprocessed_data': [[4058, 4059], [7423, 7424], [7936, 8730]]}
+                    DriverStateKey.PARSER_STATE:
+                        {'in_process_data': [[4673, 5540, 75, 0], [8730, 9828, 96, 0]],
+                         'unprocessed_data': [[4058, 4059], [4673, 5540], [7423, 7424], [8730, 9828]]}
                 },
             },
             DataTypeKey.CTDPF_CKL_WFP: {}
         }
 
-        self.driver = self._get_driver_object()
+        driver = self._get_driver_object()
 
         # Create some data to parse
         self.clear_async_data()
@@ -193,35 +196,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(MULE_PARTICLES, 'MINI_3rd_node58p1.yml', count=10, timeout=10)
-
-#*************************************************************************************
-#        self.create_sample_data_set_dir('MINI_node58p1_1.dat', MULE_DATA_DIR, 'node58p1.dat')
-#        self.assert_data(MULE_PARTICLES, count=15, timeout=10)
-#        self.driver.stop_sampling()
-#        self.driver.start_sampling()
-#        self.clear_async_data()
-#        self.create_sample_data_set_dir('MINI_node58p1.dat', MULE_DATA_DIR, 'node58p1.dat')
-#        self.assert_data(MULE_PARTICLES, count=186, timeout=10)
-    def test_get_special(self):
-        """
-        Test that we can get data from small data files.
-        """
-        self.driver.start_sampling()
-        self.clear_async_data()
-
-        # Test for mule data
-        self.create_sample_data_set_dir('MINI_node58p1.dat', MULE_DATA_DIR, 'node58p1.dat')
-        self.assert_data(MULE_PARTICLES, 'mini_MINI_node58p1.yml', count=2, timeout=10)
-
-        # Test for recovered data
-#        self.clear_async_data()
-#        self.create_sample_data_set_dir('TEST_TWO.DAT', RECOV_DATA_DIR, 'C0000034.DAT')
-#        self.assert_data(RECOV_PARTICLES, 'TEST_TWO.yml', count=96, timeout=10)
-
-        self.driver.stop_sampling()
-
-#*************************************************************************************
-
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -343,6 +317,44 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
+    def test_two_streams(self):
+        """
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent using a file with real data
+        """
+        self.create_sample_data_set_dir('BIG_DATA_FILE.dat', MULE_DATA_DIR, 'node58p1.dat')
+        self.create_sample_data_set_dir('BIG_C0000038.dat', RECOV_DATA_DIR, 'C0000038.DAT')
+
+        self.assert_initialize()
+
+        # Verify we get telemetered samples
+        try:
+
+            result = self.data_subscribers.get_samples(DataParticleType.METADATA, 4, 1200)
+            result_1b = self.data_subscribers.get_samples(DataParticleType.DATA, 285, 1200)
+            result.extend(result_1b)
+
+            # Verify values
+            self.assert_data_values(result, 'jumbled_BIG_DATA_FILE.yml')
+
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+        # Verify we get recovered samples
+        try:
+
+            resultA = self.data_subscribers.get_samples(DataParticleType.RECOVERED_METADATA, 1, 1200)
+            result_Ab = self.data_subscribers.get_samples(DataParticleType.RECOVERED_DATA, 363, 1200)
+            resultA.extend(result_Ab)
+
+            # Verify values
+            self.assert_data_values(resultA, 'BIG_C0000038.yml')
+
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
     def test_stop_restart(self):
         """
         Read in X records then stop. Reload the file so it appears to be "new"
@@ -381,30 +393,4 @@ class QualificationTest(DataSetQualificationTestCase):
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
-            self.fail("Sample timeout.")
-
-    def test_two_streams(self):
-        """
-        Setup an agent/driver/harvester/parser and verify that data is
-        published out the agent using a file with real data
-        """
-        self.create_sample_data_set_dir('BIG_DATA_FILE.dat', MULE_DATA_DIR, 'node58p1.dat')
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.assert_start_sampling()
-
-        # Verify we get samples
-        try:
-
-            result = self.data_subscribers.get_samples(DataParticleType.METADATA, 4, 1200)
-            result_1b = self.data_subscribers.get_samples(DataParticleType.DATA, 287, 2400)
-            result.extend(result_1b)
-
-            # Verify values
-            log.info('CAG - About to compare values')
-            self.assert_data_values(result, 'jumbled_BIG_DATA_FILE.yml')
-            log.info('CAG - Finished comparing values')
-
-        except Exception as e:
-            log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")

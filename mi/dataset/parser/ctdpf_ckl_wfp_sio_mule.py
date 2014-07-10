@@ -239,11 +239,15 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
 
             if self._goodHeader:
                 self.process_footer(chunk)
+
                 if self._goodFooter:
+
                     timestamp = float(ntplib.system_to_ntp_time(self._startTime))
                     self._footerData = (self._startTime, self._endTime, self._numberOfRecords, self._decimationFactor)
                     sample = self.extract_metadata_particle(self._footerData, timestamp)
-                    result_particles.append(sample)
+                    if sample is not None:
+                        result_particles.append(sample)
+                        sample_count = 1
 
                     moreRecords = True
                     dataRecord = chunk[self._startData:self._startData + DATA_RECORD_BYTES]
@@ -253,15 +257,16 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
                                                                 (self._recordNumber * self._timeIncrement)))
 
                     while moreRecords:
-                        sample_count += 1
                         dataFields = struct.unpack('>I', '\x00' + dataRecord[0:3]) + \
                                      struct.unpack('>I', '\x00' + dataRecord[3:6]) + \
                                      struct.unpack('>I', '\x00' + dataRecord[6:9]) + \
                                      struct.unpack('>H', dataRecord[9:11])
                         self._RecordData = (dataFields[0], dataFields[1], dataFields[2])
                         sample = self.extract_data_particle(self._RecordData, timestamp)
-                        result_particles.append(sample)
-                        self._chunk_sample_count.append(sample_count)
+                        if sample is not None:
+                            result_particles.append(sample)
+                            sample_count += 1
+
                         dataRecord = chunk[self._startData:self._startData + DATA_RECORD_BYTES]
                         self._recordNumber += 1.0
                         timestamp = float(ntplib.system_to_ntp_time(float(self._startTime) +
@@ -271,13 +276,8 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
                             moreRecords = False
                         else:
                             self._startData += DATA_RECORD_BYTES
-                # Header was bad - chunk not processed
-                else:
-                    self._chunk_sample_count.append(0)
-            # Footer was bad - chunk not processed
-            else:
-                self._chunk_sample_count.append(0)
 
+            self._chunk_sample_count.append(sample_count)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
         return result_particles
