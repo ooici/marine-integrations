@@ -29,8 +29,8 @@ from mi.instrument.teledyne.particles import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 from mi.instrument.teledyne.particles import ADCP_ANCILLARY_SYSTEM_DATA_KEY, ADCP_TRANSMIT_PATH_KEY
-from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA, PT2_RAW_DATA, PT4_RAW_DATA
-from mi.instrument.teledyne.workhorse.test.test_data import RSN_CALIBRATION_RAW_DATA
+from mi.instrument.teledyne.workhorse.test.test_data import RSN_SAMPLE_RAW_DATA, PT2_RAW_DATA, PT4_RAW_DATA, \
+    rsn_cali_raw_data_string
 from mi.instrument.teledyne.workhorse.test.test_data import RSN_PS0_RAW_DATA
 
 from mi.idk.unit_test import DriverTestMixin
@@ -700,7 +700,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         # Start validating data particles
 
-        self.assert_particle_published(driver, RSN_CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
+        self.assert_particle_published(driver, rsn_cali_raw_data_string(), self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, RSN_PS0_RAW_DATA, self.assert_particle_system_configuration, True)
         self.assert_particle_published(driver, RSN_SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
 
@@ -799,10 +799,10 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_chunker_fragmented_sample(chunker, RSN_PS0_RAW_DATA, 32)
         self.assert_chunker_combined_sample(chunker, RSN_PS0_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, RSN_CALIBRATION_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, RSN_CALIBRATION_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, RSN_CALIBRATION_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, RSN_CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample(chunker, rsn_cali_raw_data_string())
+        self.assert_chunker_sample_with_noise(chunker, rsn_cali_raw_data_string())
+        self.assert_chunker_fragmented_sample(chunker, rsn_cali_raw_data_string(), 32)
+        self.assert_chunker_combined_sample(chunker, rsn_cali_raw_data_string())
 
         self.assert_chunker_sample(chunker, PT2_RAW_DATA)
         self.assert_chunker_sample_with_noise(chunker, PT2_RAW_DATA)
