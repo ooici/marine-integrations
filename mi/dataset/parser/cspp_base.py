@@ -25,6 +25,9 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
+# The following defines a regular expression for one or more instances of a carriage return, line feed or both
+CARRIAGE_RETURN_LINE_FEED_OR_BOTH = r'(?:\r\n|\r|\n)'
+
 # The HEADER_REGEX below is used to capture a header that looks like the following:
 #   Source File: C:\data\ooi\CSPP\uCSPP_2014_04_14_deploy\recoveredData\11079894.PPB
 #   Processed: 06/12/2014 20:07:45
@@ -32,19 +35,19 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 #   Device: OPT
 #   Start Date: 04/17/2014
 #   Timestamp (s)	Depth (m)	Data
-HEADER_REGEX = r'^Source File:\s+([^\s]+)[\r|\n|\r\n]+' + \
-               'Processed:\s+([^\s]+)\s+([^\s]+)[\r|\n|\r\n]+' + \
-               'Using Version:\s+([^\s]+)[\r|\n|\r\n]+' + \
-               'Device:\s+([^\s]+)[\r|\n|\r\n]+' +\
-               'Start Date:\s+([^\s]+)[\r|\n|\r\n]+' + \
-               'Timestamp.+[\r|\n|\r\n]+'
+HEADER_REGEX = r'^Source File:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
+               'Processed:\s+([^\s]+)\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
+               'Using Version:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
+               'Device:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH +\
+               'Start Date:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
+               'Timestamp.+' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
 
 # A regex to capture a float value
 FLOAT_REGEX = r'(?:[0-9]|[1-9][0-9])+\.[0-9]+'
 # A regex to capture an int value
 INT_REGEX = r'[1-9][0-9]*'
 # A regex to match against one or more multiple consecutive whitespace characters
-MULTIPLE_WHITESPACE_REGEX = r'\s+'
+MULTIPLE_TAB_REGEX = r'\t+'
 
 # A kwargs key used to access the data regular expression
 DATA_REGEX_KWARGS_KEY = 'data_regex_kwargs_key'
@@ -422,6 +425,7 @@ class CsppParser(BufferLoadingParser):
         """
         # if non-data is expected, handle it here, otherwise it is an error
         if non_data is not None and non_end <= start:
+            log.debug("non_data: %s", non_data)
             # if this non-data is an error, send an UnexpectedDataException and increment the state
             self._update_positional_state(len(non_data))
             # if non-data is a fatal error, directly call the exception, if it is not use the _exception_callback

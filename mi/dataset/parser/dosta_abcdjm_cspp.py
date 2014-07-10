@@ -20,23 +20,22 @@ log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle
-from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_WHITESPACE_REGEX, \
-    DATA_REGEX_KWARGS_KEY, DATA_MATCHES_GROUP_NUMBER_OFFSET, CsppMetadataDataParticle, EncodingRuleIndex
+from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
+    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, DATA_REGEX_KWARGS_KEY, DATA_MATCHES_GROUP_NUMBER_OFFSET, \
+    CsppMetadataDataParticle, EncodingRuleIndex
 
 
 # A regular expression for special characters that could exist in a data record preceding the model
-SPECIAL_CHARS_REGEX = r'[\?]?[%]?'
+SPECIAL_CHARS_REGEX = r'(?:[\?][%])?'
 
 # A regular expression that should match a dosta_abcdjm data record
-DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_WHITESPACE_REGEX + SPECIAL_CHARS_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + \
-             '(' + FLOAT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + \
-             '(' + FLOAT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_WHITESPACE_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_WHITESPACE_REGEX + \
-             '(' + FLOAT_REGEX + ')'
+DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
+             SPECIAL_CHARS_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + \
+             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
+             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
+             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
+             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
+             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
 
 
 class DataMatchesOffsetFromHeaderGroupNumber(BaseEnum):
