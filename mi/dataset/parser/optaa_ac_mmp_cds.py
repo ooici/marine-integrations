@@ -47,11 +47,6 @@ class OptaaAcMmpCdsParserDataParticleKey(BaseEnum):
 
 class EncodingParams:
 
-    key = ''
-    unpack_code = ''
-    unpack_from_offset = 0
-    encode_type = None
-
     def __init__(self, key, unpack_code, unpack_from_offset, encode_type):
 
         self.key = key
@@ -60,6 +55,8 @@ class EncodingParams:
         self.encode_type = encode_type
 
 
+# The following are byte offsets used to access items within the binary data 
+# processed by the OptaaAcMmpCdsParserDataParticle _get_mmp_cds_subclass_particle_params
 PACKET_TYPE_DATA_OFFSET = 0
 METER_TYPE_DATA_OFFSET = 2
 SERIAL_NUMBER_DATA_OFFSET = 3

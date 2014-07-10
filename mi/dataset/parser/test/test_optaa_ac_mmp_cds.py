@@ -18,7 +18,7 @@ from mi.core.log import get_logger
 from mi.idk.config import Config
 
 log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, DatasetParserException
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -70,9 +70,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'simple.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
         particles = parser.get_records(1)
@@ -91,9 +89,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'get_many.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
         particles = parser.get_records(20)
@@ -102,14 +98,17 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 20)
 
         test_data = self.get_dict_from_yml('get_many.yml')
-        self.assert_result(test_data['data'][19], particles[19])
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         particles = parser.get_records(30)
 
         # Should end up with 30 particles
         self.assertTrue(len(particles) == 30)
 
-        self.assert_result(test_data['data'][49], particles[29])
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i+20], particles[i])
 
         stream_handle.close()
 
@@ -121,16 +120,19 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'large_import.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
-        # Attempt to retrieve 500 particles, but we will retrieve less
+        # Attempt to retrieve 500 particles
         particles = parser.get_records(500)
 
         # Should end up with 500 particles
         self.assertTrue(len(particles) == 500)
+
+        test_data = self.get_dict_from_yml('large_import.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         stream_handle.close()
 
@@ -158,7 +160,9 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 4)
 
         test_data = self.get_dict_from_yml('set_state.yml')
-        self.assert_result(test_data['data'][23], particles[3])
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][20+i], particles[i])
 
         stream_handle.close()
 
@@ -173,10 +177,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'set_state.mpk')
         stream_handle = open(file_path, 'rb')
 
-        # Moving the file position to the beginning
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
         particles = parser.get_records(4)
@@ -184,47 +185,68 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        log.info(parser._read_state)
         log.info(parser._state)
 
         test_data = self.get_dict_from_yml('set_state.yml')
-        self.assert_result(test_data['data'][3], particles[3])
+
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         state = copy.copy(parser._state)
 
         log.info(state)
 
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        # Re-create the parser with a state of None
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
+
+        # Retrieve the first 4 particles again
+        particles = parser.get_records(4)
+
+        # Check the particles again
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
+
+        # Set the parser's state
+        parser.set_state(state)
 
         particles = parser.get_records(4)
 
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        self.assert_result(test_data['data'][7], particles[3])
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][4+i], particles[i])
 
-        # Give a bad position which will be ignored
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
-                                     self.state_callback, self.pub_callback)
+        # Reset the state to 0 particles returned
+        parser.set_state({StateKey.PARTICLES_RETURNED: 0})
 
         particles = parser.get_records(1)
 
         self.assertTrue(len(particles) == 1)
 
-        # Give a bad position which will be ignored
-        state = {StateKey.PARTICLES_RETURNED: 0}
+        # Check the particle
+        self.assert_result(test_data['data'][0], particles[0])
 
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
-                                     self.state_callback, self.pub_callback)
+        # Set the state to a bad state (i.e. None)
+        with self.assertRaises(DatasetParserException):
+            parser.set_state(None)
 
+        # Set the state to a bad state (i.e. a list)
+        with self.assertRaises(DatasetParserException):
+            parser.set_state(['particles_returned'])
+
+        # Set the state to 0 particles returned
+        parser.set_state({StateKey.PARTICLES_RETURNED: 0})
+
+        # Attempt to retrieve 1000 particles
         particles = parser.get_records(1000)
 
+        # Ensure we got all expected 30
         self.assertTrue(len(particles) == 30)
 
-        self.assert_result(test_data['data'][29], particles[29])
+        for i in range(len(particles)):
+            self.assert_result(test_data['data'][i], particles[i])
 
         # Provide a bad particles returned
         state = {StateKey.PARTICLES_RETURNED: 80}
@@ -246,9 +268,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'acs_archive.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
         particles = parser.get_records(100)
@@ -260,9 +280,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'acs_archive_BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
@@ -278,9 +296,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = OptaaAcMmpCdsParser(self.config, state, stream_handle,
+        parser = OptaaAcMmpCdsParser(self.config, None, stream_handle,
                                      self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
