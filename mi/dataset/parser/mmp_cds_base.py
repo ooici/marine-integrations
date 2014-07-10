@@ -13,7 +13,6 @@ initial release
 __author__ = 'Mark Worden'
 __license__ = 'Apache 2.0'
 
-import copy
 import gevent
 import msgpack
 import ntplib
@@ -133,6 +132,9 @@ class MmpCdsParser(BufferLoadingParser):
         # Initialize the record buffer to an empty list
         self._record_buffer = []
 
+        if state is None:
+            state = {StateKey.PARTICLES_RETURNED: 0}
+
         # Call the superclass constructor
         super(MmpCdsParser, self).__init__(config,
                                            stream_handle,
@@ -145,9 +147,6 @@ class MmpCdsParser(BufferLoadingParser):
         # If provided a state, set it.  This needs to be done post superclass __init__
         if state is not None:
             self.set_state(state)
-        else:
-            # Initialize the read state PARTICLES_RETURNED to 0
-            self._state = {StateKey.PARTICLES_RETURNED: 0}
 
     def set_state(self, state_obj):
         """
@@ -186,6 +185,8 @@ class MmpCdsParser(BufferLoadingParser):
         """
         particles_returned = 0
 
+        log.info("_yank_particles Here")
+
         if self._state is not None and StateKey.PARTICLES_RETURNED in self._state and \
                 self._state[StateKey.PARTICLES_RETURNED] > 0:
             particles_returned = self._state[StateKey.PARTICLES_RETURNED]
@@ -193,7 +194,7 @@ class MmpCdsParser(BufferLoadingParser):
         total_num_records = len(self._record_buffer)
 
         if total_num_records < num_records:
-            num_to_fetch = len(self._record_buffer)
+            num_to_fetch = total_num_records
         else:
             num_to_fetch = num_records
 
