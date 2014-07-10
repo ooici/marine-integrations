@@ -71,7 +71,7 @@ sampling can be started and stopped
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.create_sample_data('first_data', "test_get.mpk")
+        self.create_sample_data('first_data.mpk', "test_get.mpk")
 
         self.assert_data(Vel3dAMmpCdsParserDataParticle, 'first_data.yml', count=193, timeout=30)
 
@@ -87,7 +87,7 @@ Test the ability to stop and restart the process
         # Notify the driver to start sampling
         self.driver.start_sampling()
 
-        self.create_sample_data('first_data', "test_stop_resume.mpk")
+        self.create_sample_data('first_data.mpk', "test_stop_resume.mpk")
         self.assert_data(Vel3dAMmpCdsParserDataParticle, 'first_four.yml', count=4, timeout=10)
 
         # Stop the driver from taking processing new samples
@@ -182,14 +182,15 @@ published out the agent
 
         # Verify we get one sample
         try:
-            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2)
-            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2)
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2, 100)
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2, 100)
             result.extend(result2)
-            log.debug("RESULT: %s", result)
-
-            # Verify values
+            log.info("RESULT: %s", result)
+            #
+            # # Verify values
             self.assert_data_values(result, 'first_four.yml')
         except Exception as e:
+
             log.error("Exception trapped: %s", e)
             self.fail("Unexpected Exception trapped.")
 
@@ -206,7 +207,7 @@ Test importing a large number of samples from the file at once
 
         # Verify we can retrieve 1000 samples
         try:
-            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 1000, 1000)
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 193, 100)
             log.debug("RESULT: %s", result)
 
             # Verify values
@@ -222,19 +223,19 @@ at the correct spot.
 """
         log.info("CONFIG: %s", self._agent_config())
 
-        self.create_sample_data('stop_start1.mpk', 'stop_start1.mpk')
+        self.create_sample_data('first_data.mpk', 'stop_start1.mpk')
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 10})
 
         self.assert_start_sampling()
 
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
             log.debug("RESULT: %s", result)
 
             # Verify values
@@ -242,10 +243,10 @@ at the correct spot.
 
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
-            self.create_sample_data('stop_start2.mpk', 'stop_start2.mpk')
+            self.create_sample_data('second_data.mpk', 'stop_start2.mpk')
 
             # Now read the first three records of the second file then stop
-            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 10, 100)
             log.debug("got result %s", result2)
 
             # Stop sampling
@@ -257,10 +258,10 @@ at the correct spot.
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
 
-            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 10, 100)
             log.debug("got result 3 %s", result3)
             result2.extend(result3)
-            self.assert_data_values(result2, 'stop_start2.yml')
+            self.assert_data_values(result2, 'second_data.yml')
 
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
@@ -275,30 +276,30 @@ and confirm it restarts at the correct spot.
 """
         log.info("CONFIG: %s", self._agent_config())
 
-        self.create_sample_data('stop_start1.mpk', 'stop_start1.mpk')
+        self.create_sample_data('first_data.mpk', 'stop_start1.mpk')
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 10})
 
         self.assert_start_sampling()
 
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'stop_start1.yml')
+            self.assert_data_values(result, 'first_data.yml')
 
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
-            self.create_sample_data('stop_start2.mpk', 'stop_start2.mpk')
+            self.create_sample_data('second_data.mpk', 'stop_start2.mpk')
 
             # Now read the first three records of the second file then stop
-            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
             log.debug("got result %s", result2)
 
             # Stop sampling
@@ -316,10 +317,10 @@ and confirm it restarts at the correct spot.
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
 
-            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 10)
+            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
             log.debug("got result 3 %s", result3)
             result2.extend(result3)
-            self.assert_data_values(result2, 'stop_start2.yml')
+            self.assert_data_values(result2, 'second_data.yml')
 
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
