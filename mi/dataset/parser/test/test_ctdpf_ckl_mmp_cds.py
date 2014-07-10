@@ -192,7 +192,6 @@ class CtdpfCklMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        log.info(parser._read_state)
         log.info(parser._state)
 
         stat_info = os.stat(file_path)
