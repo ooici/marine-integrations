@@ -129,5 +129,5 @@ class FlntuXMmpCdsDataSetDriver(MultipleHarvesterDataSetDriver):
                 self._exception_callback)
         else:
             harvester = None
-            raise ConfigurationException('flntu/flcdr harvester not built because missing config')
+            log.warn('flntu/flcdr harvester not built because missing config')
         return harvester

@@ -28,15 +28,13 @@ from mi.dataset.parser.mmp_cds_base import StateKey
 # Resource path for flntupf ckl mmp cds
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flntu_x', 'mmp_cds', 'resource')
 
-MSGPACK_TEST_FILE_LENGTH = 5278
-
 # The list of generated tests are the suggested tests, but there may
 # be other tests needed to fully test your parser
 
 @attr('UNIT', group='mi')
 class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
     """
-    flntupf_ckl_mmp_cds Parser unit test suite
+    flntu_x_mmp_cds Parser unit test suite
     """
 
     def state_callback(self, state, file_ingested):
@@ -69,10 +67,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
-                                      self.state_callback, self.pub_callback)
+        parser = FlntuXMmpCdsParser(self.config, None, stream_handle,
+                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(6)
 
@@ -100,9 +96,7 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlntuXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(20)
@@ -136,7 +130,7 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         state = {StateKey.PARTICLES_RETURNED: 0}
 
-        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlntuXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         # Attempt to retrieve 200 particles, but we will retrieve less
@@ -158,8 +152,6 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Using two concatenated msgpack files to simulate two chunks.
         file_path = os.path.join(RESOURCE_PATH, 'set_state.mpk')
         stream_handle = open(file_path, 'rb')
-
-        stat_info = os.stat(file_path)
 
         # Moving the file position to the end of the first chunk
         state = {StateKey.PARTICLES_RETURNED: 20}
@@ -193,9 +185,8 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(file_path, 'rb')
 
         # Moving the file position to the beginning
-        state = {StateKey.PARTICLES_RETURNED: 0}
 
-        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlntuXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(4)
@@ -203,7 +194,6 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        log.info(parser._read_state)
         log.info(parser._state)
 
         stat_info = os.stat(file_path)
@@ -273,9 +263,7 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flntu_1_20131124T005004_458-BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlntuXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
@@ -291,9 +279,7 @@ class FlntuXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlntuXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlntuXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):

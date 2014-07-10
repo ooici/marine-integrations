@@ -77,10 +77,6 @@ class FlntuXMmpCdsParser(MmpCdsParser):
         @param publish_callback The function to call to provide particles
         """
 
-        # The kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
-        # FlntuXMmpCdsParserDataParticle class
-        #kwargs[DataSetDriverConfigKeys.PARTICLE_CLASS] = FlntuXMmpCdsParserDataParticle
-
         # Call the superclass constructor
         super(FlntuXMmpCdsParser, self).__init__(config,
                                                    state,

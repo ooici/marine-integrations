@@ -69,9 +69,8 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flcdr_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
 
-        parser = FlcdrXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlcdrXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(6)
@@ -99,9 +98,7 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flcdr_1_20131124T005004_458.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlcdrXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlcdrXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(20)
@@ -134,9 +131,7 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flcdr_concat.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlcdrXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlcdrXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         # Attempt to retrieve 200 particles, but we will retrieve less
@@ -193,10 +188,7 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'set_state_cdr.mpk')
         stream_handle = open(file_path, 'rb')
 
-        # Moving the file position to the beginning
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlcdrXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlcdrXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(4)
@@ -204,10 +196,8 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        log.info(parser._read_state)
-        log.info(parser._state)
 
-        stat_info = os.stat(file_path)
+        log.info(parser._state)
 
         test_data = self.get_dict_from_yml('set_state_cdr.yml')
         self.assert_result(test_data['data'][0], particles[0])
@@ -272,9 +262,7 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'flcdr_1_20131124T005004_458-BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlcdrXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlcdrXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
@@ -290,9 +278,7 @@ class FlcdrXMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = FlcdrXMmpCdsParser(self.config, state, stream_handle,
+        parser = FlcdrXMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):

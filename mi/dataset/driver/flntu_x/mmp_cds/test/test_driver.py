@@ -88,7 +88,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-        self.clear_sample_data()
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -104,19 +103,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.get_samples(FlcdrXMmpCdsParserDataParticle, count=196, timeout=10)
 
 
-        # self.create_sample_data_set_dir('second.DAT', DIR_FLNTU, "E0000002.DAT")
-        # self.assert_data(FlntuXMmpCdsParserDataParticle, 'second.result.yml', count=4, timeout=10)
-        #
-        # self.create_sample_data_set_dir('E0000303.DAT', DIR_FLNTU, "E0000303.DAT")
-        # # start is the same particle here, just use the same results
-        # self.assert_data(FlntuXMmpCdsParserDataParticle, count=32, timeout=10)
-        #
-        # self.create_sample_data_set_dir('flcdr_1_20131124T005004_459.mpk', DIR_FLCDR, "E0000002.DAT")
-        # self.assert_data(FlcdrXMmpCdsParserDataParticle, 'secondRecovered.result.yml', count=4, timeout=10)
-        #
-        # self.create_sample_data_set_dir('E0000303.DAT', DIR_FLCDR, "E0000303.DAT")
-        #
-        # self.assert_data(FlcdrXMmpCdsParserDataParticle, count=32, timeout=10)
+        self.create_sample_data_set_dir('flntu_1_20131124T005004_459.mpk', DIR_FLNTU, "E0000002.mpk")
+        self.assert_data(FlntuXMmpCdsParserDataParticle, 'first1.yml', count=1, timeout=5)
+
+        self.create_sample_data_set_dir('flcdr_1_20131124T005004_459.mpk', DIR_FLCDR, "E0000002.mpk")
+        self.assert_data(FlcdrXMmpCdsParserDataParticle, 'first1_cdr.yml', count=1, timeout=5)
 
     def test_stop_resume(self):
         """
@@ -177,7 +168,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Notify the driver to re-start sampling
         self.driver.start_sampling()
 
-       # self.create_sample_data_set_dir('flcdr_1_20131124T005004_459.mpk', DIR_FLCDR, "F0000001.mpk")
         self.create_sample_data_set_dir('flntu_1_20131124T005004_458.mpk', DIR_FLNTU, "E0000002.mpk")
         self.create_sample_data_set_dir('flcdr_1_20131124T005004_458.mpk', DIR_FLCDR, "F0000002.mpk")
 
@@ -191,7 +181,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("=========== START INTEG TEST GET ANY ORDER ================")
 
         # Start sampling.
-        self.clear_sample_data()
         self.driver.start_sampling()
 
         self.clear_async_data()
@@ -251,42 +240,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
-
-
-    def create_data_dir(self):
-        """
-        Verify the test data directory is created and exists. Return the path to
-        the directory .
-        @return: path to data directory
-        @raise: IDKConfigMissing no harvester config
-        @raise: IDKException if data_dir exists, but not a directory
-        """
-        startup_config = self._driver_config().get('startup_config')
-        if not startup_config:
-            raise IDKConfigMissing("Driver config missing 'startup_config'")
-
-        harvester_config = startup_config.get('harvester')
-        if not harvester_config:
-            raise IDKConfigMissing("Startup config missing 'harvester' config")
-
-        data_dir = []
-
-        for key in harvester_config:
-            data_dir_key = harvester_config[key].get("directory")
-            if not data_dir_key:
-                raise IDKConfigMissing("Harvester config missing 'directory'")
-
-            if not os.path.exists(data_dir_key):
-                log.debug("Creating data dir: %s", data_dir_key)
-                os.makedirs(data_dir_key)
-
-            elif not os.path.isdir(data_dir_key):
-                raise IDKException("%s is not a directory" % data_dir_key)
-            data_dir.append(data_dir_key)
-
-        return data_dir
 
     def test_publish_path(self):
         """
@@ -343,7 +296,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Verify we get two samples
         try:
-
 
             self.create_sample_data_set_dir('flntu_1_20131124T005004_459.mpk', DIR_FLNTU, "E0000002.mpk")
             self.create_sample_data_set_dir('flcdr_1_20131124T005004_459.mpk', DIR_FLCDR, "E0000002.mpk")
