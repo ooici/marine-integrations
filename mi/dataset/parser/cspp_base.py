@@ -49,6 +49,7 @@ MULTIPLE_WHITESPACE_REGEX = r'\s+'
 # A kwargs key used to access the data regular expression
 DATA_REGEX_KWARGS_KEY = 'data_regex_kwargs_key'
 
+# The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
 # The key for the metadata particle class
 METADATA_PARTICLE_CLASS_KEY = 'metadata_particle_class'
 # The key for the data particle class
@@ -100,6 +101,7 @@ METADATA_PARTICLE_ENCODING_RULES = [
     (CsppMetadataParserDataParticleKey.START_DATE, HeaderMatchesGroupNumber.START_DATE, str),
 ]
 
+# The following items are used to index into source file name string
 LAST_CHARACTER_CONTROLLER_ID_SOURCE_FILE_CHAR_POSITION = 0
 DAY_OF_YEAR_NUMBER_SOURCE_FILE_STARTING_CHAR_POSITION = 1
 DAY_OF_YEAR_NUMBER_SOURCE_FILE_CHARS_END_RANGE = 4
@@ -365,9 +367,9 @@ class CsppParser(BufferLoadingParser):
 
                 # Extract the metadata particle
                 metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                             None,
-                                                             header_and_first_data_match,
-                                                             None)
+                                                         None,
+                                                         header_and_first_data_match,
+                                                         None)
 
                 data_particle = self._extract_sample(self._data_particle_class,
                                                      None,
