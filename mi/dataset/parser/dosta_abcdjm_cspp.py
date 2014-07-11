@@ -21,8 +21,9 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, DATA_REGEX_KWARGS_KEY, DATA_MATCHES_GROUP_NUMBER_OFFSET, \
-    CsppMetadataDataParticle, EncodingRuleIndex
+    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, DATA_REGEX_KWARGS_KEY, \
+    CsppMetadataDataParticle, MetadataRawDataKey, PARTICLE_KEY_INDEX, \
+    DATA_MATCHES_GROUP_NUMBER_INDEX, TYPE_ENCODING_INDEX
 
 
 # A regular expression for special characters that could exist in a data record preceding the model
@@ -36,15 +37,6 @@ DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX +
              MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
              MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
              MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
-
-
-class DataMatchesOffsetFromHeaderGroupNumber(BaseEnum):
-    """
-    An enum for group match indices offset from the header.  This is needed for a header and first data chunk
-    """
-    PROFILER_TIMESTAMP = DATA_MATCHES_GROUP_NUMBER_OFFSET + 1
-    MODEL = DATA_MATCHES_GROUP_NUMBER_OFFSET + 3
-    SERIAL_NUMBER = DATA_MATCHES_GROUP_NUMBER_OFFSET + 4
 
 
 class DataMatchesGroupNumber(BaseEnum):
@@ -97,8 +89,8 @@ class DostaAbcdjmCsppParserDataParticleKey(BaseEnum):
 
 # A group of non common metadata particle encoding rules used to simplify encoding using a loop
 NON_COMMON_METADATA_PARTICLE_ENCODING_RULES = [
-    (DostaAbcdjmCsppParserDataParticleKey.PRODUCT_NUMBER, DataMatchesOffsetFromHeaderGroupNumber.MODEL, int),
-    (DostaAbcdjmCsppParserDataParticleKey.SERIAL_NUMBER, DataMatchesOffsetFromHeaderGroupNumber.SERIAL_NUMBER, int)
+    (DostaAbcdjmCsppParserDataParticleKey.PRODUCT_NUMBER, DataMatchesGroupNumber.MODEL, int),
+    (DostaAbcdjmCsppParserDataParticleKey.SERIAL_NUMBER, DataMatchesGroupNumber.SERIAL_NUMBER, int)
 ]
 
 # A group of instrument data particle encoding rules used to simplify encoding using a loop
@@ -138,17 +130,21 @@ class DostaAbcdjmCsppMetadataDataParticle(CsppMetadataDataParticle):
             # Append the base metadata parsed values to the results to return
             results += self._build_metadata_parsed_values()
 
+            data_match = self.raw_data[MetadataRawDataKey.DATA_MATCH]
+
             # Process each of the non common metadata particle parameters
             for rule in NON_COMMON_METADATA_PARTICLE_ENCODING_RULES:
-
+        
                 results.append(self._encode_value(
-                    rule[EncodingRuleIndex.PARTICLE_KEY_INDEX],
-                    self.raw_data.group(rule[EncodingRuleIndex.MATCHES_GROUP_NUMBER_INDEX]),
-                    rule[EncodingRuleIndex.TYPE_ENCODING_INDEX]))
+                    rule[PARTICLE_KEY_INDEX],
+                    data_match.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
+                    rule[TYPE_ENCODING_INDEX]))
+
+            log.info('DostaAbcdjmCsppMetadataRecoveredDataParticle data_match: %s', data_match)
 
             # Set the internal timestamp
-            internal_timestamp_unix = numpy.float(self.raw_data.group(
-                DataMatchesOffsetFromHeaderGroupNumber.PROFILER_TIMESTAMP))
+            internal_timestamp_unix = numpy.float(data_match.group(
+                DataMatchesGroupNumber.PROFILER_TIMESTAMP))
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
 
         except (ValueError, TypeError, IndexError) as ex:
@@ -197,13 +193,13 @@ class DostaAbcdjmCsppInstrumentDataParticle(DataParticle):
             for rule in INSTRUMENT_PARTICLE_ENCODING_RULES:
 
                 results.append(self._encode_value(
-                    rule[EncodingRuleIndex.PARTICLE_KEY_INDEX],
-                    self.raw_data.group(rule[EncodingRuleIndex.MATCHES_GROUP_NUMBER_INDEX]),
-                    rule[EncodingRuleIndex.TYPE_ENCODING_INDEX]))
+                    rule[PARTICLE_KEY_INDEX],
+                    self.raw_data.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
+                    rule[TYPE_ENCODING_INDEX]))
 
-            # Set the internal timestamp
+            # # Set the internal timestamp
             internal_timestamp_unix = numpy.float(self.raw_data.group(
-                DataMatchesOffsetFromHeaderGroupNumber.PROFILER_TIMESTAMP))
+                DataMatchesGroupNumber.PROFILER_TIMESTAMP))
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
 
         except (ValueError, TypeError, IndexError) as ex:
@@ -211,7 +207,7 @@ class DostaAbcdjmCsppInstrumentDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        log.debug('DostaAbcdjmCsppMetadataRecoveredDataParticle: particle=%s', results)
+        log.debug('DostaAbcdjmCsppInstrumentDataParticle: particle=%s', results)
         return results
 
 

@@ -13,6 +13,7 @@ initial release
 __author__ = 'Mark Worden'
 __license__ = 'Apache 2.0'
 
+from functools import partial
 import copy
 import re
 import time
@@ -21,26 +22,17 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import DatasetParserException, UnexpectedDataException
+from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
 # The following defines a regular expression for one or more instances of a carriage return, line feed or both
 CARRIAGE_RETURN_LINE_FEED_OR_BOTH = r'(?:\r\n|\r|\n)'
+SIEVE_MATCHER = re.compile(r'.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH)
 
-# The HEADER_REGEX below is used to capture a header that looks like the following:
-#   Source File: C:\data\ooi\CSPP\uCSPP_2014_04_14_deploy\recoveredData\11079894.PPB
-#   Processed: 06/12/2014 20:07:45
-#   Using Version: 1.10
-#   Device: OPT
-#   Start Date: 04/17/2014
-#   Timestamp (s)	Depth (m)	Data
-HEADER_REGEX = r'^Source File:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
-               'Processed:\s+([^\s]+)\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
-               'Using Version:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
-               'Device:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH +\
-               'Start Date:\s+([^\s]+)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH + \
-               'Timestamp.+' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+HEADER_PART_REGEX = r'(.*):\s+(.*)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+HEADER_PART_MATCHER = re.compile(HEADER_PART_REGEX)
 
 # A regex to capture a float value
 FLOAT_REGEX = r'(?:[0-9]|[1-9][0-9])+\.[0-9]+'
@@ -52,6 +44,9 @@ MULTIPLE_TAB_REGEX = r'\t+'
 # A kwargs key used to access the data regular expression
 DATA_REGEX_KWARGS_KEY = 'data_regex_kwargs_key'
 
+# TODO
+HEADER_KEY_LIST_KWARGS_KEY = 'header_key_list_wargs_key'
+
 # The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
 # The key for the metadata particle class
 METADATA_PARTICLE_CLASS_KEY = 'metadata_particle_class'
@@ -59,20 +54,27 @@ METADATA_PARTICLE_CLASS_KEY = 'metadata_particle_class'
 DATA_PARTICLE_CLASS_KEY = 'data_particle_class'
 
 
-class HeaderMatchesGroupNumber(BaseEnum):
+class HeaderPartMatchesGroupNumber(BaseEnum):
     """
     An enum used to access match group values
     """
-    SOURCE_FILE_PATH = 1
-    PROCESSED_DATE = 2
-    PROCESSED_TIME = 3
-    PREPROCESSING_SOFTWARE_VERSION = 4
-    DEVICE = 5
-    START_DATE = 6
+    HEADER_PART_MATCH_GROUP_KEY = 1
+    HEADER_PART_MATCH_GROUP_VALUE = 2
 
-# An offset used to access the additional non-meta data match group values upon matching the header and first
-# data record
-DATA_MATCHES_GROUP_NUMBER_OFFSET = HeaderMatchesGroupNumber.START_DATE
+
+class DefaultHeaderKey(BaseEnum):
+    """
+    An enum for the default set of header keys
+    """
+    SOURCE_FILE = 'Source File'
+    PROCESSED = 'Processed'
+    USING_VERSION = 'Using Version'
+    DEVICE = 'Device'
+    START_DATE = 'Start Date'
+
+
+# The default set of header keys as a list
+DEFAULT_HEADER_KEY_LIST = DefaultHeaderKey.list()
 
 
 class CsppMetadataParserDataParticleKey(BaseEnum):
@@ -88,20 +90,20 @@ class CsppMetadataParserDataParticleKey(BaseEnum):
     START_DATE = 'start_date'
 
 
-class EncodingRuleIndex(BaseEnum):
-    """
-    An enum used to access encoding rule tuple members
-    """
-    PARTICLE_KEY_INDEX = 0
-    MATCHES_GROUP_NUMBER_INDEX = 1
-    TYPE_ENCODING_INDEX = 2
+# The following are used to index into encoding rules tuple structures.  The HEADER_DICTIONARY_KEY_INDEX
+# is the same value as the DATA_MATCHES_GROUP_NUMBER_INDEX because one is used for the metadata and the other
+# is used for the data record.
+PARTICLE_KEY_INDEX = 0
+HEADER_DICTIONARY_KEY_INDEX = 1
+DATA_MATCHES_GROUP_NUMBER_INDEX = 1
+TYPE_ENCODING_INDEX = 2
 
 
 # A group of metadata particle encoding rules used to simplify encoding using a loop
 METADATA_PARTICLE_ENCODING_RULES = [
-    (CsppMetadataParserDataParticleKey.SOURCE_FILE, HeaderMatchesGroupNumber.SOURCE_FILE_PATH, str),
-    (CsppMetadataParserDataParticleKey.PREPROCESSING_SOFTWARE_VERSION, HeaderMatchesGroupNumber.DEVICE, str),
-    (CsppMetadataParserDataParticleKey.START_DATE, HeaderMatchesGroupNumber.START_DATE, str),
+    (CsppMetadataParserDataParticleKey.SOURCE_FILE, DefaultHeaderKey.SOURCE_FILE, str),
+    (CsppMetadataParserDataParticleKey.PREPROCESSING_SOFTWARE_VERSION, DefaultHeaderKey.USING_VERSION, str),
+    (CsppMetadataParserDataParticleKey.START_DATE, DefaultHeaderKey.START_DATE, str),
 ]
 
 # The following items are used to index into source file name string
@@ -112,12 +114,21 @@ FRACTION_OF_DAY_SOURCE_FILE_STARTING_CHAR_POSITION = 4
 FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE = 8
 
 
+class MetadataRawDataKey(BaseEnum):
+    """
+    An enum for the state data applicable to a CsppParser
+    """
+    HEADER_DICTIONARY = 0
+    DATA_MATCH = 1
+
+
 class StateKey(BaseEnum):
     """
     An enum for the state data applicable to a CsppParser
     """
     POSITION = 'position'  # holds the file position
-    HEADER_AND_FIRST_DATA_RECORD_FOUND = 'header_and_first_data_record_found'
+    HEADER_STATE = 'header_state'
+    METADATA_PUBLISHED = 'metadata_published'
 
 
 class CsppMetadataDataParticle(DataParticle):
@@ -128,7 +139,8 @@ class CsppMetadataDataParticle(DataParticle):
     def _build_metadata_parsed_values(self):
         """
         This method builds and returns a list of encoded common metadata particle values from the raw_data which
-        is expected to be regular expression match data
+        is expected to be regular expression match data.  This method would need to be overridden if the header
+        items do not include what is in the DefaultHeaderKey enum
         @throws ValueError, TypeError, IndexError If there is a problem with particle parsing
         @returns result list of metadata parsed values
         """
@@ -136,8 +148,11 @@ class CsppMetadataDataParticle(DataParticle):
         # Initialize the results to return
         results = []
 
-        # Grab the source file path from the match raw_data
-        source_file_path = self.raw_data.group(HeaderMatchesGroupNumber.SOURCE_FILE_PATH)
+        # Grab the header data dictionary, which is the first item in the raw_data tuple
+        header_dict = self.raw_data[MetadataRawDataKey.HEADER_DICTIONARY]
+
+        # Grab the source file path from the match raw_data's
+        source_file_path = header_dict[DefaultHeaderKey.SOURCE_FILE]
 
         # Split the source file path using an escaped backslash.  The path is expected to be a Windows based
         # file path.
@@ -168,8 +183,7 @@ class CsppMetadataDataParticle(DataParticle):
             int))
 
         # Grab the processed date and time from the match raw_data
-        processed_date = self.raw_data.group(HeaderMatchesGroupNumber.PROCESSED_DATE)
-        processed_time = self.raw_data.group(HeaderMatchesGroupNumber.PROCESSED_TIME)
+        (processed_date, processed_time) = header_dict[DefaultHeaderKey.PROCESSED].split()
 
         # Encode the processing time which includes the processed date and time retrieved above
         results.append(self._encode_value(
@@ -177,13 +191,13 @@ class CsppMetadataDataParticle(DataParticle):
             time.mktime(time.strptime(processed_date + " " + processed_time, "%m/%d/%Y %H:%M:%S")),
             str))
 
-        # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
+        # # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
         for rule in METADATA_PARTICLE_ENCODING_RULES:
 
             results.append(self._encode_value(
-                rule[EncodingRuleIndex.PARTICLE_KEY_INDEX],
-                self.raw_data.group(rule[EncodingRuleIndex.MATCHES_GROUP_NUMBER_INDEX]),
-                rule[EncodingRuleIndex.TYPE_ENCODING_INDEX]))
+                rule[PARTICLE_KEY_INDEX],
+                header_dict[rule[HEADER_DICTIONARY_KEY_INDEX]],
+                rule[TYPE_ENCODING_INDEX]))
 
         log.debug('CsppMetadataDataParticle: particle=%s', results)
         return results
@@ -221,9 +235,18 @@ class CsppParser(BufferLoadingParser):
         else:
             # Obtain the data record regex from the kwargs
             data_record_regex = kwargs.pop(DATA_REGEX_KWARGS_KEY)
-            # Compile each of the regular expressions to be used later
-            self._header_and_first_data_record_matcher = re.compile(HEADER_REGEX + data_record_regex)
             self._data_record_matcher = re.compile(data_record_regex)
+
+        header_state = {}
+
+        header_key_list = DEFAULT_HEADER_KEY_LIST
+
+        if HEADER_KEY_LIST_KWARGS_KEY in kwargs:
+            header_key_list = kwargs.pop(HEADER_KEY_LIST_KWARGS_KEY)
+
+        for header_key in header_key_list:
+            header_state[header_key] = None
+        log.debug("header state members: ", header_state)
 
         # Obtain the particle classes dictionary from the config data
         particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
@@ -234,14 +257,17 @@ class CsppParser(BufferLoadingParser):
         # Initialize the record buffer to an empty list
         self._record_buffer = []
 
-        # Initialize the read state POSITION to 0
-        self._read_state = {StateKey.POSITION: 0, StateKey.HEADER_AND_FIRST_DATA_RECORD_FOUND: False}
+        # Initialize the read state POSITION to 0, and HEADER_STATE as an empty dictionary
+        self._read_state = {StateKey.POSITION: 0,
+                            StateKey.HEADER_STATE: header_state,
+                            StateKey.METADATA_PUBLISHED: False}
 
         # Call the superclass constructor
         super(CsppParser, self).__init__(config,
                                          stream_handle,
                                          state,
-                                         self.sieve_function,
+                                         partial(StringChunker.regex_sieve_function,
+                                                 regex_list=[SIEVE_MATCHER]),
                                          state_callback,
                                          publish_callback,
                                          exception_callback,
@@ -269,75 +295,6 @@ class CsppParser(BufferLoadingParser):
         """
         self._read_state[StateKey.POSITION] += increment
 
-    def sieve_function(self, data_buffer):
-        """
-        This method sorts through the raw data to identify new blocks of data that need processing.
-        @param data_buffer the data from a cspp data file for which to return the chunk location information
-        @return the list of tuples containing the start index and range for each chunk
-        """
-
-        indices_list = []    # initialize the return list to empty
-
-        # Keep searching until the data buffer is exhausted.
-        search_index = 0
-        while search_index < len(data_buffer):
-
-            # If we have not already found the header and first data record, let's see if we can find it in the data
-            # buffer
-            if not self._read_state[StateKey.HEADER_AND_FIRST_DATA_RECORD_FOUND]:
-
-                # Perform a regular expression match search within the input data_buffer
-                header_and_first_data_match = self._header_and_first_data_record_matcher.search(
-                    data_buffer[search_index:])
-
-                # See if we found a header and first data record match
-                if header_and_first_data_match is not None:
-
-                    # We found it, let's indicate as such in our state
-                    self._read_state[StateKey.HEADER_AND_FIRST_DATA_RECORD_FOUND] = True
-
-                    # Compute the start of the chunk
-                    chunk_start = header_and_first_data_match.start() + search_index
-
-                    # Compute the chunk range
-                    chunk_range = chunk_start + len(header_and_first_data_match.group(0))
-
-                    # Add the chunk start and end range to the indices_list to return
-                    indices_list.append((chunk_start, chunk_range))
-
-                    # Update the search index to the end chunk range
-                    search_index = chunk_range
-
-                else:
-                    # Update the search index by offsetting it by one byte
-                    search_index += 1
-
-            # We already found the header and first data record, so let's see if we can find a data record match
-            else:
-                data_match = self._data_record_matcher.search(data_buffer[search_index:])
-
-                if data_match is not None:
-
-                    # Compute the start of the chunk
-                    chunk_start = data_match.start() + search_index
-
-                    # Compute the chunk range
-                    chunk_range = chunk_start + len(data_match.group(0))
-
-                    # Add the chunk start and end range to the indices_list to return
-                    indices_list.append((chunk_start, chunk_range))
-
-                    # Update the search index to the end chunk range
-                    search_index = chunk_range
-
-                else:
-                    # Update the search index by offsetting it by one byte
-                    search_index += 1
-
-        log.debug("Returning indices_list: %s", indices_list)
-
-        return indices_list
-
     def parse_chunks(self):
         """
         Parse out any pending data chunks in the chunker. If
@@ -362,49 +319,46 @@ class CsppParser(BufferLoadingParser):
         # While the data chunk is not None, process the data chunk
         while chunk is not None:
 
-            # See if the chunk matches the header and first data record
-            header_and_first_data_match = self._header_and_first_data_record_matcher.match(chunk)
+            # See if the chunk matches a data record
+            data_match = self._data_record_matcher.match(chunk)
 
-            # If we found a header and first data record, let's process it
-            if header_and_first_data_match:
+            # If we found a match, let's process it
+            if data_match:
 
-                # Extract the metadata particle
-                metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                         None,
-                                                         header_and_first_data_match,
-                                                         None)
-
+                # Extract the data record particle
                 data_particle = self._extract_sample(self._data_particle_class,
                                                      None,
-                                                     self._data_record_matcher.search(
-                                                         header_and_first_data_match.group(0)),
+                                                     data_match,
                                                      None)
 
-                # If we crated the metadata and data particle, let's append each particle to the result particles
+                # If we created a data particle, let's append the particle to the result particles
                 # to return and increment the state data positioning
-                if metadata_particle and data_particle:                    
-                    result_particles.append((metadata_particle, copy.copy(self._read_state)))
+                if data_particle:
                     result_particles.append((data_particle, copy.copy(self._read_state)))
+
+                    if self._read_state[StateKey.METADATA_PUBLISHED] is False and \
+                            None not in self._read_state[StateKey.HEADER_STATE].values():
+                        metadata_particle = self._extract_sample(self._metadata_particle_class,
+                                                                 None,
+                                                                 (copy.copy(self._read_state[StateKey.HEADER_STATE]),
+                                                                  data_match),
+                                                                 None)
+                        if metadata_particle:
+                            result_particles.append((metadata_particle, copy.copy(self._read_state)))
+                            self._read_state[StateKey.METADATA_PUBLISHED] = True
+
                     self._update_positional_state(len(chunk))
 
             else:
-                # See if the chunk matches a data record
-                data_match = self._data_record_matcher.match(chunk)
+                header_part_match = HEADER_PART_MATCHER.match(chunk)
 
-                # If we found a match, let's process it
-                if data_match:
-                    
-                    # Extract the data record particle 
-                    data_particle = self._extract_sample(self._data_particle_class,
-                                                         None,
-                                                         data_match,
-                                                         None)
-                    
-                    # If we created a data particle, let's append the particle to the result particles
-                    # to return and increment the state data positioning
-                    if data_particle:
-                        result_particles.append((data_particle, copy.copy(self._read_state)))
-                        self._update_positional_state(len(chunk))
+                if header_part_match is not None:
+                    header_part_key = header_part_match.group(
+                        HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
+                    header_part_value = header_part_match.group(
+                        HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
+                    if header_part_key in self._read_state[StateKey.HEADER_STATE].keys():
+                        self._read_state[StateKey.HEADER_STATE][header_part_key] = header_part_value
 
             # Retrieve the next non data chunk
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -415,7 +369,7 @@ class CsppParser(BufferLoadingParser):
             # Process the non data
             self.handle_non_data(non_data, non_end, start)
 
-        log.debug(result_particles)
+        log.debug("parser chunks returning: %s", result_particles)
 
         return result_particles
 
