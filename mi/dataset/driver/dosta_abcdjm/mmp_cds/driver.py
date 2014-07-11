@@ -14,9 +14,7 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-
-from mi.dataset.dataset_driver import SimpleDataSetDriver
+from mi.dataset.dataset_driver import SimpleDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.dosta_abcdjm_mmp_cds import DostaAbcdjmMmpCdsParser, DostaAbcdjmMmpCdsParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
