@@ -260,7 +260,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recoverable_step_1.yml',
+        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
                          count=2, timeout=10)
 
     def test_stop_resume_recovered_step2(self):
@@ -303,7 +303,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recoverable_step_2.yml',
+        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_2.yml',
                          count=2, timeout=10)
 
     def test_back_fill(self):
