@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.dataset.dataset_driver import SimpleDataSetDriver
+from mi.dataset.dataset_driver import SimpleDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.optaa_ac_mmp_cds import OptaaAcMmpCdsParser, OptaaAcMmpCdsParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
@@ -31,8 +31,8 @@ class OptaaAcMmpCdsDataSetDriver(SimpleDataSetDriver):
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.optaa_ac_mmp_cds',
-            'particle_class': 'OptaaAcMmpCdsParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.optaa_ac_mmp_cds',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'OptaaAcMmpCdsParserDataParticle'
         })
         log.debug("My Config: %s", config)
         self._parser = OptaaAcMmpCdsParser(
