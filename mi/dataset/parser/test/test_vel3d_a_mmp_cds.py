@@ -68,9 +68,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'first_data.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
 
-        parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
+        parser = Vel3dAMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(6)
@@ -94,9 +93,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'first_data.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
+        parser = Vel3dAMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         particles = parser.get_records(20)
@@ -126,10 +123,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'acm_concat.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
-                                      self.state_callback, self.pub_callback)
+        parser = Vel3dAMmpCdsParser(self.config, None, stream_handle,
+                                    self.state_callback, self.pub_callback)
 
         # Attempt to retrieve 400 particles, but we will retrieve less
         particles = parser.get_records(400)
@@ -157,7 +152,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         state = {StateKey.PARTICLES_RETURNED: 193}
 
         parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
-                                      self.state_callback, self.pub_callback)
+                                    self.state_callback, self.pub_callback)
 
         particles = parser.get_records(4)
 
@@ -183,11 +178,11 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'state_test.mpk')
         stream_handle = open(file_path, 'rb')
 
-        # Moving the file position to the beginning
-        state = {StateKey.PARTICLES_RETURNED: 0}
+        # Moving the file position to the end of the first chunk
+        state = {StateKey.PARTICLES_RETURNED: 193}
 
         parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
-                                      self.state_callback, self.pub_callback)
+                                    self.state_callback, self.pub_callback)
 
         particles = parser.get_records(4)
 
@@ -198,8 +193,9 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         stat_info = os.stat(file_path)
 
-        test_data = self.get_dict_from_yml('first_data.yml')
-        self.assert_result(test_data['data'][3], particles[3])
+        test_data = self.get_dict_from_yml('second_data.yml')
+        for n in range(4):
+            self.assert_result(test_data['data'][n], particles[n])
 
         state = copy.copy(parser._state)
 
@@ -213,7 +209,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        self.assert_result(test_data['data'][7], particles[3])
+        for n in range(4):
+            self.assert_result(test_data['data'][n+4], particles[n])
 
         # Give a bad position which will be ignored
         state = {StateKey.PARTICLES_RETURNED: 0}
@@ -226,7 +223,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 1)
 
         # Give a bad position which will be ignored
-        state = {StateKey.PARTICLES_RETURNED: 0}
+        state = {StateKey.PARTICLES_RETURNED: -1}
 
         parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
                                       self.state_callback, self.pub_callback)
@@ -259,9 +256,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'acm_1_20131124T005004_458-BAD.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
+        parser = Vel3dAMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):
@@ -277,9 +272,7 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'not-msg-pack.mpk')
         stream_handle = open(file_path, 'rb')
 
-        state = {StateKey.PARTICLES_RETURNED: 0}
-
-        parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
+        parser = Vel3dAMmpCdsParser(self.config, None, stream_handle,
                                       self.state_callback, self.pub_callback)
 
         with self.assertRaises(SampleException):

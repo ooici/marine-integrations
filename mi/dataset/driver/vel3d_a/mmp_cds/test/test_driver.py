@@ -228,24 +228,26 @@ at the correct spot.
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 10})
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 2})
 
         self.assert_start_sampling()
 
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 4, 200)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'stop_start1.yml')
+            self.assert_data_values(result, 'first_four.yml')
+
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 189, 200)
 
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
             self.create_sample_data('second_data.mpk', 'stop_start2.mpk')
 
-            # Now read the first three records of the second file then stop
+            # Now read the first ten records of the second file then stop
             result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 10, 100)
             log.debug("got result %s", result2)
 
@@ -255,7 +257,7 @@ at the correct spot.
             # Make sure there are no samples in the queue
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
-            # Restart sampling and ensure we get the last 3 records of the file
+            # Restart sampling and ensure we get the last ten records of the file
             self.assert_start_sampling()
 
             result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 10, 100)
@@ -281,25 +283,28 @@ and confirm it restarts at the correct spot.
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 10})
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 2})
 
         self.assert_start_sampling()
 
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
+            result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 4, 200)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'first_data.yml')
+            self.assert_data_values(result, 'first_four.yml')
+
+            # dump extra data
+            self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 189, 200)
 
             self.assert_sample_queue_size(DataParticleType.INSTRUMENT, 0)
 
             self.create_sample_data('second_data.mpk', 'stop_start2.mpk')
 
-            # Now read the first three records of the second file then stop
-            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
+            # Now read the first ten records of the second file then stop
+            result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 10, 200)
             log.debug("got result %s", result2)
 
             # Stop sampling
@@ -314,10 +319,10 @@ and confirm it restarts at the correct spot.
             #re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-            # Restart sampling and ensure we get the last 3 records of the file
+            # Restart sampling and ensure we get the last ten records of the file
             self.assert_start_sampling()
 
-            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 3, 100)
+            result3 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 10, 100)
             log.debug("got result 3 %s", result3)
             result2.extend(result3)
             self.assert_data_values(result2, 'second_data.yml')

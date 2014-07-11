@@ -20,7 +20,7 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.dataset.parser.mmp_cds_base import MmpCdsParserDataParticle, MmpCdsParser
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
+
 
 
 class DataParticleType(BaseEnum):
@@ -97,8 +97,6 @@ class Vel3dAMmpCdsParser(MmpCdsParser):
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
         """
-
-        # The kwargs parameter keyed by DataSetDriverConfigKeys.PARTICLE_CLASS to the
 
         # Call the superclass constructor
         super(Vel3dAMmpCdsParser, self).__init__(config,
