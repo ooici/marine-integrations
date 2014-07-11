@@ -21,7 +21,7 @@ from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle, PhsenControlDataParticle
-from mi.dataset.parser.phsen_abcdef import PhsenRecoveredParser
+from mi.dataset.parser.phsen_abcdef import PhsenRecoveredParser, PhsenRecoveredInstrumentDataParticle, PhsenRecoveredMetadataDataParticle
 
 class DataSourceKey(BaseEnum):
     """
@@ -32,14 +32,17 @@ class DataSourceKey(BaseEnum):
 
 class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
 
+    parser_created_count = 0
+
     @classmethod
     def stream_config(cls):
         return [PhsenParserDataParticle.type(),
-                PhsenControlDataParticle.type()]
+                PhsenControlDataParticle.type(), PhsenRecoveredMetadataDataParticle.type(),
+                PhsenRecoveredInstrumentDataParticle.type()]
     
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.PHSEN_ABCDEF_SIO_MULE, DataSourceKey.PHSEN_ABCDEF]
+        data_keys = DataSourceKey.list()
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.PHSEN_ABCDEF_SIO_MULE: HarvesterType.SINGLE_FILE,
                           DataSourceKey.PHSEN_ABCDEF: HarvesterType.SINGLE_DIRECTORY}
@@ -57,6 +60,9 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
             parser = self._build_telemetered_parser(parser_state, stream_in)
         elif data_key == DataSourceKey.PHSEN_ABCDEF:
             parser = self._build_recovered_parser(parser_state, stream_in)
+            self.parser_created_count += 1
+            log.debug("just built parser, count %d state: %s", self.parser_created_count,
+                      parser_state)
         else:
             raise ConfigurationException('Tried to build parser for unknown data source key %s' % data_key)
         return parser
@@ -130,7 +136,11 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
                 lambda modified: self._modified_file_callback(modified, DataSourceKey.PHSEN_ABCDEF),
                 self._exception_callback)
 
-            harvesters.append(recov_harvester)
+            if recov_harvester is not None:
+                log.debug("harvester was built")
+                harvesters.append(recov_harvester)
+            else:
+                log.debug("Recovered Harvester could not be built")
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.PHSEN_ABCDEF)
 

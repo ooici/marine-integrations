@@ -27,7 +27,7 @@ from mi.core.exceptions import SampleException, DatasetParserException, Unexpect
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
-# ASCII File with records separated by carriage return
+# ASCII File with records separated by carriage return, newline, or carriage return - line feed
 RECORD_REGEX = r'.*[\r|\n|\r\n]'
 RECORD_MATCHER = re.compile(RECORD_REGEX)
 
@@ -78,15 +78,19 @@ PH_REFERENCE_MEASUREMENTS = 16
 PH_LIGHT_MEASUREMENTS = 92
 
 # Control type consists of Info (128 - 191) and Error (192 - 255). Some of these are excluded
-# as they are a different length and are in SPECIAL_CONTROL_TYPE
+# as they are a different length and are in BATTERY_CONTROL_TYPE and DATA_CONTROL_TYPE
 CONTROL_TYPE = [128, 129, 131, 133, 134, 135, 190, 194, 195, 196, 197, 198, 254]
+# Control msg with battery voltage field
 BATTERY_CONTROL_TYPE = [192, 193]
-# Special includes battery and control messages with test data field
-SPECIAL_CONTROL_TYPE = [191, 192, 193, 255]
+# Control msg that may have a test data field
+DATA_CONTROL_TYPE = [191, 255]
 
-# Number of fields in the control messages
+# Control msg with battery field
+BATTERY_CONTROL_MSG_NUM_FIELDS = 7
+# Note: control msg with test data field will have 7 fields, otherwise 6
+DATA_CONTROL_MSG_NUM_FIELDS = 7
+# Number of fields in the other control messages (not including battery or data type)
 CONTROL_MSG_NUM_FIELDS = 6
-SPECIAL_CONTROL_MSG_NUM_FIELDS = 7
 
 TIMESTAMP_FIELD = 1
 
@@ -310,12 +314,17 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
                   self._encode_value(PhsenRecoveredMetadataDataParticleKey.NUM_ERROR_RECORDS, num_error_records, int),
                   self._encode_value(PhsenRecoveredMetadataDataParticleKey.NUM_BYTES_STORED, num_bytes_stored, int)]
 
+        log.debug("record_type: %s", record_type)
+        record_type = int(record_type)
         if record_type in BATTERY_CONTROL_TYPE:
+            log.debug("have battery - control type: %s", record_type)
             field += 1
             battery_voltage = self.raw_data[field]
             temp_result = self._encode_value(PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY, battery_voltage, int)
             result.append(temp_result)
+            log.debug("have battery: %s", result)
         else:
+            log.debug("in else for record_type")
             # This will handle anything after NUM_ERROR_RECORDS, including data in type 191 and 255.
             result.append({DataParticleKey.VALUE_ID: PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY,
                            DataParticleKey.VALUE: None})
@@ -335,14 +344,6 @@ class PhsenRecoveredParser(BufferLoadingParser):
                  exception_callback,
                  *args, **kwargs):
 
-        if state is None:
-            state = {}
-        if not ((StateKey.POSITION in state)):
-            state[StateKey.POSITION] = 0
-        if not ((StateKey.START_OF_DATA in state)):
-
-            state[StateKey.START_OF_DATA] = False
-
         # noinspection PyArgumentList,PyArgumentList,PyArgumentList,PyArgumentList,PyArgumentList
         super(PhsenRecoveredParser, self).__init__(config, stream_handle, state,
                                                    partial(StringChunker.regex_sieve_function,
@@ -357,6 +358,8 @@ class PhsenRecoveredParser(BufferLoadingParser):
 
         if state:
             self.set_state(self._state)
+
+        self.ph_count = 0
 
     def set_state(self, state_obj):
         """
@@ -402,11 +405,12 @@ class PhsenRecoveredParser(BufferLoadingParser):
         while chunk is not None:
             # log.debug('PARSER chunk: <%s>', chunk)
             self._increment_state(len(chunk))
-            if not self._state[StateKey.START_OF_DATA]:
+            if not self._read_state[StateKey.START_OF_DATA]:
 
                 start_of_data = START_OF_DATA_MATCHER.match(chunk)
                 if start_of_data:
-                    self._state[StateKey.START_OF_DATA] = True
+                    log.debug("matched start_of_data")
+                    self._read_state[StateKey.START_OF_DATA] = True
             else:
 
                 # if this chunk is a data match process it, otherwise it is a metadata record which is ignored
@@ -414,6 +418,8 @@ class PhsenRecoveredParser(BufferLoadingParser):
                 control_match = CONTROL_MATCHER.match(chunk)
 
                 if ph_match:
+                    self.ph_count += 1
+                    log.debug("matched ph %d %s", self.ph_count, chunk)
                     fields = chunk.split()
                     # log.debug('PH len %d fields %s', len(fields), fields)
 
@@ -427,18 +433,32 @@ class PhsenRecoveredParser(BufferLoadingParser):
                         # log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
 
                 elif control_match:
+                    log.debug("matched control %s", chunk)
                     record_type = int(control_match.group(1), 10)
                     fields = chunk.split()
-                    if record_type in CONTROL_TYPE or record_type in SPECIAL_CONTROL_TYPE:
-                        # log.debug('num fields in control msg: %d', len(fields))
-                        if (record_type in SPECIAL_CONTROL_TYPE and
-                            len(fields) != SPECIAL_CONTROL_MSG_NUM_FIELDS) or \
-                                (record_type in CONTROL_TYPE and len(fields) != CONTROL_MSG_NUM_FIELDS):
-
-                                log.warn('Unexpected number of fields (%d) for control record type %d', len(fields),
-                                         record_type)
+                    if record_type in CONTROL_TYPE or record_type in BATTERY_CONTROL_TYPE \
+                            or record_type in DATA_CONTROL_TYPE:
+                        log.debug('num fields in control msg: %d', len(fields))
+                        # Check the length of the battery control messages first.
+                        if record_type in BATTERY_CONTROL_TYPE and len(fields) != BATTERY_CONTROL_MSG_NUM_FIELDS:
+                                log.warn('Unexpected num of fields (%d) for control record type (battery) %d',
+                                         len(fields), record_type)
                                 self._exception_callback(SampleException("Unexpected number of fields %d"
                                                                          % len(fields)))
+
+                        # DATA_CONTROL_TYPE messages may or may not have a data field
+                        elif record_type in DATA_CONTROL_TYPE and \
+                                (len(fields) != DATA_CONTROL_MSG_NUM_FIELDS) and \
+                                (len(fields) != DATA_CONTROL_MSG_NUM_FIELDS-1):
+                                log.warn('Unexpected num of fields (%d) for control record type (data) %d',
+                                         len(fields), record_type)
+                                self._exception_callback(SampleException("Unexpected number of fields %d"
+                                                                         % len(fields)))
+
+                        elif record_type in CONTROL_TYPE and len(fields) != CONTROL_MSG_NUM_FIELDS:
+                            log.warn('Unexpected number of fields (%d) for control record type %d', len(fields),
+                                     record_type)
+                            self._exception_callback(SampleException("Unexpected number of fields %d" % len(fields)))
 
                         else:
                             # particle-ize the data block received, return the record
@@ -456,7 +476,7 @@ class PhsenRecoveredParser(BufferLoadingParser):
                         self._exception_callback(SampleException("Invalid Record Type %d" % record_type))
                 else:
                     # Non-PH or non-Control type or REGEX not matching PH/Control record
-                    log.warn("REGEX doesn't match PH or Control record")
+                    log.warn("REGEX doesn't match PH or Control record %s", chunk)
                     self._exception_callback(SampleException("REGEX doesn't match PH or Control record"))
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
