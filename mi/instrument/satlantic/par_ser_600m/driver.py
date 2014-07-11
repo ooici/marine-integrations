@@ -22,7 +22,6 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
-from mi.core.instrument.data_decorator import ChecksumDecorator
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -253,12 +252,46 @@ class SatlanticPARDataParticle(DataParticle):
         if not checksum:
             raise SampleException("No checksum value parsed")
 
+        if not self._checksum_check(self.raw_data):
+            self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
+
         result = [{DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: sernum},
                   {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.TIMER, DataParticleKey.VALUE: timer},
                   {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.COUNTS, DataParticleKey.VALUE: counts},
                   {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.CHECKSUM, DataParticleKey.VALUE: checksum}]
 
         return result
+
+    def _checksum_check(self, data):
+            """
+            Confirm that the checksum is valid for the data line
+            @param data The entire line of data, including the checksum
+            @retval True if the checksum fits, False if the checksum is bad
+            """
+            assert (data is not None)
+            assert (data != "")
+            match = SAMPLE_REGEX.match(data)
+            if not match:
+                return False
+            try:
+                received_checksum = int(match.group('checksum'))
+                line_end = match.start('checksum')-1
+            except IndexError:
+                # Didn't have a checksum!
+                return False
+
+            line = data[:line_end+1]
+            # Calculate checksum on line
+            checksum = 0
+            for char in line:
+                checksum += ord(char)
+
+            checksum = (~checksum + 0x01) & 0xFF
+
+            if checksum != received_checksum:
+                log.warn("Calculated checksum %s did not match packet checksum %s.", checksum, received_checksum)
+
+            return checksum == received_checksum
 
 
 class SatlanticPARConfigParticleKey(BaseEnum):
@@ -1206,46 +1239,3 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             sample = json.loads(parsed_sample)
 
         return sample
-
-
-class SatlanticChecksumDecorator(ChecksumDecorator):
-    """
-    Checks the data checksum for the Satlantic PAR sensor
-    """
-
-    def handle_incoming_data(self, original_data=None, chained_data=None):
-        if self._checksum_ok(original_data):
-            if self.next_decorator is None:
-                return original_data, chained_data
-            else:
-                self.next_decorator.handle_incoming_data(original_data, chained_data)
-        else:
-            log.warn("Calculated checksum did not match packet checksum.")
-            self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
-
-    def _checksum_ok(self, data):
-        """
-        Confirm that the checksum is valid for the data line
-        @param data The entire line of data, including the checksum
-        @retval True if the checksum fits, False if the checksum is bad
-        """
-        assert (data is not None)
-        assert (data != "")
-        match = SAMPLE_REGEX.match(data)
-        if not match:
-            return False
-        try:
-            received_checksum = int(match.group('checksum'))
-            line_end = match.start('checksum')-1
-        except IndexError:
-            # Didn't have a checksum!
-            return False
-
-        line = data[:line_end]
-        # Calculate checksum on line
-        checksum = 0
-        for char in line:
-            checksum += ord(char)
-        checksum &= 0xFF
-
-        return checksum == received_checksum
