@@ -15,9 +15,7 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-
-from mi.dataset.dataset_driver import SimpleDataSetDriver
+from mi.dataset.dataset_driver import SimpleDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.ctdpf_ckl_mmp_cds import CtdpfCklMmpCdsParser, CtdpfCklMmpCdsParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
@@ -62,6 +60,7 @@ class CtdpfCklMmpCdsDataSetDriver(SimpleDataSetDriver):
         """
         Build and return the harvester
         """
+        # *** Replace the following with harvester initialization ***
         self._harvester = SingleDirectoryHarvester(
             self._harvester_config,
             driver_state,
