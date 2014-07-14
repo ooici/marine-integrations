@@ -42,12 +42,13 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Capabil
 from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.particles import ADCP_SYSTEM_CONFIGURATION_KEY
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_DataParticle
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA1
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA2
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA3
@@ -89,8 +90,8 @@ InstrumentDriverTestCase.initialize(
             Parameter.SENSOR_SOURCE: "1010101",
             Parameter.TIME_PER_BURST: '00:00:00.00',
             Parameter.ENSEMBLES_PER_BURST: 0,
-            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
-            Parameter.TIME_PER_PING: '01:20.00',
+            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+            Parameter.TIME_PER_PING: '00:01.00',
             Parameter.BUFFER_OUTPUT_PERIOD: '00:00:00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
             Parameter.CORRELATION_THRESHOLD: 64,
@@ -99,7 +100,7 @@ InstrumentDriverTestCase.initialize(
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
             Parameter.NUMBER_OF_DEPTH_CELLS: 30,
-            Parameter.PINGS_PER_ENSEMBLE: 45,
+            Parameter.PINGS_PER_ENSEMBLE: 1,
             Parameter.DEPTH_CELL_SIZE: 800,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
@@ -158,7 +159,7 @@ class ADCPTMixin(DriverTestMixin):
     _driver_parameters = {
         # TODO: verify DEFAULT IS USED RIGHT.
         Parameter.SERIAL_DATA_OUT:           {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: "000 000 000",VALUE: "000 000 000",OFF_VALUE: "000 000 001"},
-        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11110', VALUE: '11110',      OFF_VALUE: '10110'},
+        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '00000', VALUE: '00000',      OFF_VALUE: '10000'},
         Parameter.BANNER:                    {TYPE: bool, READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: False,        OFF_VALUE: True},
         Parameter.SLEEP_ENABLE:              {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
         Parameter.INSTRUMENT_ID:             {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
@@ -173,9 +174,9 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.SENSOR_SOURCE:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: "1010101",VALUE: "1010101",   OFF_VALUE: '0000000'},
         Parameter.TIME_PER_BURST:            {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00.00',VALUE: '00:00:00.00',OFF_VALUE: '00:55:00.00'},
         Parameter.ENSEMBLES_PER_BURST:       {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 999},
-        Parameter.TIME_PER_ENSEMBLE:         {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '01:00:00.00',VALUE: '01:00:00.00',OFF_VALUE: '00:00:01.00'},
+        Parameter.TIME_PER_ENSEMBLE:         {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00.00',VALUE: '00:00:00.00',OFF_VALUE: '00:00:01.00'},
         Parameter.TIME_OF_FIRST_PING:        {TYPE: str,  READONLY: True,  DA: False, STARTUP: False}, 
-        Parameter.TIME_PER_PING:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '01:20.00',VALUE: '01:20.00',   OFF_VALUE: '00:02.00'},
+        Parameter.TIME_PER_PING:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:01.00',VALUE: '00:01.00',   OFF_VALUE: '00:02.00'},
         Parameter.TIME:                      {TYPE: str,  READONLY: True,  DA: False, STARTUP: False},
         Parameter.BUFFER_OUTPUT_PERIOD:      {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00', VALUE: '00:00:00',   OFF_VALUE: '00:55:00'},
         Parameter.FALSE_TARGET_THRESHOLD:    {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '050,001', VALUE: '050,001',    OFF_VALUE: '049,002'},
@@ -189,7 +190,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.WATER_REFERENCE_LAYER:     {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '001,005', VALUE: '001,005',    OFF_VALUE: '002,006'},
         Parameter.WATER_PROFILING_MODE:      {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
         Parameter.NUMBER_OF_DEPTH_CELLS:     {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 30,      VALUE: 30,           OFF_VALUE: 90},
-        Parameter.PINGS_PER_ENSEMBLE:        {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 45,      VALUE: 45,           OFF_VALUE: 2},
+        Parameter.PINGS_PER_ENSEMBLE:        {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,      VALUE: 1,           OFF_VALUE: 2},
         Parameter.DEPTH_CELL_SIZE:           {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 800,     VALUE: 800,          OFF_VALUE: 790},
         Parameter.TRANSMIT_LENGTH:           {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
         Parameter.PING_WEIGHT:               {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
@@ -466,7 +467,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        log.debug("IN assert_particle_pd0_data")
+        log.error("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
@@ -559,8 +560,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
-
+        log.error("********SUNG WAS HERE")
         self.assert_particle_published(driver, SAMPLE_RAW_DATA1, self.assert_particle_pd0_data, True)
+
         self.assert_particle_published(driver, SAMPLE_RAW_DATA2, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)
@@ -821,8 +823,8 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             Parameter.SENSOR_SOURCE: "1010101",
             Parameter.TIME_PER_BURST: '00:00:00.00',
             Parameter.ENSEMBLES_PER_BURST: 0,
-            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
-            Parameter.TIME_PER_PING: '01:20.00',
+            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+            Parameter.TIME_PER_PING: '00:01.00',
             Parameter.BUFFER_OUTPUT_PERIOD: '00:00:00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
             Parameter.CORRELATION_THRESHOLD: 64,
@@ -831,7 +833,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
             Parameter.NUMBER_OF_DEPTH_CELLS: 30,
-            Parameter.PINGS_PER_ENSEMBLE: 45,
+            Parameter.PINGS_PER_ENSEMBLE: 1,
             Parameter.DEPTH_CELL_SIZE: 800,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
