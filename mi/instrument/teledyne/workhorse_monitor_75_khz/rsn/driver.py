@@ -106,7 +106,9 @@ class Protocol(WorkhorseProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="serial data out",
-            visibility=ParameterDictVisibility.READ_ONLY)
+            startup_param=True,
+            #visibility=ParameterDictVisibility.READ_ONLY,
+            default_value='000 000 000')
 
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
             r'CF = (\d+) \-+ Flow Ctrl ',
@@ -115,8 +117,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="serial flow control",
             startup_param=True,
-            direct_access=False,
-            visibility=ParameterDictVisibility.IMMUTABLE,
+            direct_access=True,
+            #visibility=ParameterDictVisibility.READ_ONLY,
             default_value='11110')
 
         self._param_dict.add(Parameter.BANNER,
@@ -126,7 +128,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.BOOL,
             display_name="banner",
             startup_param=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
+            #visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=0)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
@@ -175,6 +177,67 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=255)
 
+        #CX
+        self._param_dict.add(Parameter.LATENCY_TRIGGER,
+            r'CX = (\d) \-+ Trigger Enable ',
+            lambda match: int(match.group(1), base=10),
+            self._bool_to_int,
+            type=ParameterDictType.INT,
+            display_name="latency trigger",
+            startup_param=True,
+            default_value=False)
+
+        #PD
+        self._param_dict.add(Parameter.DATA_STREAM_SELECTION,
+            r'PD = (\d+) \-+ Data Stream Select',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Data Stream Selection",
+            startup_param=True,
+            default_value=0)
+
+        #TC
+        self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
+            r'TC (\d+) \-+ Ensembles Per Burst',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Ensemble per burst",
+            startup_param=True,
+            default_value=0)
+
+        #TX
+        self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
+            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Buffered output period",
+            startup_param=True,
+            default_value='00:00:00')
+
+        #WQ
+        self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
+            r'WQ (\d) \-+ Sample Ambient Sound',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Sample ambient sound",
+            startup_param=True,
+            default_value=0)
+
+        #EA
+        self._param_dict.add(Parameter.HEADING_ALIGNMENT,
+            r'EA = ([\+\-\d]+) \-+ Heading Alignment',
+            lambda match: str(match.group(1)),
+            str,
+            #self._int_to_string,
+            type=ParameterDictType.STRING,
+            display_name="Heading alignment",
+            startup_param=True,
+            default_value='+00000')
+
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
             r'EC = (\d+) \-+ Speed Of Sound',
             lambda match: int(match.group(1), base=10),
@@ -183,6 +246,16 @@ class Protocol(WorkhorseProtocol):
             display_name="speed of sound",
             startup_param=True,
             default_value=1485)
+
+        #ED
+        self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
+            r'ED = (\d+) \-+ Transducer Depth ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Transducer Depth",
+            startup_param=True,
+            default_value=8000)
 
         self._param_dict.add(Parameter.PITCH,
             r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
@@ -225,7 +298,9 @@ class Protocol(WorkhorseProtocol):
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="sensor source")
+            display_name="sensor source",
+            startup_param=True,
+            default_value='1111101')
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
@@ -236,7 +311,6 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value='00:00:00.00')
 
-        # NEVER USE THIS COMMAND.
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
@@ -297,7 +371,7 @@ class Protocol(WorkhorseProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="serial out fw switches",
-            visibility=ParameterDictVisibility.IMMUTABLE,
+            #visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             default_value='111100000')
 
@@ -352,7 +426,7 @@ class Protocol(WorkhorseProtocol):
             self._int_to_string,
             type=ParameterDictType.INT,
             display_name="water profiling mode",
-            visibility=ParameterDictVisibility.IMMUTABLE,
+            #visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             default_value=1)
 
@@ -410,19 +484,4 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=175)
 
-    def _send_break_cmd(self, delay):
-        """
-        Send a BREAK to attempt to wake the device.
-        """
-        log.trace("IN _send_break_cmd")
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.trace("WHOOPS! 1")
 
-        try:
-            sock.connect(('10.180.80.178', 2102))
-        except socket.error, msg:
-            log.trace("WHOOPS! 2")
-        sock.send("break " + str(delay) + "\r\n")
-        sock.close()
