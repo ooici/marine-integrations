@@ -103,11 +103,12 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
 
         log.debug("MYCONFIG: %s", config)
 
-        parser = PhsenRecoveredParser(config, parser_state, stream_in,
-                               lambda state, ingested:
-                               self._save_parser_state(state, DataSourceKey.PHSEN_ABCDEF, ingested),
-                               self._data_callback, self._sample_exception_callback)
-
+        parser = PhsenRecoveredParser(
+            config, parser_state, stream_in,
+            lambda state, ingested:
+            self._save_parser_state(state, DataSourceKey.PHSEN_ABCDEF, ingested),
+            self._data_callback, self._sample_exception_callback
+        )
         return parser
 
     def _build_harvester(self, driver_state):

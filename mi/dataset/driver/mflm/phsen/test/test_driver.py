@@ -38,6 +38,7 @@ from mi.dataset.parser.phsen import PhsenParserDataParticle, PhsenControlDataPar
 from mi.dataset.parser.phsen import DataParticleType
 from mi.dataset.parser.phsen_abcdef import PhsenRecoveredInstrumentDataParticle, \
     PhsenRecoveredMetadataDataParticle, StateKey
+from mi.dataset.parser.sio_mule_common import StateKey as SioMuleStateKey
 
 
 TELEM_DIR = '/tmp/dsatest'
@@ -86,8 +87,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_get(self):
         """
-        Test that we can get data from files.  Verify that the driver
-        sampling can be started and stopped
+        Test that we can get data from files.
         """
         # Start sampling
         self.driver.start_sampling()
@@ -110,12 +110,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                         copy_metadata=False)
         self.assert_data(PhsenParserDataParticle, count=6)
 
-    def test_get_recovered(self):
-        """
-        Test that we can get data from files reading one record at a time and reading multiple records at a time.
-        """
-        # Start sampling
-        self.driver.start_sampling()
+        # RECOVERED DATA
+        # Test that we can get data from files reading one record at a time and reading multiple records at a time.
         self.create_sample_data_set_dir("SAMI_P0080_180713_small.txt", RECOVERED_DIR,
                                         "SAMI_A.txt")
         self.create_sample_data_set_dir("SAMI_P0080_180713_simple.txt", RECOVERED_DIR)
@@ -194,27 +190,40 @@ class IntegrationTest(DataSetIntegrationTestCase):
         fullfile = os.path.join(sio_mule_config['directory'], sio_mule_config['pattern'])
         mod_time = os.path.getmtime(fullfile)
 
+        file_size = 911
+
         # Create and store the new driver state
-        self.memento = {DataSourceKey.PHSEN_ABCDEF_SIO_MULE: {
-            "node59p1.dat": {
-                DriverStateKey.FILE_SIZE: 911,
-                DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
-                DriverStateKey.FILE_MOD_DATE: mod_time,
-                DriverStateKey.PARSER_STATE: {
-                    'in_process_data': [],
-                    'unprocessed_data': [[0, 172]]
+        memento = {
+            DataSourceKey.PHSEN_ABCDEF_SIO_MULE: {
+                "node59p1.dat": {
+                    DriverStateKey.FILE_SIZE: file_size,
+                    DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
+                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                    DriverStateKey.PARSER_STATE: {
+                        SioMuleStateKey.IN_PROCESS_DATA: [],
+                        SioMuleStateKey.UNPROCESSED_DATA: [[0, 172]],
+                        SioMuleStateKey.FILE_SIZE: file_size
+                    }
+                }
+            },
+            DataSourceKey.PHSEN_ABCDEF: {
+                "SAMI_P0080_180713_integration.txt": {
+                    DriverStateKey.INGESTED: False,
+                    DriverStateKey.PARSER_STATE: {
+                        StateKey.POSITION: 0x168,
+                        StateKey.START_OF_DATA: False
+                    }
                 }
             }
-        }}
+        }
 
-        self.driver = self._get_driver_object(memento=self.memento)
+        driver = self._get_driver_object(memento=memento)
 
         # create some data to parse
         self.clear_async_data()
         self.create_sample_data_set_dir("node59p1_step2.dat", TELEM_DIR, "node59p1.dat",
                                         copy_metadata=False)
-
-        self.driver.start_sampling()
+        driver.start_sampling()
 
         # verify data is produced
         self.assert_data(PhsenParserDataParticle, 'test_data_2.txt.result.yml',
@@ -222,9 +231,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_stop_resume_recovered(self):
         """
-        Test the ability to stop and restart the process
+        Test the ability to stop and restart the process. (this is really mid-state start)
         """
-        # create some data to parse
+        # create some recovered data to parse
         self.create_sample_data_set_dir("SAMI_P0080_180713_integration.txt", RECOVERED_DIR,
                                         "SAMI_P0080_180713_integration.txt")
 
@@ -253,11 +262,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
             }
         }
 
-        self.driver = self._get_driver_object(memento=memento)
+        driver = self._get_driver_object(memento=memento)
 
         self.clear_async_data()
 
-        self.driver.start_sampling()
+        driver.start_sampling()
 
         # verify data is produced
         self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
@@ -296,11 +305,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
             }
         }
 
-        self.driver = self._get_driver_object(memento=memento)
+        driver = self._get_driver_object(memento=memento)
 
         self.clear_async_data()
 
-        self.driver.start_sampling()
+        driver.start_sampling()
 
         # verify data is produced
         self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_2.yml',
@@ -346,7 +355,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data((PhsenParserDataParticle, PhsenControlDataParticle),
                          'test_data_1-4.txt.result.yml', count=10)
 
-    def test_sample_exception_recovered(self):
+    def test_sample_exception(self):
         """
         Test a case that should produce a sample exception and confirm the
         sample exception occurs
