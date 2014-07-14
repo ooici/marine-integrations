@@ -18,9 +18,8 @@ PARAD driver. The following changes are required:
 """
 import functools
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_decorator import ChecksumDecorator
 from mi.core.instrument.driver_dict import DriverDictKey
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, RE_PATTERN, DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.protocol_param_dict import ParameterDictType, ParameterDictVisibility
 from mi.core.util import dict_equal
 
@@ -39,7 +38,7 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverProtocolState, DriverEvent, \
     DriverAsyncEvent, ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.data_particle import CommonDataParticleType
+from mi.core.instrument.data_particle import CommonDataParticleType, DataParticleValue
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentProtocolException, \
@@ -52,7 +51,7 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 # Module-wide values
 ####################################################################
 
-SAMPLE_PATTERN = r'(?P<instrument_id>SATDI7)(?P<serial_number>\d{4})(?P<timer>\d{7}\.\d\d)(?P<binary_data>.{38})\r\n'
+SAMPLE_PATTERN = r'(?P<instrument_id>SATDI7)(?P<serial_number>\d{4})(?P<timer>\d{7}\.\d\d)(?P<binary_data>.{37})(?P<checksum>.)\r\n'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN, re.DOTALL)
 CONFIG_PATTERN = '''Satlantic\ OCR.*?
             Firmware\ version:\ (?P<firmware_version>.*?)\s*
@@ -71,7 +70,7 @@ CONFIG_PATTERN = '''Satlantic\ OCR.*?
 CONFIG_REGEX = re.compile(CONFIG_PATTERN, re.DOTALL | re.VERBOSE)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
 init_regex = re.compile(init_pattern)
-WRITE_DELAY = 0.5 # should be 0.2
+WRITE_DELAY = 0.2 # should be 0.2
 RESET_DELAY = 6
 EOLN = "\r\n"
 RETRY = 3
@@ -120,7 +119,6 @@ class SatlanticProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
@@ -188,13 +186,14 @@ class SatlanticOCR507DataParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
     TIMER = "timer"
     SAMPLE_DELAY = "sample_delay"
-    CH1_SAMPLE = "channel_1"
-    CH2_SAMPLE = "channel_2"
-    CH3_SAMPLE = "channel_3"
-    CH4_SAMPLE = "channel_4"
-    CH5_SAMPLE = "channel_5"
-    CH6_SAMPLE = "channel_6"
-    CH7_SAMPLE = "channel_7"
+    SAMPLES = "spkir_samples"
+    # CH1_SAMPLE = "channel_1"
+    # CH2_SAMPLE = "channel_2"
+    # CH3_SAMPLE = "channel_3"
+    # CH4_SAMPLE = "channel_4"
+    # CH5_SAMPLE = "channel_5"
+    # CH6_SAMPLE = "channel_6"
+    # CH7_SAMPLE = "channel_7"
     REGULATED_INPUT_VOLTAGE = "vin_sense"
     ANALOG_RAIL_VOLTAGE = "va_sense"
     INTERNAL_TEMP = "internal_temperature"
@@ -222,6 +221,7 @@ class SatlanticOCR507DataParticle(DataParticle):
     Satlantic PAR sensor. Overrides the building of values, and the rest comes
     along for free.
     """
+    __metaclass__=get_logging_metaclass(log_level='debug')
     _data_particle_type = DataParticleType.PARSED
 
     @staticmethod
@@ -231,6 +231,19 @@ class SatlanticOCR507DataParticle(DataParticle):
     @staticmethod
     def regex_compiled():
         return SAMPLE_REGEX
+
+    @staticmethod
+    def convert_word_to_int(word):
+        """
+        Converts a word into an integer field
+        """
+        if len(word) != 2:
+            raise SampleException("Invalid number of bytes in word input! Found %s with input %s" % len(word))
+
+        low_byte = ord(word[0])
+        high_byte = 0x100 * ord(word[1])
+        log.trace('w=%s, l=%d, h=%d, v=%d' % (word.encode('hex'), low_byte, high_byte, low_byte + high_byte))
+        return low_byte + high_byte
 
     def _build_parsed_values(self):
         """
@@ -268,12 +281,13 @@ class SatlanticOCR507DataParticle(DataParticle):
         analog_rail_voltage         2               BU formatted value      H
         internal_temp               2               BU formatted value      H
         frame_counter               1               BU formatted value      B
-        checksum                    1               BU formatted value      B
+        checksum                    1               BU formatted value      B       # now handled separately
         """
         try:
             sample_delay, ch1_sample, ch2_sample, ch3_sample, ch4_sample, ch5_sample, ch6_sample, ch7_sample, \
                 regulated_input_voltage, analog_rail_voltage, internal_temp, frame_counter, checksum \
-                = struct.unpack('!h7IHHHBB', match.group('binary_data'))
+                = struct.unpack('!h7IHHHBB', match.group('binary_data') + match.group('checksum'))
+
         except struct.error, e:
             raise SampleException(e)
 
@@ -285,20 +299,14 @@ class SatlanticOCR507DataParticle(DataParticle):
                    DataParticleKey.VALUE: timer},
                   {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.SAMPLE_DELAY,
                    DataParticleKey.VALUE: sample_delay},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH1_SAMPLE,
-                   DataParticleKey.VALUE: ch1_sample},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH2_SAMPLE,
-                   DataParticleKey.VALUE: ch2_sample},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH3_SAMPLE,
-                   DataParticleKey.VALUE: ch3_sample},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH4_SAMPLE,
-                   DataParticleKey.VALUE: ch4_sample},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH5_SAMPLE,
-                   DataParticleKey.VALUE: ch5_sample},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH6_SAMPLE,
-                   DataParticleKey.VALUE: ch6_sample},
-                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CH7_SAMPLE,
-                   DataParticleKey.VALUE: ch7_sample},
+                  {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.SAMPLES,
+                   DataParticleKey.VALUE: [ch1_sample,
+                                            ch2_sample,
+                                            ch3_sample,
+                                            ch4_sample,
+                                            ch5_sample,
+                                            ch6_sample,
+                                            ch7_sample]},
                   {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.REGULATED_INPUT_VOLTAGE,
                    DataParticleKey.VALUE: regulated_input_voltage},
                   {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.ANALOG_RAIL_VOLTAGE,
@@ -310,7 +318,37 @@ class SatlanticOCR507DataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SatlanticOCR507DataParticleKey.CHECKSUM,
                    DataParticleKey.VALUE: checksum}]
 
+        if not self._checksum_check(self.raw_data):
+            self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
+            log.warn("Invalid checksum encountered: %r.", checksum)
+
         return result
+
+    def _checksum_check(self, data):
+            """
+            Confirm that the checksum is valid for the data line
+            @param data The entire line of data, including the checksum
+            @retval True if the checksum fits, False if the checksum is bad
+            """
+            assert (data is not None)
+            assert (data != "")
+            match = SAMPLE_REGEX.match(data)
+            if not match:
+                return False
+            try:
+                line_end = match.end('checksum')
+            except IndexError:
+                # Didn't have a checksum!
+                return False
+
+            line = data[:line_end]
+            # Ensure the low order byte of the sum of all characters from the
+            # beginning of the frame through the checksum equals 0
+            checksum_validation = sum(ord(x) for x in line)
+
+            checksum_validation &= 0xFF
+
+            return checksum_validation == 0
 
 
 class SatlanticOCR507ConfigurationParticle(DataParticle):
@@ -557,7 +595,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
-                log.warn("FOUND A MATCH for: %s...", raw_data[0:9])
                 return_list.append((match.start(), match.end()))
 
         return return_list
@@ -581,6 +618,142 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         for param in Parameter.list():
             if param != Parameter.ALL:
                 self._do_cmd_resp(Command.GET, param, **kwargs)
+
+    def _do_cmd(self, cmd, *args, **kwargs):
+        """
+        Issue a command to the instrument after clearing of buffers. No response is handled as a result of the command.
+
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @retval The fully built command to be sent
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built.
+        """
+        expected_prompt = kwargs.get('expected_prompt', None)
+        response_regex = kwargs.get('response_regex', None)
+
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+
+        cmd_line = build_handler(cmd, *args)
+
+        write_delay = kwargs.get('write_delay', WRITE_DELAY)
+
+        # Send command.
+        log.debug('_do_cmd: %s, length=%s' % (repr(cmd_line), len(cmd_line)))
+        if len(cmd_line) <= 1:
+            self._connection.send(cmd_line)
+
+        else:
+            for char in cmd_line:
+                self._connection.send(char)
+                time.sleep(write_delay)
+            # self._connection.send("    ".join(map(None, cmd_line)))
+
+            time.sleep(0.4)
+            self._connection.send(self.eoln)
+            starttime = time.time()
+
+            check_value = None
+            if expected_prompt is not None:
+                checks = (Prompt.COMMAND, "SATDI7")
+                for check in checks:
+                    if check in expected_prompt:
+                        log.debug('_do_cmd: command: %s, check=%s' % (cmd_line, check))
+                        check_value = check
+
+            if check_value is not None:
+                while True:
+                    time.sleep(0.1)
+                    if time.time() > starttime + 2:
+                        log.debug("Sending eoln again.")
+                        self._connection.send(self.eoln)
+                        starttime = time.time()
+                    if check_value in self._promptbuf:
+                        break
+                    if Prompt.INVALID_COMMAND in self._promptbuf:
+                        break
+
+        return cmd_line
+
+    def _do_cmd_no_resp(self, cmd, *args, **kwargs):
+        """
+        Issue a command to the instrument after clearing of
+        buffers. No response is handled as a result of the command.
+
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup timeout.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built.
+        """
+        self._do_cmd(cmd, *args, **kwargs)
+
+    def _do_cmd_resp(self, cmd, *args, **kwargs):
+        """
+        """
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        response_regex = kwargs.get('response_regex', None)
+        write_delay = kwargs.get('write_delay', WRITE_DELAY)
+        retry_count = kwargs.get('retry_count', 5)
+
+        if response_regex and not isinstance(response_regex, RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
+
+
+
+        retry_num = 0
+        for retry_num in xrange(retry_count):
+            # Clear line and prompt buffers for result.
+            self._linebuf = ''
+            self._promptbuf = ''
+
+            cmd_line = self._do_cmd(cmd, *args, **kwargs)
+
+            log.debug("_do_cmd_resp: Sending command: %s, %s attempts, expected_prompt=%s, write_delay=%s.",
+                  cmd_line, retry_num, expected_prompt, write_delay)
+
+            # Wait for the prompt, prepare result and return, timeout exception
+            if response_regex:
+                prompt = ""
+                result_tuple = self._get_response(timeout, response_regex=response_regex, expected_prompt=expected_prompt)
+                result = "".join(result_tuple)
+            else:
+                (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+
+            # check for "Invalid command", if received resend for n times then raise an error.
+            # (expected_prompt is not None and PARProtocolError.INVALID_COMMAND not in expected_prompt or
+            if len(cmd_line) > 1 and \
+                (expected_prompt is not None or
+                (response_regex is not None))\
+                    and cmd_line not in result:
+                log.debug("_do_cmd_resp: Send command: %s failed %s attempt, result = %s.", cmd, retry_num, result)
+                if retry_num == retry_count:
+                    raise InstrumentCommandException('_do_cmd_resp: Failed %s attempts sending command: %s' %
+                                                     (retry_count, cmd))
+                write_delay += 0.05
+            else:
+                break
+
+        log.debug("_do_cmd_resp: Sent command: %s, %s attempts, expected_prompt=%s, result=%s, prompt=%s, write_delay=%s.",
+                  cmd_line, retry_num, expected_prompt, result, prompt, write_delay)
+
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+            self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+
+        time.sleep(0.3)     # give some time for the instrument connection to keep up
+
+        return resp_result
 
     ########################################################################
     # Unknown handlers.
@@ -824,7 +997,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Check to make sure all parameters are valid up front
         assert Parameter.has(param)
         assert cmd == Command.SET
-        return "%s %s %s%s" % (Command.SET, param, value, self.eoln)
+        return "%s %s %s" % (Command.SET, param, value)
 
     def _build_param_fetch_command(self, cmd, param):
         """
@@ -835,7 +1008,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval Returns string ready for sending to instrument
         """
         assert Parameter.has(param)
-        return "%s %s%s" % (Command.GET, param, self.eoln)
+        return "%s %s" % (Command.GET, param)
 
     def _build_exec_command(self, cmd, *args):
         """
@@ -845,7 +1018,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param args Unused arguments
         @retval Returns string ready for sending to instrument
         """
-        return "%s%s" % (cmd, self.eoln)
+        return "%s" % (cmd)
 
     def _build_control_command(self, cmd, *args):
         """ Send a single control char command
@@ -863,7 +1036,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param args Unused arguments
         @retval The string with the complete command
         """
-        return "%s%s" % (Command.ID, self.eoln)
+        return "%s" % (Command.ID)
 
     def _build_show_all_command(self, cmd, *args):
         """ Send an invalid command (useful for state discovery)
@@ -872,7 +1045,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param args Unused arguments
         @retval The string with the complete command
         """
-        return "%s%s" % (Command.SHOW_ALL, self.eoln)
+        return "%s" % (Command.SHOW_ALL)
 
     def _build_invalid_command(self, cmd, *args):
         """ Send an invalid command (useful for state discovery)
@@ -881,7 +1054,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param args Unused arguments
         @retval The string with the complete command
         """
-        return "%s%s" % (cmd, self.eoln)
+        return "%s" % (cmd)
 
     def _build_multi_control_command(self, cmd, *args):
         """ Send a quick series of control char command
@@ -916,7 +1089,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         # should end with the response, an eoln, and a prompt
         update_dict = self._param_dict.update_many(response)
-        log.debug("GODFREY: %r", update_dict)
         if not update_dict or len(update_dict) > 1:
             log.warn("Get response set multiple parameters (%r): expected only 1", update_dict)
             raise InstrumentProtocolException("Invalid response. Bad command?")
@@ -1055,8 +1227,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         old_config = self._param_dict.get_config()
         self.get_config()
         new_config = self._param_dict.get_config()
-        if (new_config != old_config):
-            log.debug('Whiskey Tango Foxtrot: %r != %r', new_config, old_config)
+        if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _send_reset(self, timeout=10):
@@ -1115,21 +1286,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         return InstrumentProtocolException(u'unhandled chunk received by _got_chunk: [{0!r:s}]'.format(chunk))
 
-        # self._extract_header(chunk)
-
-    # def _extract_header(self, chunk):
-    #     '''
-    #     Extract key parameters from the instrument header streamed on reset.  This method
-    #     caches the values internally in the protocol and return with get_resource calls.
-    #     @param chunk: header bytes from the instrument.
-    #     @return:
-    #     '''
-    #     match = HEADER_REGEX.match(chunk)
-    #     if match:
-    #         self._instrument = match.group(1)
-    #         self._serial = match.group(2)
-    #         self._firmware = match.group(3)
-
 
     def _confirm_autosample_mode(self):
         """Confirm we are in autosample mode
@@ -1180,47 +1336,3 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         time.sleep(0.5)
 
         return True
-
-# TODO: verify this
-####################################################################
-# Satlantic Checksum Decorator
-####################################################################
-class SatlanticChecksumDecorator(ChecksumDecorator):
-    """Checks the data checksum for the Satlantic PAR sensor"""
-
-    def handle_incoming_data(self, original_data=None, chained_data=None):
-        if (self._checksum_ok(original_data)):
-            if self.next_decorator == None:
-                return (original_data, chained_data)
-            else:
-                self.next_decorator.handle_incoming_data(original_data, chained_data)
-        else:
-            raise InstrumentDataException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                          msg="Checksum failure!")
-
-    def _checksum_ok(self, data):
-        """Confirm that the checksum is valid for the data line
-
-        @param data The entire line of data, including the checksum
-        @retval True if the checksum fits, False if the checksum is bad
-        """
-        assert (data != None)
-        assert (data != "")
-        match = SAMPLE_REGEX.match(data)
-        if not match:
-            return False
-        try:
-            received_checksum = int(match.group('checksum'))
-            line_end = match.start('checksum')-1
-        except IndexError:
-            # Didnt have a checksum!
-            return False
-
-        line = data[:line_end]
-        # Calculate checksum on line
-        checksum = 0
-        for char in line:
-            checksum += ord(char)
-        checksum = checksum & 0xFF
-
-        return (checksum == received_checksum)
