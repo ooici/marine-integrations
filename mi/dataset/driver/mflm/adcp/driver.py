@@ -13,11 +13,16 @@ __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import ConfigurationException
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.adcps import AdcpsParser, AdcpsParserDataParticle
+from mi.dataset.parser.adcp_pd0 import AdcpPd0Parser
+from mi.dataset.parser.adcps_jln import AdcpsJlnParticle
+
 
 class DataSourceKey(BaseEnum):
     """
@@ -30,14 +35,17 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [AdcpsParserDataParticle.type()]
+        return [AdcpsParserDataParticle.type(),
+                AdcpsJlnParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.ADCPS_JLN_SIO_MULE, DataSourceKey.ADCPS_JLN]
+        data_keys = DataSourceKey.list()
+
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.ADCPS_JLN_SIO_MULE: HarvesterType.SINGLE_FILE,
                           DataSourceKey.ADCPS_JLN: HarvesterType.SINGLE_DIRECTORY}
+
         super(MflmADCPSDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                      exception_callback, data_keys, harvester_type=harvester_type)
 
@@ -81,11 +89,23 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
     def _build_recovered_parser(self, parser_state, infile):
         """
         Build and return the recovered parser
-        No recovered parser yet, needs to be defined
         @param parser_state starting parser state to pass to parser
         @param infile Handle of open file to pass to parser
         """
-        parser = None
+
+        config = self._parser_config.get(DataSourceKey.ADCPS_JLN)
+        config.update({
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.adcps_jln',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'AdcpsJlnParticle'
+        })
+
+        log.debug("MYCONFIG: %s", config)
+
+        parser = AdcpPd0Parser(config, parser_state, infile,
+                               lambda state, ingested:
+                               self._save_parser_state(state, DataSourceKey.ADCPS_JLN, ingested),
+                               self._data_callback, self._sample_exception_callback)
+
         return parser
 
     def _build_harvester(self, driver_state):
@@ -105,18 +125,19 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.ADCPS_JLN_SIO_MULE)
 
-        #if DataSourceKey.ADCPS_JLN in self._harvester_config:
-        #    recov_harvester = SingleDirectoryHarvester(
-        #        self._harvester_config.get(DataSourceKey.ADCPS_JLN),
-        #        driver_state[DataSourceKey.ADCPS_JLN],
-        #       lambda file_state, file_ingested: self._file_changed_callback(file_state,
-        #                                                                      DataSourceKey.ADCPS_JLN,
-        #                                                                      file_ingested),
-        #        self._exception_callback
-        #    )
-        #    harvesters.append(recov_harvester)
-        #else:
-        #    log.warn('No configuration for %s harvester, not building', DataSourceKey.ADCPS_JLN)
+        if DataSourceKey.ADCPS_JLN in self._harvester_config:
+
+            recov_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.ADCPS_JLN),
+                driver_state[DataSourceKey.ADCPS_JLN],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.ADCPS_JLN),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.ADCPS_JLN),
+                self._exception_callback)
+
+            harvesters.append(recov_harvester)
+        else:
+            log.warn('No configuration for %s harvester, not building', DataSourceKey.ADCPS_JLN)
+
         return harvesters
 
 

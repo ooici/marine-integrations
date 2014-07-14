@@ -8,7 +8,7 @@ Release notes:
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-
+import socket
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
@@ -17,7 +17,7 @@ from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
 from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneCapability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
+from mi.instrument.teledyne.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -32,13 +32,13 @@ class WorkhorseParameter(TeledyneParameter):
     #
     # set-able parameters
     #
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    PITCH = 'EP'
-    ROLL = 'ER'
+    #SERIAL_FLOW_CONTROL = 'CF'
+    #BANNER = 'CH'
+    #SLEEP_ENABLE = 'CL'
+    #SAVE_NVRAM_TO_RECORDER = 'CN'
+    #POLLED_MODE = 'CP'
+    #PITCH = 'EP'
+    #ROLL = 'ER'
 
 
 
@@ -159,6 +159,11 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._cmd_dict.add(TeledyneCapability.RUN_TEST_200,
                            display_name="run test 200")
 
+        self._cmd_dict.add(TeledyneCapability.USER_SETS,
+                           display_name="set user sets")
+        self._cmd_dict.add(TeledyneCapability.FACTORY_SETS,
+                           display_name="set factory sets")
+
     ########################################################################
     # Private helpers.
     ########################################################################
@@ -196,5 +201,22 @@ class WorkhorseProtocol(TeledyneProtocol):
 
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
+
+    def _send_break_cmd(self, delay):
+        """
+        Send a BREAK to attempt to wake the device.
+        """
+        log.trace("IN _send_break_cmd")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.trace("WHOOPS! 1")
+
+        try:
+            sock.connect(('10.180.80.178', 2102))
+        except socket.error, msg:
+            log.trace("WHOOPS! 2")
+        sock.send("break " + str(delay) + "\r\n")
+        sock.close()
     
     

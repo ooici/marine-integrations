@@ -300,6 +300,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         @param param_dict dict with parameter names and types
         @param verify_values bool should ve verify parameter values
         """
+        log.error("****SUNG assert_data_particle_parameters")
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         self.assert_parameters(sample_dict, param_dict, verify_values)
 
@@ -464,7 +465,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
 
         # get all the sample parameter names
         sample_keys = sample_values.keys()
-        log.info("Sample Keys: %s", sample_keys)
+        log.error("Sample Keys: %s", sample_keys)
 
         # split the parameters into optional and required
         for key, param in param_dict.items():
@@ -477,11 +478,14 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             else:
                 required_keys.append(key)
 
-        log.info("Required Keys: %s", required_keys)
-        log.info("Optional Keys: %s", optional_keys)
+        log.error("Required Keys: %s", required_keys)
+        log.error("Optional Keys: %s", optional_keys)
 
         # Lets verify all required parameters are there
         for required in required_keys:
+            #log.debug("Sung: " + str(required))
+            #log.debug("Sung: required "  + repr(required_keys))
+            #log.debug("Sung:  sample "  + repr(sample_keys))
             self.assertTrue(required in sample_keys, msg="particle missing parameter '%s', a required key" % required)
             sample_keys.remove(required)
 
@@ -490,7 +494,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             if optional in sample_keys:
                 sample_keys.remove(optional)
 
-        log.info("Unknown Keys: %s", sample_keys)
+        log.error("Unknown Keys: %s", sample_keys)
 
         # If there is anything left in the sample keys then it's a problem
         self.assertEqual(len(sample_keys), 0)
@@ -1947,7 +1951,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):  # Must inh
                 log.debug('Found %d particles and all particles verified', len(samples))
                 return
 
-            log.error("Only found %d samples, looking for %d", len(samples), particle_count)
+            log.trace("Only found %d samples, looking for %d", len(samples), particle_count)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 

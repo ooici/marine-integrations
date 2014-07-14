@@ -1,0 +1,25 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: CtdpfCklWfpRecoveredDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument_recovered
+    internal_timestamp: 3589862542.000000
+    conductivity: 6796
+    temperature: 253899
+    pressure: 1003
+  - _index: 2
+    particle_object: CtdpfCklWfpRecoveredDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument_recovered
+    internal_timestamp: 3589862588.666667
+    conductivity: 6794
+    temperature: 254155
+    pressure: 1003
+  - _index: 3
+    particle_object: CtdpfCklWfpRecoveredDataParticle
+    particle_type: ctdpf_ckl_wfp_instrument_recovered
+    internal_timestamp: 3589862635.333333
+    conductivity: 6796
+    temperature: 254343
+    pressure: 1003

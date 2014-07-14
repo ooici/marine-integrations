@@ -21,7 +21,9 @@ from nose.plugins.attrib import attr
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.log import get_logger
 log = get_logger()
 from mi.idk.config import Config
@@ -237,7 +239,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.PARSER_STATE: {
                         StateKey.UNPROCESSED_DATA:
                             [[2818, 2982]],
-                        StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 4]]
+                        StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 4]],
+                        StateKey.FILE_SIZE: stat_info.st_size
                     }
                 }
             }
@@ -275,6 +278,38 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
+
+    def test_harvester_new_file_exception(self):
+        """
+        Need to override common test since there is no '*' to replace with foo
+        in the pattern for the single file (telemetered), and need to use a
+        shorter file to assert the state change before timing out.
+        """
+        # need to put data in the file, not just make an empty file for this to work
+        self.create_sample_data_set_dir('node58p3.dat', DIR_TEL, FILE_TEL,
+                                        mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir('node58p3.dat', DIR_TEL, FILE_TEL)
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
+        # stop sampling so we can start again
+        self.assert_stop_sampling()
+
+        # stop and restart the agent so we can test the next new file exception
+        self.stop_dataset_agent_client()
+        self.init_dataset_agent_client()
+
+        self.assert_new_file_exception(FILE_REC1, DIR_REC)
 
     def test_publish_path(self):
         """
