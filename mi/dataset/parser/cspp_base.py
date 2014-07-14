@@ -17,6 +17,7 @@ from functools import partial
 import copy
 import re
 import time
+import string
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -40,12 +41,6 @@ FLOAT_REGEX = r'(?:[+-]?[0-9]|[1-9][0-9])+\.[0-9]+'
 INT_REGEX = r'[+-]?[0-9]+'
 # A regex to match against one or more multiple consecutive whitespace characters
 MULTIPLE_TAB_REGEX = r'\t+'
-
-# A kwargs key used to access the data regular expression
-DATA_REGEX_KWARGS_KEY = 'data_regex_kwargs_key'
-
-# TODO
-HEADER_KEY_LIST_KWARGS_KEY = 'header_key_list_wargs_key'
 
 # The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
 # The key for the metadata particle class
@@ -126,7 +121,7 @@ class StateKey(BaseEnum):
     """
     An enum for the state data applicable to a CsppParser
     """
-    POSITION = 'position'  # holds the file position
+    POSITION = 'position'
     HEADER_STATE = 'header_state'
     METADATA_PUBLISHED = 'metadata_published'
 
@@ -154,9 +149,8 @@ class CsppMetadataDataParticle(DataParticle):
         # Grab the source file path from the match raw_data's
         source_file_path = header_dict[DefaultHeaderKey.SOURCE_FILE]
 
-        # Split the source file path using an escaped backslash.  The path is expected to be a Windows based
-        # file path.
-        source_file_name_parts = source_file_path.split('\\')
+        # Split the source file path.  The regex below supports splitting on a Windows or unix/linux file path.
+        source_file_name_parts = re.split(r'\\|/', source_file_path)
         # Obtain the list of source file name parts
         num_source_name_file_parts = len(source_file_name_parts)
         # Grab the last part of the source file name
@@ -188,7 +182,7 @@ class CsppMetadataDataParticle(DataParticle):
         # Encode the processing time which includes the processed date and time retrieved above
         results.append(self._encode_value(
             CsppMetadataParserDataParticleKey.PROCESSING_TIME,
-            time.mktime(time.strptime(processed_date + " " + processed_time, "%m/%d/%Y %H:%M:%S")),
+            processed_date + " " + processed_time,
             str))
 
         # # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
@@ -233,7 +227,7 @@ class CsppParser(BufferLoadingParser):
         self._data_record_matcher = None
         self._header_and_first_data_record_matcher = None
 
-        # Ensure that we have a DATA_REGEX_KWARGS_KEY in the kwargs
+        # Ensure that we have a data regex
         if data_record_regex is None:
             raise DatasetParserException("Must provide a data_record_regex")
         else:
@@ -344,7 +338,8 @@ class CsppParser(BufferLoadingParser):
                                                                   data_match),
                                                                  None)
                         if metadata_particle:
-                            result_particles.append((metadata_particle, copy.copy(self._read_state)))
+                            # We're going to insert the metadata particle so that it is the first in the list
+                            result_particles.insert(0, (metadata_particle, copy.copy(self._read_state)))
                             self._read_state[StateKey.METADATA_PUBLISHED] = True
 
                     self._update_positional_state(len(chunk))
@@ -358,7 +353,7 @@ class CsppParser(BufferLoadingParser):
                     header_part_value = header_part_match.group(
                         HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
                     if header_part_key in self._read_state[StateKey.HEADER_STATE].keys():
-                        self._read_state[StateKey.HEADER_STATE][header_part_key] = header_part_value
+                        self._read_state[StateKey.HEADER_STATE][header_part_key] = string.rstrip(header_part_value)
 
             # Retrieve the next non data chunk
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
