@@ -35,7 +35,7 @@ HEADER_PART_REGEX = r'(.*):\s+(.*)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
 HEADER_PART_MATCHER = re.compile(HEADER_PART_REGEX)
 
 # A regex to capture a float value
-FLOAT_REGEX = r'(?:[+|-]?[0-9]|[1-9][0-9])+\.[0-9]+'
+FLOAT_REGEX = r'(?:[+-]?[0-9]|[1-9][0-9])+\.[0-9]+'
 # A regex to capture an int value
 INT_REGEX = r'[+|-]?[0-9]+'
 # A regex to match against one or more multiple consecutive whitespace characters
@@ -226,6 +226,8 @@ class CsppParser(BufferLoadingParser):
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
         @param exception_callback The function to call to report exceptions
+        @param data_record_regex The data regex that should be used to obtain data records
+        @param header_key_list The list of header keys expected within a header
         """
 
         self._data_record_matcher = None
