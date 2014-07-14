@@ -552,7 +552,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _update_params(self, *args, **kwargs):
         """
-        Update the parameter dictionary. 
+        Update the parameter dictionary.
         """
         log.debug("in _update_params")
         error = None
@@ -759,7 +759,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Issue the stop command.
 
-        # Send break twice, as sometimes the driver ack's the first one then 
+        # Send break twice, as sometimes the driver ack's the first one then
         # forgets to actually break.
         self._wakeup()
         self._send_break(duration=3000)
@@ -1036,7 +1036,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_autosample_get_calibration(self, *args, **kwargs):
         """
-        execute a get calibration from autosample mode.  
+        execute a get calibration from autosample mode.
         For this command we have to move the instrument
         into command mode, get calibration, then switch back.  If an
         exception is thrown we will try to get ourselves back into
@@ -1075,7 +1075,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_autosample_get_configuration(self, *args, **kwargs):
         """
-        execute a get configuration from autosample mode.  
+        execute a get configuration from autosample mode.
         For this command we have to move the instrument
         into command mode, get configuration, then switch back.  If an
         exception is thrown we will try to get ourselves back into
