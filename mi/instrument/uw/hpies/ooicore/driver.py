@@ -145,8 +145,6 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    # TEST = DriverProtocolState.TEST  # no test defined
-    # CALIBRATE = DriverProtocolState.CALIBRATE  # instrument auto-calibrates
 
 
 class ProtocolEvent(BaseEnum):
@@ -1053,12 +1051,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
 
     def _build_protocol(self):
         """
@@ -1183,7 +1176,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
     @staticmethod
@@ -1236,6 +1228,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
+                             units=Units.SECOND,
                              display_name='WS Run Pinch',
                              description='Half cycle interval between water switch tube pinch',
                              visibility=ParameterDictVisibility.READ_WRITE,
