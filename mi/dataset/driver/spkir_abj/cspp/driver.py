@@ -11,12 +11,19 @@ initial release
 __author__ = 'Jeff Roy'
 __license__ = 'Apache 2.0'
 
-import string
+from mi.core.log import get_logger
+log = get_logger()
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.common import BaseEnum
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.spkir_abj_cspp import SpkirAbjCsppParser, SpkirAbjCsppParserDataParticle
+from mi.dataset.parser.spkir_abj_cspp import SpkirAbjCsppParser
+
+
+class DataTypeKey(BaseEnum):
+    SPKIR_ABJ_CSPP_TELEMETERED = 'spkir_abj_cspp_telemetered'
+    SPKIR_ABJ_CSPP_RECOVERED = 'spkir_abj_cspp_recovered'
+
 
 class SpkirAbjCsppDataSetDriver(SimpleDataSetDriver):
     

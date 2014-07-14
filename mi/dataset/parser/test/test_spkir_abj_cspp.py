@@ -7,19 +7,35 @@
 @brief Test code for a spkir_abj_cspp data parser
 """
 
+import os
+import yaml
+import numpy
+
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticleKey
 
+from mi.idk.config import Config
+
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.dataset.parser.spkir_abj_cspp import SpkirAbjCsppParser, StateKey
-from mi.dataset.parser.spkir_abj_cspp import SpkirAbjCsppParserDataParticle
 
-# The list of generated tests are the suggested tests, but there may
-# be other tests needed to fully test your parser
+from mi.dataset.parser.cspp_base import METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
+from mi.dataset.parser.spkir_abj_cspp import \
+    SpkirAbjCsppParser, \
+    SpkirAbjCsppInstrumentTelemeteredDataParticle, \
+    SpkirAbjCsppMetadataTelemeteredDataParticle, \
+    SpkirAbjCsppInstrumentRecoveredDataParticle, \
+    SpkirAbjCsppMetadataRecoveredDataParticle
+
+from mi.dataset.driver.spkir_abj.cspp.driver import DataTypeKey
+
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'spkir_abj', 'cspp', 'resource')
+
 
 @attr('UNIT', group='mi')
 class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
@@ -35,38 +51,217 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_value = pub
 
+    def exception_callback(self, exception):
+        """ Callback method to watch what comes in via the exception callback """
+        self.exception_callback_value = exception
+
     def setUp(self):
-	ParserUnitTestCase.setUp(self)
-	self.config = {
-	    DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'SpkirAbjCsppParserDataParticle'
-	    }
-        # Define test data particles and their associated timestamps which will be 
+        ParserUnitTestCase.setUp(self)
+        self.config = {
+            DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataTelemeteredDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: SpkirAbjCsppInstrumentTelemeteredDataParticle,
+                }
+            },
+            DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataRecoveredDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: SpkirAbjCsppInstrumentRecoveredDataParticle,
+                }
+            },
+        }
+
+        # Define test data particles and their associated timestamps which will be
         # compared with returned results
 
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
+        self.exception_callback_value = None
+
+    def particle_to_yml(self, particles, filename, mode='w'):
+        """
+        This is added as a testing helper, not actually as part of the parser tests. Since the same particles
+        will be used for the driver test it is helpful to write them to .yml in the same form they need in the
+        results.yml fids here.
+        """
+        # open write append, if you want to start from scratch manually delete this fid
+        fid = open(os.path.join(RESOURCE_PATH, filename), mode)
+
+        fid.write('header:\n')
+        fid.write("    particle_object: 'MULTIPLE'\n")
+        fid.write("    particle_type: 'MULTIPLE'\n")
+        fid.write('data:\n')
+
+        for i in range(0, len(particles)):
+            particle_dict = particles[i].generate_dict()
+
+            fid.write('  - _index: %d\n' % (i+1))
+
+            fid.write('    particle_object: %s\n' % particles[i].__class__.__name__)
+            fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
+            fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
+
+            for val in particle_dict.get('values'):
+                if isinstance(val.get('value'), float):
+                    fid.write('    %s: %16.16f\n' % (val.get('value_id'), val.get('value')))
+                elif isinstance(val.get('value'), str):
+                    fid.write("    %s: '%s'\n" % (val.get('value_id'), val.get('value')))
+                else:
+                    fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
+        fid.close()
+
+    def get_dict_from_yml(self, filename):
+        """
+        This utility routine loads the contents of a yml file
+        into a dictionary
+        """
+
+        fid = open(os.path.join(RESOURCE_PATH, filename), 'r')
+        result = yaml.load(fid)
+        fid.close()
+
+        return result
+
+    def create_yml(self):
+        """
+        This utility creates a yml file
+        """
+
+        #ADCP_data_20130702.PD0 has one record in it
+        fid = open(os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt'), 'r')
+
+        stream_handle = fid
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                       None, stream_handle,
+                                       self.state_callback, self.pub_callback,
+                                       self.exception_callback)
+
+        particles = parser.get_records(20)
+
+        self.particle_to_yml(particles, '11079419_PPB_OCR_20.yml')
+        fid.close()
+
+    def assert_result(self, test, particle):
+        """
+        Suite of tests to run against each returned particle and expected
+        results of the same.  The test parameter should be a dictionary
+        that contains the keys to be tested in the particle
+        the 'internal_timestamp' and 'position' keys are
+        treated differently than others but can be verified if supplied
+        """
+
+        particle_dict = particle.generate_dict()
+
+        #for efficiency turn the particle values list of dictionaries into a dictionary
+        particle_values = {}
+        for param in particle_dict.get('values'):
+            particle_values[param['value_id']] = param['value']
+            # log.debug('### building building particle values ###')
+            # log.debug('value_id = %s', param['value_id'])
+            # log.debug('value = %s', param['value'])
+
+        # compare each key in the test to the data in the particle
+        for key in test:
+            test_data = test[key]
+
+            #get the correct data to compare to the test
+            if key == 'internal_timestamp':
+                particle_data = particle.get_value('internal_timestamp')
+                #the timestamp is in the header part of the particle
+            elif key == 'position':
+                particle_data = self.state_callback_value['position']
+                #position corresponds to the position in the file
+            else:
+                particle_data = particle_values.get(key)
+                #others are all part of the parsed values part of the particle
+
+            # log.debug('*** assert result: test data key = %s', key)
+            # log.debug('*** assert result: test data val = %s', test_data)
+            # log.debug('*** assert result: part data val = %s', particle_data)
+
+            if particle_data is None:
+                #generally OK to ignore index keys in the test data, verify others
+
+                log.warning("\nWarning: assert_result ignoring test key %s, does not exist in particle", key)
+            else:
+                if isinstance(test_data, float):
+
+                    # slightly different test for these values as they are floats.
+                    compare = numpy.abs(test_data - particle_data) <= 1e-5
+                    # log.debug('*** assert result: compare = %s', compare)
+                    self.assertTrue(compare)
+                else:
+                    # otherwise they are all ints and should be exactly equal
+                    self.assertEqual(test_data, particle_data)
 
     def test_simple(self):
         """
-	Read test data and pull out data particles one at a time.
-	Assert that the results are those we expected.
-	"""
-        pass
+        Read test data and pull out data particles
+        Assert that the results are those we expected.
+        """
+        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
+        stream_handle = open(file_path, 'rb')
+
+        # Note: since the recovered and teelemetered parser and particles are common
+        # to each other, testing one is sufficient, will be completely tested
+        # in driver tests
+
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                       None, stream_handle,
+                                       self.state_callback, self.pub_callback,
+                                       self.exception_callback)
+
+        particles = parser.get_records(20)
+
+        log.debug("*** test_simple Num particles %s", len(particles))
+
+        # check the first particle, which should be the metadata particle (recovered)
+        test_data = self.get_dict_from_yml('test_simple_meta_1.yml')
+        self.assert_result(test_data['data'][0], particles[0])
+
+        # check the second particle, which should be the first data particle (recovered)
+        test_data = self.get_dict_from_yml('test_simple_inst_1.yml')
+        self.assert_result(test_data['data'][0], particles[1])
+
+        # check the tenth particle, which should be the ninth data particle (recovered)
+        test_data = self.get_dict_from_yml('test_simple_inst_9.yml')
+        self.assert_result(test_data['data'][0], particles[9])
+
+        # check the last particle, which should be the nineteenth data particle (recovered)
+        test_data = self.get_dict_from_yml('test_simple_inst_19.yml')
+        self.assert_result(test_data['data'][0], particles[19])
+
+        stream_handle.close()
 
     def test_get_many(self):
-	"""
-	Read test data and pull out multiple data particles at one time.
-	Assert that the results are those we expected.
-	"""
-        pass
+        """
+        Read test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        """
+        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
+        stream_handle = open(file_path, 'rb')
 
-    def test_long_stream(self):
-        """
-        Test a long stream 
-        """
-        pass
+        # Note: since the recovered and teelemetered parser and particles are common
+        # to each other, testing one is sufficient, will be completely tested
+        # in driver tests
+
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                       None, stream_handle,
+                                       self.state_callback, self.pub_callback,
+                                       self.exception_callback)
+
+        # try to get 2000 particles, there are only 1623 data records
+        # so should get 1624 including the meta data
+        particles = parser.get_records(2000)
+
+        log.debug("*** test_get_many Num particles %s", len(particles))
+        self.assertEqual(len(particles), 1624)
 
     def test_mid_state_start(self):
         """

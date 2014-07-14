@@ -1,0 +1,17 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763058.515000
+    profiler_timestamp: 1397774258.5150001049041748
+    pressure_depth: 19.4400000000000013
+    timer: 9.1300000000000008
+    sample_delay: -133
+    channel_array: [2147974272, 2147680256, 2148676160, 2148659264, 2150586880, 2147350784, 2147462592]
+    vin_sense: 278
+    va_sense: 174
+    internal_temperature: 174
+    frame_counter: 37
