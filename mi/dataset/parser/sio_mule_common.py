@@ -120,9 +120,11 @@ class SioParser(BufferLoadingParser):
 
         # use None flag in unprocessed data to initialize this
         # we read the entire file and get the size of the data
-        self._read_state = {StateKey.UNPROCESSED_DATA: None,
-                            StateKey.IN_PROCESS_DATA: [],
-                            StateKey.FILE_SIZE: 0}
+        self._read_state = {
+            StateKey.UNPROCESSED_DATA: None,
+            StateKey.IN_PROCESS_DATA: [],
+            StateKey.FILE_SIZE: 0
+        }
 
         if state is not None:
             self.set_state(state)
@@ -156,7 +158,6 @@ class SioParser(BufferLoadingParser):
             crc = '00' + crc
         elif len(crc) == 1:
             crc = '000' + crc
-        log.trace("calculated checksum %s", crc)
         return crc
 
     def _combine_adjacent_packets(self, packets):
@@ -198,9 +199,7 @@ class SioParser(BufferLoadingParser):
         if len(unproc) > next_idx:
             data = self.all_data[unproc[next_idx][START_IDX]:unproc[next_idx][END_IDX]]
             self._position = unproc[next_idx]
-            #log.debug('got %d bytes starting at %d', len(data), self._position[START_IDX])
         else:
-            #log.debug('Found no data, next_idx=%d', next_idx)
             data = []
         return data
 
@@ -220,9 +219,6 @@ class SioParser(BufferLoadingParser):
                 self.all_data = self.all_data.replace(b'\x18\x6b', b'\x2b')
                 self.all_data = self.all_data.replace(b'\x18\x58', b'\x18')
 
-            #log.debug("length of file %d, length of data %d",
-            #          orig_len, len(self.all_data))
-
         # if unprocessed data has not been initialized yet, set it to the entire file
         if self._read_state[StateKey.UNPROCESSED_DATA] is None:
             self._read_state[StateKey.UNPROCESSED_DATA] = [[0, len(self.all_data)]]
@@ -230,8 +226,6 @@ class SioParser(BufferLoadingParser):
 
         while len(self._record_buffer) < num_records:
             # read unprocessed data packet from the file, starting with in process data
-            #log.debug('have %d records, waiting for %d records, samples to throw out %s',
-            #          len(self._record_buffer), num_records, self._samples_to_throw_out)
             if len(self._read_state[StateKey.IN_PROCESS_DATA]) > 0:
                 # there is in process data, read that first
                 data = self._get_next_unprocessed_data(self._read_state[StateKey.IN_PROCESS_DATA])
@@ -248,8 +242,6 @@ class SioParser(BufferLoadingParser):
 
                 # this unprocessed block has now been parsed, increment the state, using
                 # last samples timestamp to update the state timestamp
-                #log.debug("KKKK Get %d. Sending parser state [%s] to driver",
-                #              num_records, self._state)
                 self._increment_state()
 
                 # clear out any non matching data.  Don't do this during parsing because
@@ -559,8 +551,6 @@ class SioParser(BufferLoadingParser):
             # need to keep track of which records have actually been returned
             self._increment_state(num_to_fetch)
             self._state = self._read_state
-            #log.debug("KKKK Yank %d. Sending parser state [%s] to driver",
-            #              num_to_fetch, self._state)
             self._state_callback(self._state)  # push new state to driver
 
         return return_list
