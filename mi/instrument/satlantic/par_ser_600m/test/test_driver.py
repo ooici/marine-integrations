@@ -5,7 +5,6 @@
 @author Steve Foley, Ronald Ronquillo
 @test ion.services.mi.drivers.satlantic_par
 Unit test suite to test Satlantic PAR sensor
-@todo Find a way to test timeouts?
 """
 
 from gevent import monkey
@@ -101,6 +100,8 @@ class PARMixin(DriverTestMixin):
     """
     Mixin class used for storing data particle constance and common data assertion methods.
     """
+    SatlanticPARInstrumentDriver = SatlanticPARInstrumentDriver
+
     # Create some short names for the parameter test config
     TYPE      = ParameterTestConfigKey.TYPE
     READONLY  = ParameterTestConfigKey.READONLY
@@ -109,26 +110,39 @@ class PARMixin(DriverTestMixin):
     VALUE     = ParameterTestConfigKey.VALUE
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
 
     ###
     #  Parameter and Type Definitions
     ###
 
     _driver_parameters = {
-        Parameter.MAXRATE: {TYPE: float, VALUE: 0.5, REQUIRED: True},
-        Parameter.FIRMWARE: {TYPE: unicode, VALUE: '1.0.0', REQUIRED: True},
-        Parameter.SERIAL: {TYPE: unicode, VALUE: '229', REQUIRED: True},
-        Parameter.INSTRUMENT: {TYPE: unicode, VALUE: 'SATPAR', REQUIRED: True},
-        Parameter.ACQUIRE_STATUS_INTERVAL: {TYPE: unicode, VALUE: '00:00:00', REQUIRED: True}
+        Parameter.MAXRATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4, REQUIRED: True},
+        Parameter.FIRMWARE: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0', REQUIRED: False},
+        Parameter.SERIAL: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '229', REQUIRED: False},
+        Parameter.INSTRUMENT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR', REQUIRED: False},
+        Parameter.ACQUIRE_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, VALUE: '00:00:00', REQUIRED: True}
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        PARCapability.DISCOVER: {STATES: [PARProtocolState.UNKNOWN]},
+        PARCapability.ACQUIRE_SAMPLE: {STATES: [PARProtocolState.COMMAND]},
+        PARCapability.START_AUTOSAMPLE: {STATES: [PARProtocolState.COMMAND]},
+        PARCapability.STOP_AUTOSAMPLE: {STATES: [PARProtocolState.AUTOSAMPLE]},
+        PARCapability.START_DIRECT: {STATES: [PARProtocolState.COMMAND]},
+        PARCapability.STOP_DIRECT: {STATES: [PARProtocolState.DIRECT_ACCESS]},
+        PARCapability.ACQUIRE_STATUS: {STATES: [PARProtocolState.COMMAND, PARProtocolState.AUTOSAMPLE]},
+        PARCapability.RESET: {STATES: [PARProtocolState.COMMAND]},
     }
 
     _config_parameters = {
         # Parameters defined in the IOS
-        SatlanticPARConfigParticleKey.BAUD_RATE: {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 19200},
-        SatlanticPARConfigParticleKey.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0.5},
-        SatlanticPARConfigParticleKey.SERIAL_NUM: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: '4278190306'},
-        SatlanticPARConfigParticleKey.FIRMWARE: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0'},
-        SatlanticPARConfigParticleKey.TYPE: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR'},
+        SatlanticPARConfigParticleKey.BAUD_RATE: {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 19200, REQUIRED: True},
+        SatlanticPARConfigParticleKey.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0.5, REQUIRED: True},
+        SatlanticPARConfigParticleKey.SERIAL_NUM: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: '4278190306', REQUIRED: True},
+        SatlanticPARConfigParticleKey.FIRMWARE: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0', REQUIRED: True},
+        SatlanticPARConfigParticleKey.TYPE: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR', REQUIRED: True},
     }
 
     _sample_parameters = {
@@ -150,6 +164,7 @@ class PARMixin(DriverTestMixin):
                                         PARProtocolEvent.ACQUIRE_STATUS],
 
         PARProtocolState.AUTOSAMPLE:   [PARProtocolEvent.STOP_AUTOSAMPLE,
+                                        PARProtocolEvent.ACQUIRE_STATUS,
                                         PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS,
                                         PARProtocolEvent.RESET],
 
@@ -199,6 +214,13 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         # Test capabilites for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(PARCapability())
         self.assert_enum_complete(PARCapability(), PARProtocolEvent())
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = self.SatlanticPARInstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_driver_protocol_filter_capabilities(self):
         """
@@ -507,7 +529,6 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         time.sleep(3)
 
         self.driver_client.cmd_dvr('stop_direct')
-        # time.sleep(5)
         self.assert_state_change(PARProtocolState.COMMAND, 5)
         log.debug('leaving direct access')
 
@@ -596,7 +617,6 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         """
         self.assert_initialize_driver()
         self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:00:15")
-        # self.assert_set(Parameter.MAXRATE, 1)
 
         self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=1)
         self.assert_current_state(PARProtocolState.AUTOSAMPLE)
@@ -753,7 +773,6 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         """
         self.assert_enter_command_mode()
 
-        # Begin streaming.
         self.assert_particle_polled(PARCapability.ACQUIRE_STATUS, self.assert_config_parameters,
                                     DataParticleType.CONFIG)
 
@@ -792,6 +811,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         capabilities = {}
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_AUTOSAMPLE,
+                                                              PARProtocolEvent.ACQUIRE_STATUS,
                                                               PARProtocolEvent.RESET]
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
