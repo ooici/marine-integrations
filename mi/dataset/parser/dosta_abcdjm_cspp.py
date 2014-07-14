@@ -247,9 +247,6 @@ class DostaAbcdjmCsppParser(CsppParser):
         @param exception_callback The function to call to report exceptions
         """
 
-        # Set the DATA_REGEX to use for the data record match
-        kwargs[DATA_REGEX_KWARGS_KEY] = DATA_REGEX
-
         # Call the superclass constructor
         super(DostaAbcdjmCsppParser, self).__init__(config,
                                                     state,
@@ -257,4 +254,5 @@ class DostaAbcdjmCsppParser(CsppParser):
                                                     state_callback,
                                                     publish_callback,
                                                     exception_callback,
+                                                    DATA_REGEX,
                                                     *args, **kwargs)

@@ -35,9 +35,9 @@ HEADER_PART_REGEX = r'(.*):\s+(.*)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
 HEADER_PART_MATCHER = re.compile(HEADER_PART_REGEX)
 
 # A regex to capture a float value
-FLOAT_REGEX = r'(?:[0-9]|[1-9][0-9])+\.[0-9]+'
+FLOAT_REGEX = r'(?:[+|-]?[0-9]|[1-9][0-9])+\.[0-9]+'
 # A regex to capture an int value
-INT_REGEX = r'[1-9][0-9]*'
+INT_REGEX = r'[+|-]?[0-9]+'
 # A regex to match against one or more multiple consecutive whitespace characters
 MULTIPLE_TAB_REGEX = r'\t+'
 
@@ -215,6 +215,8 @@ class CsppParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  exception_callback,
+                 data_record_regex,
+                 header_key_list=None,
                  *args, **kwargs):
         """
         This method is a constructor that will instantiate an CsppParser object.
@@ -230,19 +232,15 @@ class CsppParser(BufferLoadingParser):
         self._header_and_first_data_record_matcher = None
 
         # Ensure that we have a DATA_REGEX_KWARGS_KEY in the kwargs
-        if DATA_REGEX_KWARGS_KEY not in kwargs:
-            raise DatasetParserException("Must provide a " + DATA_REGEX_KWARGS_KEY)
+        if data_record_regex is None:
+            raise DatasetParserException("Must provide a data_record_regex")
         else:
-            # Obtain the data record regex from the kwargs
-            data_record_regex = kwargs.pop(DATA_REGEX_KWARGS_KEY)
             self._data_record_matcher = re.compile(data_record_regex)
 
         header_state = {}
 
-        header_key_list = DEFAULT_HEADER_KEY_LIST
-
-        if HEADER_KEY_LIST_KWARGS_KEY in kwargs:
-            header_key_list = kwargs.pop(HEADER_KEY_LIST_KWARGS_KEY)
+        if header_key_list is None:
+            header_key_list = DEFAULT_HEADER_KEY_LIST
 
         for header_key in header_key_list:
             header_state[header_key] = None
