@@ -801,12 +801,20 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
         constraints = ParameterConstraints.dict()
         parameters = Parameter.dict()
         for key in constraints:
-            log.debug('djm - checking parameter: %s', key)
             if self._driver_parameters[parameters[key]][self.READONLY]:
                 continue
-            log.debug('djm - setting parameter: %s', key)
             _, _, maximum = constraints[key]
             self.assert_set_parameter(parameters[key], maximum)
+
+    def test_startup_parameters(self):
+        """
+        Verify that all startup parameters are set to expected defaults on startup.
+        """
+        self.assert_enter_command_mode()
+
+        for key in self._driver_parameters.keys():
+            if self._driver_parameters[key][self.STARTUP]:
+                self.assert_get_parameter(key, self._driver_parameters[key][self.VALUE])
 
     def test_get_capabilities(self):
         """
