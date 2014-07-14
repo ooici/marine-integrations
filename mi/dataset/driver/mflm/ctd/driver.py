@@ -69,10 +69,12 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
 
     @classmethod
     def stream_config(cls):
-        return [CtdmoRecoveredInstrumentDataParticle.type(),
-                CtdmoRecoveredOffsetDataParticle.type(),
-                CtdmoTelemeteredInstrumentDataParticle.type(),
-                CtdmoTelemeteredOffsetDataParticle.type()]
+        return [
+            CtdmoRecoveredInstrumentDataParticle.type(),
+            CtdmoRecoveredOffsetDataParticle.type(),
+            CtdmoTelemeteredInstrumentDataParticle.type(),
+            CtdmoTelemeteredOffsetDataParticle.type()
+        ]
 
     def _build_parser(self, parser_state, stream_in, data_key):
         """
