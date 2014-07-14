@@ -374,4 +374,3 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle.close()
 
 
-
