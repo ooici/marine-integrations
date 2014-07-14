@@ -19,8 +19,8 @@ from mi.core.log import get_logger
 
 log = get_logger()
 from mi.core.common import BaseEnum
-from mi.dataset.parser.mmp_cds_base import MmpCdsParserDataParticle, MmpCdsParser
-
+from mi.dataset.parser.mmp_cds_base import MmpCdsParserDataParticle,\
+    MmpCdsParser
 
 
 class DataParticleType(BaseEnum):
@@ -55,23 +55,23 @@ class Vel3dAMmpCdsParserDataParticle(MmpCdsParserDataParticle):
         """
 
         va = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VA,
-                                         dict_data['va'], float)
+                                dict_data['va'], float)
         vb = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VB,
-                                         dict_data['vb'], float)
+                                dict_data['vb'], float)
         vc = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VC,
-                                         dict_data['vc'], float)
+                                dict_data['vc'], float)
         vd = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.VD,
-                                         dict_data['vd'], float)
+                                dict_data['vd'], float)
         hx = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.HX,
-                                         dict_data['hx'], float)
+                                dict_data['hx'], float)
         hy = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.HY,
-                                         dict_data['hy'], float)
+                                dict_data['hy'], float)
         hz = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.HZ,
-                                         dict_data['hz'], float)
+                                dict_data['hz'], float)
         tx = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.TX,
-                                         dict_data['tx'], float)
+                                dict_data['tx'], float)
         ty = self._encode_value(Vel3dAMmpCdsParserDataParticleKey.TY,
-                                         dict_data['ty'], float)
+                                dict_data['ty'], float)
 
         return [va, vb, vc, vd, hx, hy, hz, tx, ty]
 
@@ -100,8 +100,8 @@ class Vel3dAMmpCdsParser(MmpCdsParser):
 
         # Call the superclass constructor
         super(Vel3dAMmpCdsParser, self).__init__(config,
-                                                   state,
-                                                   stream_handle,
-                                                   state_callback,
-                                                   publish_callback,
-                                                   *args, **kwargs)
+                                                 state,
+                                                 stream_handle,
+                                                 state_callback,
+                                                 publish_callback,
+                                                 *args, **kwargs)
