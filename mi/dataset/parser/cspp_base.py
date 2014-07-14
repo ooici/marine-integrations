@@ -22,7 +22,7 @@ import string
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.exceptions import DatasetParserException, UnexpectedDataException
+from mi.core.exceptions import DatasetParserException, UnexpectedDataException, RecoverableSampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -34,6 +34,9 @@ SIEVE_MATCHER = re.compile(r'.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH)
 
 HEADER_PART_REGEX = r'(.*):\s+(.*)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
 HEADER_PART_MATCHER = re.compile(HEADER_PART_REGEX)
+
+TIMESTAMP_LINE_REGEX = r'Timestamp.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+TIMESTAMP_LINE_MATCHER = re.compile(TIMESTAMP_LINE_REGEX)
 
 # A regex to capture a float value
 FLOAT_REGEX = r'(?:[+-]?[0-9]|[1-9][0-9])+\.[0-9]+'
@@ -211,6 +214,7 @@ class CsppParser(BufferLoadingParser):
                  exception_callback,
                  data_record_regex,
                  header_key_list=None,
+                 ignore_matcher=None,
                  *args, **kwargs):
         """
         This method is a constructor that will instantiate an CsppParser object.
@@ -222,10 +226,12 @@ class CsppParser(BufferLoadingParser):
         @param exception_callback The function to call to report exceptions
         @param data_record_regex The data regex that should be used to obtain data records
         @param header_key_list The list of header keys expected within a header
+        @param ignore_regex A regex to use to ignore expected junk lines
         """
 
         self._data_record_matcher = None
         self._header_and_first_data_record_matcher = None
+        self._ignore_matcher = ignore_matcher
 
         # Ensure that we have a data regex
         if data_record_regex is None:
@@ -316,7 +322,7 @@ class CsppParser(BufferLoadingParser):
             # See if the chunk matches a data record
             data_match = self._data_record_matcher.match(chunk)
 
-            # If we found a match, let's process it
+            # If we found a data match, let's process it
             if data_match:
 
                 # Extract the data record particle
@@ -345,15 +351,34 @@ class CsppParser(BufferLoadingParser):
                     self._update_positional_state(len(chunk))
 
             else:
+                # Check for head part match
                 header_part_match = HEADER_PART_MATCHER.match(chunk)
 
                 if header_part_match is not None:
+
                     header_part_key = header_part_match.group(
                         HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
                     header_part_value = header_part_match.group(
                         HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
                     if header_part_key in self._read_state[StateKey.HEADER_STATE].keys():
                         self._read_state[StateKey.HEADER_STATE][header_part_key] = string.rstrip(header_part_value)
+
+                else:
+                    # Check for the expected timestamp line we will ignore
+                    timestamp_line_match = TIMESTAMP_LINE_MATCHER.match(chunk)
+
+                    if timestamp_line_match is not None:
+                        # Ignore
+                        pass
+
+                    else:
+
+                        if self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
+                            # Ignore
+                            pass
+                        else:
+                            # OK.  We got unexpected data
+                            self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
             # Retrieve the next non data chunk
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
