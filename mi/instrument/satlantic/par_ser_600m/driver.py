@@ -85,7 +85,6 @@ EOLN = "\r\n"
 class ParameterUnits(BaseEnum):
     HERTZ = 'Hz'
     TIME_INTERVAL = 'HH:MM:SS'
-    BITS_PER_SECOND = 'bps'
 
 
 class DataParticleType(BaseEnum):
@@ -1210,7 +1209,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    particle_class, regex, line, timestamp, publish=True):
         """
         Extract sample from a response line if present and publish parsed particle
-        This is overriden to pass in parameters stored in the param dictionary to make the particle
+        This is overridden to pass in parameters stored in the param dictionary to make the particle
 
         @param particle_class The class to instantiate for this specific
             data particle. Parameterizing this allows for simple, standard
@@ -1224,8 +1223,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
                 the line can be parsed for a sample. Otherwise, None.
-        @todo Figure out how the agent wants the results for a single poll
-            and return them that way from here
         """
         sample = None
         if regex.match(line):
