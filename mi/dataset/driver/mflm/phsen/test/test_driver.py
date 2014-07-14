@@ -373,7 +373,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Stop the driver from taking processing new samples
         self.driver.stop_sampling()
-        
+
         # Resume
         self.driver.start_sampling()
 
