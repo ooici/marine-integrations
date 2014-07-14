@@ -156,6 +156,7 @@ class PARCapability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
+    DISCOVER = PARProtocolEvent.DISCOVER
     ACQUIRE_SAMPLE = PARProtocolEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = PARProtocolEvent.ACQUIRE_STATUS
     START_AUTOSAMPLE = PARProtocolEvent.START_AUTOSAMPLE
@@ -395,6 +396,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.RESET, self._handler_autosample_reset)
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_autosample_acquire_status)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
 
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
@@ -438,7 +440,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              str,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Instrument',
-                             description='Instrument type.')
+                             description='Instrument type.',
+                             type=ParameterDictType.STRING)
 
         self._param_dict.add(Parameter.SERIAL,
                              HEADER_PATTERN,
@@ -446,7 +449,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              str,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Serial',
-                             description='Serial number.')
+                             description='Serial number.',
+                             type=ParameterDictType.STRING)
 
         self._param_dict.add(Parameter.FIRMWARE,
                              HEADER_PATTERN,
@@ -454,15 +458,16 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              str,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Firmware',
-                             description='Instrument firmware.')
+                             description='Instrument firmware.',
+                             type=ParameterDictType.STRING)
 
         self._param_dict.add(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
                              INTERVAL_TIME_REGEX,
                              lambda match: match.group(1),
                              str,
-                             type=ParameterDictType.STRING,
                              display_name="Acquire Status Interval",
                              description='Interval for gathering status particles',
+                             type=ParameterDictType.STRING,
                              units=ParameterUnits.TIME_INTERVAL,
                              default_value='00:00:00',
                              startup_param=True)
@@ -474,6 +479,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Build a command dictionary structure, load the strings for the metadata from a file if present.
         """
         self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(PARCapability.DISCOVER, display_name='Discover')
         self._cmd_dict.add(PARCapability.SET, display_name='Set')
         self._cmd_dict.add(PARCapability.GET, display_name='Get')
         self._cmd_dict.add(PARCapability.ACQUIRE_SAMPLE, display_name='Acquire Sample')
