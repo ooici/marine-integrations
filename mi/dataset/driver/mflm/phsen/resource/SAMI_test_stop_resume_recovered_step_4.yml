@@ -5,43 +5,17 @@ header:
   particle_type: "MULTIPLE"
 
 data:
-  - _index: 1
-    particle_object: PhsenRecoveredInstrumentDataParticle
-    particle_type: phsen_abcdef_instrument
-    internal_timestamp: 3583122299.0
-    record_type: 10
-    record_time: 3456978299
-    thermistor_start: 2329
-    reference_light_measurements: [3048, 2021, 2734, 2780, 3043, 2021, 2735, 2780, 3045, 2018, 2733, 2776, 3046, 2018, 2732, 2778]
-    light_measurements: [3048, 2019, 2735, 2776, 3044, 2023, 2734, 2780, 3044, 2004, 2733, 2768, 3045, 1708, 2734, 2549, 3045, 1147, 2731, 2080, 3046, 692, 2734, 1610, 3047, 463, 2733, 1314, 3042, 371, 2730, 1178, 3046, 354, 2733, 1141, 3044, 378, 2734, 1184, 3043, 434, 2728, 1267, 3045, 513, 2732, 1374, 3047, 604, 2733, 1497, 3044, 708, 2731, 1624, 3045, 816, 2732, 1750, 3042, 935, 2737, 1868, 3045, 1045, 2735, 1981, 3048, 1146, 2735, 2077, 3044, 1247, 2732, 2171, 3049, 1339, 2737, 2249, 3046, 1422, 2733, 2320, 3044, 1496, 2732, 2379, 3051, 1560, 2736, 2432]
-    voltage_battery: 2842
-    thermistor_end: 2330
+ - _index: 1
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583122299.0
+   record_type: 10
+   record_time: 3456978299
+   thermistor_start: 2329
+   reference_light_measurements: [3048, 2021, 2734, 2780, 3043, 2021, 2735, 2780, 3045, 2018, 2733, 2776, 3046, 2018, 2732, 2778]
+   light_measurements: [3048, 2019, 2735, 2776, 3044, 2023, 2734, 2780, 3044, 2004, 2733, 2768, 3045, 1708, 2734, 2549, 3045, 1147, 2731, 2080, 3046, 692, 2734, 1610, 3047, 463, 2733, 1314, 3042, 371, 2730, 1178, 3046, 354, 2733, 1141, 3044, 378, 2734, 1184, 3043, 434, 2728, 1267, 3045, 513, 2732, 1374, 3047, 604, 2733, 1497, 3044, 708, 2731, 1624, 3045, 816, 2732, 1750, 3042, 935, 2737, 1868, 3045, 1045, 2735, 1981, 3048, 1146, 2735, 2077, 3044, 1247, 2732, 2171, 3049, 1339, 2737, 2249, 3046, 1422, 2733, 2320, 3044, 1496, 2732, 2379, 3051, 1560, 2736, 2432]
+   voltage_battery: 2842
+   thermistor_end: 2330
 
- - _index: 2
-   particle_object: PhsenRecoveredMetadataDataParticle
-   particle_type: phsen_abcdef_metadata
-   internal_timestamp: 3583126799.0
-   record_type: 131
-   record_time: 3456982799
-   voltage_battery: !!null
-   clock_active: 1
-   recording_active: 1
-   record_end_on_time: 1
-   record_memory_full: 0
-   record_end_on_error: 0
-   data_download_ok: 0
-   flash_memory_open: 1
-   battery_low_prestart: 0
-   battery_low_measurement: 0
-   battery_low_blank: 0
-   battery_low_external: 0
-   external_device1_fault: 0
-   external_device2_fault: 0
-   external_device3_fault: 0
-   flash_erased: 0
-   power_on_invalid: 0
-   num_data_records: 29
-   num_error_records: 0
-   num_bytes_stored: 6128
 
 

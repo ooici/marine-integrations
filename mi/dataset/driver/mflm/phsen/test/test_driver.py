@@ -179,12 +179,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # At this point the harvester thread is dead.  The agent
         # exception handle should handle this case.
 
-    def test_stop_resume(self):
+    def test_mid_state_start(self):
         """
-        Test the ability to stop and restart the process
+        Test the ability to start processing in mid-state
         """
         self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat",
                                         copy_metadata=False)
+
         driver_config = self._driver_config()['startup_config']
         sio_mule_config = driver_config['harvester'][DataSourceKey.PHSEN_ABCDEF_SIO_MULE]
         fullfile = os.path.join(sio_mule_config['directory'], sio_mule_config['pattern'])
@@ -229,68 +230,26 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(PhsenParserDataParticle, 'test_data_2.txt.result.yml',
                          count=2, timeout=10)
 
-    def test_stop_resume_recovered(self):
-        """
-        Test the ability to stop and restart the process. (this is really mid-state start)
-        """
+        # Recovered
+        self.clear_async_data()
         # create some recovered data to parse
         self.create_sample_data_set_dir("SAMI_P0080_180713_integration.txt", RECOVERED_DIR,
                                         "SAMI_P0080_180713_integration.txt")
 
-        # Create and store the new driver state
-        memento = {
-            DataSourceKey.PHSEN_ABCDEF: {
-                "SAMI_P0080_180713_integration.txt": {
-                    DriverStateKey.INGESTED: False,
-                    DriverStateKey.PARSER_STATE: {
-                        StateKey.POSITION: 0x168,
-                        StateKey.START_OF_DATA: False
-                    }
-                }
-            },
-            DataSourceKey.PHSEN_ABCDEF_SIO_MULE: {
-                "node59p1.dat": {
-                    DriverStateKey.FILE_SIZE: 911,
-                    DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
-                    DriverStateKey.FILE_MOD_DATE: 0,
-                    DriverStateKey.INGESTED: False,
-                    DriverStateKey.PARSER_STATE: {
-                        'in_process_data': None,
-                        'unprocessed_data': [[]]
-                    }
-                }
-            }
-        }
-
-        driver = self._get_driver_object(memento=memento)
-
-        self.clear_async_data()
-
+        # start in mid-state
         driver.start_sampling()
 
         # verify data is produced
         self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
                          count=2, timeout=10)
 
-    def test_stop_resume_recovered_step2(self):
-        """
-        Test the ability to stop and restart the process
-        """
-        # create some data to parse
+        # step 2
+        # recovered create some data to parse
         self.create_sample_data_set_dir("SAMI_P0080_180713_integration.txt", RECOVERED_DIR,
                                         "SAMI_P0080_180713_integration.txt")
 
-        # Create and store the new driver state
+        # Create and store the new driver state, move to a new position for recovered.
         memento = {
-            DataSourceKey.PHSEN_ABCDEF: {
-                "SAMI_P0080_180713_integration.txt": {
-                    DriverStateKey.INGESTED: False,
-                    DriverStateKey.PARSER_STATE: {
-                        StateKey.POSITION: 0x5c2,
-                        StateKey.START_OF_DATA: True
-                    }
-                }
-            },
             DataSourceKey.PHSEN_ABCDEF_SIO_MULE: {
                 "node59p1.dat": {
                     DriverStateKey.FILE_SIZE: 911,
@@ -300,6 +259,15 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.PARSER_STATE: {
                         'in_process_data': None,
                         'unprocessed_data': [[]]
+                    }
+                }
+            },
+            DataSourceKey.PHSEN_ABCDEF: {
+                "SAMI_P0080_180713_integration.txt": {
+                    DriverStateKey.INGESTED: False,
+                    DriverStateKey.PARSER_STATE: {
+                        StateKey.POSITION: 0x5c2,
+                        StateKey.START_OF_DATA: True
                     }
                 }
             }
@@ -371,6 +339,55 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
 
         log.info("======== END INTEG TEST SAMPLE EXCEPTION FAMILY ==========")
+
+    def test_start_stop_resume(self):
+        """
+        Test the ability to start, stop and resume the driver, ingesting files in the
+        correct order
+        """
+        log.info("### START INTEG TEST START STOP RESUME RECOVERED ###")
+
+        # Clear the asynchronous callback results
+        self.clear_async_data()
+        self.driver.start_sampling()
+
+        # create some recovered data to parse
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_1.txt", RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_1.txt")
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_2.txt", RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_2.txt")
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_3.txt", RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_3.txt")
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_4.txt", RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_4.txt")
+
+        # verify data is produced
+        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
+                         count=2, timeout=10)
+        self.assert_file_ingested('SAMI_P0080_180713_integration_1.txt', DataSourceKey.PHSEN_ABCDEF)
+
+        # verify data is produced
+        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_2.yml',
+                         count=2, timeout=10)
+        self.assert_file_ingested('SAMI_P0080_180713_integration_2.txt', DataSourceKey.PHSEN_ABCDEF)
+
+        # Stop the driver from taking processing new samples
+        self.driver.stop_sampling()
+        
+        # Resume
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
+                         count=2, timeout=10)
+        self.assert_file_ingested('SAMI_P0080_180713_integration_3.txt', DataSourceKey.PHSEN_ABCDEF)
+
+        # verify data is produced
+        self.assert_data(PhsenRecoveredInstrumentDataParticle,
+                         'SAMI_test_stop_resume_recovered_step_4.yml',
+                         count=1, timeout=10)
+        self.assert_file_ingested('SAMI_P0080_180713_integration_4.txt', DataSourceKey.PHSEN_ABCDEF)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
