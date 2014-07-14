@@ -37,7 +37,7 @@ HEADER_PART_MATCHER = re.compile(HEADER_PART_REGEX)
 # A regex to capture a float value
 FLOAT_REGEX = r'(?:[+-]?[0-9]|[1-9][0-9])+\.[0-9]+'
 # A regex to capture an int value
-INT_REGEX = r'[+|-]?[0-9]+'
+INT_REGEX = r'[+-]?[0-9]+'
 # A regex to match against one or more multiple consecutive whitespace characters
 MULTIPLE_TAB_REGEX = r'\t+'
 
