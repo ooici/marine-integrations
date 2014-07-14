@@ -40,6 +40,7 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver, DataSourceKey
 from mi.dataset.parser.ctdmo import CtdmoParserDataParticle, DataParticleType
 from mi.dataset.parser.ctdmo import CtdmoOffsetDataParticle
+from mi.dataset.parser.sio_mule_common import StateKey
 
 TELEM_DIR = '/tmp/dsatest'
 
@@ -137,8 +138,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
                     DriverStateKey.PARSER_STATE: {
-                        'in_process_data': [],
-                        'unprocessed_data':[[0, 12], [336, 394], [5924,6000]],                         
+                        StateKey.IN_PROCESS_DATA: [],
+                        StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [5924,6000]],
+                        StateKey.FILE_SIZE: 6000
                     }
                 }
             }

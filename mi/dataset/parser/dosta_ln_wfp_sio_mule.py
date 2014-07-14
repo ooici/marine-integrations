@@ -16,10 +16,6 @@ __license__ = 'Apache 2.0'
 import re
 import struct
 import ntplib
-#import time
-#import datetime
-import gevent
-#from dateutil import parser
 
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
@@ -27,8 +23,6 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, SAMPLE_BYTES, STATUS_BYTES, STATUS_START_MATCHER
-
-#from mi.dataset.dataset_parser import BufferLoadingParser
 
 
 class DataParticleType(BaseEnum):
@@ -41,7 +35,6 @@ class DostaLnWfpSioMuleDataParticleKey(BaseEnum):
     WFP_TIMESTAMP = 'wfp_timestamp'
  
 
-# *** Need to define data regex for this parser ***
 
 E_HEADER_REGEX = b'(\x00\x01\x00{5,5}\x01\x00{7,7}\x01)([\x00-\xff]{8,8})' # E header regex for global sites
 E_HEADER_MATCHER = re.compile(E_HEADER_REGEX)
@@ -130,19 +123,16 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
             parsing, plus the state. An empty list if nothing was parsed.
         """            
         result_particles = []
-        (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
-        # (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
+        (timestamp, chunk) = self._chunker.get_next_data()
 
         while (chunk != None):
-            gevent.sleep(1)
 	    sio_header_match = SIO_HEADER_MATCHER.match(chunk)
 	    
             sample_count = 0
             log.debug('parsing header %s', sio_header_match.group(0)[1:SIO_HEADER_BYTES])
 	    
             if sio_header_match.group(1) == 'WE':
-                log.debug("********************************matched chunk header %s", chunk[0:SIO_HEADER_BYTES])
+                log.trace("********************************matched chunk header %s", chunk[0:SIO_HEADER_BYTES])
 	    
                 # Parse/match the E file header
                 e_header_match = E_HEADER_MATCHER.search(chunk[SIO_HEADER_BYTES:SIO_HEADER_BYTES+HEADER_BYTES+1])
@@ -162,7 +152,7 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 			    # particle-ize the data block received, return the record		    			    
 			    if not STATUS_START_MATCHER.match(e_record[0:STATUS_BYTES]):
 				
-				fields = struct.unpack('<I', e_record[0:4])
+				fields = struct.unpack('>I', e_record[0:4])
 				timestampS = float(fields[0])
 				timestamp = ntplib.system_to_ntp_time(timestampS)
 				
@@ -178,7 +168,8 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 		                		
 		                
 		else: # no e header match
-		    log.debug("*****************************************************BAD E HEADER %s", chunk)
+		    log.debug("*****************************************************BAD E HEADER 0x%s",
+			       ":".join("{:02x}".format(ord(c)) for c in chunk))
 		    self._exception_callback(UnexpectedDataException("Found unexpected data."))
 		
             else: #no sio_header_match
@@ -188,8 +179,6 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
             self._chunk_sample_count.append(sample_count)
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=False)
 
         return result_particles
 
@@ -243,11 +232,13 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
  
             # if the remaining bytes are less than the data sample bytes, all we might have left is a status sample, if we don't we're done
             if parse_end_point != 0 and parse_end_point < STATUS_BYTES and parse_end_point < E_GLOBAL_SAMPLE_BYTES  and parse_end_point < STATUS_BYTES_AUGMENTED:
-		raise SampleException("Error sieving WE data, inferred sample/status alignment incorrect")
+		self._exception_callback(UnexpectedDataException("Error sieving WE data, inferred sample/status alignment incorrect"))
+		return_list = []
+		return return_list
 	    
 	# since we parsed this backwards, we need to reverse to list to deliver the data in the correct order    
-	return_list = []    
 	return_list = form_list[::-1]    
         log.debug("returning we sieve list %s", return_list)
         return return_list
+
 
