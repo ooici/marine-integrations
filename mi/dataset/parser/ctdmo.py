@@ -27,12 +27,17 @@ __license__ = 'Apache 2.0'
 import array
 import binascii
 import copy
-import string
+from functools import partial
+#import string
 import re
 import struct
 import time
-import ntplib
+#import ntplib
 from dateutil import parser
+
+from mi.core.instrument.chunker import \
+    StringChunker
+
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_parser import \
@@ -83,11 +88,13 @@ REC_CT_SERIAL_GROUP_SERIAL_NUMBER = 1
 
 # The end of the Configuration XML section is denoted by a *END* record.
 REC_CT_CONFIGURATION_END = r'^'                    # At the beginning of the record
-REC_CT_CONFIGURATION_END += r'[\*END\*|\*end\*]'   # *END* or *end*
+REC_CT_CONFIGURATION_END += r'\*END\*'             # *END*
 REC_CT_CONFIGURATION_END += NEW_LINE               # separated by a new line
 REC_CT_CONFIGURATION_END_MATCHER = re.compile(REC_CT_CONFIGURATION_END)
 
 # Recovered CT Data record (hex ascii):
+REC_CT_SAMPLE_BYTES = 31                # includes record separator
+
 REC_CT_REGEX = b'([0-9a-fA-F]{6})'      # Temperature
 REC_CT_REGEX += b'([0-9a-fA-F]{6})'     # Conductivity
 REC_CT_REGEX += b'([0-9a-fA-F]{6})'     # Pressure
@@ -131,14 +138,22 @@ CO_MATCHER = re.compile(CO_REGEX)
 CO_GROUP_ID = 1
 CO_GROUP_TIME_OFFSET = 2
 
-# Indices into raw_data tuples
+# Indices into raw_data tuples for recovered CT data
+RAW_INDEX_REC_CT_ID = 0
+RAW_INDEX_REC_CT_SERIAL = 1
+RAW_INDEX_REC_CT_TEMPERATURE = 2
+RAW_INDEX_REC_CT_CONDUCTIVITY = 3
+RAW_INDEX_REC_CT_PRESSURE = 4
+RAW_INDEX_REC_CT_PRESSURE_TEMP = 5
+RAW_INDEX_REC_CT_TIME = 6
+
+# Indices into raw_data tuples for telemetered CT data
 RAW_INDEX_TEL_CT_SIO_TIMESTAMP = 0
 RAW_INDEX_TEL_CT_ID = 1
 RAW_INDEX_TEL_CT_SCIENCE = 2
 RAW_INDEX_TEL_CT_TIME = 3
 
-RAW_INDEX_REC_CT_SIO_TIMESTAMP = 0
-
+# Indices into raw_data tuples for recovered and telemetered CO data
 RAW_INDEX_CO_SIO_TIMESTAMP = 0
 RAW_INDEX_CO_ID = 1
 RAW_INDEX_CO_TIME_OFFSET = 2
@@ -153,7 +168,10 @@ def convert_hex_ascii_to_int(int_val):
 
 class CtdmoStateKey(BaseEnum):
     INDUCTIVE_ID = 'inductive_id'     # required for recovered and telemetered
-    SERIAL_NUMBER = 'serial_number'   # required for recovered data only
+
+    END_CONFIG = 'end_config'         # required for recovered CT parser only
+    POSITION = 'position'             # required for recovered CT parser only
+    SERIAL_NUMBER = 'serial_number'   # required for recovered CT parser only
 
 
 class DataParticleType(BaseEnum):
@@ -192,9 +210,7 @@ class CtdmoInstrumentDataParticle(DataParticle):
         elapse_2000 = float(gmt_dt_2000.strftime("%s.%f"))
 
         # convert from epoch in 2000 to epoch in 1970, GMT
-        sec_since_1970 = int(time_2000, 16) + elapse_2000 - time.timezone
-
-        return sec_since_1970
+        return int(time_2000, 16) + elapse_2000 - time.timezone
 
 
 class CtdmoRecoveredInstrumentDataParticle(CtdmoInstrumentDataParticle):
@@ -202,6 +218,71 @@ class CtdmoRecoveredInstrumentDataParticle(CtdmoInstrumentDataParticle):
     Class for generating Instrument Data Particles from Recovered data.
     """
     _data_particle_type = DataParticleType.REC_CT_PARTICLE
+
+    def __init__(self, raw_data,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
+
+        super(CtdmoRecoveredInstrumentDataParticle, self).__init__(raw_data,
+                                port_timestamp=None,
+                                internal_timestamp=None,
+                                preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                                quality_flag=DataParticleValue.OK,
+                                new_sequence=None)
+
+        #
+        # The particle timestamp is the time contained in the CT instrument data.
+        # This time field is number of seconds since Jan 1, 2000.
+        # Convert from epoch in 2000 to epoch in 1970, GMT
+        #
+        sec_since_1970 = self.generate_particle_timestamp(self.raw_data[RAW_INDEX_REC_CT_TIME])
+        self.set_internal_timestamp(unix_time=sec_since_1970)
+
+    def _build_parsed_values(self):
+        """
+        Build parsed values for Telemetered Recovered Data Particle.
+        Take something in the hex ASCII data values and turn it into a
+        particle with the appropriate tag.
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        #
+        # Raw data for this particle consists of the following fields (hex ASCII
+        # unless noted otherwise):
+        #   inductive ID (hex)
+        #   serial number (hex)
+        #   temperature
+        #   conductivity
+        #   pressure
+        #   pressure temperature
+        #   time of science data
+        #
+        particle = [
+            self._encode_value(CtdmoInstrumentDataParticleKey.INDUCTIVE_ID,
+                               self.raw_data[RAW_INDEX_REC_CT_ID], int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.SERIAL_NUMBER,
+                               self.raw_data[RAW_INDEX_REC_CT_SERIAL], int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.TEMPERATURE,
+                               self.raw_data[RAW_INDEX_REC_CT_TEMPERATURE],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.CONDUCTIVITY,
+                               self.raw_data[RAW_INDEX_REC_CT_CONDUCTIVITY],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.PRESSURE,
+                               self.raw_data[RAW_INDEX_REC_CT_PRESSURE],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.PRESSURE_TEMP,
+                               self.raw_data[RAW_INDEX_REC_CT_PRESSURE_TEMP],
+                               convert_hex_ascii_to_int),
+            self._encode_value(CtdmoInstrumentDataParticleKey.CTD_TIME,
+                               self.raw_data[RAW_INDEX_REC_CT_TIME],
+                               convert_hex_ascii_to_int)
+        ]
+
+        return particle
 
 
 class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
@@ -243,7 +324,6 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
 
         self.set_internal_timestamp(unix_time=sec_since_1970)
 
-
     def _build_parsed_values(self):
         """
         Build parsed values for Telemetered Instrument Data Particle.
@@ -251,7 +331,6 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
         particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-
         try:
             #
             # Convert binary science data to hex ascii string.
@@ -388,17 +467,17 @@ class CtdmoParser(Parser):
         """
         particles = []
         sample_count = 0
-        last_chunk_idx = len(chunk)
-        start_chunk_idx = 0
+        last_index = len(chunk)
+        start_index = 0
 
-        while start_chunk_idx < last_chunk_idx:
+        while start_index < last_index:
             #
             # Look for a match in the next group of bytes
             #
             co_match = CO_MATCHER.match(
-                chunk[start_chunk_idx : start_chunk_idx+CO_SAMPLE_BYTES])
+                chunk[start_index : start_index+CO_SAMPLE_BYTES])
 
-            if co_match:
+            if co_match is not None:
                 #
                 # If the inductive ID is the one we're looking for,
                 # generate a data particle.
@@ -418,7 +497,7 @@ class CtdmoParser(Parser):
                         (sio_header_timestamp, inductive_id,
                             co_match.group(CO_GROUP_TIME_OFFSET)),
                         None)
-                    if sample:
+                    if sample is not None:
                         #
                         # Add this particle to the list of particles generated
                         # so far for this chunk of input data.
@@ -426,15 +505,15 @@ class CtdmoParser(Parser):
                         particles.append(sample)
                         sample_count += 1
 
-                start_chunk_idx += CO_SAMPLE_BYTES
+                start_index += CO_SAMPLE_BYTES
             #
             # If there wasn't a match, the input data is messed up.
             #
             else:
                 log.error('unknown data found in CO chunk %s at %d, leaving out the rest',
-                    binascii.b2a_hex(chunk), start_chunk_idx)
+                    binascii.b2a_hex(chunk), start_index)
                 self._exception_callback(SampleException(
-                    'unknown data found in CO chunk at %d, leaving out the rest' % chunk_idx))
+                    'unknown data found in CO chunk at %d, leaving out the rest' % start_index))
                 break
 
         #
@@ -445,12 +524,10 @@ class CtdmoParser(Parser):
 
 
 class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
-#class CtdmoRecoveredCoParser(SioMuleParser, CtdmoParser):
 
     """
     Parser for Ctdmo recovered CO data.
     """
-
     def __init__(self,
                  config,
                  stream_handle,
@@ -460,7 +537,6 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
                  exception_callback,
                  *args, **kwargs):
 
-        log.debug('ENTER CtdmoRecoveredCoParser %s', state)
         super(CtdmoRecoveredCoParser, self).__init__(config,
                                                      stream_handle,
                                                      state,
@@ -518,9 +594,8 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
                     CtdmoRecoveredOffsetDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
 
-                if samples > 0:
-                    for x in range(0, samples):
-                        result_particles.append(particles[x])
+                for x in range(0, samples):
+                    result_particles.append(particles[x])
 
             else:
                 samples = 0
@@ -532,7 +607,6 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             self.handle_non_data(non_data, non_end, start)
 
-        log.debug('SIO SET PARSE %d', len(result_particles))
         return result_particles
 
 
@@ -541,7 +615,6 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
     """
     Parser for Ctdmo recovered CT data.
     """
-
     def __init__(self,
                  config,
                  stream_handle,
@@ -551,16 +624,6 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
                  exception_callback,
                  *args, **kwargs):
 
-        super(CtdmoRecoveredCtParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          self.sieve_function,
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
-
         #
         # Verify that the required parameters are in the parser configuration.
         #
@@ -568,9 +631,199 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
             raise DatasetParserException("Parser config is missing %s"
                                          % CtdmoStateKey.INDUCTIVE_ID)
 
-        if not CtdmoStateKey.SERIAL_NUMBER in config:
-            raise DatasetParserException("Parser config is missing %s"
-                                         % CtdmoStateKey.SERIAL_NUMBER)
+        #
+        # No fancy sieve function needed for this parser.
+        # File is ASCII with records separated by newlines.
+        #
+        super(CtdmoRecoveredCtParser, self).__init__(config,
+                                          stream_handle,
+                                          state,
+                                          partial(StringChunker.regex_sieve_function,
+                                                  regex_list=[REC_CT_RECORD_MATCHER]),
+                                          state_callback,
+                                          publish_callback,
+                                          exception_callback,
+                                          *args,
+                                          **kwargs)
+
+        #
+        # Default the position within the file to the beginning
+        # and set flags to indicate the end of Configuration has not been reached
+        # and the serial number has not been found.
+        #
+        self._read_state = {
+            CtdmoStateKey.POSITION: 0,
+            CtdmoStateKey.END_CONFIG: False,
+            CtdmoStateKey.SERIAL_NUMBER: None
+        }
+        self.input_file = stream_handle
+
+        if state is not None:
+            self.set_state(state)
+
+    def check_for_config_end(self, chunk):
+        """
+        This function searches the input buffer for the end of Configuration record.
+        If found, the read_state and state are updated.
+        """
+        match = REC_CT_CONFIGURATION_END_MATCHER.match(chunk)
+        if match is not None:
+            self._read_state[CtdmoStateKey.END_CONFIG] = True
+
+    def check_for_serial_number(self, chunk):
+        """
+        This function searches the input buffer for a serial number.
+        If found, the read_state and state are updated.
+        """
+
+        #
+        # See if this record the serial number.
+        # If found, convert from decimal ASCII and save in the state.
+        #
+        match = REC_CT_SERIAL_MATCHER.match(chunk)
+        if match is not None:
+            self._read_state[CtdmoStateKey.SERIAL_NUMBER] = \
+                int(match.group(REC_CT_SERIAL_GROUP_SERIAL_NUMBER))
+
+    def handle_non_data(self, non_data, non_end, start):
+        """
+        Handle any non-data that is found in the file
+        """
+        # if non-data is expected, handle it here, otherwise it is an error
+        if non_data is not None and non_end <= start:
+            # increment the state
+            self._increment_position(len(non_data))
+            # use the _exception_callback
+            self._exception_callback(UnexpectedDataException(
+                "Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
+
+    def _increment_position(self, bytes_read):
+        """
+        Increment the parser position
+        @param bytes_read The number of bytes just read
+        """
+        self._read_state[CtdmoStateKey.POSITION] += bytes_read
+
+    def parse_chunks(self):
+        """
+        Parse chunks for the Recovered CT parser.
+        Parse out any pending data chunks in the chunker. If
+        it is a valid data piece, build a particle, update the position and
+        timestamp. Go until the chunker has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list of nothing was parsed.
+        """
+        result_particles = []
+        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
+        self.handle_non_data(non_data, non_end, start)
+
+        #
+        # The first data item to be obtained is the serial number.
+        # Once the serial number is received, we look for the end of XML record.
+        # Following the end of XML record are the CT data records.
+        #
+        while chunk is not None:
+            self._increment_position(len(chunk))
+
+            #
+            # Search for serial number if not already found.
+            #
+            if self._read_state[CtdmoStateKey.SERIAL_NUMBER] is None:
+                self.check_for_serial_number(chunk)
+
+            #
+            # Once the serial number is found,
+            # search for the end of the Configuration section.
+            #
+            elif not self._read_state[CtdmoStateKey.END_CONFIG]:
+                self.check_for_config_end(chunk)
+
+            #
+            # Once the end of the configuration is reached, all remaining records
+            # are supposedly CT data records.
+            # Parse the record and generate the particle for this chunk.
+            # Add it to the return list of particles.
+            #
+            else:
+                particle = self.parse_ct_record(chunk)
+                if particle is not None:
+                    result_particles.append((particle, copy.copy(self._read_state)))
+
+            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
+            self.handle_non_data(non_data, non_end, start)
+
+        return result_particles
+
+    def parse_ct_record(self, ct_record):
+        """
+        This function parses a Recovered CT record and returns a data particle.
+        Parameters:
+          ct_record - the input which is being parsed
+        """
+        ct_match = REC_CT_MATCHER.match(ct_record)
+        if ct_match is not None:
+            #
+            # If this is CT record, generate the data particle.
+            # Data stored for each particle is a tuple of the following:
+            #   inductive ID (obtained from configuration data)
+            #   serial number
+            #   temperature
+            #   conductivity
+            #   pressure
+            #   pressure temperature
+            #   time of science data
+            #
+            sample = self._extract_sample(CtdmoRecoveredInstrumentDataParticle,
+                None,
+                (self._config.get(CtdmoStateKey.INDUCTIVE_ID),
+                    self._read_state[CtdmoStateKey.SERIAL_NUMBER],
+                    ct_match.group(REC_CT_GROUP_TEMPERATURE),
+                    ct_match.group(REC_CT_GROUP_CONDUCTIVITY),
+                    ct_match.group(REC_CT_GROUP_PRESSURE),
+                    ct_match.group(REC_CT_GROUP_PRESSURE_TEMP),
+                    ct_match.group(REC_CT_GROUP_TIME)),
+                None)
+
+        #
+        # If there wasn't a match, the input data is messed up.
+        #
+        else:
+            error_message = 'unknown data found in CT chunk %s, leaving out the rest' \
+                            % binascii.b2a_hex(ct_record)
+            log.error(error_message)
+            self._exception_callback(SampleException(error_message))
+            sample = None
+
+        return sample
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser
+        @param state_obj The object to set the state to.
+        @throws DatasetParserException if there is a bad state structure
+        """
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+
+        if not (CtdmoStateKey.POSITION in state_obj):
+            raise DatasetParserException('%s missing in state keys' %
+                                         CtdmoStateKey.POSITION)
+
+        if not (CtdmoStateKey.END_CONFIG in state_obj):
+            raise DatasetParserException('%s missing in state keys' %
+                                         CtdmoStateKey.END_CONFIG)
+
+        if not (CtdmoStateKey.SERIAL_NUMBER in state_obj):
+            raise DatasetParserException('%s missing in state keys' %
+                                         CtdmoStateKey.SERIAL_NUMBER)
+
+        self._record_buffer = []
+        self._state = state_obj
+        self._read_state = state_obj
+
+        self.input_file.seek(state_obj[CtdmoStateKey.POSITION])
 
 
 class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
@@ -623,9 +876,11 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
             samples = 0
             if header_match.group(SIO_HEADER_GROUP_ID) == ID_INSTRUMENT:
-                (samples, particles) = self.parse_ct_record(
-                    CtdmoTelemeteredInstrumentDataParticle,
-                    chunk[chunk_idx : -1], header_timestamp)
+                #
+                # Parse the CT record, up to but not including the end of SIO block.
+                #
+                (samples, particles) = self.parse_ct_record(chunk[chunk_idx : -1],
+                                                            header_timestamp)
 
                 if samples > 0:
                     for x in range(0, samples):
@@ -646,28 +901,27 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
 
         return result_particles
 
-    def parse_ct_record(self, particle_class, chunk, sio_header_timestamp):
+    def parse_ct_record(self, ct_record, sio_header_timestamp):
         """
         This function parses a Telemetered CT record and
         returns the number of particles found and a list of data particles.
         Parameters:
-          particle class - class name of particle to be produced
           chunk - the input which is being parsed
           sio_header_timestamp - required for particle, passed through
         """
         particles = []
         sample_count = 0
-        last_chunk_idx = len(chunk)
-        start_chunk_idx = 0
+        last_index = len(ct_record)
+        start_index = 0
 
-        while start_chunk_idx < last_chunk_idx:
+        while start_index < last_index:
             #
             # Look for a match in the next group of bytes
             #
             ct_match = TEL_CT_MATCHER.match(
-                chunk[start_chunk_idx : start_chunk_idx+TEL_CT_SAMPLE_BYTES])
+                ct_record[start_index : start_index+TEL_CT_SAMPLE_BYTES])
 
-            if ct_match:
+            if ct_match is not None:
                 #
                 # If the inductive ID is the one we're looking for,
                 # generate a data particle.
@@ -684,13 +938,15 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
                     #   science data (temperature, conductivity, pressure)
                     #   time of science data
                     #
-                    sample = self._extract_sample(particle_class, None,
+                    sample = self._extract_sample(
+                        CtdmoTelemeteredInstrumentDataParticle,
+                        None,
                         (sio_header_timestamp,
                             inductive_id,
                             ct_match.group(TEL_CT_GROUP_SCIENCE_DATA),
                             ct_match.group(TEL_CT_GROUP_TIME)),
                         None)
-                    if sample:
+                    if sample is not None:
                         #
                         # Add this particle to the list of particles generated
                         # so far for this chunk of input data.
@@ -698,16 +954,16 @@ class CtdmoTelemeteredParser(SioMuleParser, CtdmoParser):
                         particles.append(sample)
                         sample_count += 1
 
-                start_chunk_idx += TEL_CT_SAMPLE_BYTES
+                start_index += TEL_CT_SAMPLE_BYTES
 
             #
             # If there wasn't a match, the input data is messed up.
             #
             else:
-                log.error('unknown data found in CT chunk %s at %d, leaving out the rest',
-                    binascii.b2a_hex(chunk), start_chunk_idx)
+                log.error('unknown data found in CT record %s at %d, leaving out the rest',
+                    binascii.b2a_hex(ct_record), start_index)
                 self._exception_callback(SampleException(
-                    'unknown data found in CT chunk at %d, leaving out the rest' % start_chunk_idx))
+                    'unknown data found in CT record at %d, leaving out the rest' % start_index))
                 break
 
         #
