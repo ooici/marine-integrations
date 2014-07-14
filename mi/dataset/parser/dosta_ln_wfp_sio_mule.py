@@ -241,4 +241,3 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
         log.debug("returning we sieve list %s", return_list)
         return return_list
 
-
