@@ -143,14 +143,9 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     RESET_EC = ProtocolEvent.RESET_EC
@@ -1892,12 +1887,9 @@ class SBE19Protocol(SBE16Protocol):
         """
         Populate the command dictionary with command.
         """
-        self._cmd_dict.add(Capability.DISCOVER, display_name="Discover")
         self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name="Acquire Sample")
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="Start Autosample")
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="Stop Autosample")
-        self._cmd_dict.add(Capability.START_DIRECT, display_name="Start Direct")
-        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="Stop Direct")
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="Clock Sync")
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="Acquire Status")
         self._cmd_dict.add(Capability.RESET_EC, display_name="Reset Event Counter")
