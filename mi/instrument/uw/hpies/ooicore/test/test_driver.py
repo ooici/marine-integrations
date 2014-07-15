@@ -36,7 +36,7 @@ from mi.core.exceptions import SampleException, InstrumentCommandException
 
 from mi.instrument.uw.hpies.ooicore.driver import \
     InstrumentDriver, HEFDataParticle, ParameterConstraints, HEFMotorCurrentParticleKey, HEFDataParticleKey, \
-    CalStatusParticleKey, HEFStatusParticleKey, IESDataParticleKey, DataHeaderParticleKey
+    CalStatusParticleKey, HEFStatusParticleKey, IESDataParticleKey, DataHeaderParticleKey, hef_command
 from mi.instrument.uw.hpies.ooicore.driver import \
     DataParticleType, Command, ProtocolState, ProtocolEvent, Capability, Parameter, Protocol, Prompt, \
     NEWLINE
@@ -734,29 +734,33 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
             Parameter.WSRUN_DELAY: 1,
             Parameter.MOTOR_DIR_NHOLD: 1,
             Parameter.MOTOR_DIR_INIT: 'r',
-            Parameter.POWER_COMPASS_W_MOTOR: 1,
+            # Parameter.POWER_COMPASS_W_MOTOR: 1,
             Parameter.KEEP_AWAKE_W_MOTOR: 1,
             Parameter.MOTOR_TIMEOUTS_1A: 30,
             Parameter.MOTOR_TIMEOUTS_1B: 30,
             Parameter.MOTOR_TIMEOUTS_2A: 30,
             Parameter.MOTOR_TIMEOUTS_2B: 30,
-            Parameter.RSN_CONFIG: False,
-            Parameter.INVERT_LED_DRIVERS: True,
+            Parameter.RSN_CONFIG: 0,
+            Parameter.INVERT_LED_DRIVERS: 1,
             Parameter.M1A_LED: 3,
             Parameter.M2A_LED: 1,
         }
 
         for key in direct_access_parameters.keys():
-            command = '#3_%s %s' % (key, direct_access_parameters[key])
+            # command = '#3_%s %s' % (key, direct_access_parameters[key])
+            command = hef_command(key, direct_access_parameters[key])
+            log.debug('djm - command: %s', command)
             self.tcp_client.send_data(command)
             self.tcp_client.expect_regex(' = ')
-            self.assert_get_parameter(key, self._driver_parameters[key][self.VALUE])
+            log.debug('djm - key: %s', key)
+            log.debug('djm - value: %s', self._driver_parameters[key][self.VALUE])
 
         # without saving the parameters, the values will be reset on reboot (which is part of wakeup)
         self.tcp_client.send_data('#3_params save')  # read-write, direct access
-        self.tcp_client.expect_regex('save\*')
+        self.tcp_client.expect_regex('params save')
 
         self.assert_direct_access_stop_telnet()
+        self.assert_enter_command_mode()
 
         # verify that all direct access parameters are restored
         for key in self._driver_parameters.keys():
@@ -777,18 +781,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, UtilMixin):
 
         #self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 180)
-
-    def test_autosample(self):
-        """
-        start and stop autosample and verify data particle
-        """
-        self.assert_enter_command_mode()
-        self.assert_start_autosample()
-
-        self.assert_async_particle_generation(
-            DataParticleType.HPIES_DATA_HEADER, self.assert_data_header_particle, timeout=20)
-
-        self.assert_stop_autosample()
 
     def test_get_set_parameters(self):
         """
