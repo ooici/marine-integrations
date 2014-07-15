@@ -1,8 +1,0 @@
-comm:
-  command_port: 2102
-  data_port: 2104
-  device_addr: 10.180.80.178
-  device_port: 2101
-  host: localhost
-  method: ethernet
-  sniffer_port: 6003
