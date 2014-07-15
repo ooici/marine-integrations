@@ -14,10 +14,11 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import ConfigurationException
 from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import FlortTelemeteredDataParticle, FlortRecoveredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType, DataSetDriverConfigKeys
 
 log = get_logger()
 
@@ -58,6 +59,8 @@ class FLORTDataSetDriver(MultipleHarvesterDataSetDriver):
 
         elif data_key == DataTypeKey.FLORT_RECOVERED:
             parser = self._build_flort_recovered_parser(parser_state, infile, data_key)
+        else:
+            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
 
         return parser
 
@@ -68,8 +71,8 @@ class FLORTDataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'FlortTelemeteredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortTelemeteredDataParticle'
         })
 
         parser = GliderParser(config,
@@ -88,8 +91,8 @@ class FLORTDataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'FlortRecoveredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortRecoveredDataParticle'
         })
 
         parser = GliderParser(config,

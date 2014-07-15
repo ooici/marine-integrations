@@ -14,11 +14,12 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import ConfigurationException
 from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import DostaTelemeteredDataParticle
 from mi.dataset.parser.glider import DostaRecoveredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType, DataSetDriverConfigKeys
 
 class DataTypeKey(BaseEnum):
     DOSTA_TELEMETERED = 'dosta_telemetered'
@@ -58,6 +59,8 @@ class DOSTADataSetDriver(MultipleHarvesterDataSetDriver):
 
         elif data_key == DataTypeKey.DOSTA_RECOVERED:
             parser = self._build_dosta_recovered_parser(parser_state, infile, data_key)
+        else:
+            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
 
         return parser
 
@@ -68,8 +71,8 @@ class DOSTADataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'DostaTelemeteredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaTelemeteredDataParticle'
         })
 
         parser = GliderParser(config,
@@ -88,8 +91,8 @@ class DOSTADataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'DostaRecoveredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaRecoveredDataParticle'
         })
 
         parser = GliderParser(config,

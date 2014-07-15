@@ -15,10 +15,11 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import ConfigurationException
 from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import FlordTelemeteredDataParticle, FlordRecoveredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType, DataSetDriverConfigKeys
 
 class DataTypeKey(BaseEnum):
     FLORD_TELEMETERED = 'flord_telemetered'
@@ -57,6 +58,8 @@ class FLORDDataSetDriver(MultipleHarvesterDataSetDriver):
 
         elif data_key == DataTypeKey.FLORD_RECOVERED:
             parser = self._build_flord_recovered_parser(parser_state, infile, data_key)
+        else:
+            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
 
         return parser
 
@@ -67,8 +70,8 @@ class FLORDDataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'FlordTelemeteredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordTelemeteredDataParticle'
         })
 
         parser = GliderParser(config,
@@ -87,8 +90,8 @@ class FLORDDataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'FlordRecoveredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordRecoveredDataParticle'
         })
 
         parser = GliderParser(config,

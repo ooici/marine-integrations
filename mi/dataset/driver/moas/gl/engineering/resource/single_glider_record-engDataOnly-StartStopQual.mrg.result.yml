@@ -68,8 +68,8 @@ data:
     particle_object: EngineeringScienceTelemeteredDataParticle
     particle_type: glider_eng_sci_telemetered
     internal_timestamp: '2012-02-21T18:39:29.262940Z'
-    sci_m_present_time: 1329849569.26294
-    sci_m_present_secs_into_mission: 0
+    sci_m_present_time: 1000.1
+    sci_m_present_secs_into_mission: 1000.1
     sci_m_disk_free: 1000.1
     sci_m_disk_usage: 1000.1
     

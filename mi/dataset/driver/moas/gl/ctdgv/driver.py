@@ -15,10 +15,11 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import ConfigurationException
 from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import CtdgvTelemeteredDataParticle, CtdgvRecoveredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType, DataSetDriverConfigKeys
 
 class DataTypeKey(BaseEnum):
     CTDGV_TELEMETERED = 'ctdgv_telemetered'
@@ -57,6 +58,8 @@ class CTDGVDataSetDriver(MultipleHarvesterDataSetDriver):
 
         elif data_key == DataTypeKey.CTDGV_RECOVERED:
             parser = self._build_ctdgv_recovered_parser(parser_state, infile, data_key)
+        else:
+            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
 
         return parser
 
@@ -67,8 +70,8 @@ class CTDGVDataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'CtdgvTelemeteredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdgvTelemeteredDataParticle'
         })
 
         parser = GliderParser(config,
@@ -87,8 +90,8 @@ class CTDGVDataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config
 
         config.update({
-            'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'CtdgvRecoveredDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdgvRecoveredDataParticle'
         })
 
         parser = GliderParser(config,
