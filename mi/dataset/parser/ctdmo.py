@@ -24,15 +24,13 @@ with the CT data being ignored.
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import array
+#import array
 import binascii
 import copy
 from functools import partial
-#import string
 import re
 import struct
 import time
-#import ntplib
 from dateutil import parser
 
 from mi.core.instrument.chunker import \

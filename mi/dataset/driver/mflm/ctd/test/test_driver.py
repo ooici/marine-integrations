@@ -48,7 +48,6 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
-# sgm import binascii
 import hashlib
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -83,10 +82,6 @@ from mi.dataset.parser.ctdmo import \
     CtdmoTelemeteredOffsetDataParticle, \
     CtdmoStateKey, \
     DataParticleType
-
-# from mi.idk.config import Config
-# RESOURCE_PATH = os.path.join(Config().base_dir(),
-#     'mi', 'dataset', 'driver', 'mflm', 'ctd', 'resource')
 
 REC_DIR = '/tmp/dsatest_rec'
 TEL_DIR = '/tmp/dsatest_tel'
@@ -527,6 +522,42 @@ class QualificationTest(DataSetQualificationTestCase):
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+    def test_real_co(self):
+        """
+        Verify that all records from a real CO file can be obtained in a single read.
+        """
+
+        self.create_sample_data_set_dir('CTD15906.DAT', REC_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.assert_start_sampling()
+
+        # Verify we get the correct samples
+        try:
+            # Get the particle (sadly, the only real data file has just 1 CO record).
+            self.data_subscribers.get_samples(DataParticleType.REC_CO_PARTICLE, 1, 10)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+    def test_real_ct(self):
+        """
+        Verify that all records from a real CT file can be obtained in a single read.
+        """
+
+        self.create_sample_data_set_dir('SBE37-IM_03710261_2013_07_25.hex', REC_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.assert_start_sampling()
+
+        # Verify we get the correct samples
+        try:
+            # Get the particles.
+            self.data_subscribers.get_samples(DataParticleType.REC_CT_PARTICLE, 482, 60)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
     def test_shutdown_restart(self):
