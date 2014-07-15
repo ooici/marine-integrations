@@ -76,7 +76,7 @@ class PolledScheduler(Scheduler):
         ensure we are running in daemon mode, so we won't wait for 
         unfinished threads on shutdown
         """
-        Scheduler.__init__(self, {'demonic': True})
+        Scheduler.__init__(self, {'daemonic': True})
 
     @staticmethod
     def interval(weeks=0, days=0, hours=0, minutes=0, seconds=0):

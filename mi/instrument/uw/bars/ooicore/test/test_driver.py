@@ -22,41 +22,27 @@ USAGE:
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-import unittest
-import json
 import time
 
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger;
+from mi.core.log import get_logger
 
 log = get_logger()
 
-from interface.objects import AgentCommand
-from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
-from mi.core.instrument.logger_client import LoggerClient
-from mi.core.instrument.port_agent_client import PortAgentPacket
-from mi.core.exceptions import InstrumentTimeoutException
-
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
-from mi.idk.util import convert_enum_to_dict
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverConfigKey
-from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
@@ -71,8 +57,7 @@ from mi.instrument.uw.bars.ooicore.driver import Command
 from mi.instrument.uw.bars.ooicore.driver import Capability
 from mi.instrument.uw.bars.ooicore.driver import SubMenu
 from mi.instrument.uw.bars.ooicore.driver import Prompt
-from mi.instrument.uw.bars.ooicore.driver import BarsDataParticle, BarsDataParticleKey
-from mi.instrument.uw.bars.ooicore.driver import COMMAND_CHAR
+from mi.instrument.uw.bars.ooicore.driver import BarsDataParticleKey
 from mi.instrument.uw.bars.ooicore.driver import DataParticleType
 
 
@@ -82,18 +67,14 @@ from mi.instrument.uw.bars.ooicore.driver import DataParticleType
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.uw.bars.ooicore.driver',
     driver_class="InstrumentDriver",
-
     instrument_agent_resource_id='QN341A',
     instrument_agent_name='uw_bars_ooicore',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
-        DriverConfigKey.PARAMETERS : {
-                Parameter.CYCLE_TIME : 20,
-                Parameter.VERBOSE : 1,
-                Parameter.METADATA_POWERUP : 0,
-                Parameter.METADATA_RESTART : 0
-        }
-    }
+        DriverConfigKey.PARAMETERS: {Parameter.CYCLE_TIME: 20,
+                                     Parameter.VERBOSE: 1,
+                                     Parameter.METADATA_POWERUP: 0,
+                                     Parameter.METADATA_RESTART: 0}}
 )
 
 #################################### RULES ####################################
@@ -124,6 +105,7 @@ VERBOSE_VALUE = None
 
 # newline.
 NEWLINE = '\r\n'
+
 
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
@@ -158,14 +140,14 @@ class TRHPHMixinSub(DriverTestMixin):
     VALID_SAMPLE_01 = "0.010  0.020  0.030  0.040  0.021  0.042  1.999  1.173  20.75  0.016   24.7   9.3" + NEWLINE
     VALID_SAMPLE_02 = "0.090  0.080  0.070  0.060  0.025  0.045  2.999  1.173  20.75  0.019   27.4   8.5" + NEWLINE
 
-    VALID_STATUS_01 = "System Name:  Temperature Resistivity Probe - TRHPH" + NEWLINE +\
-    "System Owner: Consortium for Ocean Leadership" + NEWLINE +\
-    "            University of Washington, OOI-RCN" + NEWLINE +\
-    "Contact Info: Giora Proskurowski, 206-685-3507" + NEWLINE +\
-    "System Serial #: 002" + NEWLINE +\
-    "Software Version 1.25, Last Update April 14, 2012" + NEWLINE +\
-    "Made by Ocean Engineering Services, March 2012 (206-543-9688)" + NEWLINE +\
-    NEWLINE +\
+    VALID_STATUS_01 = "System Name:  Temperature Resistivity Probe - TRHPH" + NEWLINE + \
+    "System Owner: Consortium for Ocean Leadership" + NEWLINE + \
+    "            University of Washington, OOI-RCN" + NEWLINE + \
+    "Contact Info: Giora Proskurowski, 206-685-3507" + NEWLINE + \
+    "System Serial #: 002" + NEWLINE + \
+    "Software Version 1.25, Last Update April 14, 2012" + NEWLINE + \
+    "Made by Ocean Engineering Services, March 2012 (206-543-9688)" + NEWLINE + \
+    NEWLINE + \
     "This System is presently setup with the following Parameters:" + NEWLINE +\
     "1  = Eprom Status (0 means not setup yet, 1 means ready to use)" + NEWLINE +\
     "20 = Cycle Time (Actual Time in Seconds or Minutes)" + NEWLINE +\
@@ -183,14 +165,10 @@ class TRHPHMixinSub(DriverTestMixin):
         # capabilities defined in the IOS
         Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.AUTOSAMPLE]},
-        Capability.START_DIRECT: {STATES: [ProtocolState.COMMAND]},
-        Capability.STOP_DIRECT: {STATES: [ProtocolState.DIRECT_ACCESS]},
         Capability.GET: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.SET: {STATES: [ProtocolState.COMMAND]},
-        Capability.EXECUTE_DIRECT: {STATES: [ProtocolState.DIRECT_ACCESS]},
-        Capability.ACQUIRE_STATUS: {STATES:[ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]}
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]}
     }
-
 
     ###
     #  Parameter and Type Definitions
@@ -211,13 +189,13 @@ class TRHPHMixinSub(DriverTestMixin):
 
     _status_parameters = {
         BarsStatusParticleKey.SYSTEM_INFO: {TYPE: unicode, VALUE:
-                                           "System Name:  Temperature Resistivity Probe - TRHPH" + NEWLINE +\
-                                           "System Owner: Consortium for Ocean Leadership" + NEWLINE +\
-                                           "            University of Washington, OOI-RCN" + NEWLINE +\
-                                           "Contact Info: Giora Proskurowski, 206-685-3507" + NEWLINE +\
-                                           "System Serial #: 002" + NEWLINE +\
-                                           "Software Version 1.25, Last Update April 14, 2012" + NEWLINE +\
-                                           "Made by Ocean Engineering Services, March 2012 (206-543-9688)" + NEWLINE,
+                                            "System Name:  Temperature Resistivity Probe - TRHPH" + NEWLINE +
+                                            "System Owner: Consortium for Ocean Leadership" + NEWLINE +
+                                            "            University of Washington, OOI-RCN" + NEWLINE +
+                                            "Contact Info: Giora Proskurowski, 206-685-3507" + NEWLINE +
+                                            "System Serial #: 002" + NEWLINE +
+                                            "Software Version 1.25, Last Update April 14, 2012" + NEWLINE +
+                                            "Made by Ocean Engineering Services, March 2012 (206-543-9688)" + NEWLINE,
                                             REQUIRED: True},
         BarsStatusParticleKey.EPROM_STATUS: {TYPE: int, VALUE: 1, REQUIRED: True},
         BarsStatusParticleKey.CYCLE_TIME: {TYPE: int, VALUE: 20, REQUIRED: True},
@@ -266,36 +244,37 @@ class TRHPHMixinSub(DriverTestMixin):
     }
 
     def assert_status_particle(self, status_particle, verify_values=False):
-        '''
+        """
         Verify sample particle
-        @param data_particle:  TRHPHDataParticle data particle
+        @param status_particle:  TRHPHDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(BarsStatusParticleKey, self._status_parameters)
-        self.assert_data_particle_header(status_particle, DataParticleType.TRHPH_STATUS, require_instrument_timestamp=False)
+        self.assert_data_particle_header(status_particle, DataParticleType.TRHPH_STATUS,
+                                         require_instrument_timestamp=False)
         self.assert_data_particle_parameters(status_particle, self._status_parameters, verify_values)
 
     def assert_particle_sample(self, data_particle, verify_values=False):
-        '''
+        """
         Verify sample particle
         @param data_particle:  TRHPHDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(BarsDataParticleKey, self._sample_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.TRHPH_PARSED, require_instrument_timestamp=False)
+        self.assert_data_particle_header(data_particle, DataParticleType.TRHPH_PARSED,
+                                         require_instrument_timestamp=False)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
-
     def assert_particle_sample_2(self, data_particle, verify_values=False):
-        '''
+        """
         Verify sample particle
         @param data_particle:  TRHPHDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(BarsDataParticleKey, self._sample_parameters_2)
-        self.assert_data_particle_header(data_particle, DataParticleType.TRHPH_PARSED, require_instrument_timestamp=False)
+        self.assert_data_particle_header(data_particle, DataParticleType.TRHPH_PARSED,
+                                         require_instrument_timestamp=False)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_2, verify_values)
-
 
     def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
@@ -315,11 +294,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -330,11 +308,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(BarsDataParticleKey())
 
-
-        # Test capabilites for duplicates, then verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-
 
     def test_driver_schema(self):
         """
@@ -342,7 +318,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
         """
         driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
-
 
     def test_chunker(self):
         """
@@ -369,7 +344,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_01)
         self.assert_chunker_combined_sample(chunker, self.VALID_STATUS_01)
 
-
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -387,16 +361,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
         # validate status particles
         self.assert_particle_published(driver, self.VALID_STATUS_01, self.assert_status_particle, True)
 
-
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = BarsDataParticle(self.VALID_SAMPLE_01.replace('020', 'foo'),
-                                    port_timestamp=3558720820.531179)
-        particle = BarsStatusParticle(self.VALID_STATUS_01.replace('20 =', 'bar'),
-                                    port_timestamp=3558720820.531179)
+        particle = BarsStatusParticle(self.VALID_STATUS_01.replace('20 =', 'bar'), port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
-
 
     def test_protocol_filter_capabilities(self):
         """
@@ -416,30 +385,33 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
-
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.COMMAND: ['DRIVER_EVENT_START_AUTOSAMPLE',
-                                    'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET',
-                                    'DRIVER_EVENT_START_DIRECT',
-                                    'DRIVER_EVENT_ACQUIRE_STATUS'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE', 'DRIVER_EVENT_ACQUIRE_STATUS'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
-                                          'EXECUTE_DIRECT'],
+            ProtocolState.COMMAND: [ProtocolEvent.GET,
+                                    ProtocolEvent.SET,
+                                    ProtocolEvent.START_DIRECT,
+                                    ProtocolEvent.START_AUTOSAMPLE,
+                                    ProtocolEvent.ACQUIRE_STATUS],
 
-            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER']
+            ProtocolState.AUTOSAMPLE: [ProtocolEvent.STOP_AUTOSAMPLE,
+                                       ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
+
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
+                                          ProtocolEvent.EXECUTE_DIRECT],
+
+            ProtocolState.UNKNOWN: [ProtocolEvent.DISCOVER]
         }
         driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
-
     def test_to_seconds(self):
-        """ Test to second conversion. """
+        """
+        Test to second conversion.
+        """
         self.assertEquals(240, Protocol._to_seconds(4, 1))
         self.assertEquals(59, Protocol._to_seconds(59, 0))
         self.assertEquals(60, Protocol._to_seconds(60, 0))
@@ -474,14 +446,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-
     def test_connect(self):
         """
         Test configuring and connecting to the device through the port
         agent. Discover device state.
         """
         self.assert_initialize_driver()
-
 
     def test_direct_access(self):
         """
@@ -555,7 +525,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         self.assert_set_exception(Parameter.HYDROGEN_POWER, HYDROGEN_POWER_VALUE)
         self.assert_set_exception(Parameter.REFERENCE_TEMP_POWER, REFERENCE_TEMP_POWER_VALUE)
 
-
     def test_get_params(self):
         """
         Test get driver parameters and verify their initial values.
@@ -575,12 +544,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         @brief Test for turning auto sample data on
         """
         self.assert_initialize_driver()
-        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
-                                        DataParticleType.TRHPH_PARSED,
-                                        self.assert_particle_sample,
-                                        delay=60)
-
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE)
+        self.assert_async_particle_generation(DataParticleType.TRHPH_PARSED, self.assert_particle_sample,
+                                              particle_count=3, timeout=70)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
 
     def test_status(self):
         """
@@ -618,7 +585,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         """
         self.assert_direct_access_start_telnet(timeout=1200)
         self.assertTrue(self.tcp_client)
-
 
         self.tcp_client.send_data("\r")
         result = self.tcp_client.expect(Prompt.MAIN_MENU, max_retries=20)
@@ -681,7 +647,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.assert_get_parameter(Parameter.METADATA_POWERUP, 0)
         self.assert_get_parameter(Parameter.METADATA_RESTART, 0)
 
-
     def test_discover(self):
         """
         over-ridden because the driver will always go to command mode
@@ -695,7 +660,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         # will always go back to command for this instrument
         self.assert_reset()
         self.assert_discover(ResourceAgentState.COMMAND)
-
 
     def test_sample_particles(self):
         """
@@ -723,12 +687,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         # verify status particle in command state
 
         self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle,
-                                  DataParticleType.TRHPH_STATUS,timeout=200)
+                                    DataParticleType.TRHPH_STATUS, timeout=200)
 
         self.assert_start_autosample()
         # verify all particles in autosample
         self.assert_particle_async(DataParticleType.TRHPH_PARSED, self.assert_particle_sample, timeout=70)
-
 
     def test_get_capabilities(self):
         """
@@ -736,12 +699,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         at various driver/agent states.
         """
 
-        self.assert_enter_command_mode()
-
         ##################
         #  Command Mode
         ##################
-
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
@@ -749,13 +709,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.START_DIRECT,
-                ProtocolEvent.ACQUIRE_STATUS,
-            ],
+                ProtocolEvent.ACQUIRE_STATUS],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
-        }
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()}
 
+        self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
 
         ##################
@@ -763,9 +721,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.STOP_AUTOSAMPLE,
-            ProtocolEvent.ACQUIRE_STATUS,
-        ]
+            ProtocolEvent.STOP_AUTOSAMPLE]
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
@@ -775,10 +731,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         #  DA Mode
         ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.STOP_DIRECT,
-            ProtocolEvent.EXECUTE_DIRECT,
-        ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
         self.assert_direct_access_stop_telnet()
@@ -794,7 +748,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.assert_reset()
         self.assert_capabilities(capabilities)
 
-
     def test_get_set_parameters(self):
         """
         verify that all parameters can be get and set properly
@@ -802,7 +755,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.assert_enter_command_mode()
 
         self.assert_get_parameter(Parameter.CYCLE_TIME, 20)
-
         self.assert_set_parameter(Parameter.CYCLE_TIME, 16)
 
         self.assert_get_parameter(Parameter.VERBOSE, None)
@@ -816,7 +768,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
 
         self.assert_reset()
 
-
     def test_direct_access_telnet_closed(self):
         """
         Test that we can properly handle the situation when a direct access
@@ -829,4 +780,3 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.assertTrue(self.tcp_client)
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, DriverProtocolState.COMMAND, 600)
-
