@@ -1,0 +1,137 @@
+# Result data after parsing SAMI_P0080_180713_integration.txt
+header:
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
+
+data:
+ - _index: 1
+   particle_object: PhsenRecoveredMetadataDataParticle
+   particle_type: phsen_abcdef_metadata
+   internal_timestamp: 3583114176.0
+   record_type: 128
+   record_time: 3456970176
+   voltage_battery: !!null
+   clock_active: 1
+   recording_active: 0
+   record_end_on_time: 0
+   record_memory_full: 0
+   record_end_on_error: 0
+   data_download_ok: 0
+   flash_memory_open: 0
+   battery_low_prestart: 0
+   battery_low_measurement: 0
+   battery_low_blank: 0
+   battery_low_external: 0
+   external_device1_fault: 0
+   external_device2_fault: 0
+   external_device3_fault: 0
+   flash_erased: 0
+   power_on_invalid: 0
+   num_data_records: 1
+   num_error_records: 1
+   num_bytes_stored: 512
+
+ - _index: 2
+   particle_object: PhsenRecoveredMetadataDataParticle
+   particle_type: phsen_abcdef_metadata
+   internal_timestamp: 3583118356.0
+   record_type: 133
+   record_time: 3456974356
+   voltage_battery: !!null
+   clock_active: 1
+   recording_active: 1
+   record_end_on_time: 0
+   record_memory_full: 0
+   record_end_on_error: 0
+   data_download_ok: 0
+   flash_memory_open: 0
+   battery_low_prestart: 0
+   battery_low_measurement: 0
+   battery_low_blank: 0
+   battery_low_external: 0
+   external_device1_fault: 0
+   external_device2_fault: 0
+   external_device3_fault: 0
+   flash_erased: 0
+   power_on_invalid: 0
+   num_data_records: 4294967295
+   num_error_records: 0
+   num_bytes_stored: 530
+
+ - _index: 3
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583119600.0
+   record_type: 10
+   record_time: 3456975600
+   thermistor_start: 2276
+   reference_light_measurements: [2955, 2002, 2436, 2495, 2962, 1998, 2440, 2492, 2960, 2001, 2440, 2494, 2964, 2002, 2444, 2496]
+   light_measurements: [2962, 2004, 2438, 2496, 2960, 2002, 2437, 2494, 2959, 1977, 2438, 2477, 2963, 1653, 2440, 2219, 2961, 1121, 2441, 1757, 2962, 694, 2437, 1327, 2963, 465, 2439, 1059, 2958, 365, 2436, 933, 2959, 343, 2434, 901, 2961, 370, 2443, 937, 2960, 425, 2441, 1013, 2961, 506, 2438, 1118, 2962, 602, 2441, 1232, 2963, 707, 2439, 1356, 2964, 828, 2440, 1484, 2962, 948, 2439, 1604, 2962, 1065, 2440, 1716, 2968, 1173, 2444, 1816, 2962, 1273, 2440, 1910, 2961, 1363, 2442, 1986, 2959, 1449, 2439, 2059, 2963, 1521, 2442, 2120, 2962, 1585, 2439, 2171]
+   voltage_battery: 2857
+   thermistor_end: 2297
+
+ - _index: 4
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583119899.0
+   record_type: 10
+   record_time: 3456975899
+   thermistor_start: 2342
+   reference_light_measurements: [2969, 1989, 2461, 2501, 2965, 1988, 2459, 2498, 2969, 1984, 2461, 2497, 2964, 1990, 2459, 2498]
+   light_measurements: [2964, 1987, 2458, 2497, 2968, 1984, 2460, 2496, 2965, 1965, 2464, 2485, 2969, 1633, 2464, 2278, 2966, 1081, 2461, 1881, 2968, 647, 2464, 1487, 2966, 425, 2461, 1234, 2971, 336, 2462, 1117, 2967, 321, 2462, 1093, 2970, 348, 2464, 1134, 2968, 407, 2461, 1212, 2968, 484, 2461, 1312, 2966, 581, 2461, 1424, 2966, 687, 2461, 1537, 2968, 806, 2462, 1652, 2968, 922, 2463, 1755, 2969, 1036, 2463, 1849, 2966, 1142, 2465, 1939, 2968, 1243, 2464, 2016, 2966, 1334, 2463, 2082, 2969, 1417, 2467, 2142, 2969, 1487, 2469, 2187, 2969, 1553, 2468, 2234]
+   voltage_battery: 2856
+   thermistor_end: 2351
+
+ - _index: 5
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583120199.0
+   record_type: 10
+   record_time: 3456976199
+   thermistor_start: 2371
+   reference_light_measurements: [2976, 1973, 2498, 2509, 2978, 1970, 2496, 2507, 2977, 1972, 2496, 2509, 2977, 1976, 2499, 2511]
+   light_measurements: [2978, 1976, 2498, 2510, 2981, 1972, 2500, 2512, 2980, 1949, 2496, 2494, 2975, 1627, 2499, 2324, 2979, 1064, 2499, 1962, 2978, 634, 2501, 1599, 2980, 419, 2501, 1363, 2979, 335, 2501, 1252, 2978, 323, 2502, 1230, 2977, 346, 2499, 1264, 2979, 393, 2500, 1329, 2981, 470, 2500, 1424, 2978, 562, 2503, 1524, 2984, 670, 2504, 1631, 2980, 778, 2500, 1736, 2980, 891, 2502, 1830, 2983, 1006, 2505, 1919, 2982, 1115, 2504, 1999, 2981, 1210, 2502, 2065, 2981, 1303, 2502, 2129, 2981, 1382, 2506, 2179, 2984, 1456, 2508, 2227, 2982, 1524, 2502, 2269]
+   voltage_battery: 2854
+   thermistor_end: 2373
+
+ - _index: 6
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583120499.0
+   record_type: 10
+   record_time: 3456976499
+   thermistor_start: 2372
+   reference_light_measurements: [2988, 1976, 2541, 2549, 2989, 1975, 2543, 2548, 2992, 1973, 2544, 2548, 2992, 1978, 2547, 2550]
+   light_measurements: [2989, 1974, 2543, 2550, 2991, 1979, 2542, 2545, 2992, 1957, 2543, 2538, 2993, 1656, 2544, 2376, 2993, 1086, 2545, 2012, 2993, 643, 2546, 1640, 2994, 425, 2546, 1393, 2995, 341, 2547, 1278, 2989, 324, 2543, 1250, 2994, 347, 2544, 1281, 2993, 401, 2544, 1355, 2995, 476, 2547, 1445, 2992, 562, 2546, 1547, 2990, 666, 2543, 1653, 2994, 778, 2548, 1757, 2991, 891, 2547, 1857, 2993, 1000, 2548, 1944, 2991, 1106, 2547, 2024, 2992, 1205, 2546, 2094, 2993, 1294, 2546, 2156, 2991, 1376, 2547, 2211, 2993, 1452, 2549, 2257, 2993, 1516, 2549, 2297]
+   voltage_battery: 2852
+   thermistor_end: 2373
+
+ - _index: 7
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583120799.0
+   record_type: 10
+   record_time: 3456976799
+   thermistor_start: 2373
+   reference_light_measurements: [3003, 1982, 2582, 2591, 3004, 1985, 2586, 2590, 3004, 1983, 2587, 2591, 3006, 1978, 2586, 2589]
+   light_measurements: [3005, 1983, 2587, 2591, 3003, 1982, 2587, 2590, 3003, 1962, 2588, 2581, 3002, 1661, 2589, 2416, 3003, 1083, 2590, 2039, 3003, 640, 2591, 1655, 3003, 433, 2589, 1416, 3005, 351, 2590, 1301, 3008, 333, 2593, 1271, 3004, 358, 2588, 1305, 3007, 406, 2591, 1375, 3004, 479, 2592, 1464, 3008, 566, 2590, 1568, 3008, 667, 2592, 1674, 3004, 778, 2593, 1783, 3006, 885, 2590, 1878, 3003, 1000, 2591, 1971, 3002, 1109, 2591, 2056, 3006, 1204, 2591, 2126, 3004, 1296, 2593, 2191, 3003, 1378, 2587, 2243, 3005, 1450, 2589, 2291, 3003, 1516, 2590, 2332]
+   voltage_battery: 2849
+   thermistor_end: 2374
+
+ - _index: 8
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583121099.0
+   record_type: 10
+   record_time: 3456977099
+   thermistor_start: 2373
+   reference_light_measurements: [3017, 1988, 2630, 2634, 3014, 1987, 2627, 2633, 3014, 1990, 2625, 2634, 3015, 1986, 2628, 2633]
+   light_measurements: [3017, 1987, 2628, 2632, 3015, 1987, 2630, 2632, 3015, 1968, 2627, 2624, 3018, 1663, 2629, 2453, 3017, 1071, 2629, 2060, 3013, 636, 2627, 1673, 3016, 431, 2626, 1430, 3014, 348, 2628, 1316, 3017, 333, 2631, 1289, 3017, 356, 2629, 1326, 3013, 407, 2629, 1394, 3018, 480, 2630, 1491, 3020, 570, 2630, 1599, 3015, 672, 2630, 1704, 3019, 785, 2633, 1814, 3014, 893, 2633, 1911, 3014, 1001, 2630, 2004, 3018, 1110, 2633, 2088, 3014, 1210, 2630, 2161, 3015, 1298, 2632, 2223, 3017, 1384, 2634, 2282, 3018, 1455, 2634, 2328, 3020, 1518, 2634, 2367]
+   voltage_battery: 2848
+   thermistor_end: 2375
+
+
+
+
+
+

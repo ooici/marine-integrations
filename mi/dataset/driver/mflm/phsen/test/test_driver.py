@@ -38,6 +38,7 @@ from mi.dataset.parser.phsen import PhsenParserDataParticle, PhsenControlDataPar
 from mi.dataset.parser.phsen import DataParticleType
 from mi.dataset.parser.phsen_abcdef import PhsenRecoveredInstrumentDataParticle, \
     PhsenRecoveredMetadataDataParticle, StateKey
+from mi.dataset.parser.phsen_abcdef import DataParticleType as RecoveredDataParticleType
 from mi.dataset.parser.sio_mule_common import StateKey as SioMuleStateKey
 
 
@@ -230,7 +231,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(PhsenParserDataParticle, 'test_data_2.txt.result.yml',
                          count=2, timeout=10)
 
-        # Recovered
+        # Test Recovered
         self.clear_async_data()
         # create some recovered data to parse
         self.create_sample_data_set_dir("SAMI_P0080_180713_integration.txt", RECOVERED_DIR,
@@ -322,6 +323,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                         copy_metadata=False)
         self.assert_data((PhsenParserDataParticle, PhsenControlDataParticle),
                          'test_data_1-4.txt.result.yml', count=10)
+
+    # The remaining integration tests only apply to the recovered
+    # data parsed by the phsen_abcdef parser
 
     def test_sample_exception(self):
         """
@@ -421,6 +425,32 @@ class QualificationTest(DataSetQualificationTestCase):
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
+    def test_harvester_new_recov_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        # need to put data in the file, not just make an empty file for this to work
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration.txt', RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration.txt",
+                                        mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration.txt', RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration.txt")
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
@@ -428,6 +458,10 @@ class QualificationTest(DataSetQualificationTestCase):
         """
 
         self.create_sample_data_set_dir('node59p1_step1.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_1.txt', RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_1.txt")
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_ph_10.txt', RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_ph_10.txt")
 
         self.assert_initialize()
 
@@ -440,6 +474,16 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
+
+            # Test the Recovered Path
+
+            # Verify that we get 2 control samples and 10 ph samples
+            result = self.data_subscribers.get_samples(
+                RecoveredDataParticleType.METADATA, 2, 100)
+            result1 = self.data_subscribers.get_samples(
+                RecoveredDataParticleType.INSTRUMENT, 10, 100)
+            result.extend(result1)
+            self.assert_data_values(result, 'SAMI_P0080_180713_control_ph.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -451,6 +495,9 @@ class QualificationTest(DataSetQualificationTestCase):
         # the original file (from the IDD) is a previous version of the file from
         # the data server for the gp03flmb platform
         self.create_sample_data_set_dir('node59p1_orig.dat', TELEM_DIR, 'node59p1.dat')
+        # For Recovered, using the original sample input file from the IDD
+        self.create_sample_data_set_dir('SAMI_P0080_180713_orig.txt', RECOVERED_DIR,
+                                        'SAMI_P0080_180713_orig.txt')
         self.assert_initialize()
         # one bad sample in here:
         # PH1236501_01D5u51F361E0_EC_162E has non ascii bytes at the end and is missing \r
@@ -472,6 +519,11 @@ class QualificationTest(DataSetQualificationTestCase):
         # have extra bytes after sample, not an error anymore
         result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 751, 430)
 
+        # Test Recovered
+        self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 4, 60)
+        self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 24, 60)
+        self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 1, 20)
+
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -492,17 +544,37 @@ class QualificationTest(DataSetQualificationTestCase):
             result = self.data_subscribers.get_samples(DataParticleType.CONTROL, 1)
             result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 3)
             result.extend(result1)
+
             log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1-2.txt.result.yml')
+
+            # Setup for Recovered
+            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph.txt', RECOVERED_DIR,
+                                            "SAMI_P0080_180713_integration_control_ph.txt")
+            # Read the first recovered file
+            result = self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 2)
+            # Note - increase default timeout for Instrument particles
+            result1 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 10, 20)
+            result.extend(result1)
+
+            # Verify Recovered values
+            self.assert_data_values(result, 'SAMI_P0080_180713_control_ph.yml')
+
             self.assert_sample_queue_size(DataParticleType.CONTROL, 0)
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+            self.assert_sample_queue_size(RecoveredDataParticleType.METADATA, 0)
+            self.assert_sample_queue_size(RecoveredDataParticleType.INSTRUMENT, 0)
+
+            # Second part of test
 
             self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat")
             # Now read the first record of the second file then stop
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 3)
             log.debug("RESULT 1: %s", result)
+
+            # Stop sampling
             self.assert_stop_sampling()
             self.assert_sample_queue_size(DataParticleType.CONTROL, 0)
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
@@ -516,6 +588,28 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'test_data_3-4.txt.result.yml')
             self.assert_sample_queue_size(DataParticleType.CONTROL, 0)
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+
+            # Test recovered file
+            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph_2.txt', RECOVERED_DIR,
+                                            "SAMI_P0080_180713_integration_control_ph_2.txt")
+            # Now read the first three records of the second recovered file then stop
+            result = self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 2)
+            result1 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 1)
+            result.extend(result1)
+
+            # Stop sampling
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(RecoveredDataParticleType.METADATA, 0)
+            self.assert_sample_queue_size(RecoveredDataParticleType.INSTRUMENT, 0)
+
+            # Restart sampling and ensure we get the last records of the file
+            self.assert_start_sampling()
+            result2 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 5)
+            result.extend(result2)
+            self.assert_data_values(result, 'SAMI_P0080_180713_control_ph_2.yml')
+            self.assert_sample_queue_size(RecoveredDataParticleType.METADATA, 0)
+            self.assert_sample_queue_size(RecoveredDataParticleType.INSTRUMENT, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -527,6 +621,8 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         log.info("CONFIG: %s", self._agent_config())
         self.create_sample_data_set_dir('node59p1_step2.dat', TELEM_DIR, "node59p1.dat")
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph.txt', RECOVERED_DIR,
+                                        "SAMI_P0080_180713_integration_control_ph.txt")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -547,7 +643,18 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_sample_queue_size(DataParticleType.CONTROL, 0)
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
 
+            # Now sample the recovered data - read all records in file
+            result = self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 2)
+            result1 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 10, 20)
+            result.extend(result1)
+
+            # Verify values
+            self.assert_data_values(result, 'SAMI_P0080_180713_control_ph.yml')
+            self.assert_sample_queue_size(RecoveredDataParticleType.METADATA, 0)
+            self.assert_sample_queue_size(RecoveredDataParticleType.INSTRUMENT, 0)
+
             self.create_sample_data_set_dir('node59p1_step4.dat', TELEM_DIR, "node59p1.dat")
+
             # Now read the first record of the second file then stop
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 3)
             log.debug("RESULT 1: %s", result)
@@ -568,6 +675,27 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'test_data_3-4.txt.result.yml')
             self.assert_sample_queue_size(DataParticleType.CONTROL, 0)
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
+
+            # Test Recovered, continue sampling
+
+            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_ph_10.txt', RECOVERED_DIR,
+                                            "SAMI_P0080_180713_integration_ph_10.txt")
+            # # Now read first 3 records from recovered file, then stop
+            result = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 3)
+            self.assert_stop_sampling()
+
+            # stop and re-start the agent
+            self.stop_dataset_agent_client()
+            self.init_dataset_agent_client()
+            # # re-initialize
+            self.assert_initialize()
+            # Read remaining records from second recovered file
+            # Note - increase from default timeout
+            result2 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 7, 30)
+            result.extend(result2)
+            self.assert_data_values(result, 'SAMI_P0080_180713_ph.yml')
+            self.assert_sample_queue_size(RecoveredDataParticleType.INSTRUMENT, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
