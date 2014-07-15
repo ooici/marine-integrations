@@ -19,6 +19,7 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.vel3d_a_mmp_cds import Vel3dAMmpCdsParser, Vel3dAMmpCdsParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
+from mi.core.exceptions import ConfigurationException
 
 
 class Vel3dAMmpCdsDataSetDriver(SimpleDataSetDriver):
@@ -29,15 +30,15 @@ class Vel3dAMmpCdsDataSetDriver(SimpleDataSetDriver):
 
     def _build_parser(self, parser_state, infile):
         """
-Build and return the parser
-"""
+        Build and return the parser
+        """
         config = self._parser_config
         config.update({
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.vel3d_a_mmp_cds',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'Vel3dAMmpCdsParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._parser = Vel3dAMmpCdsParser(
+        _parser = Vel3dAMmpCdsParser(
             config,
             parser_state,
             infile,
@@ -45,18 +46,22 @@ Build and return the parser
             self._data_callback,
             self._sample_exception_callback
         )
-        return self._parser
+        if _parser is None:
+            raise ConfigurationException('vel3d_a_mmp_cds parser failed instantiation')
+        return _parser
 
     def _build_harvester(self, driver_state):
         """
-Build and return the harvester
-"""
-        # *** Replace the following with harvester initialization ***
-        self._harvester = SingleDirectoryHarvester(
+        Build and return the harvester
+        """
+
+        _harvester = SingleDirectoryHarvester(
             self._harvester_config,
             driver_state,
             self._new_file_callback,
             self._modified_file_callback,
             self._exception_callback
         )
-        return self._harvester
+        if _harvester is None:
+            log.warn('harverster failed instantiation due to missing config')
+        return _harvester

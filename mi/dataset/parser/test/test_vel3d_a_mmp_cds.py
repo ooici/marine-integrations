@@ -86,8 +86,8 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
     def test_get_many(self):
         """
-        This test exercises retrieving 20 particles, verifying the 20th particle, then retrieves 30 particles
-         and verifies the 30th particle.
+        This test exercises retrieving 20 particles, verifying the particles, then retrieves 30 particles
+         and verifies the 30 particles.
         """
 
         file_path = os.path.join(RESOURCE_PATH, 'first_data.mpk')
@@ -212,21 +212,11 @@ class Vel3dAMmpCdsParserUnitTestCase(ParserUnitTestCase):
         for n in range(4):
             self.assert_result(test_data['data'][n+4], particles[n])
 
-        # Give a bad position which will be ignored
+        # goes to start of file
         state = {StateKey.PARTICLES_RETURNED: 0}
 
         parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
-                                      self.state_callback, self.pub_callback)
-
-        particles = parser.get_records(1)
-
-        self.assertTrue(len(particles) == 1)
-
-        # Give a bad position which will be ignored
-        state = {StateKey.PARTICLES_RETURNED: -1}
-
-        parser = Vel3dAMmpCdsParser(self.config, state, stream_handle,
-                                      self.state_callback, self.pub_callback)
+                                    self.state_callback, self.pub_callback)
 
         particles = parser.get_records(1000)
 
