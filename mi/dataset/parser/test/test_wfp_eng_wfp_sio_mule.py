@@ -102,7 +102,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # Init the state to declare the UNPROCESSED_DATA as the full length of the file
         state = {
             StateKey.UNPROCESSED_DATA: [[0, stat_info.st_size]],
-            StateKey.IN_PROCESS_DATA: []
+            StateKey.IN_PROCESS_DATA: [],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Open the file holding the test sample data
@@ -145,7 +146,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # Init the state to declare the UNPROCESSED_DATA as the full length of the file
         state = {
             StateKey.UNPROCESSED_DATA: [[0, stat_info.st_size]],
-            StateKey.IN_PROCESS_DATA: []
+            StateKey.IN_PROCESS_DATA: [],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Open the file holding the test sample data
@@ -194,7 +196,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # Init the state to declare the UNPROCESSED_DATA as the full length of the file
         state = {
             StateKey.UNPROCESSED_DATA: [[0, stat_info.st_size]],
-            StateKey.IN_PROCESS_DATA: []
+            StateKey.IN_PROCESS_DATA: [],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Open the file holding the test sample data
@@ -217,12 +220,16 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         Test starting the parser in a state in the middle of processing
         """
         file_path = os.path.join(RESOURCE_PATH, 'wfp_eng_wfp_sio_mule_small.DAT')
+        
+        # Obtain statistics on the test sample file
+        stat_info = os.stat(file_path)
 
         # Init the state to declare the UNPROCESSED_DATA as one WE chunk.  Declare the IN_PROCESS_DATA as the one WE
         # chunk that has 5 samples with 1 of the samples as returned.
         initial_state = {
             StateKey.UNPROCESSED_DATA: [[2818, 2992]],
-            StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 1]]
+            StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 1]],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Open the file holding the test sample data
@@ -254,7 +261,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # Init the state to declare the UNPROCESSED_DATA as the full length of the file
         initial_state = {
             StateKey.UNPROCESSED_DATA: [[0, stat_info.st_size]],
-            StateKey.IN_PROCESS_DATA: []
+            StateKey.IN_PROCESS_DATA: [],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Open the file holding the test sample data
@@ -273,7 +281,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # that has 5 samples with 4 of the samples as returned.
         new_state = {
             StateKey.UNPROCESSED_DATA: [[2818, 2992]],
-            StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 4]]
+            StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 4]],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Re-set the parser's state
@@ -312,7 +321,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # Init the state to declare the UNPROCESSED_DATA as the full length of the file
         initial_state = {
             StateKey.UNPROCESSED_DATA: [[0, stat_info.st_size]],
-            StateKey.IN_PROCESS_DATA: []
+            StateKey.IN_PROCESS_DATA: [],
+            StateKey.FILE_SIZE: stat_info.st_size
         }
 
         # Open the file holding the test sample data
@@ -348,7 +358,8 @@ class WfpEngWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # the two chunks with WE samples one having 5 samples with 3 returned and the other having 20 samples with
         # 0 returned.
         new_state = {StateKey.UNPROCESSED_DATA: [[2818, 2982], [4058, 4673], [7423, 7424], [7594, 7623]],
-                     StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 3], [4059, 4673, 20, 0]]}
+                     StateKey.IN_PROCESS_DATA: [[2818, 2982, 5, 3], [4059, 4673, 20, 0]],
+                     StateKey.FILE_SIZE: stat_info.st_size}
 
         # Re-set the parser's state
         self.parser.set_state(new_state)
