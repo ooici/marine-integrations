@@ -128,14 +128,14 @@ class SingleDirectoryPoller(ConditionPoller):
                                 old_state[DriverStateKey.FILE_CHECKSUM] != md5_checksum:
                                     # this file has changed since its previous modification, update the
                                     # modified state
-                                    modified_state[filename] = {
+                                    modified_state[file_name] = {
                                         DriverStateKey.FILE_SIZE: file_size,
                                         DriverStateKey.FILE_MOD_DATE: mod_time,
                                         DriverStateKey.FILE_CHECKSUM: md5_checksum,
                                     }
                             else:
                                 # this is the first time this file has been modified
-                                modified_state[filename] = {
+                                modified_state[file_name] = {
                                     DriverStateKey.FILE_SIZE: file_size,
                                     DriverStateKey.FILE_MOD_DATE: mod_time,
                                     DriverStateKey.FILE_CHECKSUM: md5_checksum,
