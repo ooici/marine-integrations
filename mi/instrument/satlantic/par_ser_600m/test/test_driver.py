@@ -126,14 +126,14 @@ class PARMixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        PARCapability.DISCOVER: {STATES: [PARProtocolState.UNKNOWN]},
-        PARCapability.ACQUIRE_SAMPLE: {STATES: [PARProtocolState.COMMAND]},
-        PARCapability.START_AUTOSAMPLE: {STATES: [PARProtocolState.COMMAND]},
-        PARCapability.STOP_AUTOSAMPLE: {STATES: [PARProtocolState.AUTOSAMPLE]},
-        PARCapability.START_DIRECT: {STATES: [PARProtocolState.COMMAND]},
-        PARCapability.STOP_DIRECT: {STATES: [PARProtocolState.DIRECT_ACCESS]},
-        PARCapability.ACQUIRE_STATUS: {STATES: [PARProtocolState.COMMAND, PARProtocolState.AUTOSAMPLE]},
-        PARCapability.RESET: {STATES: [PARProtocolState.COMMAND]},
+        # PARProtocolEvent.DISCOVER: {STATES: [PARProtocolState.UNKNOWN]},
+        PARProtocolEvent.ACQUIRE_SAMPLE: {STATES: [PARProtocolState.COMMAND]},
+        PARProtocolEvent.START_AUTOSAMPLE: {STATES: [PARProtocolState.COMMAND]},
+        PARProtocolEvent.STOP_AUTOSAMPLE: {STATES: [PARProtocolState.AUTOSAMPLE]},
+        # PARProtocolEvent.START_DIRECT: {STATES: [PARProtocolState.COMMAND]},
+        # PARProtocolEvent.STOP_DIRECT: {STATES: [PARProtocolState.DIRECT_ACCESS]}, #TODO get set?
+        PARProtocolEvent.ACQUIRE_STATUS: {STATES: [PARProtocolState.COMMAND, PARProtocolState.AUTOSAMPLE]},
+        PARProtocolEvent.RESET: {STATES: [PARProtocolState.COMMAND]},
     }
 
     _config_parameters = {
@@ -793,12 +793,9 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         capabilities = {}
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
         capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [PARProtocolEvent.GET,
-                                                               PARProtocolEvent.SET,
-                                                               PARProtocolEvent.ACQUIRE_SAMPLE,
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [PARProtocolEvent.ACQUIRE_SAMPLE,
                                                                PARProtocolEvent.ACQUIRE_STATUS,
-                                                               PARProtocolEvent.START_AUTOSAMPLE,
-                                                               PARProtocolEvent.START_DIRECT]
+                                                               PARProtocolEvent.START_AUTOSAMPLE]
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
@@ -823,7 +820,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         # #  DA Mode
         # ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
