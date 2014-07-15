@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import division
 
 """
 @package mi.instrument.satlantic.par_ser_600m.driver Satlantic PAR driver module
@@ -75,7 +74,6 @@ GET_PATTERN = '^show (?P<param>.*)\r\n(?P<resp>.+)\r?\n?(?P<respbaud>.*)\r?\n?\$
 GET_REGEX = re.compile(GET_PATTERN)
 
 INIT_PATTERN = 'Initializing system. Please wait...'
-INIT_REGEX = re.compile(INIT_PATTERN)
 
 INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
@@ -94,7 +92,6 @@ class DataParticleType(BaseEnum):
 
 
 class PARSpecificDriverEvents(BaseEnum):
-    RESET = "DRIVER_EVENT_RESET"
     SCHEDULED_ACQUIRE_STATUS = "DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS"
 
 
@@ -148,7 +145,7 @@ class PARProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    RESET = PARSpecificDriverEvents.RESET
+    RESET = DriverEvent.RESET
     SCHEDULED_ACQUIRE_STATUS = PARSpecificDriverEvents.SCHEDULED_ACQUIRE_STATUS
 
 
@@ -156,16 +153,11 @@ class PARCapability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    DISCOVER = PARProtocolEvent.DISCOVER
     ACQUIRE_SAMPLE = PARProtocolEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = PARProtocolEvent.ACQUIRE_STATUS
     START_AUTOSAMPLE = PARProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = PARProtocolEvent.STOP_AUTOSAMPLE
-    START_DIRECT = PARProtocolEvent.START_DIRECT
-    STOP_DIRECT = PARProtocolEvent.STOP_DIRECT
     RESET = PARProtocolEvent.RESET
-    GET = PARProtocolEvent.GET
-    SET = PARProtocolEvent.SET
 
 
 class Parameter(DriverParameter):
@@ -187,6 +179,7 @@ class Prompt(BaseEnum):
     COMMAND = '$'
     NULL = ''
     ENTER_EXIT_CMD_MODE = '\x0c'
+    SAMPLES = 'SATPAR'
 
 
 ###############################################################################
@@ -479,15 +472,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Build a command dictionary structure, load the strings for the metadata from a file if present.
         """
         self._cmd_dict = ProtocolCommandDict()
-        self._cmd_dict.add(PARCapability.DISCOVER, display_name='Discover')
-        self._cmd_dict.add(PARCapability.SET, display_name='Set')
-        self._cmd_dict.add(PARCapability.GET, display_name='Get')
         self._cmd_dict.add(PARCapability.ACQUIRE_SAMPLE, display_name='Acquire Sample')
         self._cmd_dict.add(PARCapability.ACQUIRE_STATUS, display_name='Acquire Status')
         self._cmd_dict.add(PARCapability.START_AUTOSAMPLE, display_name='Start Autosample')
         self._cmd_dict.add(PARCapability.STOP_AUTOSAMPLE, display_name='Stop Autosample')
-        self._cmd_dict.add(PARCapability.START_DIRECT, display_name='Start Direct Access')
-        self._cmd_dict.add(PARCapability.STOP_DIRECT, display_name='Stop Direct Access')
         self._cmd_dict.add(PARCapability.RESET, display_name='Reset')
 
     def _build_driver_dict(self):
@@ -560,7 +548,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             # Limit resend_check_value from expected_prompt to one of the two below
             resend_check_value = None
             if expected_prompt is not None:
-                for check in (Prompt.COMMAND, "SATPAR"):
+                for check in (Prompt.COMMAND, Prompt.SAMPLES):
                     if check in expected_prompt:
                         log.trace('_do_cmd: command: %s, check=%s' % (cmd_line, check))
                         resend_check_value = check
@@ -584,6 +572,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
         """
         Issue a command to the instrument after clearing of buffers. No response is handled as a result of the command.
+        Overridden: special "write delay" & command resending
+        reliability improvements, no need for wakeup, default build command used for all commands
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
         @raises InstrumentProtocolException if command could not be built.
@@ -592,7 +582,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
-        Perform a command-response on the device.
+        Perform a command-response on the device. Overridden: special "write delay" & command resending
+        reliability improvements, no need for wakeup, default build command used for all commands
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
         @param expected_prompt kwarg offering a specific prompt to look for
@@ -680,7 +671,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         try:
             probe_resp = self._do_cmd_resp(Command.SAMPLE, timeout=2,
-                                           expected_prompt=[PARProtocolError.INVALID_COMMAND, "SATPAR"])
+                                           expected_prompt=[Prompt.SAMPLES, PARProtocolError.INVALID_COMMAND])
         except InstrumentTimeoutException:
             self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
             return PARProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
@@ -700,8 +691,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_enter(self):
         """
         Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
         self._init_params()
@@ -749,7 +738,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Cycle through sample collection & reset to get the start-up banner
         which contains instrument, serial, & firmware values
         """
-        self._do_cmd_resp(Command.EXIT, expected_prompt=["SATPAR", PARProtocolError.INVALID_COMMAND], timeout=15)
+        self._do_cmd_resp(Command.EXIT, expected_prompt=Prompt.SAMPLES, timeout=15)
         time.sleep(0.115)
         (instr, sernum, firm) = self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=5)
         time.sleep(1)
@@ -897,7 +886,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Handle getting a start autosample event when in command mode
         @retval return (next state, result)
         """
-        self._do_cmd_resp(Command.EXIT, expected_prompt=["SATPAR", PARProtocolError.INVALID_COMMAND], timeout=15)
+        self._do_cmd_resp(Command.EXIT, expected_prompt=Prompt.SAMPLES, timeout=15)
         time.sleep(0.115)
         self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
         return PARProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
@@ -905,7 +894,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_direct(self):
         """
         """
-        log.debug("_handler_command_start_direct: entering DA mode")
         return PARProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     ########################################################################
@@ -979,7 +967,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(Command.SAVE, expected_prompt=Prompt.COMMAND)
 
     def _get_poll(self):
-        self._do_cmd_resp(Command.EXIT, expected_prompt=["SATPAR", PARProtocolError.INVALID_COMMAND], timeout=15)
+        self._do_cmd_resp(Command.EXIT, expected_prompt=Prompt.SAMPLES, timeout=15)
         # switch to poll
         time.sleep(0.115)
         self._connection.send(Command.SWITCH_TO_POLL)
@@ -1085,7 +1073,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The numerical value of the parameter
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        log.debug("_parse_get_response: response=%r", response)
         match = GET_REGEX.search(response)
         if not match:
             log.warn("Bad response from instrument")
@@ -1101,8 +1088,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return The parsed parameters or an InstErrorCode value
         """
-        log.debug("Parsing header response of %s", response)
-
         match = HEADER_REGEX.search(response)
         if match:
             return match.group('instr', 'sernum', 'firm')
@@ -1145,7 +1130,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             current_maxrate = 0.125     # During startup, assume the slowest sample rate
         elif current_maxrate <= 0 or current_maxrate > 8:
             current_maxrate = 8
-        time_between_samples = (1/current_maxrate)+1
+        time_between_samples = (1.0/current_maxrate)+1
 
         log.trace("_send_break_poll: maxrate = %s", current_maxrate)
 
