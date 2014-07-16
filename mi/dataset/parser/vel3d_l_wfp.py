@@ -17,7 +17,6 @@ __license__ = 'Apache 2.0'
 
 import calendar
 import copy
-#import ntplib
 import struct
 
 from mi.core.log import get_logger; log = get_logger()
