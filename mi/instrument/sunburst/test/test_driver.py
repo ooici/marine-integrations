@@ -354,6 +354,12 @@ class SamiMixin(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
+
+    def sleep_for_realsies(self, seconds):
+        now = time.time()
+        while time.time() < (now+seconds):
+            time.sleep(.4)
+
     def assert_waiting_discover(self, driver):
         self.assert_initialize_driver(driver, initial_protocol_state=SamiProtocolState.WAITING)
 
@@ -413,7 +419,7 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         ## Don't take sample upon entering autosample state
         driver._protocol._queued_commands.reset()
 
-        time.sleep(62)
+        self.sleep_for_realsies(62)
 
         (driver._protocol._protocol_fsm.current_state, (agent_state, result)) = \
             driver._protocol._handler_autosample_stop()
@@ -424,7 +430,7 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         stats.call_count = 0
         stats.call_times = []
 
-        time.sleep(62)
+        self.sleep_for_realsies(62)
 
         stats.assert_call_count(0)
 

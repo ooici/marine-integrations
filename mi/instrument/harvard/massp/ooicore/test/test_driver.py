@@ -354,7 +354,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver._protocol._protocol_fsm.on_event(event)
 
         # sleep to let protocol move the FSM to the correct state
+<<<<<<< HEAD
         time.sleep(1)
+=======
+        # loop, because the monkey patched time doesn't reliably sleep long enough...
+        now = time.time()
+        while time.time() < (now+3):
+            time.sleep(1)
+>>>>>>> upstream/master
 
         # master protocol sends START1 to mcu at start of sample, send response.
         self.send_port_agent_packet(driver._slave_protocols['mcu'], McuPrompt.START1 + NEWLINE)
