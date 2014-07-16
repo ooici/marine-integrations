@@ -455,6 +455,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         exception callback called.
         """
+        log.debug('===== START QUAL TEST HARVESTER EXCEPTION =====')
         self.create_sample_data_set_dir('node59p1_step4.dat', TEL_DIR,
                                         "node59p1.dat", mode=000)
 
@@ -470,11 +471,13 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
+        log.debug('===== END QUAL TEST HARVESTER EXCEPTION =====')
 
     def test_large_import(self):
         """
         Test a large import
         """
+        log.debug('===== START QUAL TEST LARGE IMPORT =====')
         self.create_sample_data_set_dir('node59p1.dat', TEL_DIR)
         self.create_sample_data_set_dir('CTD02100.DAT', REC_DIR)
         self.create_sample_data_set_dir('SBE37-IM_20201031_2020_10_31.hex', REC_DIR)
@@ -486,12 +489,14 @@ class QualificationTest(DataSetQualificationTestCase):
         self.data_subscribers.get_samples(DataParticleType.TEL_CO_PARTICLE, 100, 60)
         self.data_subscribers.get_samples(DataParticleType.REC_CO_PARTICLE, 100, 150)
         self.data_subscribers.get_samples(DataParticleType.REC_CT_PARTICLE, 1500, 400)
+        log.debug('===== END QUAL TEST LARGE IMPORT =====')
 
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
+        log.debug('===== START QUAL TEST PUBLISH PATH =====')
         self.create_sample_data_set_dir('SBE37-IM_20141231_2014_12_31.hex', REC_DIR)
         self.create_sample_data_set_dir('CTD02004.DAT', REC_DIR)
         self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
@@ -524,10 +529,13 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST PUBLISH PATH =====')
+
     def test_real_co(self):
         """
         Verify that all records from a real CO file can be obtained in a single read.
         """
+        log.debug('===== START QUAL TEST REAL CO =====')
 
         self.create_sample_data_set_dir('CTD15906.DAT', REC_DIR)
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
@@ -542,10 +550,13 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST REAL CO =====')
+
     def test_real_ct(self):
         """
         Verify that all records from a real CT file can be obtained in a single read.
         """
+        log.debug('===== START QUAL TEST REAL CT =====')
 
         self.create_sample_data_set_dir('SBE37-IM_03710261_2013_07_25.hex', REC_DIR)
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
@@ -560,11 +571,15 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST REAL CT =====')
+
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent and
         confirm it restarts at the correct spot.
         """
+        log.debug('===== START QUAL TEST SHUTDOWN RESTART =====')
+
         self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -613,11 +628,15 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST SHUTDOWN RESTART =====')
+
     def test_shutdown_restart_rec_co(self):
         """
         Test a full stop of the dataset agent, then restart the agent and
         confirm it restarts at the correct spot.
         """
+        log.debug('===== START QUAL TEST SHUTDOWN RESTART REC CO =====')
+
         self.create_sample_data_set_dir('CTD02002.DAT', REC_DIR)
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -649,11 +668,15 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST SHUTDOWN RESTART REC CO =====')
+
     def test_shutdown_restart_rec_ct(self):
         """
         Test a full stop of the dataset agent, then restart the agent and
         confirm it restarts at the correct spot.
         """
+        log.debug('===== START QUAL TEST SHUTDOWN RESTART REC CT =====')
+
         self.create_sample_data_set_dir('SBE37-IM_20130704_2013_07_04.hex', REC_DIR)
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -685,10 +708,13 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST SHUTDOWN RESTART REC CT =====')
+
     def test_simple(self):
         """
         Verify that all records from a single file can be obtained in a single read.
         """
+        log.debug('===== START QUAL TEST SIMPLE =====')
 
         self.create_sample_data_set_dir('CTD02004.DAT', REC_DIR)
         self.create_sample_data_set_dir('SBE37-IM_20120314_2012_03_14.hex', REC_DIR)
@@ -711,11 +737,15 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+        log.debug('===== END QUAL TEST SIMPLE =====')
+
     def test_start_stop_restart(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
+        log.debug('===== START QUAL TEST START STOP RESTART =====')
+
         self.create_sample_data_set_dir('node59p1_step1.dat', TEL_DIR, "node59p1.dat")
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -755,13 +785,15 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-        log.debug('======= END OF QUAL TEST STOP START ======')
+        log.debug('===== END QUAL TEST START STOP RESTART =====')
 
     def test_start_stop_restart_rec(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
+        log.debug('===== START QUAL TEST START STOP RESTART REC =====')
+
         co_particle = DataParticleType.REC_CO_PARTICLE
         ct_particle = DataParticleType.REC_CT_PARTICLE
         self.create_sample_data_set_dir('CTD02004.DAT', REC_DIR)
@@ -802,5 +834,4 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-        log.debug('======= END OF QUAL TEST STOP START REC ======')
-
+        log.debug('===== END QUAL TEST START STOP RESTART REC =====')

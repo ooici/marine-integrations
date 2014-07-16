@@ -15,7 +15,7 @@ CT, aka instrument, sensor or science data.
 CO, aka offset data.
 
 For telemetered data, both types (CT, CO) of data are in SIO Mule files.
-For recovered data, the CT data is stored in a separate fi le.
+For recovered data, the CT data is stored in a separate file.
 Additionally, both CT and CO data are stored in another file (SIO Controller file),
 but only the CO data in the SIO Controller file is processed here,
 with the CT data being ignored.
@@ -24,14 +24,13 @@ with the CT data being ignored.
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-#import array
 import binascii
 import copy
 from functools import partial
 import re
 import struct
-import time
-from dateutil import parser
+
+from mi.core.time import string_to_ntp_date_time
 
 from mi.core.instrument.chunker import \
     StringChunker
@@ -47,7 +46,6 @@ from mi.dataset.parser.sio_mule_common import \
     SioMuleParser, \
     SIO_HEADER_MATCHER, \
     SIO_HEADER_GROUP_ID, \
-    SIO_HEADER_GROUP_DATA_LENGTH, \
     SIO_HEADER_GROUP_TIMESTAMP
 
 from mi.core.common import BaseEnum
@@ -68,7 +66,7 @@ ID_OFFSET = 'CO'        # ID for time offset data
 #   *END* record (IDD says *end* so we'll check for either)
 #   Instrument data in HEX ASCII (need to extract these values)
 
-NEW_LINE = r'[\n|\r\n]'           # Handle either type of new line
+NEW_LINE = r'[\r\n|\n|\r]'        # Handle any type of new line
 
 REC_CT_RECORD = r'.*'             # Any number of ASCII characters
 REC_CT_RECORD += NEW_LINE         # separated by a new line
@@ -163,6 +161,17 @@ def convert_hex_ascii_to_int(int_val):
     """
     return int(int_val, 16)
 
+def generate_particle_timestamp(time_2000):
+    """
+    This function calculates and returns an ASCII hex timestamp in epoch 1900
+    based on a time in epoch 2000.
+    Parameter:
+      time_2000 - number of seconds since Jan 1, 2000
+    Returns:
+      number of seconds since Jan 1, 1900
+    """
+    return int(time_2000, 16) + string_to_ntp_date_time("2000-01-01T00:00:00.00Z")
+
 
 class CtdmoStateKey(BaseEnum):
     INDUCTIVE_ID = 'inductive_id'     # required for recovered and telemetered
@@ -190,28 +199,7 @@ class CtdmoInstrumentDataParticleKey(BaseEnum):
     CTD_TIME = "ctd_time"
 
 
-class CtdmoInstrumentDataParticle(DataParticle):
-    """
-    Class for parsing data from the CTDMO instrument on a MSFM platform node.
-    """
-
-    def generate_particle_timestamp(self, time_2000):
-        """
-        This function calculates and returns a timestamp in epoch 1970
-        based on a time in epoch 2000.
-        Parameter:
-          time_2000 - number of seconds since Jan 1, 2000
-        Returns:
-          number of seconds since Jan 1, 1970
-        """
-        gmt_dt_2000 = parser.parse("2000-01-01T00:00:00.00Z")
-        elapse_2000 = float(gmt_dt_2000.strftime("%s.%f"))
-
-        # convert from epoch in 2000 to epoch in 1970, GMT
-        return int(time_2000, 16) + elapse_2000 - time.timezone
-
-
-class CtdmoRecoveredInstrumentDataParticle(CtdmoInstrumentDataParticle):
+class CtdmoRecoveredInstrumentDataParticle(DataParticle):
     """
     Class for generating Instrument Data Particles from Recovered data.
     """
@@ -225,19 +213,19 @@ class CtdmoRecoveredInstrumentDataParticle(CtdmoInstrumentDataParticle):
                  new_sequence=None):
 
         super(CtdmoRecoveredInstrumentDataParticle, self).__init__(raw_data,
-                                port_timestamp=None,
-                                internal_timestamp=None,
-                                preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                quality_flag=DataParticleValue.OK,
-                                new_sequence=None)
+                                port_timestamp,
+                                internal_timestamp,
+                                preferred_timestamp,
+                                quality_flag,
+                                new_sequence)
 
         #
         # The particle timestamp is the time contained in the CT instrument data.
         # This time field is number of seconds since Jan 1, 2000.
-        # Convert from epoch in 2000 to epoch in 1970, GMT
+        # Convert from epoch in 2000 to epoch in 1900.
         #
-        sec_since_1970 = self.generate_particle_timestamp(self.raw_data[RAW_INDEX_REC_CT_TIME])
-        self.set_internal_timestamp(unix_time=sec_since_1970)
+        time_stamp = generate_particle_timestamp(self.raw_data[RAW_INDEX_REC_CT_TIME])
+        self.set_internal_timestamp(timestamp=time_stamp)
 
     def _build_parsed_values(self):
         """
@@ -246,7 +234,6 @@ class CtdmoRecoveredInstrumentDataParticle(CtdmoInstrumentDataParticle):
         particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-
         #
         # Raw data for this particle consists of the following fields (hex ASCII
         # unless noted otherwise):
@@ -283,7 +270,7 @@ class CtdmoRecoveredInstrumentDataParticle(CtdmoInstrumentDataParticle):
         return particle
 
 
-class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
+class CtdmoTelemeteredInstrumentDataParticle(DataParticle):
     """
     Class for generating Instrument Data Particles from Telemetered data.
     """
@@ -297,11 +284,11 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
                  new_sequence=None):
 
         super(CtdmoTelemeteredInstrumentDataParticle, self).__init__(raw_data,
-                                port_timestamp=None,
-                                internal_timestamp=None,
-                                preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                quality_flag=DataParticleValue.OK,
-                                new_sequence=None)
+                                port_timestamp,
+                                internal_timestamp,
+                                preferred_timestamp,
+                                quality_flag,
+                                new_sequence)
 
         #
         # The particle timestamp is the time contained in the science data
@@ -317,10 +304,9 @@ class CtdmoTelemeteredInstrumentDataParticle(CtdmoInstrumentDataParticle):
         reversed_hex_time = hex_time[6:8] + hex_time[4:6] + \
             hex_time[2:4] + hex_time[0:2]
 
-        # convert from epoch in 2000 to epoch in 1970, GMT
-        sec_since_1970 = self.generate_particle_timestamp(reversed_hex_time)
-
-        self.set_internal_timestamp(unix_time=sec_since_1970)
+        # convert from epoch in 2000 to epoch in 1900.
+        time_stamp = generate_particle_timestamp(reversed_hex_time)
+        self.set_internal_timestamp(timestamp=time_stamp)
 
     def _build_parsed_values(self):
         """
@@ -397,17 +383,17 @@ class CtdmoOffsetDataParticle(DataParticle):
                  new_sequence=None):
 
         super(CtdmoOffsetDataParticle, self).__init__(raw_data,
-                                                      port_timestamp=None,
-                                                      internal_timestamp=None,
-                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                                      quality_flag=DataParticleValue.OK,
-                                                      new_sequence=None)
+                                                      port_timestamp,
+                                                      internal_timestamp,
+                                                      preferred_timestamp,
+                                                      quality_flag,
+                                                      new_sequence)
 
         #
         # The particle timestamp for CO data is the SIO header timestamp.
         #
-        timestamp = convert_hex_ascii_to_int(self.raw_data[RAW_INDEX_CO_SIO_TIMESTAMP])
-        self.set_internal_timestamp(unix_time=timestamp)
+        time_stamp = convert_hex_ascii_to_int(self.raw_data[RAW_INDEX_CO_SIO_TIMESTAMP])
+        self.set_internal_timestamp(unix_time=time_stamp)
 
     def _build_parsed_values(self):
         """
@@ -430,7 +416,6 @@ class CtdmoOffsetDataParticle(DataParticle):
                                int)
         ]
 
-        #log.debug('BUILDING CO %s', particle)
         return particle
 
 
@@ -453,7 +438,7 @@ class CtdmoParser(Parser):
     def compare_inductive_id(self, inductive_id):
         """
         Compare the inductive id from the data with the configured inductive ID
-        @param inductive ID to compare
+        @param inductive_id to compare
         @returns True if IDs match, False if they don't
         """
         return inductive_id == self._config.get(CtdmoStateKey.INDUCTIVE_ID)
@@ -556,12 +541,13 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
         """
         Handle any non-data that is found in the file
         """
-        # if non-data is expected, handle it here, otherwise it is an error
+        # Handle non-data here.
         if non_data is not None and non_end <= start:
-            # if this non-data is an error, send an UnexpectedDataException and increment the state
+            # send an UnexpectedDataException and increment the state
             self._increment_state(len(non_data))
             self._exception_callback(UnexpectedDataException(
-                "Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
+                "Found %d bytes of un-expected non-data %s" %
+                (len(non_data), binascii.b2a_hex(non_data))))
 
     def parse_chunks(self):
         """
@@ -587,7 +573,6 @@ class CtdmoRecoveredCoParser(SioParser, CtdmoParser):
             chunk_idx = header_match.end(0)
 
             if header_match.group(SIO_HEADER_GROUP_ID) == ID_OFFSET:
-                #log.debug("matched recovered CO header %s", chunk[1:chunk_idx - 1])
                 (samples, particles) = self.parse_co_data(
                     CtdmoRecoveredOffsetDataParticle,
                     chunk[chunk_idx : -1], header_timestamp)
@@ -673,7 +658,6 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
         This function searches the input buffer for a serial number.
         If found, the read_state and state are updated.
         """
-
         #
         # See if this record the serial number.
         # If found, convert from decimal ASCII and save in the state.
@@ -687,13 +671,14 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
         """
         Handle any non-data that is found in the file
         """
-        # if non-data is expected, handle it here, otherwise it is an error
+        # Handle non-data here.
         if non_data is not None and non_end <= start:
             # increment the state
             self._increment_position(len(non_data))
             # use the _exception_callback
             self._exception_callback(UnexpectedDataException(
-                "Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
+                "Found %d bytes of un-expected non-data %s" %
+                (len(non_data), binascii.b2a_hex(non_data))))
 
     def _increment_position(self, bytes_read):
         """
@@ -788,7 +773,7 @@ class CtdmoRecoveredCtParser(BufferLoadingParser, CtdmoParser):
         # If there wasn't a match, the input data is messed up.
         #
         else:
-            error_message = 'unknown data found in CT chunk %s, leaving out the rest' \
+            error_message = 'unknown data found in CT chunk %s, leaving out the rest of chunk' \
                             % binascii.b2a_hex(ct_record)
             log.error(error_message)
             self._exception_callback(SampleException(error_message))
