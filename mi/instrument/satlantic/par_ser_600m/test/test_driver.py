@@ -57,7 +57,7 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config={
         DriverConfigKey.PARAMETERS: {
             Parameter.MAXRATE: 1,
-            Parameter.FIRMWARE: ' 1.0.0',
+            Parameter.FIRMWARE: '1.0.0',
             Parameter.SERIAL: '4278190306',
             Parameter.INSTRUMENT: 'SATPAR'}}
 )
@@ -92,6 +92,9 @@ valid_config_particle = [{DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKe
                   {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.SERIAL_NUM, DataParticleKey.VALUE: '4278190306'},
                   {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.FIRMWARE, DataParticleKey.VALUE: '1.0.0'},
                   {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.TYPE, DataParticleKey.VALUE: 'SATPAR'}]
+
+port_timestamp = 3555423720.711772
+driver_timestamp = 3555423722.711772
 
 TIMEOUT = 30
 
@@ -175,6 +178,14 @@ class PARMixin(DriverTestMixin):
     ###
     #   Driver Parameter Methods
     ###
+    def assert_driver_parameters(self, current_parameters, verify_values=False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+
     def assert_config_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify values.
@@ -262,7 +273,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         Verify when generating the particle, if the particle is corrupt, an exception is raised
         """
         log.debug('test_corrupt_data_structures: %s', VALID_SAMPLE.replace('A', 'B'))
-        particle = SatlanticPARDataParticle(VALID_SAMPLE.replace('A', 'B'), port_timestamp=3558720820.531179)
+        particle = SatlanticPARDataParticle(VALID_SAMPLE.replace('A', 'B'), port_timestamp=port_timestamp)
         with self.assertRaises(SampleException):
             json_str = particle.generate()
             obj = json.loads(json_str)
@@ -273,10 +284,6 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         Verify driver can get sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
         # construct the expected particle
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
@@ -298,10 +305,6 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         Verify driver can get sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
         # construct the expected particle
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
@@ -355,10 +358,6 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         Verify driver can get sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
         # construct the expected particle
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
@@ -434,6 +433,42 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         cmds = result[ConfigMetadataKey.COMMANDS]
         self.assertEqual(cmds[PARCapability.ACQUIRE_SAMPLE][CommandDictKey.DISPLAY_NAME], "Acquire Sample")
 
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+        """
+
+        # Explicitly verify these values after discover.  They should match
+        # what the startup values should be
+        get_values = {
+            Parameter.MAXRATE: 4,
+            Parameter.FIRMWARE: '1.0.0',
+            Parameter.SERIAL: '4278190306',
+            Parameter.INSTRUMENT: 'SATPAR',
+            Parameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'
+        }
+
+        # Change the values of these parameters to something before the
+        # driver is reinitialized.  They should be blown away on reinit.
+        new_values = {
+            Parameter.MAXRATE: 0.5,
+            Parameter.ACQUIRE_STATUS_INTERVAL: '00:00:10'
+        }
+
+        self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+
+        self.assert_set_bulk(new_values)
+
+        # Start autosample and try again
+        self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_startup_parameters(self.assert_driver_parameters)
+        self.assert_current_state(PARProtocolEvent.AUTOSAMPLE)
+
+        #stop autosampling
+        self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE, state=PARProtocolState.COMMAND, delay=1)
+
     def test_acquire_status(self):
         """
         Test acquire status command and events.
@@ -467,11 +502,10 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         3. verify the particle coming in
         4. command the instrument back to COMMAND state
         """
-
         self.assert_initialize_driver(PARProtocolState.COMMAND)
         self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=3)
         time.sleep(sleep_time)
-        self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample)
+        self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample, particle_count=40)
         self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE, state=PARProtocolState.COMMAND, delay=3)
 
     # @unittest.skip('temp disable')  # Keep: This is a useful stress test
@@ -750,7 +784,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
     def test_poll(self):
         """
-        Verify data particles for a single sample that are specific to Parad
+        Verify data particles for a single sample that are specific to PARAD
         """
         self.assert_enter_command_mode()
         self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.PARSED,
@@ -758,12 +792,13 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
     def test_autosample(self):
         """
-        Verify data particles for auto-sampling that are specific to Parad
+        Verify data particles for auto-sampling that are specific to PARAD
         """
         self.assert_enter_command_mode()
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.PARSED, self.assert_particle_sample)
+        # Default maxrate is 4, expecting a sample every 0.25 seconds. Note: Qual seems to have a 2 second lag.
+        self.assert_particle_async(DataParticleType.PARSED, self.assert_particle_sample, particle_count=40, timeout=12)
 
         self.assert_stop_autosample()
 
