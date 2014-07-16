@@ -477,8 +477,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("******** Read State: %s", parser._read_state)
         log.info("******** State: %s", parser._state)
 
-        the_new_state = {StateKey.POSITION: 480, StateKey.METADATA_EXTRACTED: True}
-        log.info("******** new parser state: %s", the_new_state)
+        self.assertTrue(parser._state == {StateKey.POSITION: 480, StateKey.METADATA_EXTRACTED: True})
 
     def test_state_reset(self):
         """
