@@ -121,6 +121,8 @@ class MmpCdsParser(BufferLoadingParser):
                  publish_callback,
                  *args, **kwargs):
         """
+        This method is a constructor that will instantiate an MmpCdsParser object.
+        @param config The configuration for this MmpCdsParser parser
         @param state The state the MmpCdsParser should use to initialize itself
         @param stream_handle The handle to the data stream containing the MmpCds data
         @param state_callback The function to call upon detecting state changes
