@@ -373,18 +373,19 @@ class DostaLnWfpSioParserUnitTestCase(ParserUnitTestCase):
                            self.particle_1b)
         self.stream_handle.close()
 
-def test_bad_e_record(self):
-        """
-    Ensure that the bad record causes a sample exception. The file 'bad_e_record.dat'
-    includes a record containing one byte less than the expected 30 for the
-    flord_l_wfp_sio_mule. The 'Number of Data Bytes' and the 'CRC Checksum' values in the
-    SIO Mule header have been modified accordingly.
-        """
-    self.stream_handle = open(os.path.join(RESOURCE_PATH, 'bad_e_record.dat'))
-    self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
-        StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE:[]}
 
-    self.parser = FlordLWfpSioMuleParser(self.config, self.state, self.stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
-        result = self.parser.get_records(1)
-    self.assert_(isinstance(self.exception_callback_value, UnexpectedDataException)) 
+    def test_bad_e_record(self):
+	"""
+	Ensure that the bad record causes a sample exception. The file 'bad_e_record.dat'
+	includes a record containing one byte less than the expected 30 for the
+	flord_l_wfp_sio_mule. The 'Number of Data Bytes' and the 'CRC Checksum' values in the
+	SIO Mule header have been modified accordingly.
+	"""
+	self.stream_handle = open(os.path.join(RESOURCE_PATH, 'bad_e_record.dat'))
+	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
+	    StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE:[]}
+    
+	self.parser = DostaLnWfpSioMuleParser(self.config, self.state, self.stream_handle,
+				      self.state_callback, self.pub_callback, self.exception_callback)
+	result = self.parser.get_records(1)
+	self.assert_(isinstance(self.exception_callback_value, UnexpectedDataException)) 
