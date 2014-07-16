@@ -21,8 +21,7 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, DATA_REGEX_KWARGS_KEY, \
-    CsppMetadataDataParticle, MetadataRawDataKey, PARTICLE_KEY_INDEX, \
+    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, CsppMetadataDataParticle, MetadataRawDataKey, PARTICLE_KEY_INDEX, \
     DATA_MATCHES_GROUP_NUMBER_INDEX, TYPE_ENCODING_INDEX
 
 
@@ -140,8 +139,6 @@ class DostaAbcdjmCsppMetadataDataParticle(CsppMetadataDataParticle):
                     data_match.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
                     rule[TYPE_ENCODING_INDEX]))
 
-            log.info('DostaAbcdjmCsppMetadataRecoveredDataParticle data_match: %s', data_match)
-
             # Set the internal timestamp
             internal_timestamp_unix = numpy.float(data_match.group(
                 DataMatchesGroupNumber.PROFILER_TIMESTAMP))
@@ -202,6 +199,8 @@ class DostaAbcdjmCsppInstrumentDataParticle(DataParticle):
                 DataMatchesGroupNumber.PROFILER_TIMESTAMP))
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
 
+        # We shouldn't end up with an exception due to the strongly specified regex, but we
+        # will ensure we catch any potential errors just in case
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"

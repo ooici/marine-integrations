@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.dosta_abcdjm_cspp
-@file marine-integrations/mi/dataset/parser/dosta_abcdjm_cspp.py
+@package mi.dataset.parser.cspp_base
+@file marine-integrations/mi/dataset/parser/cspp_base.py
 @author Mark Worden
-@brief Parser for the dosta_abcdjm_cspp dataset driver
+@brief Base Parser for a cspp dataset driver
 Release notes:
 
 initial release
@@ -16,7 +16,6 @@ __license__ = 'Apache 2.0'
 from functools import partial
 import copy
 import re
-import time
 import string
 
 from mi.core.log import get_logger
@@ -25,8 +24,8 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import DatasetParserException, UnexpectedDataException, RecoverableSampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
-from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
+from mi.dataset.dataset_parser import BufferLoadingParser
 
 # The following defines a regular expression for one or more instances of a carriage return, line feed or both
 CARRIAGE_RETURN_LINE_FEED_OR_BOTH = r'(?:\r\n|\r|\n)'
@@ -42,7 +41,7 @@ TIMESTAMP_LINE_MATCHER = re.compile(TIMESTAMP_LINE_REGEX)
 FLOAT_REGEX = r'(?:[+-]?[0-9]|[1-9][0-9])+\.[0-9]+'
 # A regex to capture an int value
 INT_REGEX = r'[+-]?[0-9]+'
-# A regex to match against one or more multiple consecutive whitespace characters
+# A regex to match against one or more tab characters
 MULTIPLE_TAB_REGEX = r'\t+'
 
 # The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
@@ -54,7 +53,7 @@ DATA_PARTICLE_CLASS_KEY = 'data_particle_class'
 
 class HeaderPartMatchesGroupNumber(BaseEnum):
     """
-    An enum used to access match group values
+    An enum used to access header related match group values
     """
     HEADER_PART_MATCH_GROUP_KEY = 1
     HEADER_PART_MATCH_GROUP_VALUE = 2
@@ -114,7 +113,7 @@ FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE = 8
 
 class MetadataRawDataKey(BaseEnum):
     """
-    An enum for the state data applicable to a CsppParser
+    An enum used to index into a tuple of metadata parts
     """
     HEADER_DICTIONARY = 0
     DATA_MATCH = 1
@@ -125,8 +124,7 @@ class StateKey(BaseEnum):
     An enum for the state data applicable to a CsppParser
     """
     POSITION = 'position'
-    HEADER_STATE = 'header_state'
-    METADATA_PUBLISHED = 'metadata_published'
+    METADATA_EXTRACTED = 'metadata_extracted'
 
 
 class CsppMetadataDataParticle(DataParticle):
@@ -139,7 +137,6 @@ class CsppMetadataDataParticle(DataParticle):
         This method builds and returns a list of encoded common metadata particle values from the raw_data which
         is expected to be regular expression match data.  This method would need to be overridden if the header
         items do not include what is in the DefaultHeaderKey enum
-        @throws ValueError, TypeError, IndexError If there is a problem with particle parsing
         @returns result list of metadata parsed values
         """
 
@@ -188,7 +185,7 @@ class CsppMetadataDataParticle(DataParticle):
             processed_date + " " + processed_time,
             str))
 
-        # # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
+        # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
         for rule in METADATA_PARTICLE_ENCODING_RULES:
 
             results.append(self._encode_value(
@@ -239,14 +236,14 @@ class CsppParser(BufferLoadingParser):
         else:
             self._data_record_matcher = re.compile(data_record_regex)
 
-        header_state = {}
+        # Build up the header state dictionary using the default her key list ot one that was provided
+        self._header_state = {}
 
         if header_key_list is None:
             header_key_list = DEFAULT_HEADER_KEY_LIST
 
         for header_key in header_key_list:
-            header_state[header_key] = None
-        log.debug("header state members: ", header_state)
+            self._header_state[header_key] = None
 
         # Obtain the particle classes dictionary from the config data
         particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
@@ -257,10 +254,8 @@ class CsppParser(BufferLoadingParser):
         # Initialize the record buffer to an empty list
         self._record_buffer = []
 
-        # Initialize the read state POSITION to 0, and HEADER_STATE as an empty dictionary
-        self._read_state = {StateKey.POSITION: 0,
-                            StateKey.HEADER_STATE: header_state,
-                            StateKey.METADATA_PUBLISHED: False}
+        # Initialize the read state
+        self._read_state = {StateKey.POSITION: 0, StateKey.METADATA_EXTRACTED: False}
 
         # Call the superclass constructor
         super(CsppParser, self).__init__(config,
@@ -283,12 +278,20 @@ class CsppParser(BufferLoadingParser):
         @param state_obj The object to set the state to. 
         @throws DatasetParserException if there is a bad state structure
         """
+
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
+
         self._state = state_obj
         self._read_state = state_obj
 
-    def _update_positional_state(self, increment):
+        # Need to seek the correct position in the file stream using the read state position.
+        self._stream_handle.seek(self._read_state[StateKey.POSITION])
+
+        # make sure we have cleaned the chunker out of old data
+        self._chunker.clean_all_chunks()
+
+    def _increment_read_state(self, increment):
         """
         Increment the parser state
         @param increment The offset for the file position
@@ -319,6 +322,9 @@ class CsppParser(BufferLoadingParser):
         # While the data chunk is not None, process the data chunk
         while chunk is not None:
 
+            # Increment the read state position now
+            self._increment_read_state(len(chunk))
+
             # See if the chunk matches a data record
             data_match = self._data_record_matcher.match(chunk)
 
@@ -334,21 +340,23 @@ class CsppParser(BufferLoadingParser):
                 # If we created a data particle, let's append the particle to the result particles
                 # to return and increment the state data positioning
                 if data_particle:
-                    result_particles.append((data_particle, copy.copy(self._read_state)))
 
-                    if self._read_state[StateKey.METADATA_PUBLISHED] is False and \
-                            None not in self._read_state[StateKey.HEADER_STATE].values():
+                    if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
                         metadata_particle = self._extract_sample(self._metadata_particle_class,
                                                                  None,
-                                                                 (copy.copy(self._read_state[StateKey.HEADER_STATE]),
+                                                                 (copy.copy(self._header_state),
                                                                   data_match),
                                                                  None)
                         if metadata_particle:
+                            self._read_state[StateKey.METADATA_EXTRACTED] = True
                             # We're going to insert the metadata particle so that it is the first in the list
-                            result_particles.insert(0, (metadata_particle, copy.copy(self._read_state)))
-                            self._read_state[StateKey.METADATA_PUBLISHED] = True
+                            # and set the position to 0, as it cannot have the same position as the non-metadata
+                            # particle
+                            result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
+                                                                            StateKey.METADATA_EXTRACTED: True}))
 
-                    self._update_positional_state(len(chunk))
+                    if self._read_state[StateKey.METADATA_EXTRACTED]:
+                        result_particles.append((data_particle, copy.copy(self._read_state)))
 
             else:
                 # Check for head part match
@@ -360,8 +368,9 @@ class CsppParser(BufferLoadingParser):
                         HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
                     header_part_value = header_part_match.group(
                         HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
-                    if header_part_key in self._read_state[StateKey.HEADER_STATE].keys():
-                        self._read_state[StateKey.HEADER_STATE][header_part_key] = string.rstrip(header_part_value)
+
+                    if header_part_key in self._header_state.keys():
+                        self._header_state[header_part_key] = string.rstrip(header_part_value)
 
                 else:
                     # Check for the expected timestamp line we will ignore
@@ -389,8 +398,6 @@ class CsppParser(BufferLoadingParser):
             # Process the non data
             self.handle_non_data(non_data, non_end, start)
 
-        log.debug("parser chunks returning: %s", result_particles)
-
         return result_particles
 
     def handle_non_data(self, non_data, non_end, start):
@@ -401,7 +408,7 @@ class CsppParser(BufferLoadingParser):
         if non_data is not None and non_end <= start:
             log.debug("non_data: %s", non_data)
             # if this non-data is an error, send an UnexpectedDataException and increment the state
-            self._update_positional_state(len(non_data))
+            self._increment_read_state(len(non_data))
             # if non-data is a fatal error, directly call the exception, if it is not use the _exception_callback
             self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" %
                                                              (len(non_data), non_data)))
