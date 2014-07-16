@@ -1284,8 +1284,8 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
 
     def rec_state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
-        self.state_callback_value = state
-        self.file_ingested_value = file_ingested
+        self.rec_state_callback_value = state
+        self.rec_file_ingested_value = file_ingested
 
     def tel_state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """
@@ -1316,8 +1316,9 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         # Define test data particles and their associated timestamps which will be 
         # compared with returned results
 
-        self.file_ingested_value = None
+        self.rec_file_ingested_value = None
         self.state_callback_value = None
+        self.rec_state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = None
         self.state = None
@@ -1412,7 +1413,10 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         input_file = StringIO(REC_RECORD_2_10)
 
         # Skip past the first block.
-        new_state = {Vel3dLWfpStateKey.POSITION: 479}
+        new_state = {
+            Vel3dLWfpStateKey.POSITION: 479,
+            Vel3dLWfpStateKey.PARTICLE_NUMBER: 0
+        }
         self.parser = self.create_rec_parser(input_file, new_state)
 
         log.info("REC MID STATE VERIFY BLOCK 2, RECORDS 1-6 and METADATA")
@@ -1475,7 +1479,10 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
 
         # Skip past the other records in block 1.
         log.info("REC SET STATE RESET STATE")
-        new_state = {Vel3dLWfpStateKey.POSITION: 479}
+        new_state = {
+            Vel3dLWfpStateKey.POSITION: 479,
+            Vel3dLWfpStateKey.PARTICLE_NUMBER: 0
+        }
         self.parser.set_state(new_state)
 
         log.info("REC SET STATE VERIFY BLOCK 2 ALL RECORDS")

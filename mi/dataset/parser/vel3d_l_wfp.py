@@ -17,7 +17,7 @@ __license__ = 'Apache 2.0'
 
 import calendar
 import copy
-import ntplib
+#import ntplib
 import struct
 
 from mi.core.log import get_logger; log = get_logger()
@@ -147,7 +147,8 @@ PARTICLE_TYPE_WFP_METADATA = 4
 
 
 class Vel3dLWfpStateKey(BaseEnum):
-    POSITION = 'position'  # holds the file position
+    POSITION = 'position'                  # holds the file position
+    PARTICLE_NUMBER = 'particle_number'    # particle number of N
 
 
 class Vel3dLWfpDataParticleType(BaseEnum):
@@ -535,9 +536,6 @@ class Vel3dLParser(Parser):
 
 class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
 
-    #_state = None
-    #_read_state = None
-
     def __init__(self, config, state, file_handle,
                  state_callback, publish_callback, exception_callback):
         """
@@ -559,16 +557,20 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             self.sieve_function, state_callback, publish_callback, exception_callback)
 
         self.input_file = file_handle
-        self._read_state = {Vel3dLWfpStateKey.POSITION: 0}
+        self._read_state = {
+            Vel3dLWfpStateKey.POSITION: 0,
+            Vel3dLWfpStateKey.PARTICLE_NUMBER: 0
+        }
 
         if state is not None:
+            log.debug('XXX VEL state %s', state)
             self.set_state(state)
 
     def handle_non_data(self, non_data, non_end, start):
         """
         Handle any non-data that is found in the file
         """
-        # if non-data is expected, handle it here, otherwise it is an error
+        # Handle non-data here by calling the exception callback.
         if non_data is not None and non_end <= start:
             # increment the state
             self._increment_position(len(non_data))
@@ -589,7 +591,7 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
         it is a valid data piece, build a particle, update the position and
         timestamp. Go until the chunker has no more valid data.
         @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state. An empty list of nothing was parsed.
+            parsing, plus the state.
         """
         result_particles = []
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -600,15 +602,26 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             fields = self.parse_vel3d_data(PARTICLE_TYPE_WFP_INSTRUMENT,
                                            PARTICLE_TYPE_WFP_METADATA,
                                            chunk)
-            self._increment_position(len(chunk))
 
             #
             # Generate the particles for this chunk.
             # Add them to the return list of particles.
+            # Increment the state (position within the file) for the last particle.
+            # The first N-1 particles are tagged with the previous file position
+            # and a PARTICLE_NUMBER 1 to N.
+            # The Nth particle is tagged with with current file position
+            # and a PARTICLE_NUMBER of 0.
             #
             (sample_count, particles) = self.generate_samples(fields)
-            for x in range(0, sample_count):
+            for x in range(self._read_state[Vel3dLWfpStateKey.PARTICLE_NUMBER],
+                           sample_count - 1):
+                self._read_state[Vel3dLWfpStateKey.PARTICLE_NUMBER] += 1
                 result_particles.append((particles[x], copy.copy(self._read_state)))
+
+            self._increment_position(len(chunk))
+            self._read_state[Vel3dLWfpStateKey.PARTICLE_NUMBER] = 0
+            result_particles.append((particles[sample_count - 1],
+                                     copy.copy(self._read_state)))
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
@@ -626,7 +639,12 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             raise DatasetParserException("Invalid state structure")
 
         if not (Vel3dLWfpStateKey.POSITION in state_obj):
-            raise DatasetParserException("Invalid state keys")
+            raise DatasetParserException("State key %s missing" %
+                                         Vel3dLWfpStateKey.POSITION)
+
+        if not (Vel3dLWfpStateKey.PARTICLE_NUMBER in state_obj):
+            raise DatasetParserException("State key %s missing" %
+                                         Vel3dLWfpStateKey.PARTICLE_NUMBER)
 
         self._record_buffer = []
         self._state = state_obj

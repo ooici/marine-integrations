@@ -10,6 +10,15 @@ USAGE:
        $ bin/dsa/test_driver
        $ bin/dsa/test_driver -i [-t testname]
        $ bin/dsa/test_driver -q [-t testname]
+
+Files used for testing:
+  rec_vel3d_l_1.dat - 1 block with 10 FSI records
+  rec_vel3d_l_2.dat - 2 blocks with 4, 6 FSI records
+  rec_vel3d_l_4.dat - 4 blocks with 1, 2, 3, 4 FSI records
+  tel_vel3d_l_1.dat - 1 block with 10 FSI records
+  tel_vel3d_l_2.dat - 2 blocks with 4, 6 FSI records
+  tel_vel3d_l_3.dat - 3 blocks with 2, 3, 4 FSI records
+  tel_vel3d_l_4.dat - 4 blocks with 1, 2, 3, 4 FSI records
 """
 
 __author__ = 'Steve Myerson (Raytheon)'
@@ -209,10 +218,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_start_stop_resume(self):
         """
-        Test the ability to stop and restart sampling, ingesting files in the
-        correct order
+        Test the ability to start, stop and restart sampling,
+        ingesting files in the correct order.
+        This also tests the condition where the parser is restarted after
+        some, but not all, particles from a "chunk" get published.
         """
-        log.info("========== START INTEG TEST STOP START RESUME  ===============")
+        log.info("===== START INTEG TEST STOP START RESUME =====")
         self.clear_async_data()
 
         self.create_sample_data_set_dir('tel_vel3d_l_1.dat', DIR_TEL, FILE_TEL)
@@ -221,58 +232,134 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        # Read all the records from rec_vel3d_l_1.dat.
-        log.info("=========== READ RECOVERED DATA FILE #1  ================")
-        self.assert_data(REC_PARTICLES, 'rec_vel3d_l_1.yml', count=11, timeout=10)
+        # Get all the particles from rec_vel3d_l_1.dat.
+        log.info("===== READ RECOVERED DATA FILE #1 =====")
+        self.assert_data(REC_PARTICLES,
+                         'rec_vel3d_l_1.yml', count=11, timeout=15)
         self.assert_file_ingested(FILE_REC1, DataTypeKey.VEL3D_L_WFP)
 
-        # Read 5 records (of 12) from rec_vel3d_l_2.dat.
-        log.info("=========== READ RECOVERED DATA FILE #2  ================")
-        self.assert_data(REC_PARTICLES, 'rec_vel3d_l_2_1-5.yml', count=5, timeout=10)
+        # Get 2 instrument particles (of 10) from rec_vel3d_l_2.dat.
+        # This gets part way through the first block.
+        log.info("===== READ RECOVERED DATA FILE #2 =====")
+        self.assert_data(Vel3dLWfpInstrumentRecoveredParticle,
+                         'rec_vel3d_l_2_inst1-2.yml', count=2, timeout=10)
 
         # Stop and then start sampling, resuming from where we left off.
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        # Read all records from tel_vel3d_l_1.dat.
-        log.info("=========== READ TELEMETERED DATA FILE #1  ================")
-        self.assert_data(TEL_PARTICLES, 'tel_vel3d_l_1.yml', count=11, timeout=10)
+        # Get all particles from tel_vel3d_l_1.dat.
+        log.info("===== READ TELEMETERED DATA FILE #1 =====")
+        self.assert_data(TEL_PARTICLES,
+                         'tel_vel3d_l_1.yml', count=11, timeout=15)
 
-        # Read the last 7 records (of 12) from rec_vel3d_l_2.dat.
-        log.info("=========== READ RECOVERED DATA FILE #2 PART 2  ================")
-        self.assert_data(REC_PARTICLES, 'rec_vel3d_l_2_6-12.yml', count=7, timeout=10)
+        # Get the last 8 instrument particles (of 10) from rec_vel3d_l_2.dat.
+        # This spans the 2 blocks.
+        log.info("===== READ RECOVERED DATA FILE #2 PART 2 =====")
+        self.assert_data(Vel3dLWfpInstrumentRecoveredParticle,
+                         'rec_vel3d_l_2_inst3_10.yml', count=8, timeout=10)
+
+        # Get the 2 metadata particles from rec_vel3d_l_2.dat
+        log.info("===== READ RECOVERED DATA FILE #2 METADATA =====")
+        self.assert_data(Vel3dLWfpMetadataRecoveredParticle,
+                         'rec_vel3d_l_2_metadata.yml', count=2, timeout=10)
+
         self.assert_file_ingested(FILE_REC2, DataTypeKey.VEL3D_L_WFP)
 
-        log.info("=========== END INTEG TEST STOP START RESUME  ================")
+        log.info("===== END INTEG TEST STOP START RESUME ======")
+
+    def test_stop_midblock(self):
+        """
+        Test the condition where the parser is stopped after some,
+        but not all particles, from a given block have been published.
+        """
+        log.info("===== START INTEG TEST STOP MID-BLOCK =====")
+
+        # Create file (1 block, 10 instrument particles, 1 metadata particle)
+        self.clear_async_data()
+        self.create_sample_data_set_dir('rec_vel3d_l_1.dat', DIR_REC, FILE_REC1)
+        self.driver.start_sampling()
+
+        # Get 1 instrument particle (of the 10 available).
+        self.assert_data(Vel3dLWfpInstrumentRecoveredParticle,
+                         'rec_vel3d_l_1_inst1.yml', count=1, timeout=10)
+
+        # Stop and then start sampling, resuming from where we left off.
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+
+        # Get the next 5 instrument particles (of the 10 available).
+        self.assert_data(Vel3dLWfpInstrumentRecoveredParticle,
+                         'rec_vel3d_l_1_inst2_6.yml', count=5, timeout=10)
+
+        # Stop and then start sampling, resuming from where we left off.
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+
+        # Get the last 4 instrument particles (of the 10 available)
+        # as well as the metadata particle.
+        self.assert_data(REC_PARTICLES,
+                         'rec_vel3d_l_1_inst6_10meta.yml', count=5, timeout=10)
+
+        # File should be fully parsed at this point.
+        self.assert_file_ingested(FILE_REC1, DataTypeKey.VEL3D_L_WFP)
+
+        # Part 2 of this test.
+        # Create file (4 blocks, 1+2+3+4 instrument particles,
+        # 1 metadata particle per block)
+        self.create_sample_data_set_dir('rec_vel3d_l_4.dat', DIR_REC, FILE_REC2)
+
+        # Get the first 8 instrument particles and 3 metadata particles.
+        # This will leave us in the middle of the 4th block,
+        # with 2 of the 4 instrument particles having been retrieved.
+        self.assert_data(REC_PARTICLES,
+                         'rec_vel3d_l_4_inst1_8_meta1_3.yml', count=11, timeout=20)
+
+        # Stop and then start sampling, resuming from where we left off.
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+
+        # Get the last 2 instrument particles and the last metadata particle.
+        self.assert_data(REC_PARTICLES,
+                        'rec_vel3d_l_4_inst9_10_meta4.yml', count=3, timeout=10)
+
+        # File should be fully parsed at this point.
+        self.assert_file_ingested(FILE_REC2, DataTypeKey.VEL3D_L_WFP)
+
+        log.info("===== END INTEG TEST STOP MID-BLOCK =====")
 
     def test_stop_resume(self):
         """
-        Test the ability to stop and restart the process
+        Test the ability to stop and restart the process.
         """
-        log.info("=========== START INTEG TEST STOP RESUME  ================")
+        log.info("===== START INTEG TEST STOP RESUME =====")
 
         self.clear_async_data()
-        path_1 = self.create_sample_data_set_dir('rec_vel3d_l_1.dat', DIR_REC, FILE_REC1)
-        path_2 = self.create_sample_data_set_dir('rec_vel3d_l_4.dat', DIR_REC, FILE_REC4)
+        path_1 = self.create_sample_data_set_dir('rec_vel3d_l_1.dat',
+                                                 DIR_REC, FILE_REC1)
+        path_2 = self.create_sample_data_set_dir('rec_vel3d_l_4.dat',
+                                                 DIR_REC, FILE_REC4)
 
         # Recovered file 1 position set to EOF.
         # Recovered file 2 position set to record 9 (start of group of 4 records).
         pos_1 = 761
         pos_2 = 1155    # 338 + 385 + 432
 
-        state = {
+        new_state = {
             DataTypeKey.VEL3D_L_WFP:
                 {FILE_REC1: self.get_file_state(path_1, True, pos_1),
                  FILE_REC4: self.get_file_state(path_2, False, pos_2)},
             DataTypeKey.VEL3D_L_WFP_SIO_MULE:
                 {}
         }
+        new_state[DataTypeKey.VEL3D_L_WFP][FILE_REC1][PARSER_STATE][Vel3dLWfpStateKey.PARTICLE_NUMBER] = 0
+        new_state[DataTypeKey.VEL3D_L_WFP][FILE_REC4][PARSER_STATE][Vel3dLWfpStateKey.PARTICLE_NUMBER] = 0
 
-        log.info("===== INTEG TEST STOP RESUME SET STATE TO %s =======", state)
-        self.driver = self._get_driver_object(memento=state)
+        log.info("===== INTEG TEST STOP RESUME SET STATE %s =====", new_state)
+        self.driver = self._get_driver_object(memento=new_state)
         self.driver.start_sampling()
 
-        log.info("====== INTEG TEST STOP RESUME READ RECOVERED DATA FILE #2 ========")
+        log.info("===== INTEG TEST STOP RESUME READ RECOVERED DATA FILE #2 ========")
         self.assert_data(REC_PARTICLES, 'rec_vel3d_l_4_10-14.yml', count=5, timeout=10)
 
         # Read Telemetered file.
@@ -280,14 +367,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir('tel_vel3d_l_1.dat', DIR_TEL, FILE_TEL)
         self.driver.start_sampling()
 
-        log.info("====== INTEG TEST STOP RESUME READ TELEMETERED DATA FILE ========")
+        log.info("===== INTEG TEST STOP RESUME READ TELEMETERED DATA FILE ========")
         self.assert_data(TEL_PARTICLES, 'tel_vel3d_l_1_1-4.yml', count=4, timeout=11)
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
         self.assert_data(TEL_PARTICLES, 'tel_vel3d_l_1_5-11.yml', count=7, timeout=11)
 
-        log.info("=========== END INTEG TEST STOP RESUME  ================")
+        log.info("===== END INTEG TEST STOP RESUME =====")
 
 
 ###############################################################################
@@ -494,23 +581,18 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_start_sampling()
 
         try:
-            # Verify that we get 4 instrument particles from the recovered data file.
-            samples = 4
-            log.info("===== READ %d RECOVERED INSTRUMENT PARTICLES =====", samples)
-            result = self.data_subscribers.get_samples(
-                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE,
-                samples, 10)
+            # Verify that we get 7 instrument particles from the recovered data file.
+            log.info("===== READ RECOVERED INSTRUMENT PARTICLES =====")
+            inst_result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE, 7, 10)
+            self.assert_data_values(inst_result, 'rec_vel3d_l_2_inst1-7.yml')
 
             # Verify that we get 1 metadata particle from the recovered data file.
-            samples = 1
-            log.info("===== READ %d RECOVERED METADATA PARTICLES =====", samples)
+            log.info("===== READ RECOVERED METADATA PARTICLES =====")
             meta_result = self.data_subscribers.get_samples(
-                Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE,
-                samples, 10)
+                Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE, 1, 10)
+            self.assert_data_values(meta_result, 'rec_vel3d_l_2_meta1.yml')
 
-            # Combine the instrument and metadata particles and verify results.
-            result.extend(meta_result)
-            self.assert_data_values(result, 'rec_vel3d_l_2_1-5.yml')
             log.info("========== STOP RECOVERED SAMPLING AND AGENT ===============")
             self.assert_stop_sampling()
 
@@ -521,29 +603,23 @@ class QualificationTest(DataSetQualificationTestCase):
             # Re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-            # Restart sampling and get the last 6 instrument particles of recovered
-            # file and combine with the previous ones we read.
+            # Restart sampling.
             log.info("========== RESTART RECOVERED ===============")
             self.assert_start_sampling()
 
-            # Verify that we get 6 instrument particles from the recovered data file.
-            samples = 6
-            log.info("===== READ %d RECOVERED INSTRUMENT PARTICLES =====", samples)
-            inst_result = self.data_subscribers.get_samples(
-                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE,
-                samples, 10)
-            result.extend(inst_result)
+            # Get the last 3 instrument particles, combine them with the
+            # first 7, and verify the contents of all 10.
+            log.info("===== READ RECOVERED INSTRUMENT PARTICLES =====")
+            result = self.data_subscribers.get_samples(
+                Vel3dLWfpDataParticleType.WFP_INSTRUMENT_PARTICLE, 3, 10)
+            inst_result.extend(result)
+            self.assert_data_values(inst_result, 'rec_vel3d_l_2_inst1-10.yml')
 
             # Verify that we get 1 metadata particle from the recovered data file.
-            samples = 1
-            log.info("===== READ %d RECOVERED METADATA PARTICLES =====", samples)
+            log.info("===== READ RECOVERED METADATA PARTICLES =====")
             meta_result = self.data_subscribers.get_samples(
-                Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE,
-                samples, 10)
-
-            # Combine the instrument and metadata particles and verify results.
-            result.extend(meta_result)
-            self.assert_data_values(result, 'rec_vel3d_l_2.yml')
+                Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE, 1, 10)
+            self.assert_data_values(meta_result, 'rec_vel3d_l_2_meta2.yml')
 
         except SampleTimeout as e:
             log.error("Recovered Exception trapped: %s", e, exc_info=True)
