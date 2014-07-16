@@ -22,8 +22,6 @@ USAGE:
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-import time
-
 from nose.plugins.attrib import attr
 from mock import Mock
 
@@ -48,7 +46,7 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 
-from mi.instrument.uw.bars.ooicore.driver import Protocol, MENU, BarsStatusParticleKey, BarsStatusParticle
+from mi.instrument.uw.bars.ooicore.driver import Protocol, MENU, BarsStatusParticleKey, BarsStatusParticle, ScheduledJob
 from mi.instrument.uw.bars.ooicore.driver import InstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import ProtocolState
 from mi.instrument.uw.bars.ooicore.driver import ProtocolEvent
@@ -72,7 +70,6 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverConfigKey.PARAMETERS: {Parameter.CYCLE_TIME: 20,
-                                     Parameter.VERBOSE: 1,
                                      Parameter.METADATA_POWERUP: 0,
                                      Parameter.METADATA_RESTART: 0}}
 )
@@ -101,7 +98,7 @@ METADATA_POWERUP_VALUE = 0
 METADATA_RESTART_VALUE = 0
 REFERENCE_TEMP_POWER_VALUE = 1
 RES_SENSOR_POWER_VALUE = 1
-VERBOSE_VALUE = None
+VERBOSE_VALUE = 0
 
 # newline.
 NEWLINE = '\r\n'
@@ -177,7 +174,7 @@ class TRHPHMixinSub(DriverTestMixin):
         # Parameters defined in the IOS
 
         Parameter.CYCLE_TIME: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 20, VALUE: 20},
-        Parameter.VERBOSE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1, REQUIRED: False},
+        Parameter.VERBOSE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0, REQUIRED: False},
         Parameter.METADATA_POWERUP: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.METADATA_RESTART: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.RES_SENSOR_POWER: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
@@ -446,6 +443,20 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def assert_acquire_status(self):
+        """
+        Verify all status particles generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.TRHPH_STATUS, self.assert_status_particle, timeout=200)
+
+    def test_scheduled_acquire_status(self):
+        """
+        Verify we can schedule an acquire status event
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=200)
+
     def test_connect(self):
         """
         Test configuring and connecting to the device through the port
@@ -538,6 +549,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
         self.assert_get(Parameter.METADATA_RESTART, METADATA_RESTART_VALUE)
         self.assert_get(Parameter.REFERENCE_TEMP_POWER, REFERENCE_TEMP_POWER_VALUE)
         self.assert_get(Parameter.RES_SENSOR_POWER, RES_SENSOR_POWER_VALUE)
+        self.assert_get(Parameter.VERBOSE, VERBOSE_VALUE)
 
     def test_autosample_on(self):
         """
@@ -669,29 +681,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
 
     def test_status_particles(self):
         """
-        Verify status particle in autosample state and in Command state
+        Verify status particle in Command state
         """
-
         self.assert_enter_command_mode()
-
-        self.assert_start_autosample()
-
-        # verify all particles in autosample
-        self.assert_particle_async(DataParticleType.TRHPH_PARSED, self.assert_particle_sample, timeout=60)
-
-        self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle,
-                                    DataParticleType.TRHPH_STATUS, timeout=180)
-
-        time.sleep(50)
-        self.assert_stop_autosample()
-        # verify status particle in command state
-
         self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle,
                                     DataParticleType.TRHPH_STATUS, timeout=200)
-
-        self.assert_start_autosample()
-        # verify all particles in autosample
-        self.assert_particle_async(DataParticleType.TRHPH_PARSED, self.assert_particle_sample, timeout=70)
 
     def test_get_capabilities(self):
         """
@@ -720,8 +714,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         #  Streaming Mode
         ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.STOP_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_AUTOSAMPLE]
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
@@ -757,7 +750,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, TRHPHMixinS
         self.assert_get_parameter(Parameter.CYCLE_TIME, 20)
         self.assert_set_parameter(Parameter.CYCLE_TIME, 16)
 
-        self.assert_get_parameter(Parameter.VERBOSE, None)
+        self.assert_get_parameter(Parameter.VERBOSE, 0)
         self.assert_get_parameter(Parameter.METADATA_POWERUP, 0)
         self.assert_get_parameter(Parameter.METADATA_RESTART, 0)
         self.assert_get_parameter(Parameter.RES_SENSOR_POWER, 1)
