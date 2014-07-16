@@ -19,7 +19,7 @@ import json
 from mi.core.log import get_logger, get_logging_metaclass
 log = get_logger()
 
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -81,7 +81,6 @@ EOLN = "\r\n"
 
 
 class ParameterUnits(BaseEnum):
-    HERTZ = 'Hz'
     TIME_INTERVAL = 'HH:MM:SS'
 
 
@@ -89,10 +88,6 @@ class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     PARSED = 'parad_sa_sample'
     CONFIG = 'parad_sa_config'
-
-
-class PARSpecificDriverEvents(BaseEnum):
-    SCHEDULED_ACQUIRE_STATUS = "DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS"
 
 
 class EngineeringParameter(DriverParameter):
@@ -146,7 +141,7 @@ class PARProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     RESET = DriverEvent.RESET
-    SCHEDULED_ACQUIRE_STATUS = PARSpecificDriverEvents.SCHEDULED_ACQUIRE_STATUS
+    SCHEDULED_ACQUIRE_STATUS = "DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS"
 
 
 class PARCapability(BaseEnum):
@@ -261,8 +256,8 @@ class SatlanticPARDataParticle(DataParticle):
             @param data The entire line of data, including the checksum
             @retval True if the checksum fits, False if the checksum is bad
             """
-            assert (data is not None)
-            assert (data != "")
+            assert data is not None
+            assert data != ""
             match = SAMPLE_REGEX.match(data)
             if not match:
                 return False
@@ -283,8 +278,9 @@ class SatlanticPARDataParticle(DataParticle):
 
             if checksum != received_checksum:
                 log.warn("Calculated checksum %s did not match packet checksum %s.", checksum, received_checksum)
-
-            return checksum == received_checksum
+                return False
+            else:
+                return True
 
 
 class SatlanticPARConfigParticleKey(BaseEnum):
@@ -415,10 +411,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              direct_access=True,
                              startup_param=True,
                              init_value=4,
-                             display_name='MaxRate',
-                             description='Maximum sampling rate in Hz.',
+                             display_name='Max Rate',
+                             description='Maximum sampling rate in Hz',
                              type=ParameterDictType.FLOAT,
-                             units=ParameterUnits.HERTZ,
+                             units=Units.HERTZ,
                              value_description='Only certain standard frame rates are accepted by this parameter: \
                              0, 0.125, 0.5, 1, 2, 4, 8, 10, and 12. Any non-integer values are truncated. \
                              To specify an automatic (AUTO) frame rate, input "0" as the value parameter. \
@@ -433,7 +429,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              str,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Instrument',
-                             description='Instrument type.',
+                             description='Instrument type',
                              type=ParameterDictType.STRING)
 
         self._param_dict.add(Parameter.SERIAL,
@@ -442,7 +438,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              str,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Serial',
-                             description='Serial number.',
+                             description='Serial number',
                              type=ParameterDictType.STRING)
 
         self._param_dict.add(Parameter.FIRMWARE,
@@ -451,7 +447,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              str,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='Firmware',
-                             description='Instrument firmware.',
+                             description='Instrument firmware',
                              type=ParameterDictType.STRING)
 
         self._param_dict.add(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
@@ -631,7 +627,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             if len(cmd_line) > 1 and \
                 (expected_prompt is not None or
                 (response_regex is not None))\
-                    and cmd_line not in result:
+                    and not result.startswith(cmd_line):
+                    # and cmd_line not in result:
                 log.debug("_do_cmd_resp: Send command: %s failed %s attempt, result = %s.", cmd, retry_num, result)
                 if retry_num >= retry_count:
                     raise InstrumentCommandException('_do_cmd_resp: Failed %s attempts sending command: %s' %
