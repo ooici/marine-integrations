@@ -179,7 +179,7 @@ class QualificationTest(DataSetQualificationTestCase):
         #self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get four sample
+        # Verify we get four samples
         try:
             result = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2, 100)
             result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT, 2, 100)
