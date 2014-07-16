@@ -21,13 +21,15 @@ import string
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.exceptions import DatasetParserException, UnexpectedDataException, RecoverableSampleException
+from mi.core.exceptions import DatasetParserException, \
+    UnexpectedDataException, RecoverableSampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.dataset_parser import BufferLoadingParser
 
-# The following defines a regular expression for one or more instances of a carriage return, line feed or both
+# The following defines a regular expression for one or more
+# instances of a carriage return, line feed or both
 CARRIAGE_RETURN_LINE_FEED_OR_BOTH = r'(?:\r\n|\r|\n)'
 SIEVE_MATCHER = re.compile(r'.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH)
 
@@ -275,7 +277,7 @@ class CsppParser(BufferLoadingParser):
     def set_state(self, state_obj):
         """
         Set the value of the state object for this parser
-        @param state_obj The object to set the state to. 
+        @param state_obj The object to set the state to.
         @throws DatasetParserException if there is a bad state structure
         """
 
@@ -284,6 +286,9 @@ class CsppParser(BufferLoadingParser):
 
         self._state = state_obj
         self._read_state = state_obj
+
+        # Clear the record buffer
+        self._record_buffer = []
 
         # Need to seek the correct position in the file stream using the read state position.
         self._stream_handle.seek(self._read_state[StateKey.POSITION])
@@ -297,6 +302,82 @@ class CsppParser(BufferLoadingParser):
         @param increment The offset for the file position
         """
         self._read_state[StateKey.POSITION] += increment
+
+    def _process_data_match(self, data_match, result_particles):
+        """
+        This method processes a data match.  It will extract a metadata particle and insert it into
+         result_particles when we have not already extracted the metadata and all header values exist.
+         This method will also extract a data particle and append it to the result_particles.
+        @param data_match A regular expression match object for a cspp data record
+        @param result_particles A list which should be updated to include any particles extracted
+        """
+
+        # Extract the data record particle
+        data_particle = self._extract_sample(self._data_particle_class,
+                                             None,
+                                             data_match,
+                                             None)
+
+        # If we created a data particle, let's append the particle to the result particles
+        # to return and increment the state data positioning
+        if data_particle:
+
+            if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
+                metadata_particle = self._extract_sample(self._metadata_particle_class,
+                                                         None,
+                                                         (copy.copy(self._header_state),
+                                                          data_match),
+                                                         None)
+                if metadata_particle:
+                    self._read_state[StateKey.METADATA_EXTRACTED] = True
+                    # We're going to insert the metadata particle so that it is the first in the list
+                    # and set the position to 0, as it cannot have the same position as the non-metadata
+                    # particle
+                    result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
+                                                                    StateKey.METADATA_EXTRACTED: True}))
+
+            if self._read_state[StateKey.METADATA_EXTRACTED]:
+                result_particles.append((data_particle, copy.copy(self._read_state)))
+
+    def _process_header_part_match(self, header_part_match):
+        """
+        This method processes a header part match.  It will process one row within a cspp header
+        that matched a provided regex.  The match groups should be processed and the _header_state
+        will be updated  with the obtained header values.
+        @param header_part_match A regular expression match object for a cspp header row
+        """
+
+        header_part_key = header_part_match.group(
+            HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
+        header_part_value = header_part_match.group(
+            HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
+
+        if header_part_key in self._header_state.keys():
+            self._header_state[header_part_key] = string.rstrip(header_part_value)
+
+    def _process_chunk_not_containing_data_record_or_header_part(self, chunk):
+        """
+        This method processes a chunk that does not contain a data record or header.  This case is
+        not applicable to "non_data".  For cspp file streams, we expect some lines in the file that
+        we do not care about, and we will not consider them "non_data".
+        @param chunk A regular expression match object for a cspp header row
+        """
+
+        # Check for the expected timestamp line we will ignore
+        timestamp_line_match = TIMESTAMP_LINE_MATCHER.match(chunk)
+
+        if timestamp_line_match is not None:
+            # Ignore
+            pass
+
+        else:
+
+            if self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
+                # Ignore
+                pass
+            else:
+                # OK.  We got unexpected data
+                self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
     def parse_chunks(self):
         """
@@ -329,34 +410,9 @@ class CsppParser(BufferLoadingParser):
             data_match = self._data_record_matcher.match(chunk)
 
             # If we found a data match, let's process it
-            if data_match:
+            if data_match is not None:
 
-                # Extract the data record particle
-                data_particle = self._extract_sample(self._data_particle_class,
-                                                     None,
-                                                     data_match,
-                                                     None)
-
-                # If we created a data particle, let's append the particle to the result particles
-                # to return and increment the state data positioning
-                if data_particle:
-
-                    if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
-                        metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                                 None,
-                                                                 (copy.copy(self._header_state),
-                                                                  data_match),
-                                                                 None)
-                        if metadata_particle:
-                            self._read_state[StateKey.METADATA_EXTRACTED] = True
-                            # We're going to insert the metadata particle so that it is the first in the list
-                            # and set the position to 0, as it cannot have the same position as the non-metadata
-                            # particle
-                            result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
-                                                                            StateKey.METADATA_EXTRACTED: True}))
-
-                    if self._read_state[StateKey.METADATA_EXTRACTED]:
-                        result_particles.append((data_particle, copy.copy(self._read_state)))
+                self._process_data_match(data_match, result_particles)
 
             else:
                 # Check for head part match
@@ -364,30 +420,11 @@ class CsppParser(BufferLoadingParser):
 
                 if header_part_match is not None:
 
-                    header_part_key = header_part_match.group(
-                        HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
-                    header_part_value = header_part_match.group(
-                        HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
-
-                    if header_part_key in self._header_state.keys():
-                        self._header_state[header_part_key] = string.rstrip(header_part_value)
+                    self._process_header_part_match(header_part_match)
 
                 else:
-                    # Check for the expected timestamp line we will ignore
-                    timestamp_line_match = TIMESTAMP_LINE_MATCHER.match(chunk)
 
-                    if timestamp_line_match is not None:
-                        # Ignore
-                        pass
-
-                    else:
-
-                        if self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
-                            # Ignore
-                            pass
-                        else:
-                            # OK.  We got unexpected data
-                            self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
+                    self._process_chunk_not_containing_data_record_or_header_part(chunk)
 
             # Retrieve the next non data chunk
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
