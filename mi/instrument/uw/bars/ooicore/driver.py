@@ -785,6 +785,10 @@ class Protocol(MenuInstrumentProtocol):
                 if not result:
                     raise InstrumentParameterException("Could not set param %s" % key)
 
+                #need to set value direct because the instrument does not indicate whether it was successful
+                #as long as the instrument returns from 'setting' with the command prompt, we assume success
+                self._param_dict.set_value(key, self._param_dict.get_init_value(key))
+
                 self._go_to_root_menu()
 
     def _set_params(self, *args, **kwargs):
@@ -1134,7 +1138,7 @@ class Protocol(MenuInstrumentProtocol):
                              submenu_write=[["1", Prompt.CYCLE_TIME_PROMPT]])
 
         self._param_dict.add(Parameter.VERBOSE,
-                             r'',  # Write-only, so does it really matter?
+                             r'bogusdatadontmatch',  # Write-only
                              lambda match: None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -1142,7 +1146,7 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
-                             init_value=1,
+                             init_value=0,
                              menu_path_write=SubMenu.CHANGE_PARAM,
                              submenu_write=[["2", Prompt.VERBOSE_PROMPT]])
 
