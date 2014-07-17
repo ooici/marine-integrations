@@ -130,8 +130,8 @@ class MflmCtdmoDataSetDriver(SioMuleDataSetDriver):
                 config,
                 stream_in,
                 parser_state,
-                lambda state:
-                    self._save_parser_state(state, data_key),
+                lambda state,  ingested:
+                    self._save_parser_state(state, data_key, ingested),
                 self._data_callback,
                 self._sample_exception_callback)
 

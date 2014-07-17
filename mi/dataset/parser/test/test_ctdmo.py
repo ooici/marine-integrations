@@ -278,7 +278,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         This function creates a Ctdmo parser for recovered CO data.
         """
         parser = CtdmoRecoveredCoParser(self.config_rec_co, file_handle,
-            new_state, self.state_callback, self.pub_callback,
+            new_state, self.rec_state_callback, self.pub_callback,
             self.exception_callback)
         return parser
 
@@ -293,7 +293,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
     def rec_state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
-        self.state_callback_value = state
+        self.rec_state_callback_value = state
         self.file_ingested_value = file_ingested
 
     def state_callback(self, state):

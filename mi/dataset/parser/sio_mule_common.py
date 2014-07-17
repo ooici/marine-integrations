@@ -212,6 +212,7 @@ class SioParser(BufferLoadingParser):
             # need to read in the entire data file first and store it because escape sequences shift position of
             # in process and unprocessed blocks
             self.all_data = self.read_file()
+            self.file_complete = True
             orig_len = len(self.all_data)
 
             # need to replace escape chars if telemetered data
@@ -484,9 +485,6 @@ class SioParser(BufferLoadingParser):
             end_packet_idx = match.end(0) + data_len
 
             if end_packet_idx < len(raw_data):
-                # log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
-                #           match.group(0)[1:32], match.end(0), end_packet_idx,
-                #           match.start(0), data_len)
                 #
                 # Get the last byte of the SIO block
                 # and make sure it matches the expected value.
@@ -539,6 +537,7 @@ class SioParser(BufferLoadingParser):
         if self._samples_to_throw_out is not None:
             records_to_return = self._record_buffer[self._samples_to_throw_out:(num_to_fetch+self._samples_to_throw_out)]
             self._record_buffer = self._record_buffer[(num_to_fetch+self._samples_to_throw_out):]
+
             # reset samples to throw out
             self._samples_to_throw_out = None
         else:
@@ -548,10 +547,23 @@ class SioParser(BufferLoadingParser):
             for item in records_to_return:
                 return_list.append(item)
             self._publish_sample(return_list)
+
             # need to keep track of which records have actually been returned
             self._increment_state(num_to_fetch)
             self._state = self._read_state
-            self._state_callback(self._state)  # push new state to driver
+
+            if self.recovered:
+                if self.file_complete and len(self._record_buffer) == 0:
+                    # file has been read completely
+                    # and all records pulled out of the record buffer
+                    file_ingested = True
+                else:
+                    file_ingested = False
+
+                # push new state to driver
+                self._state_callback(self._state, file_ingested)
+            else:
+                self._state_callback(self._state)  # push new state to driver
 
         return return_list
 
