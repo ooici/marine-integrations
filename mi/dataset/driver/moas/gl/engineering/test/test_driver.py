@@ -539,7 +539,7 @@ class QualificationTest(DataSetQualificationTestCase):
         result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 100, 240)
         result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 3, 240)
 
-
+    ##DONE
     def test_stop_start_telemetered(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -568,39 +568,54 @@ class QualificationTest(DataSetQualificationTestCase):
             result0.extend(result2)
             log.debug("##")
             log.debug("##")
-            log.debug("## QualificationTest.test_stop_start_telemetered(): got 1st row result %s", result0)
+            log.debug("## QualificationTest.test_stop_start_telemetered(): "
+                      "got 1st row result %s", result0)
             log.debug("##")
             log.debug("##")
             # Verify values (the multiple input file has the same first row as the single input file)
             #self.assert_stop_sampling()
             self.assert_data_values(result0, 'single_glider_record-engDataOnly-StartStopQual.mrg.result.yml')
 
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_TELEMETERED)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
+
             # Restart sampling and ensure we get the particles from the last 3 records (rows) of the file
             self.assert_start_sampling()
-            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
-            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3)
+            result3 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
+            result4 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             self.assert_stop_sampling()
-            result1.extend(result2)
             log.debug("##")
             log.debug("##")
-            log.debug("## QualificationTest.test_stop_start_telemetered(): got remaining combined result %s", result1)
+            log.debug("## QualificationTest.test_stop_start_telemetered(): "
+                      "2-4: got result3 containing %s particles: %s", len(result3), result3)
+            result3.extend(result4)
+            log.debug("##")
+            log.debug("##")
+            log.debug("## QualificationTest.test_stop_start_telemetered(): "
+                      "2-4: got result4 containing %s particles: %s", len(result4), result4)
+            log.debug("##")
+            log.debug("##")
+            log.debug("## QualificationTest.test_stop_start_telemetered(): "
+                      "2-4: got remaining combined result containing %s particles: %s", len(result3), result3)
             log.debug("##")
             log.debug("##")
             #self.assert_stop_sampling()
-            self.assert_data_values(result1, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
+            self.assert_data_values(result3, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
 
         except SampleTimeout as e:
             log.error("## QualificationTest.test_stop_start_telemetered(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-
+    ##DONE
     def test_stop_start_recovered(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.info("## QualificationTest.test_stop_start_recovered(): CONFIG: %s", self._agent_config())
+        log.info("## QualificationTest.test_stop_start_recovered(): "
+                 "CONFIG: %s", self._agent_config())
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -622,6 +637,7 @@ class QualificationTest(DataSetQualificationTestCase):
             result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 1)
             result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 1)
             result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA_RECOVERED, 1)
+            self.assert_stop_sampling()
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result0.extend(result1)
             result0.extend(result2)
@@ -633,10 +649,12 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("## QualificationTest.test_stop_start(): got 1st row result %s", result0)
             log.debug("##")
             log.debug("##")
-
             # Verify values (the multiple input file has the same first row as the single input file)
-            self.assert_stop_sampling()
             self.assert_data_values(result0, 'startstop_row1_glider_record_recovered-engDataOnly.mrg.result.yml')
+
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_TELEMETERED)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
 
             # Restart sampling and ensure we get the last 3 records (rows) of the file
             self.assert_start_sampling()
@@ -647,6 +665,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("##")
             result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 3)
             result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 3)
+            self.assert_stop_sampling()
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result1.extend(result2)
             log.debug("##")
@@ -657,14 +676,13 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("## QualificationTest.test_stop_start(): got remaining combined result %s", result1)
             log.debug("##")
             log.debug("##")
-            self.assert_stop_sampling()
             self.assert_data_values(result1, 'startstop_rows3-4_glider_record_recovered-engDataOnly.mrg.result.yml')
 
         except SampleTimeout as e:
             log.error("## QualificationTest.test_stop_start_recovered(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-
+    ##DONE
     def test_shutdown_restart_telemetered(self):
         """
         Test the agents ability to completely stop, then restart
@@ -718,10 +736,15 @@ class QualificationTest(DataSetQualificationTestCase):
             #re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_TELEMETERED)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
+
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
             result1 = self.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
             result2 = self.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3)
+            self.assert_stop_sampling()
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result1.extend(result2)
             log.debug("##")
@@ -734,13 +757,11 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("##")
             self.assert_data_values(result1, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
 
-            ###self.assert_all_queue_size_zero()
-
         except SampleTimeout as e:
             log.error("## QualificationTest.test_shutdown_restart(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-
+    ##DONE
     def test_shutdown_restart_recovered(self):
         """
         Test the agents ability to completely stop, then restart
@@ -794,6 +815,10 @@ class QualificationTest(DataSetQualificationTestCase):
             #re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_TELEMETERED)
+            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
+
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
             result1 = self.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
@@ -813,7 +838,6 @@ class QualificationTest(DataSetQualificationTestCase):
         except SampleTimeout as e:
             log.error("## QualificationTest.test_shutdown_restart_recovered(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
-
 
     ##DONE
     def test_parser_exception(self):
