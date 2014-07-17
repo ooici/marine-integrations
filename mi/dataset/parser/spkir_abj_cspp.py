@@ -33,10 +33,8 @@ from mi.dataset.parser.cspp_base import \
     MetadataRawDataKey, PARTICLE_KEY_INDEX, \
     DATA_MATCHES_GROUP_NUMBER_INDEX, TYPE_ENCODING_INDEX
 
-# data lines will all include the instrument ID in column 3
-# instrument ids all begin with SAT
-INSTRUMENT_ID_REGEX = r'SAT\w+'
-CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'
+INSTRUMENT_ID_REGEX = r'SAT\w+'  # instrument ids all begin with SAT
+CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'  # hex characters
 
 # Input Records are formatted as follows
 # FORMAT    DATA Type       Field               Units       Notes
@@ -61,26 +59,36 @@ CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'
 # string 	string 	        Checksum 	        1 	        ASCII-Hex formatted Checksum
 
 # *** Need to define data regex for this parser ***
-DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INSTRUMENT_ID_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + CHECKSUM_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
+DATA_REGEX += '(' + INSTRUMENT_ID_REGEX + ')' + MULTIPLE_TAB_REGEX  # Instrument ID
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Serial Number
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Timer
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Sample Delay
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 1
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 2
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 3
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 4
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 5
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 6
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Channel 7
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Vin
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Va
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Internal Temperature
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Frame Counter
+DATA_REGEX += '(' + CHECKSUM_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH  # Checksum
 
-DATA_MATCHER = re.compile(DATA_REGEX)
+# IDD states the configuration rows after the header as well as occasional malformed data rows
+# can be ignored.
+#
+# Ignore any rows that begin with the timestamp and depth but
+# do not match the data record or the header rows formats
+
+IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX  # Profiler Timestamp
+IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX  # Depth
+IGNORE_REGEX += '.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH  # any text after the Depth
+
+IGNORE_MATCHER = re.compile(IGNORE_REGEX)
 
 
 class DataMatchesGroupNumber(BaseEnum):
@@ -328,4 +336,5 @@ class SpkirAbjCsppParser(CsppParser):
                                                  publish_callback,
                                                  exception_callback,
                                                  DATA_REGEX,
+                                                 ignore_matcher=IGNORE_MATCHER,
                                                  *args, **kwargs)

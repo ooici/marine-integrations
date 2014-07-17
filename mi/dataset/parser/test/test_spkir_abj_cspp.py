@@ -16,15 +16,16 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.core.exceptions import SampleException
-from mi.core.instrument.data_particle import DataParticleKey
-
 from mi.idk.config import Config
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
-from mi.dataset.parser.cspp_base import METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
+from mi.dataset.parser.cspp_base import \
+    StateKey, \
+    METADATA_PARTICLE_CLASS_KEY, \
+    DATA_PARTICLE_CLASS_KEY
+
 from mi.dataset.parser.spkir_abj_cspp import \
     SpkirAbjCsppParser, \
     SpkirAbjCsppInstrumentTelemeteredDataParticle, \
@@ -181,9 +182,9 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
                 particle_data = particle_values.get(key)
                 #others are all part of the parsed values part of the particle
 
-            # log.debug('*** assert result: test data key = %s', key)
-            # log.debug('*** assert result: test data val = %s', test_data)
-            # log.debug('*** assert result: part data val = %s', particle_data)
+            log.debug('*** assert result: test data key = %s', key)
+            log.debug('*** assert result: test data val = %s', test_data)
+            log.debug('*** assert result: part data val = %s', particle_data)
 
             if particle_data is None:
                 #generally OK to ignore index keys in the test data, verify others
@@ -206,7 +207,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
-        stream_handle = open(file_path, 'rb')
+        stream_handle = open(file_path, 'r')
 
         # Note: since the recovered and teelemetered parser and particles are common
         # to each other, testing one is sufficient, will be completely tested
@@ -245,7 +246,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
-        stream_handle = open(file_path, 'rb')
+        stream_handle = open(file_path, 'r')
 
         # Note: since the recovered and teelemetered parser and particles are common
         # to each other, testing one is sufficient, will be completely tested
@@ -263,15 +264,48 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         log.debug("*** test_get_many Num particles %s", len(particles))
         self.assertEqual(len(particles), 1624)
 
+        stream_handle.close()
+
     def test_mid_state_start(self):
         """
-        Test starting the parser in a state in the middle of processing
+        This test makes sure that we retrieve the correct particles upon starting with an offset state.
         """
-        pass
+
+        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
+        stream_handle = open(file_path, 'rb')
+
+        # position 1329 is the end of the frist data record, which would have produced the
+        # metadata particle and the first instrument particle
+        initial_state = {StateKey.POSITION: 1329, StateKey.METADATA_EXTRACTED: True}
+
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                    initial_state, stream_handle,
+                                    self.state_callback, self.pub_callback,
+                                    self.exception_callback)
+
+        #expect to get the 2nd and 3rd instrument particles next
+        particles = parser.get_records(2)
+
+        log.debug("Num particles: %s", len(particles))
+
+        self.assertTrue(len(particles) == 2)
+
+        expected_results = self.get_dict_from_yml('mid_state_start.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        # now expect the state to be the end of the 4 data record and metadata sent
+        the_new_state = {StateKey.POSITION: 1619, StateKey.METADATA_EXTRACTED: True}
+        log.debug("********** expected state: %s", the_new_state)
+        log.debug("******** new parser state: %s", parser._state)
+        self.assertTrue(parser._state == the_new_state)
+
+        stream_handle.close()
 
     def test_set_state(self):
         """
-        Test changing to a new state after initializing the parser and 
+        Test changing to a new state after initializing the parser and
         reading data, as if new data has been found and the state has
         changed
         """
@@ -281,4 +315,27 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         """
         Ensure that bad data is skipped when it exists.
         """
-        pass
+
+        # the first data record in this file is corrupted and will be ignored
+        # we expect the first 2 particles to be the metadata particle and the
+        # intrument particle from the data record after the corrupted one
+
+        file_path = os.path.join(RESOURCE_PATH, '11079419_BAD_PPB_OCR.txt')
+        stream_handle = open(file_path, 'rb')
+
+        log.info(self.exception_callback_value)
+
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                    None, stream_handle,
+                                    self.state_callback, self.pub_callback,
+                                    self.exception_callback)
+
+        particles = parser.get_records(2)
+
+        expected_results = self.get_dict_from_yml('bad_data_record.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        stream_handle.close()
+
