@@ -17,6 +17,7 @@ import copy
 import gevent
 import ntplib
 import struct
+import binascii
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -55,8 +56,8 @@ class DostaLnWfpInstrumentParserDataParticle(DataParticle):
         match = WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_MATCHER.match(self.raw_data)
 
         if not match:
-            raise SampleException("DostaLnWfpInstrumentParserDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
+            raise SampleException("DostaLnWfpInstrumentParserDataParticle: No regex match of parsed sample data: [0x%s]",
+                                  binascii.b2a_hex(self.raw_data))
 
         try:
             # Let's first get the 32-bit unsigned int timestamp which should be in the first match group
@@ -72,8 +73,8 @@ class DostaLnWfpInstrumentParserDataParticle(DataParticle):
             optode_temperature = fields_prof[4]
 
         except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
+            raise SampleException("Error (%s) while decoding parameters in data: [0x%s]"
+                                  % (ex, binascii.b2a_hex(match.group(0))))
 
         result = [self._encode_value(DostaLnWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION,
                                      estimated_oxygen_concentration, float),
@@ -81,7 +82,6 @@ class DostaLnWfpInstrumentParserDataParticle(DataParticle):
                                      optode_temperature, float),
                   self._encode_value(DostaLnWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP,
                                      wfp_timestamp, int)]
-        log.debug('DostaLnWfpInstrumentParserDataParticle: particle=%s', result)
         return result
 
 
@@ -173,19 +173,19 @@ class DostaLnWfpParser(WfpEFileParser):
             # Check for an an augmented status first
             if raw_data_start_index_augmented >= 0 and \
                     STATUS_START_MATCHER.match(raw_data[raw_data_start_index_augmented:parse_end_point]):
-                log.debug("Found OffloadProfileData with decimation factor")
+                log.trace("Found OffloadProfileData with decimation factor")
                 parse_end_point = raw_data_start_index_augmented
 
             # Check for a normal status
             elif raw_data_start_index_normal >= 0 and \
                     STATUS_START_MATCHER.match(raw_data[raw_data_start_index_normal:parse_end_point]):
-                log.debug("Found OffloadProfileData without decimation factor")
+                log.trace("Found OffloadProfileData without decimation factor")
                 parse_end_point = raw_data_start_index_normal
 
             # If neither, we are dealing with a global wfp e recovered engineering data record,
             # so we will save the start and end points
             elif global_recovered_eng_rec_index >= 0:
-                log.debug("Found OffloadEngineeringData")
+                log.trace("Found OffloadEngineeringData")
                 form_list.append((global_recovered_eng_rec_index, parse_end_point))
                 parse_end_point = global_recovered_eng_rec_index
 
@@ -233,7 +233,8 @@ class DostaLnWfpParser(WfpEFileParser):
                                               self._timestamp)
                 if sample:
                     # create particle
-                    log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
+                    log.trace("Extracting sample chunk 0x%s with read_state: %s", binascii.b2a_hex(chunk),
+                              self._read_state)
                     self._increment_state(len(chunk))
                     result_particles.append((sample, copy.copy(self._read_state)))
 
@@ -252,5 +253,5 @@ class DostaLnWfpParser(WfpEFileParser):
             # if this non-data is an error, send an UnexpectedDataException and increment the state
             self._increment_state(len(non_data))
             # if non-data is a fatal error, directly call the exception, if it is not use the _exception_callback
-            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" %
-                                                             (len(non_data), non_data)))
+            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data 0x%s" %
+                                                             (len(non_data), binascii.b2a_hex(non_data))))
