@@ -5,13 +5,13 @@ data:
   - _index: 1
     particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
     particle_type: spkir_abj_cspp_instrument_recovered
-    internal_timestamp: 3606763058.515000
-    profiler_timestamp: 1397774258.5150001049041748
-    pressure_depth: 19.4400000000000013
-    timer: 9.1300000000000008
+    internal_timestamp: 3606763055.923000
+    profiler_timestamp: 1397774255.9230000972747803
+    pressure_depth: 19.2399999999999984
+    timer: 6.5400000000000000
     sample_delay: -133
-    channel_array: [2147974272, 2147680256, 2148676160, 2148659264, 2150586880, 2147350784, 2147462592]
+    channel_array: [2147995776, 2147704000, 2148797056, 2148846080, 2150871104, 2147360192, 2147462848]
     vin_sense: 278
-    va_sense: 174
-    internal_temperature: 174
-    frame_counter: 37
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 18
