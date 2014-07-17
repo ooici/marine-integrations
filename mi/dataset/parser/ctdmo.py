@@ -163,8 +163,8 @@ def convert_hex_ascii_to_int(int_val):
 
 def generate_particle_timestamp(time_2000):
     """
-    This function calculates and returns an ASCII hex timestamp in epoch 1900
-    based on a time in epoch 2000.
+    This function calculates and returns a timestamp in epoch 1900
+    based on an ASCII hex time in epoch 2000.
     Parameter:
       time_2000 - number of seconds since Jan 1, 2000
     Returns:
