@@ -11,6 +11,7 @@ from pyon.core.bootstrap import CFG
 
 import subprocess
 import re
+import gc
 import os
 import time
 import ntplib
@@ -27,7 +28,7 @@ from pyon.core import bootstrap
 bootstrap.testing = False
 
 # Import pyon first for monkey patching.
-from mi.core.log import get_logger;
+from mi.core.log import get_logger
 
 log = get_logger()
 
@@ -91,7 +92,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
-from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, DriverScheduler
 from mi.core.driver_scheduler import TriggerType
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -1242,6 +1243,14 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     _data_particle_received = []
 
+    def tearDown(self):
+        # schedulers need to be shutdown before GC will occur
+        for obj in gc.get_objects():
+            if type(obj) == DriverScheduler:
+                if hasattr(obj, '_scheduler'):
+                    obj._scheduler.shutdown()
+                    del obj._scheduler
+
     def clear_data_particle_queue(self):
         """
         Reset the queue which stores data particles received via our
@@ -1947,7 +1956,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):  # Must inh
                 log.debug('Found %d particles and all particles verified', len(samples))
                 return
 
-            log.error("Only found %d samples, looking for %d", len(samples), particle_count)
+            log.trace("Only found %d samples, looking for %d", len(samples), particle_count)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 

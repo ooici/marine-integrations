@@ -14,7 +14,6 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import string
 
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException, \
@@ -22,11 +21,11 @@ from mi.core.exceptions import SampleException, InstrumentProtocolException, Ins
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
-from mi.core.log import get_logger;
+from mi.core.log import get_logger, get_logging_metaclass
 
 log = get_logger()
 
-from mi.core.common import BaseEnum, InstErrorCode, Units
+from mi.core.common import BaseEnum, Units
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverConfigKey
@@ -108,6 +107,7 @@ class ProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     GET = DriverEvent.GET
     SET = DriverEvent.SET
+    SCHEDULE_ACQUIRE_SAMPLE = 'DRIVER_EVENT_SCHEDULE_ACQUIRE_SAMPLE'
 
 
 class Capability(BaseEnum):
@@ -251,14 +251,12 @@ class THSPHParticle(DataParticle):
 
         return result
 
-
     def hex2value(self, hex_value):
         """
         Convert a ADC hex value to an int value.
         @param hex_value: string to convert
         @return: int of the converted value
         """
-
         if not isinstance(hex_value, str):
             raise InstrumentParameterException("hex value not a string")
 
@@ -269,7 +267,6 @@ class THSPHParticle(DataParticle):
 ###############################################################################
 # Driver
 ###############################################################################
-
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -288,7 +285,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
-
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -299,12 +295,12 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-
 class THSPHProtocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    __metaclass__ = get_logging_metaclass(log_level='debug')
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -324,6 +320,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
@@ -337,11 +334,11 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULE_ACQUIRE_SAMPLE,
                                        self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
                                        self._handler_autosample_stop_autosample)
+
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
                                        self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,
@@ -485,11 +482,11 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
+        self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_exit(self, *args, **kwargs):
         pass
-
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -542,7 +539,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-
     def _set_params(self, *args, **kwargs):
         """
         Set various parameters internally to the driver. No issuing commands to the
@@ -554,21 +550,19 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
+        #list can be null, like in the case of direct access params, in this case do nothing
+        if not params:
+            return
+
         # Sampling interval is the only parameter that is set by the driver.
         # Do a range check before we start all sets
         for (key, val) in params.iteritems():
-            if key == Parameter.INTERVAL and not (val > 0 and val < 601):
+            if key == Parameter.INTERVAL and not (0 < val < 601):
                 log.debug("Auto Sample Interval not in 1 to 600 range ")
-                raise InstrumentParameterException("sample interval out of range")
+                raise InstrumentParameterException("sample interval out of range [1, 600]")
             log.debug('key = (%s), value = (%s)' % (key, val))
 
         self._param_dict.set_value(Parameter.INTERVAL, params[Parameter.INTERVAL])
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -578,9 +572,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
-
-        next_state = None
-        next_agent_state = None
         result = None
 
         next_state = ProtocolState.AUTOSAMPLE
@@ -588,24 +579,15 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        log.debug("_handler_command_start_direct ")
-
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return next_state, (next_agent_state, result)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     #######################################################################
     # Autosample State handlers.
     ########################################################################
-
     def _handler_autosample_enter(self, *args, **kwargs):
         """
         Enter autosample state  Because this is an instrument that must be
@@ -621,7 +603,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         self._setup_autosample_config()
 
         # Schedule auto sample task
-        self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
+        self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.SCHEDULE_ACQUIRE_SAMPLE)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -665,7 +647,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -690,11 +672,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        log.debug("_handler_direct_access_enter ")
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
@@ -708,8 +685,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Execute direct command
         """
-        log.debug("_handler_direct_access_execute_direct: data = %s" % data)
-
         next_state = None
         result = None
         next_agent_state = None
@@ -719,23 +694,20 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
-        next_state = None
         result = None
-
-        log.debug("_handler_direct_access_stop_direct ")
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
-    def _build_simple_command(self, cmd):
+    def _build_simple_command(self, cmd, *args):
         """
         Build handler for basic THSPH commands.
         @param cmd the simple ooicore command to format.
@@ -762,7 +734,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                 param = 'sampleinterval'
 
             set_cmd = '%s=%s' % (param, str_val)
-            set_cmd = set_cmd + NEWLINE
+            set_cmd += NEWLINE
 
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
@@ -784,7 +756,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         # Grab start time for overall wakeup timeout.
         start_time = time.time()
-        test_count = 0;
+        test_count = 0
         while test_count < MAX_COMM_TEST:
             # Clear the prompt buffer.
             self._promptbuf = ''
@@ -798,10 +770,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                 test_count += 1
             else:
                 #clear test_count since we want MAX_COMM_TEST consecutive successful communication test
-                test_count = 0;
+                test_count = 0
             # Stop wake up the instrument if the wake up time out has elapsed
             if time.time() > start_time + wakeup_timeout:
-                break;
+                break
 
         if test_count != MAX_COMM_TEST:
             log.debug('instrument failed to wakeup in %d seconds time' % wakeup_timeout)
@@ -810,4 +782,3 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         else:
             return Prompt.COMM_RESPONSE
-

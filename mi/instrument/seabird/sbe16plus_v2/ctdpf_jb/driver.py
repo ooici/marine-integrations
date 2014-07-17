@@ -61,6 +61,9 @@ MAX_PUMP_DELAY = 600
 MIN_AVG_SAMPLES = 1
 MAX_AVG_SAMPLES = 32767
 
+DEFAULT_CLOCK_SYNC_INTERVAL = '00:00:00'
+DEFAULT_STATUS_INTERVAL = '00:00:00'
+
 SEND_OPTODE_COMMAND = "sendoptode="
 
 ###
@@ -132,21 +135,18 @@ class ProtocolEvent(BaseEnum):
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     SCHEDULED_CLOCK_SYNC = DriverEvent.SCHEDULED_CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
+    SCHEDULED_ACQUIRED_STATUS = 'PROTOCOL_EVENT_SCHEDULED_ACQUIRE_STATUS'
 
 
 class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    GET_CONFIGURATION = ProtocolEvent.GET_CONFIGURATION
-    RESET_EC = ProtocolEvent.RESET_EC
 
 
 class Parameter(DriverParameter):
@@ -1146,7 +1146,6 @@ class SBE19Protocol(SBE16Protocol):
                                        self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
                                        self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
@@ -1157,12 +1156,16 @@ class SBE19Protocol(SBE16Protocol):
                                        self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
                                        self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_ACQUIRED_STATUS,
+                                       self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
                                        self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,
+                                       self._handler_autosample_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRED_STATUS,
                                        self._handler_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION,
                                        self._handler_autosample_get_configuration)
@@ -1223,23 +1226,11 @@ class SBE19Protocol(SBE16Protocol):
         """
         Set up auto scheduler configuration.
         """
-        basetime = self._param_dict.get_current_timestamp()
+        clock_interval_seconds = self._param_dict.format(Parameter.CLOCK_INTERVAL)
+        status_interval_seconds = self._param_dict.format(Parameter.STATUS_INTERVAL)
 
-        clock_sync_interval = self._param_dict.get(Parameter.CLOCK_INTERVAL, basetime)
-        acquire_status_interval = self._param_dict.get(Parameter.STATUS_INTERVAL, basetime)
-
-        log.debug("clock sync interval: %s" % clock_sync_interval)
-        log.debug("status interval: %s" % acquire_status_interval)
-
-        if clock_sync_interval is not None:
-            clock_interval_seconds = self._get_seconds_from_time_string(clock_sync_interval)
-        else:
-            clock_interval_seconds = 0
-
-        if acquire_status_interval is not None:
-            status_interval_seconds = self._get_seconds_from_time_string(acquire_status_interval)
-        else:
-            status_interval_seconds = 0
+        log.debug("clock sync interval: %s" % clock_interval_seconds)
+        log.debug("status interval: %s" % status_interval_seconds)
 
         if DriverConfigKey.SCHEDULER in self._startup_config:
 
@@ -1275,20 +1266,20 @@ class SBE19Protocol(SBE16Protocol):
         if not self._scheduler:
             self.initialize_scheduler()
 
-        #Add scheduler
-        if clock_interval_seconds > 0:
-            self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        if status_interval_seconds > 0:
-            self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
-
-        #Remove scheduler if interval set to 0
-        if clock_interval_seconds == 0 and (not self._scheduler_callback.get(ScheduledJob.CLOCK_SYNC) is None):
+        #First remove the scheduler, if it exists
+        if not self._scheduler_callback.get(ScheduledJob.CLOCK_SYNC) is None:
             self._remove_scheduler(ScheduledJob.CLOCK_SYNC)
             log.debug("Removed scheduler for clock sync")
 
-        if status_interval_seconds == 0 and (not self._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS) is None):
+        if not self._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS) is None:
             self._remove_scheduler(ScheduledJob.ACQUIRE_STATUS)
             log.debug("Removed scheduler for acquire status")
+
+        #Now Add the scheduler
+        if clock_interval_seconds > 0:
+            self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        if status_interval_seconds > 0:
+            self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.SCHEDULED_ACQUIRED_STATUS)
 
 
     @staticmethod
@@ -1327,12 +1318,14 @@ class SBE19Protocol(SBE16Protocol):
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
+        self._verify_not_readonly(*args, **kwargs)
+
         scheduling_interval_changed = False
         old_config = self._param_dict.get_config()
 
         #check values that the instrument doesn't validate
         #handle special cases for driver specific parameters
-        for (key, val) in params.iteritems():
+        for key, val in params.iteritems():
             if key == Parameter.PUMP_DELAY and (val < MIN_PUMP_DELAY or val > MAX_PUMP_DELAY):
                 raise InstrumentParameterException("pump delay out of range")
             elif key == Parameter.NUM_AVG_SAMPLES and (val < MIN_AVG_SAMPLES or val > MAX_AVG_SAMPLES):
@@ -1340,15 +1333,12 @@ class SBE19Protocol(SBE16Protocol):
 
             # set driver specific parameters
             elif key == Parameter.CLOCK_INTERVAL or key == Parameter.STATUS_INTERVAL:
-                #self._set_driver_params(key, val)
                 old_val = self._param_dict.get(key)
                 if val != old_val:
                     self._param_dict.set_value(key, val)
                     scheduling_interval_changed = True
 
-        self._verify_not_readonly(*args, **kwargs)
-
-        for (key, val) in params.iteritems():
+        for key, val in params.iteritems():
             log.debug("KEY = %s VALUE = %s", key, val)
 
             if key in ConfirmedParameter.list():
@@ -1395,9 +1385,6 @@ class SBE19Protocol(SBE16Protocol):
         if logging is None:
             raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
         elif logging:
-            # We want to sync the clock upon initialization
-            #self._autosample_clock_sync(*args, **kwargs)
-
             next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING
         else:
@@ -1467,19 +1454,21 @@ class SBE19Protocol(SBE16Protocol):
         next_state = None
         next_agent_state = None
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
-                                   timeout=TIMEOUT)
+        result = []
+
+        result.append(self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE19ConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CD, response_regex=SBE19ConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT))
         log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
 
         #Reset the event counter right after getEC
@@ -1498,13 +1487,13 @@ class SBE19Protocol(SBE16Protocol):
         optode_commands = SendOptodeCommand.list()
         for command in optode_commands:
             log.debug("Sending optode command: %s" % command)
-            result += self._do_cmd_resp(Command.SEND_OPTODE, command, timeout=TIMEOUT)
+            result.append(self._do_cmd_resp(Command.SEND_OPTODE, command, timeout=TIMEOUT))
             log.debug("_handler_command_acquire_status: SendOptode Response: %s", result)
 
         #restart the optode
         self._do_cmd_resp(Command.SEND_OPTODE, start_command, timeout=TIMEOUT)
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, ''.join(result))
 
 
     def _handler_autosample_enter(self, *args, **kwargs):
@@ -1531,29 +1520,31 @@ class SBE19Protocol(SBE16Protocol):
         next_state = None
         next_agent_state = None
 
+        result = []
+
         # When in autosample this command requires two wakeups to get to the right prompt
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
-                                   timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
+                                   timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE19ConfigurationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CD, response_regex=SBE19ConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
+        result.append(self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT))
         log.debug("_handler_autosample_acquire_status: GetEC Response: %s", result)
 
         #Reset the event counter right after getEC
         self._do_cmd_no_resp(Command.RESET_EC)
 
-        return next_state, (next_agent_state, result)
+        return next_state, (next_agent_state, ''.join(result))
 
     def _handler_autosample_get_configuration(self, *args, **kwargs):
         """
@@ -1650,7 +1641,7 @@ class SBE19Protocol(SBE16Protocol):
         return True
 
 
-    #can't override this method as our Command set is different
+    # must override this method as our Command set is different
     def _stop_logging(self, *args, **kwargs):
         """
         Command the instrument to stop logging
@@ -1667,7 +1658,7 @@ class SBE19Protocol(SBE16Protocol):
         # Issue the stop command.
         # We can get here from handle_unknown_discover, hence it's possible that the current state is unknown
         # handle_unknown_discover checks if we are currently streaming before we get here.
-        if self.get_current_state() == ProtocolState.AUTOSAMPLE or self.get_current_state() == ProtocolState.UNKNOWN:
+        if self.get_current_state() in [ProtocolState.AUTOSAMPLE, ProtocolState.UNKNOWN]:
             log.debug("sending stop logging command")
             kwargs['timeout'] = TIMEOUT
             self._do_cmd_resp(Command.STOP, *args, **kwargs)
@@ -1688,13 +1679,11 @@ class SBE19Protocol(SBE16Protocol):
                  None - unknown logging state
         @raise: InstrumentProtocolException if we can't identify the prompt
         """
-        basetime = self._param_dict.get_current_timestamp()
-
         self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         self._update_params()
 
-        pd = self._param_dict.get_all(basetime)
+        pd = self._param_dict.get_all()
         return pd.get(Parameter.LOGGING)
 
 
@@ -1895,12 +1884,11 @@ class SBE19Protocol(SBE16Protocol):
         """
         Populate the command dictionary with command.
         """
-        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
-        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
-        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="synchronize clock")
-        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
-        self._cmd_dict.add(Capability.GET_CONFIGURATION, display_name="get calibrations")
-        self._cmd_dict.add(Capability.RESET_EC, display_name="reset ec")
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name="Acquire Sample")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="Start Autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="Stop Autosample")
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="Clock Sync")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="Acquire Status")
 
     def _build_param_dict(self):
         """
@@ -1916,8 +1904,6 @@ class SBE19Protocol(SBE16Protocol):
                              self._date_time_string_to_numeric,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             startup_param=False,
-                             direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
@@ -2011,7 +1997,7 @@ class SBE19Protocol(SBE16Protocol):
                              lambda match: True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
-                             display_name="Enable Wetlabs sensor",
+                             display_name="Enable Wetlabs Sensor",
                              startup_param=True,
                              direct_access=True,
                              default_value=False,
@@ -2073,7 +2059,6 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.INT,
                              display_name="Scans To Average",
                              startup_param=True,
-                             direct_access=False,
                              default_value=4,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MIN_COND_FREQ,
@@ -2083,7 +2068,6 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.INT,
                              display_name="Minimum Conductivity Frequency",
                              startup_param=True,
-                             direct_access=False,
                              default_value=500,
                              units=ParameterUnit.HERTZ,
                              visibility=ParameterDictVisibility.IMMUTABLE)
@@ -2094,7 +2078,6 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.INT,
                              display_name="Pump Delay",
                              startup_param=True,
-                             direct_access=False,
                              default_value=60,
                              units=ParameterUnit.SECOND,
                              visibility=ParameterDictVisibility.READ_WRITE)
@@ -2124,25 +2107,21 @@ class SBE19Protocol(SBE16Protocol):
         self._param_dict.add(Parameter.CLOCK_INTERVAL,
                              'bogus',
                              str,
-                             None,
+                             self._get_seconds_from_time_string,
                              type=ParameterDictType.STRING,
                              display_name="Clock Interval",
                              startup_param=True,
-                             direct_access=False,
-                             default_value="00:00:00",
-                             init_value="00:00:00",
+                             default_value=DEFAULT_CLOCK_SYNC_INTERVAL,
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.STATUS_INTERVAL,
                              'bogus',
                              str,
-                             None,
+                             self._get_seconds_from_time_string,
                              type=ParameterDictType.STRING,
                              display_name="Status Interval",
                              startup_param=True,
-                             direct_access=False,
-                             default_value="00:00:00",
-                             init_value="00:00:00",
+                             default_value=DEFAULT_STATUS_INTERVAL,
                              units=ParameterUnit.TIME_INTERVAL,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
@@ -2153,16 +2132,12 @@ class SBE19Protocol(SBE16Protocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        if not (self._extract_sample(SBE19HardwareParticle, SBE19HardwareParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(SBE19DataParticle, SBE19DataParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(SBE19CalibrationParticle, SBE19CalibrationParticle.regex_compiled(), chunk,
-                                         timestamp) or
-                    self._extract_sample(SBE19ConfigurationParticle, SBE19ConfigurationParticle.regex_compiled(), chunk,
-                                         timestamp) or
-                    self._extract_sample(SBE19StatusParticle, SBE19StatusParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(OptodeSettingsParticle, OptodeSettingsParticle.regex_compiled(), chunk,
-                                         timestamp)):
-            raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
+        for particle_class in SBE19HardwareParticle, SBE19DataParticle, SBE19CalibrationParticle, \
+                              SBE19ConfigurationParticle, SBE19StatusParticle, OptodeSettingsParticle:
+            if self._extract_sample(particle_class, particle_class.regex_compiled(), chunk, timestamp):
+                return
+
+        raise InstrumentProtocolException("Unhandled chunk %s" % chunk)
 
 
     def _autosample_clock_sync(self, *args, **kwargs):
@@ -2207,6 +2182,12 @@ class SBE19Protocol(SBE16Protocol):
         """
         extract the number of seconds from the specified time interval in "hh:mm:ss"
         """
+
+        # Set the interval to 0 by default
+        if time_string is None:
+            return  0
+
+        # Calculate the interval in seconds from the time string
         interval = time.strptime(time_string, "%H:%M:%S")
         return interval.tm_hour * 3600 + interval.tm_min * 60 + interval.tm_sec
 

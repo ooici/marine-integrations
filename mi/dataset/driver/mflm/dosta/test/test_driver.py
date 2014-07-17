@@ -36,6 +36,7 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.driver.mflm.dosta.driver import MflmDOSTADDataSetDriver, DataSourceKey
 from mi.dataset.parser.dostad import DostadParserDataParticle, DataParticleType
 from mi.dataset.parser.dostad import DostadMetadataDataParticle
+from mi.dataset.parser.sio_mule_common import StateKey
 
 TELEM_DIR = '/tmp/dsatest'
 
@@ -133,8 +134,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
                     DriverStateKey.FILE_CHECKSUM: '515e5da08a6b4bb0d197e62c410da532',
                     DriverStateKey.FILE_MOD_DATE: mod_time,
                     DriverStateKey.PARSER_STATE: {
-                        'in_process_data': [],
-                        'unprocessed_data':[[0,69]]
+                        StateKey.IN_PROCESS_DATA: [],
+                        StateKey.UNPROCESSED_DATA:[[0,69]],
+                        StateKey.FILE_SIZE: 314
                     }
                 }
             }

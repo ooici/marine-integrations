@@ -1,0 +1,8 @@
+comm:
+  data_port: 6001
+  command_port: 6002
+  sniffer_port: 6003
+  host: localhost
+  device_port: 4001
+  device_addr: 10.180.80.166
+  method: ethernet

@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Mark Worden
+  constructor: CtdpfCklMmpCdsDataSetDriver
+  driver_name: CtdpfCklMmpCds
+  driver_path: ctdpf_ckl/mmp_cds
+  email: mark_c_worden@raytheon.com
+  release_notes: initial release
+  version: 0.0.1

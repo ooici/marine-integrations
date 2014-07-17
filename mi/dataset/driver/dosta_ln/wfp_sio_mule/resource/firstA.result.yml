@@ -1,0 +1,19 @@
+header:
+  particle_object: DostaLnWfpSioMuleParserDataParticle
+  particle_type: dosta_ln_wfp_instrument
+  
+data:      
+  - _index: 1
+    internal_timestamp: '2013-07-26T11:02:06.000000Z'
+    particle_object: DostaLnWfpSioMuleParserDataParticle
+    particle_type: dosta_ln_wfp_instrument
+    estimated_oxygen_concentration: 0.0
+    optode_temperature: 0.0
+    wfp_timestamp: 1374836526
+  - _index: 2
+    internal_timestamp: '2013-07-26T11:07:29.000000Z'
+    particle_object: DostaLnWfpSioMuleParserDataParticle
+    particle_type: dosta_ln_wfp_instrument
+    estimated_oxygen_concentration: 65.25599670410156
+    optode_temperature: 1.9509999752044678
+    wfp_timestamp: 1374836849
