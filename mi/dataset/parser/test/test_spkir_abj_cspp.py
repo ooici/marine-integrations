@@ -5,6 +5,10 @@
 @file marine-integrations/mi/dataset/parser/test/test_spkir_abj_cspp.py
 @author Jeff Roy
 @brief Test code for a spkir_abj_cspp data parser
+
+spkir_abj_cspp is based on cspp_base.py
+test_dosta_abcdjm_cspp.py fully tests all of the capabilities of the
+base parser.  that lervel of testing is omitted from this test suite
 """
 
 import os
@@ -182,9 +186,9 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
                 particle_data = particle_values.get(key)
                 #others are all part of the parsed values part of the particle
 
-            log.debug('*** assert result: test data key = %s', key)
-            log.debug('*** assert result: test data val = %s', test_data)
-            log.debug('*** assert result: part data val = %s', particle_data)
+            # log.debug('*** assert result: test data key = %s', key)
+            # log.debug('*** assert result: test data val = %s', test_data)
+            # log.debug('*** assert result: part data val = %s', particle_data)
 
             if particle_data is None:
                 #generally OK to ignore index keys in the test data, verify others
@@ -309,7 +313,43 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        pass
+
+        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
+        stream_handle = open(file_path, 'r')
+
+        # 11079419_PPB_OCR_20.yml has the metadata and the first 19
+        # instrument particles in it
+        expected_results = self.get_dict_from_yml('11079419_PPB_OCR_20.yml')
+
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                       None, stream_handle,
+                                       self.state_callback, self.pub_callback,
+                                       self.exception_callback)
+
+        particles = parser.get_records(2)
+
+        log.debug("Num particles: %s", len(particles))
+
+        self.assertTrue(len(particles) == 2)
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        # position 3656 is the byte at the start of the 18th data record
+        new_state = {StateKey.POSITION: 3656, StateKey.METADATA_EXTRACTED: True}
+
+        parser.set_state(new_state)
+
+        particles = parser.get_records(2)
+
+        self.assertTrue(len(particles) == 2)
+
+        # offset in the expected results
+        offset = 18
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i + offset], particles[i])
+
+        stream_handle.close()
 
     def test_bad_data(self):
         """
