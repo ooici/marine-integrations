@@ -138,7 +138,6 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
 
 
 ###############################################################################
@@ -615,7 +614,6 @@ class SBE43Protocol(SBE19Protocol):
                                        self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
                                        self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,

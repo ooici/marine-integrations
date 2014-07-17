@@ -1,0 +1,29 @@
+header:
+  particle_object: Parad_k_stc_imodemRecoveredDataParticle
+  particle_type: parad_k__stc_imodem_instrument_recovered
+
+data:
+  - _index: 1
+    internal_timestamp: 3595053725.000000
+    wfp_timestamp: 1386064925
+    par_val_v: 
+      value: 385.79999
+      round: 5
+  - _index: 2
+    internal_timestamp: 3595053729.000000
+    wfp_timestamp: 1386064929
+    par_val_v: 
+      value: -5127.39990
+      round: 5
+  - _index: 3
+    internal_timestamp: 3595053734.000000
+    wfp_timestamp: 1386064934
+    par_val_v: 
+      value: 1220195.25
+      round: 5
+  - _index: 4
+    internal_timestamp: 3595053738.000000
+    wfp_timestamp: 1386064938
+    par_val_v: 
+      value: -731199.5
+      round: 5

@@ -1,0 +1,30 @@
+comm:
+  method: multi
+  configs:
+    rga:
+      comm:
+        data_port: 6001
+        command_port: 6002
+        sniffer_port: 6003
+        host: localhost
+        device_port: 4001
+        device_addr: 10.180.80.166
+        method: ethernet
+    turbo:
+      comm:
+        data_port: 6004
+        command_port: 6005
+        sniffer_port: 6006
+        device_port: 4002
+        device_addr: 10.180.80.166
+        host: localhost
+        method: ethernet
+    mcu:
+      comm:
+        data_port: 6007
+        command_port: 6008
+        sniffer_port: 6009
+        host: localhost
+        device_port: 4003
+        device_addr: 10.180.80.166
+        method: ethernet
