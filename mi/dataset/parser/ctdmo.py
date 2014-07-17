@@ -66,7 +66,7 @@ ID_OFFSET = 'CO'        # ID for time offset data
 #   *END* record (IDD says *end* so we'll check for either)
 #   Instrument data in HEX ASCII (need to extract these values)
 
-NEW_LINE = r'[\n|\r]+'            # Handle any type of new line
+NEW_LINE = r'[\n\r]+'             # Handle any type of new line
 
 REC_CT_RECORD = r'.*'             # Any number of ASCII characters
 REC_CT_RECORD += NEW_LINE         # separated by a new line
