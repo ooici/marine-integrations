@@ -122,19 +122,16 @@ class PARMixin(DriverTestMixin):
     _driver_parameters = {
         Parameter.MAXRATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4, REQUIRED: True},
         Parameter.FIRMWARE: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0', REQUIRED: False},
-        Parameter.SERIAL: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '229', REQUIRED: False},
+        Parameter.SERIAL: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '4278190306', REQUIRED: False},
         Parameter.INSTRUMENT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR', REQUIRED: False},
         Parameter.ACQUIRE_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, VALUE: '00:00:00', REQUIRED: True}
     }
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        # PARProtocolEvent.DISCOVER: {STATES: [PARProtocolState.UNKNOWN]},
         PARProtocolEvent.ACQUIRE_SAMPLE: {STATES: [PARProtocolState.COMMAND]},
         PARProtocolEvent.START_AUTOSAMPLE: {STATES: [PARProtocolState.COMMAND]},
         PARProtocolEvent.STOP_AUTOSAMPLE: {STATES: [PARProtocolState.AUTOSAMPLE]},
-        # PARProtocolEvent.START_DIRECT: {STATES: [PARProtocolState.COMMAND]},
-        # PARProtocolEvent.STOP_DIRECT: {STATES: [PARProtocolState.DIRECT_ACCESS]}, #TODO get set?
         PARProtocolEvent.ACQUIRE_STATUS: {STATES: [PARProtocolState.COMMAND, PARProtocolState.AUTOSAMPLE]},
         PARProtocolEvent.RESET: {STATES: [PARProtocolState.COMMAND]},
     }
@@ -296,9 +293,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
             DataParticleKey.VALUES: valid_particle
         }
 
-        self.compare_parsed_data_particle(SatlanticPARDataParticle,
-                                          VALID_SAMPLE,
-                                          expected_particle)
+        self.compare_parsed_data_particle(SatlanticPARDataParticle, VALID_SAMPLE, expected_particle)
 
     def test_bad_checksum_sample_format(self):
         """
@@ -317,9 +312,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
             DataParticleKey.VALUES: bad_checksum_particle
         }
 
-        self.compare_parsed_data_particle(SatlanticPARDataParticle,
-                                          INVALID_SAMPLE,
-                                          expected_particle)
+        self.compare_parsed_data_particle(SatlanticPARDataParticle, INVALID_SAMPLE, expected_particle)
 
     def compare_parsed_data_particle_override(self, particle_type, raw_input, happy_structure):
         """
@@ -336,8 +329,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp,
                                           internal_timestamp=internal_timestamp)
         else:
-            test_particle = particle_type("4278190306", "1.0.0", "SATPAR",
-                                          raw_input, port_timestamp=port_timestamp)
+            test_particle = particle_type("4278190306", "1.0.0", "SATPAR", raw_input, port_timestamp=port_timestamp)
 
         parsed_result = test_particle.generate(sorted=True)
         decoded_parsed = json.loads(parsed_result)
@@ -407,8 +399,18 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         """
         self.assert_initialize_driver(PARProtocolState.COMMAND)
 
-        #test read/write parameter
+        #test read/write parameter good values
         self.assert_set(Parameter.MAXRATE, 2)
+        self.assert_set(Parameter.MAXRATE, 0.0)
+        self.assert_set(Parameter.MAXRATE, 1.0)
+        self.assert_set(Parameter.MAXRATE, 00.50)
+
+        #test read/write parameter out of range values
+        self.assert_set_exception(Parameter.MAXRATE, 20)
+        self.assert_set_exception(Parameter.MAXRATE, -20)
+        self.assert_set_exception(Parameter.MAXRATE, 1.5)
+        self.assert_set_exception(Parameter.MAXRATE, 7)
+        self.assert_set_exception(Parameter.MAXRATE, 13)
 
         #test read only parameter
         self.assert_set_exception(Parameter.FIRMWARE, '1.0.1')
@@ -453,21 +455,16 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         # driver is reinitialized.  They should be blown away on reinit.
         new_values = {
             Parameter.MAXRATE: 0.5,
-            Parameter.ACQUIRE_STATUS_INTERVAL: '00:00:10'
+            Parameter.ACQUIRE_STATUS_INTERVAL: '00:00:25'
         }
 
         self.assert_initialize_driver()
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
+        # Change values and try again
         self.assert_set_bulk(new_values)
-
-        # Start autosample and try again
-        self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
-        self.assert_current_state(PARProtocolEvent.AUTOSAMPLE)
 
-        #stop autosampling
-        self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE, state=PARProtocolState.COMMAND, delay=1)
 
     def test_acquire_status(self):
         """
@@ -631,17 +628,8 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:00:00")
 
         # Now verify that no more status particles get generated, provide generous timeout
-        failed = False
-
-        try:
-            self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters, timeout=100)
-
-            # We should never get here, failed should remain False
-            failed = True
-        except AssertionError:
-            pass
-
-        self.assertFalse(failed)
+        with self.assertRaises(AssertionError):
+            self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters, timeout=50)
 
         self.assert_current_state(PARProtocolState.COMMAND)
 
@@ -692,19 +680,13 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet()
-        self.tcp_client.send_data("s    e    t         m    a    x    r    a    t    e         1")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
+        self.tcp_client.send_data("set maxrate 1" + EOLN)
 
         #need to sleep as the instrument needs time to apply the new param value
         time.sleep(5)
 
         # Verify the param value got changed on the instrument
-        self.tcp_client.send_data("s    h    o    w         m    a    x    r    a    t    e")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
+        self.tcp_client.send_data("show maxrate" + EOLN)
 
         self.tcp_client.expect("Maximum Frame Rate: 1 Hz")
         self.assert_direct_access_stop_telnet()
@@ -727,9 +709,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         self.assertTrue(self.tcp_client)
 
         #start sampling
-        self.tcp_client.send_data("e    x    i    t    !")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
+        self.tcp_client.send_data("exit!" + EOLN)
         time.sleep(2)
 
         #verify we're sampling
@@ -752,7 +732,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         self.assert_direct_access_start_telnet(timeout=30)
         self.assertTrue(self.tcp_client)
 
-        self.assert_state_change(ResourceAgentState.IDLE, PARProtocolState.COMMAND, 180)
+        self.assert_state_change(ResourceAgentState.COMMAND, PARProtocolState.COMMAND, 180)
 
     def test_direct_access_telnet_closed(self):
         """
@@ -766,7 +746,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         self.assertTrue(self.tcp_client)
         self.tcp_client.disconnect()
 
-        self.assert_state_change(ResourceAgentState.IDLE, PARProtocolState.COMMAND, 120)
+        self.assert_state_change(ResourceAgentState.COMMAND, PARProtocolState.COMMAND, 120)
 
     def test_get_set_parameters(self):
         """
