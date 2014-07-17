@@ -29,6 +29,7 @@ class StateKey(BaseEnum):
     IN_PROCESS_DATA = "in_process_data" # holds an array of start and end of packets of data,
         # the number of samples in that packet, how many packets have been pulled out currently
         # being processed
+    FILE_SIZE = "file_size"
     METADATA_SENT = "metadata_sent" # store if the metadata particle has been sent
 
 class DostadParserDataParticleKey(BaseEnum):

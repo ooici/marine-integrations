@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Maria Lutz
+  constructor: FlordLWfpSioMuleDataSetDriver
+  driver_name: flord_l_wfp_sio_mule
+  driver_path: flord_l_wfp/sio_mule
+  email: mlutz@bbn.com
+  release_notes: Initial Release
+  version: 0.0.1

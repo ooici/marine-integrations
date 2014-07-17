@@ -1,0 +1,245 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243040.5675182343
+    raw_time_microseconds: 567518
+    raw_time_seconds: 1385254240.0000000000
+    chlaflo: 193
+    ntuflo: 179
+  - _index: 2
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243026.3376541138
+    raw_time_microseconds: 337654
+    raw_time_seconds: 1385254226.0000000000
+    chlaflo: 100
+    ntuflo: 116
+  - _index: 3
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243040.3288841248
+    raw_time_microseconds: 328884
+    raw_time_seconds: 1385254240.0000000000
+    chlaflo: 164
+    ntuflo: 149
+  - _index: 4
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243038.1853008270
+    raw_time_microseconds: 185301
+    raw_time_seconds: 1385254238.0000000000
+    chlaflo: 139
+    ntuflo: 150
+  - _index: 5
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243027.8450193405
+    raw_time_microseconds: 845019
+    raw_time_seconds: 1385254227.0000000000
+    chlaflo: 124
+    ntuflo: 153
+  - _index: 6
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243039.2314748764
+    raw_time_microseconds: 231475
+    raw_time_seconds: 1385254239.0000000000
+    chlaflo: 125
+    ntuflo: 176
+  - _index: 7
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243028.9397850037
+    raw_time_microseconds: 939785
+    raw_time_seconds: 1385254228.0000000000
+    chlaflo: 146
+    ntuflo: 110
+  - _index: 8
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243033.1865930557
+    raw_time_microseconds: 186593
+    raw_time_seconds: 1385254233.0000000000
+    chlaflo: 105
+    ntuflo: 155
+  - _index: 9
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243025.5350856781
+    raw_time_microseconds: 535086
+    raw_time_seconds: 1385254225.0000000000
+    chlaflo: 152
+    ntuflo: 143
+  - _index: 10
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243040.1991968155
+    raw_time_microseconds: 199197
+    raw_time_seconds: 1385254240.0000000000
+    chlaflo: 197
+    ntuflo: 114
+  - _index: 11
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243026.2826461792
+    raw_time_microseconds: 282646
+    raw_time_seconds: 1385254226.0000000000
+    chlaflo: 110
+    ntuflo: 199
+  - _index: 12
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243036.9295463562
+    raw_time_microseconds: 929546
+    raw_time_seconds: 1385254236.0000000000
+    chlaflo: 173
+    ntuflo: 145
+  - _index: 13
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243028.1132769585
+    raw_time_microseconds: 113277
+    raw_time_seconds: 1385254228.0000000000
+    chlaflo: 110
+    ntuflo: 167
+  - _index: 14
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243030.5440387726
+    raw_time_microseconds: 544039
+    raw_time_seconds: 1385254230.0000000000
+    chlaflo: 187
+    ntuflo: 119
+  - _index: 15
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243024.1728930473
+    raw_time_microseconds: 172893
+    raw_time_seconds: 1385254224.0000000000
+    chlaflo: 199
+    ntuflo: 182
+  - _index: 16
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243032.1320638657
+    raw_time_microseconds: 132064
+    raw_time_seconds: 1385254232.0000000000
+    chlaflo: 123
+    ntuflo: 186
+  - _index: 17
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243036.4377479553
+    raw_time_microseconds: 437748
+    raw_time_seconds: 1385254236.0000000000
+    chlaflo: 193
+    ntuflo: 109
+  - _index: 18
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243027.7484416962
+    raw_time_microseconds: 748442
+    raw_time_seconds: 1385254227.0000000000
+    chlaflo: 162
+    ntuflo: 105
+  - _index: 19
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243023.3832893372
+    raw_time_microseconds: 383289
+    raw_time_seconds: 1385254223.0000000000
+    chlaflo: 138
+    ntuflo: 161
+  - _index: 20
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243034.4803199768
+    raw_time_microseconds: 480320
+    raw_time_seconds: 1385254234.0000000000
+    chlaflo: 168
+    ntuflo: 161
+  - _index: 21
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243033.2943410873
+    raw_time_microseconds: 294341
+    raw_time_seconds: 1385254233.0000000000
+    chlaflo: 159
+    ntuflo: 149
+  - _index: 22
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243025.8152017593
+    raw_time_microseconds: 815202
+    raw_time_seconds: 1385254225.0000000000
+    chlaflo: 196
+    ntuflo: 121
+  - _index: 23
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243024.6212882996
+    raw_time_microseconds: 621288
+    raw_time_seconds: 1385254224.0000000000
+    chlaflo: 185
+    ntuflo: 188
+  - _index: 24
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243035.9234018326
+    raw_time_microseconds: 923402
+    raw_time_seconds: 1385254235.0000000000
+    chlaflo: 147
+    ntuflo: 170
+  - _index: 25
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243031.4935207367
+    raw_time_microseconds: 493521
+    raw_time_seconds: 1385254231.0000000000
+    chlaflo: 110
+    ntuflo: 186
+  - _index: 26
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243023.6480703354
+    raw_time_microseconds: 648070
+    raw_time_seconds: 1385254223.0000000000
+    chlaflo: 120
+    ntuflo: 110
+  - _index: 27
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243039.7127542496
+    raw_time_microseconds: 712754
+    raw_time_seconds: 1385254239.0000000000
+    chlaflo: 141
+    ntuflo: 116
+  - _index: 28
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243027.1376333237
+    raw_time_microseconds: 137633
+    raw_time_seconds: 1385254227.0000000000
+    chlaflo: 158
+    ntuflo: 138
+  - _index: 29
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243030.8647527695
+    raw_time_microseconds: 864753
+    raw_time_seconds: 1385254230.0000000000
+    chlaflo: 190
+    ntuflo: 151
+  - _index: 30
+    particle_object: FlcdrXMmpCdsParserDataParticle
+    particle_type: flcdr_x_mmp_cds_instrument
+    internal_timestamp: 3594243030.7954940796
+    raw_time_microseconds: 795494
+    raw_time_seconds: 1385254230.0000000000
+    chlaflo: 149
+    ntuflo: 111

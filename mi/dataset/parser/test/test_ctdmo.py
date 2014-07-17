@@ -122,7 +122,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         Make sure that the driver complains about a missing inductive ID in the config
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 8000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         bad_config = {
@@ -139,7 +139,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 7500]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 
@@ -159,7 +159,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
     def test_long_stream(self):
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 14000]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[], StateKey.FILE_SIZE: 14000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_longer.dat'))
         self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 
@@ -211,7 +211,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[],
-            StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]]}
+            StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]],
+            StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 
@@ -228,7 +229,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[[5349,5539,1,0], [6313,6503,1,0], [6958,7148,1,0], [7534,7724,1,0]],
-            StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [5349,5539], [5924,5927], [6313,6503], [6889,7148], [7534,7985]]}
+            StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [5349,5539], [5924,5927], [6313,6503], [6889,7148], [7534,7985]],
+            StateKey.FILE_SIZE: 8000}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 
@@ -246,9 +248,12 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         test changing the state after initializing
         """
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 500]], StateKey.IN_PROCESS_DATA:[]}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 500]],
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 8000}
         new_state = {StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]],
-            StateKey.IN_PROCESS_DATA:[]}
+            StateKey.IN_PROCESS_DATA:[],
+            StateKey.FILE_SIZE: 8000}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))

@@ -113,10 +113,20 @@ class SioParser(BufferLoadingParser):
         self._chunk_sample_count = []
         self.input_file = stream_handle
         self._mid_sample_packets = 0
+<<<<<<< HEAD
         self._position = [0,0] # store both the start and end point for this read of data within the file
         self._record_buffer = []  # holds list of records
         self.recovered = recovered
         self._samples_to_throw_out = None
+=======
+        # use None flag in unprocessed data to initialize this we read the entire file and get the size of the data
+        self._read_state = {StateKey.UNPROCESSED_DATA: None,
+                            StateKey.IN_PROCESS_DATA:[],
+                            StateKey.FILE_SIZE: 0}
+
+        if state:
+            self.set_state(self._state)
+>>>>>>> upstream/master
 
         # use None flag in unprocessed data to initialize this
         # we read the entire file and get the size of the data
@@ -160,6 +170,146 @@ class SioParser(BufferLoadingParser):
             crc = '000' + crc
         return crc
 
+<<<<<<< HEAD
+=======
+    def packet_exists(self, start, end):
+        """
+        Determine if this packet is already in the in process data
+        """
+        for packet in self._read_state[StateKey.IN_PROCESS_DATA]:
+            if packet[START_IDX] == start + self._position[START_IDX] and \
+            packet[END_IDX] == end + self._position[START_IDX]:
+                log.trace('Already added packet %s', packet)
+                return True
+        return False
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser
+        @param state_obj The object to set the state to. Should be a list with
+        a StateKey.UNPROCESSED_DATA value, a StateKey.IN_PROCESS_DATA value.
+        The UNPROCESSED_DATA and IN_PROCESS_DATA
+        are both arrays which contain an array of start and end indicies for their
+        respective types of data.  The timestamp is an NTP4 format timestamp.
+        @throws DatasetParserException if there is a bad state structure
+        """
+        log.debug("Setting state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not ((StateKey.UNPROCESSED_DATA in state_obj) and \
+            (StateKey.IN_PROCESS_DATA in state_obj) and \
+            (StateKey.FILE_SIZE in state_obj)):
+            raise DatasetParserException("Invalid state keys")
+
+        # store both the start and end point for this read of data within the file
+        if state_obj[StateKey.UNPROCESSED_DATA] == []:
+            self._position = [0, 0]
+        else:
+            self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX],
+                              state_obj[StateKey.UNPROCESSED_DATA][0][START_IDX]]
+        self._record_buffer = []
+        self._state = state_obj
+        self._read_state = state_obj
+
+        # it is possible to be in the middle of processing a packet.  Since we have to
+        # process a whole packet, which may contain multiple samples, we have to
+        # re-read the entire packet, then throw out the already received samples
+        self._samples_to_throw_out = None
+        self._mid_sample_packets = len(state_obj[StateKey.IN_PROCESS_DATA])
+        if self._mid_sample_packets > 0 and state_obj[StateKey.IN_PROCESS_DATA][0][SAMPLES_RETURNED] > 0:
+            self._samples_to_throw_out = state_obj[StateKey.IN_PROCESS_DATA][0][SAMPLES_RETURNED]
+
+        # make sure we have cleaned the chunker out of old data so there are no wrap arounds
+        self._chunker.clean_all_chunks()
+
+    def _increment_state(self, returned_records = 0):
+        """
+        Increment which data packets have been processed, and which are still
+        unprocessed.  This keeps track of which data has been received,
+        since blocks may come out of order or appear at a later time in an already
+        processed file.
+        @param returned_records Number of records to return 
+        """
+        log.trace("Incrementing current state: %s", self._read_state)
+
+        while self._mid_sample_packets > 0 and len(self._chunk_sample_count) > 0:
+            # if we were in the middle of processing, we need to drop the parsed
+            # packets sample count because that in process packet already exists
+            self._chunk_sample_count.pop(0)
+            # decrease the mid sample number remaining
+            self._mid_sample_packets -= 1
+
+        for packet_idx in range (0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
+            if self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][SAMPLES_PARSED] is None and \
+            len(self._chunk_sample_count) > 0:
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][SAMPLES_PARSED] = self._chunk_sample_count.pop(0)
+                # adjust for current file position, only do this once when filling in sample count
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][START_IDX] += self._position[START_IDX]
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][END_IDX] += self._position[START_IDX]
+
+        n_removed = 0
+        # need to adjust position to be relative to the entire file, not just the
+        # currently read section, so add the initial position to the in process packets
+        log.debug('records to be returned %d', returned_records)
+        total_remain = returned_records
+        adj_packets = []
+        for packet_idx in range(0, len(self._read_state[StateKey.IN_PROCESS_DATA])):
+            adj_packet_idx = packet_idx - n_removed
+            this_packet = self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx]
+            if this_packet[SAMPLES_PARSED] > 0:
+                # this packet has data samples in it
+                this_packet_remain = this_packet[SAMPLES_PARSED] - this_packet[SAMPLES_RETURNED]
+                # increase the number of samples that have been pulled out
+                self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] += total_remain
+                # find out if packet is done, if so remove it
+                if this_packet[SAMPLES_RETURNED] >= this_packet[SAMPLES_PARSED]:
+                    # this packet has had all the samples pulled out from it, remove it from in process
+                    adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
+                    self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                    n_removed += 1
+                elif this_packet[SAMPLES_RETURNED] < 0:
+                    self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][SAMPLES_RETURNED] = 0
+
+                total_remain -= this_packet_remain
+
+            else:
+                # this packet has no samples, no need to process further
+                adj_packets.append([this_packet[START_IDX], this_packet[END_IDX]])
+                self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
+                n_removed += 1
+
+        if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
+            # this is the last of the in process data, now process unprocessed data, so
+            # go back to the beginning of the file
+            log.debug('Resetting position to the start')
+            self._position = [0,0]
+            # clear out the chunker so we don't wrap around data
+            self._chunker.clean_all_chunks()
+
+        log.trace('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
+
+        # first combine the in process data packet indicies
+        combined_packets = self._combine_adjacent_packets(adj_packets)
+        # loop over combined packets and remove them from unprocessed data
+        for packet in combined_packets:
+            # find which unprocessed section this packet is in
+            for unproc in self._read_state[StateKey.UNPROCESSED_DATA]:
+                if packet[START_IDX] >= unproc[START_IDX] and packet[END_IDX] <= unproc[END_IDX]:
+                    # packet is within this unprocessed data, remove it
+                    self._read_state[StateKey.UNPROCESSED_DATA].remove(unproc)
+                    # add back any data still unprocessed on either side
+                    if packet[START_IDX] > unproc[START_IDX]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([unproc[START_IDX], packet[START_IDX]])
+                    if packet[END_IDX] < unproc[END_IDX]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([packet[END_IDX], unproc[END_IDX]])
+                    # once we have found which unprocessed section this packet is in,
+                    # move on to next packet
+                    break
+            self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
+            self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
+                self._read_state[StateKey.UNPROCESSED_DATA])
+
+>>>>>>> upstream/master
     def _combine_adjacent_packets(self, packets):
         """
         Combine packets which are adjacent and have the same start/end into one packet
@@ -211,6 +361,7 @@ class SioParser(BufferLoadingParser):
         if self.all_data is None:
             # need to read in the entire data file first and store it because escape sequences shift position of
             # in process and unprocessed blocks
+<<<<<<< HEAD
             self.all_data = self.read_file()
             self.file_complete = True
             orig_len = len(self.all_data)
@@ -219,6 +370,28 @@ class SioParser(BufferLoadingParser):
             if not self.recovered:
                 self.all_data = self.all_data.replace(b'\x18\x6b', b'\x2b')
                 self.all_data = self.all_data.replace(b'\x18\x58', b'\x18')
+=======
+            log.debug("Reading in all data in smaller blocks")
+            self.all_data = ''
+
+            eof = False
+            orig_len = 0
+            while not eof:
+                # read data in small blocks in order to not block processing
+                next_data = self._stream_handle.read(1024)
+                if next_data:
+                    # calculate the original file size before any replacement
+                    orig_len = orig_len + len(next_data)
+                    if not self._recovered_flag:
+                        # if this is telemetered, need to replace escape chars, recovered does not
+                        next_data = next_data.replace(b'\x18\x6b', b'\x2b')
+                        next_data = next_data.replace(b'\x18\x58', b'\x18')
+                    self.all_data = self.all_data + next_data
+                    gevent.sleep(0)
+                else:
+                    eof = True
+            log.debug("length of file %d, length of data %d", orig_len, len(self.all_data))
+>>>>>>> upstream/master
 
         # if unprocessed data has not been initialized yet, set it to the entire file
         if self._read_state[StateKey.UNPROCESSED_DATA] is None:
