@@ -21,7 +21,7 @@ import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
-from mi.core.exceptions import DatasetParserException, NotImplementedException
+from mi.core.exceptions import DatasetParserException
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # SIO Main controller header (ascii) and data (binary):
