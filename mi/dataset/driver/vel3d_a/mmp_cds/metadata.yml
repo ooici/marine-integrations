@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeremy Amundson
+  constructor: Vel3dAMmpCdsDataSetDriver
+  driver_name: vel3d_a_mmp_cds
+  driver_path: vel3d_a/mmp_cds
+  email: jeremy.s.amundson@raytheon.com
+  release_notes: initial release
+  version: 0.0.1
