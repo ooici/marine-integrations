@@ -75,9 +75,6 @@ GET_REGEX = re.compile(GET_PATTERN)
 
 INIT_PATTERN = 'Initializing system. Please wait...'
 
-UNSAVED_PATTERN = 'The configuration parameters have been modified.' #\r\n' \
-                  #r'Save changes [y/n]?'
-
 INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
 VALID_MAXRATES = (0, 0.125, 0.5, 1, 2, 4, 8, 10, 12)
@@ -179,7 +176,6 @@ class Prompt(BaseEnum):
     NULL = ''
     ENTER_EXIT_CMD_MODE = '\x0c'
     SAMPLES = 'SATPAR'
-    UNSAVED = UNSAVED_PATTERN
 
 
 ###############################################################################
@@ -687,20 +683,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _send_exit(self):
-        try:
-            prompt = self._do_cmd_resp(Command.EXIT, expected_prompt=[Prompt.SAMPLES, Prompt.UNSAVED], timeout=15)
-        except InstrumentTimeoutException:
-            # Failed exit command, assume unknown instrument
-            next_state, next_agent_state = self._handler_unknown_discover()
-            if next_state != DriverProtocolState.AUTOSAMPLE:
-                self._handler_command_start_autosample()
-
-            # make sure instrument is in autosample
-        if prompt == Prompt.UNSAVED:
-            # A parameter was changed, but somehow not saved. Need to send 'y' + EOLN
-            self._do_cmd_no_resp('y' + EOLN)
-
     def _get_header_params(self):
         """
         Cycle through sample collection & reset to get the start-up banner
@@ -1107,7 +1089,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _send_break_poll(self):
         """
-        Send a burst of stop auto poll commands (^S) and wait to confirm success based on current max rate setting.
+        Send stop auto poll commands (^S) and wait to confirm success based on current max rate setting.
         Note: Current maxrate can be either 0(maximum output), 0.125, 0.5, 1, 2, 4, 8, 10, or 12.
         At maxrates above 4, sending a single stop auto poll command is highly unreliable.
         Generally, a Digital PAR sensor cannot exceed a frame rate faster than 7.5 Hz.
@@ -1128,6 +1110,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                 if current_maxrate < 8:
                     self._connection.send(Command.SWITCH_TO_POLL)
                 else:
+                    # Send a burst of stop auto poll commands for high maxrates
                     for _ in xrange(25):    # 25 x 0.15 seconds = 3.75 seconds
                         self._connection.send(Command.SWITCH_TO_POLL)
                         time.sleep(.15)
@@ -1144,7 +1127,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             elif time.time() > starttime + time_between_samples:
                 break
 
-        # Give some time for the buffer to clear from the burst of stop commands
+        # For high maxrates, give some time for the buffer to clear from the burst of stop commands
         if current_maxrate >= 8:
             extra_sleep = 5 - (time.time() - (starttime + time_between_samples))
             if extra_sleep > 0:
