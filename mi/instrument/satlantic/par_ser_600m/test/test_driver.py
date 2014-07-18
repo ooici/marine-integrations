@@ -430,7 +430,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
         result = json.loads(json_result)
 
         params = result[ConfigMetadataKey.PARAMETERS]
-        self.assertEqual(params[Parameter.MAXRATE][ParameterDictKey.DISPLAY_NAME], "MaxRate")
+        self.assertEqual(params[Parameter.MAXRATE][ParameterDictKey.DISPLAY_NAME], "Max Rate")
 
         cmds = result[ConfigMetadataKey.COMMANDS]
         self.assertEqual(cmds[PARCapability.ACQUIRE_SAMPLE][CommandDictKey.DISPLAY_NAME], "Acquire Sample")
@@ -645,7 +645,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, P
 
         #verify that the event got scheduled
         self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters,
-                                              particle_count=3, timeout=90)
+                                              particle_count=5, timeout=90)
 
         self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE)
 
