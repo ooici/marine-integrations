@@ -11,6 +11,7 @@ from pyon.core.bootstrap import CFG
 
 import subprocess
 import re
+import gc
 import os
 import time
 import ntplib
@@ -27,7 +28,7 @@ from pyon.core import bootstrap
 bootstrap.testing = False
 
 # Import pyon first for monkey patching.
-from mi.core.log import get_logger;
+from mi.core.log import get_logger
 
 log = get_logger()
 
@@ -91,7 +92,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
-from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, DriverScheduler
 from mi.core.driver_scheduler import TriggerType
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -300,7 +301,6 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
         @param param_dict dict with parameter names and types
         @param verify_values bool should ve verify parameter values
         """
-        log.error("****SUNG assert_data_particle_parameters")
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         self.assert_parameters(sample_dict, param_dict, verify_values)
 
@@ -465,7 +465,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
 
         # get all the sample parameter names
         sample_keys = sample_values.keys()
-        log.error("Sample Keys: %s", sample_keys)
+        log.info("Sample Keys: %s", sample_keys)
 
         # split the parameters into optional and required
         for key, param in param_dict.items():
@@ -478,14 +478,11 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             else:
                 required_keys.append(key)
 
-        log.error("Required Keys: %s", required_keys)
-        log.error("Optional Keys: %s", optional_keys)
+        log.info("Required Keys: %s", required_keys)
+        log.info("Optional Keys: %s", optional_keys)
 
         # Lets verify all required parameters are there
         for required in required_keys:
-            #log.debug("Sung: " + str(required))
-            #log.debug("Sung: required "  + repr(required_keys))
-            #log.debug("Sung:  sample "  + repr(sample_keys))
             self.assertTrue(required in sample_keys, msg="particle missing parameter '%s', a required key" % required)
             sample_keys.remove(required)
 
@@ -494,7 +491,7 @@ class DriverTestMixin(MiUnitTest, ParticleTestMixin):
             if optional in sample_keys:
                 sample_keys.remove(optional)
 
-        log.error("Unknown Keys: %s", sample_keys)
+        log.info("Unknown Keys: %s", sample_keys)
 
         # If there is anything left in the sample keys then it's a problem
         self.assertEqual(len(sample_keys), 0)
@@ -1245,6 +1242,14 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     Base class for instrument driver unit tests
     """
     _data_particle_received = []
+
+    def tearDown(self):
+        # schedulers need to be shutdown before GC will occur
+        for obj in gc.get_objects():
+            if type(obj) == DriverScheduler:
+                if hasattr(obj, '_scheduler'):
+                    obj._scheduler.shutdown()
+                    del obj._scheduler
 
     def clear_data_particle_queue(self):
         """

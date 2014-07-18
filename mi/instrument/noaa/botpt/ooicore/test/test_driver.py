@@ -396,6 +396,7 @@ class BotptTestMixinSub(DriverTestMixin):
         'HEAT,1\n': 'HEAT,2013/06/28 18:04:41,*1',
         'HEAT,0\n': 'HEAT,2013/06/28 18:04:41,*0',
         'NANO,*0100E4\n': samples.NANO_VALID_SAMPLE_01,
+        'NANO,TS': samples.NANO_VALID_SAMPLE_01,
     }
 
 

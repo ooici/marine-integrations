@@ -58,16 +58,23 @@ common_matches = {
 
 
 def build_command(address, command, *args):
+    """
+    Create an instrument command string.
+    :param address:  1 - STM, 3 - HEF, 4 - IES
+    :param command:  command string
+    :param args:     arguments for command
+    :return:         fully qualified command string
+    """
     s = '#' + address + '_' + command
-    new_freaking_list = []
+    formatted_list = []  # convert all booleans to integers
     for x in args:
         if type(x) is bool:
-            new_freaking_list.append(int(x))
+            formatted_list.append(int(x))
         else:
-            new_freaking_list.append(x)
+            formatted_list.append(x)
 
-    if new_freaking_list:
-        s += ' ' + ' '.join([str(x) for x in new_freaking_list])
+    if formatted_list:
+        s += ' ' + ' '.join([str(x) for x in formatted_list])
     s = s + str.format('*{0:04x}', crc3kerm(s)) + NEWLINE
     return s
 
@@ -125,6 +132,10 @@ def ies_command(s, *args):
 # ##
 # Driver Constant Definitions
 ###
+class HPIESUnits(Units):
+    CYCLE = 'cycle'
+    HALF_CYCLE = 'half cycle'
+
 
 class ProtocolState(BaseEnum):
     """
@@ -134,8 +145,6 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    # TEST = DriverProtocolState.TEST  # no test defined
-    # CALIBRATE = DriverProtocolState.CALIBRATE  # instrument auto-calibrates
 
 
 class ProtocolEvent(BaseEnum):
@@ -152,7 +161,6 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    # ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
 class Capability(BaseEnum):
@@ -163,7 +171,6 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    # ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
 class Parameter(DriverParameter):
@@ -209,7 +216,6 @@ class Parameter(DriverParameter):
     M2A_LED = 'm2a_led'  # 3
 
     # Inverter Echo Sounder parameters - all these are read-only
-    IES_TIME = 'date_time'  # current time from IES internal clock
     ECHO_SAMPLES = 'Travel Time Measurements: 4 pings every 10 minutes'
     WATER_DEPTH = 'Estimated Water Depth: 3000 meters'
     ACOUSTIC_LOCKOUT = 'Acoustic Lockout: 3.60 seconds'
@@ -362,8 +368,7 @@ class Prompt(BaseEnum):
     DEFAULT = 'STM>'
     HEF_PARAMS = '#3_params'
     HEF_PROMPT = '#3_HEF C>'
-    HEF_PORT_ON = DEFAULT  # not sure why the port on command doesn't return the HEF prompt
-    # HEF_PORT_ON = '#3_\r\n*98b3'  # not sure why the port on command doesn't return the HEF prompt
+    HEF_PORT_ON = DEFAULT  # port on command doesn't return the HEF prompt (return is #3_\r\n)
 
 
 class Response(BaseEnum):
@@ -373,7 +378,6 @@ class Response(BaseEnum):
     TIMESTAMP = re.compile(r'^(?P<tod>%(tod)s)' % common_matches)
     UNKNOWN_COMMAND = re.compile(r'.*?unknown command: .*?')
     PROMPT = re.compile(r'^STM> .*?')
-    #IES_POWER_ON = re.compile(r'.*?X -+ RESET.*?')  # last line of the menu options
     HEF_POWER_ON = re.compile(r'#3_Use <BREAK> to enter command mode')  # last line of HEF power on prompt
     IES_POWER_ON = re.compile(r'#4_\s+Next scheduled 1 minute warning at:')  # last line of IES power on prompt
     ERROR = re.compile(r'.*?port.*?not open')
@@ -407,6 +411,7 @@ class DataHeaderParticleKey(BaseEnum):
 
     Precedes each series of HEF data particles
     """
+    DATA_VALID = 'hpies_data_valid'
     VERSION = 'hpies_ver'
     TYPE = 'hpies_type'
     DESTINATION = 'hpies_dest'
@@ -501,6 +506,7 @@ class DataHeaderParticle(HPIESDataParticle):
 
     def _encode_all(self):
         return [
+            self._encode_value(DataHeaderParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(DataHeaderParticleKey.VERSION, self.match.group('version'), int),
             self._encode_value(DataHeaderParticleKey.TYPE, self.match.group('type'), str),
             self._encode_value(DataHeaderParticleKey.DESTINATION, self.match.group('dest'), str),
@@ -520,13 +526,14 @@ class HEFDataParticleKey(BaseEnum):
     """
     Horizontal Electrical Field data stream
     """
-    INDEX = 'index'
-    CHANNEL_1 = 'e1c'
-    CHANNEL_2 = 'e1a'
-    CHANNEL_3 = 'e1b'
-    CHANNEL_4 = 'e2c'
-    CHANNEL_5 = 'e2a'
-    CHANNEL_6 = 'e2b'
+    DATA_VALID = 'hpies_data_valid'
+    INDEX = 'hpies_eindex'
+    CHANNEL_1 = 'hpies_e1c'
+    CHANNEL_2 = 'hpies_e1a'
+    CHANNEL_3 = 'hpies_e1b'
+    CHANNEL_4 = 'hpies_e2c'
+    CHANNEL_5 = 'hpies_e2a'
+    CHANNEL_6 = 'hpies_e2b'
 
 
 class HEFDataParticle(HPIESDataParticle):
@@ -557,13 +564,8 @@ class HEFDataParticle(HPIESDataParticle):
         return pattern
 
     def _encode_all(self):
-        crc_compute, crc = calc_crc(self.raw_data)
-        data_valid = crc_compute == crc
-        if not data_valid:
-            self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
-            log.warning("Corrupt data detected: [%r] - CRC %s != %s" % (self.raw_data, hex(crc_compute), hex(crc)))
-
         return [
+            self._encode_value(HEFDataParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(HEFDataParticleKey.INDEX, self.match.group('index'), int),
             self._encode_value(HEFDataParticleKey.CHANNEL_1, self.match.group('channel_1'), int),
             self._encode_value(HEFDataParticleKey.CHANNEL_2, self.match.group('channel_2'), int),
@@ -578,6 +580,7 @@ class HEFMotorCurrentParticleKey(BaseEnum):
     """
     HEF Motor Current data stream
     """
+    DATA_VALID = 'hpies_data_valid'
     INDEX = 'hpies_mindex'
     CURRENT = 'hpies_motor_current'
 
@@ -606,11 +609,8 @@ class HEFMotorCurrentParticle(HPIESDataParticle):
         return pattern
 
     def _encode_all(self):
-        """
-        Parse data sample for individual values (statistics)
-        @throws SampleException If there is a problem with sample creation
-        """
         return [
+            self._encode_value(HEFMotorCurrentParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(HEFMotorCurrentParticleKey.INDEX, self.match.group('index'), int),
             self._encode_value(HEFMotorCurrentParticleKey.CURRENT, self.match.group('motor_current'), int),
         ]
@@ -620,15 +620,16 @@ class CalStatusParticleKey(BaseEnum):
     """
     Calibration status data particle
 
-    Calibration data is sent every two minutes during autosample
+    Sent every two minutes during autosample.
     """
+    DATA_VALID = 'hpies_data_valid'
     INDEX = 'hpies_cindex'
-    E1C = 'hpies_e1c'
-    E1A = 'hpies_e1a'
-    E1B = 'hpies_e1b'
-    E2C = 'hpies_e2c'
-    E2A = 'hpies_e2a'
-    E2B = 'hpies_e2b'
+    E1C = 'hpies_c1c'
+    E1A = 'hpies_c1a'
+    E1B = 'hpies_c1b'
+    E2C = 'hpies_c2c'
+    E2A = 'hpies_c2a'
+    E2B = 'hpies_c2b'
 
 
 class CalStatusParticle(HPIESDataParticle):
@@ -659,11 +660,8 @@ class CalStatusParticle(HPIESDataParticle):
         return pattern
 
     def _encode_all(self):
-        """
-        Parse data sample for individual values (statistics)
-        @throws SampleException If there is a problem with sample creation
-        """
         return [
+            self._encode_value(CalStatusParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(CalStatusParticleKey.INDEX, self.match.group('index'), int),
             self._encode_value(CalStatusParticleKey.E1C, self.match.group('e1c'), int),
             self._encode_value(CalStatusParticleKey.E1A, self.match.group('e1a'), int),
@@ -680,6 +678,7 @@ class HEFStatusParticleKey(BaseEnum):
 
     HPIES status is sent every X minutes during autosample
     """
+    DATA_VALID = 'hpies_data_valid'
     UNIX_TIME = 'hpies_secs'  # elapsed time since unix epoch
     HCNO = 'hpies_hcno'  # Half cycle number (int)
     HCNO_LAST_CAL = 'hpies_hcno_last_cal'  # Half cycle number of last calibration (int)
@@ -762,20 +761,19 @@ class HEFStatusParticle(HPIESDataParticle):
         """
         Overridden because HEF Status has multiple lines with CRC
         """
+        valid = True
         for line in self.raw_data.split(NEWLINE):
             crc_compute, crc_parse = calc_crc(line)
             data_valid = crc_compute == crc_parse
             if not data_valid:
                 self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
                 log.warning("Corrupt data detected: [%r] - CRC %s != %s" % (line, hex(crc_compute), hex(crc_parse)))
+                valid = False
+        return valid
 
     def _encode_all(self):
-        """
-        Parse data sample for individual values (statistics)
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        result = [
+        return [
+            self._encode_value(HEFStatusParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(HEFStatusParticleKey.UNIX_TIME, self.match.group('secs'), int),
             self._encode_value(HEFStatusParticleKey.HCNO, self.match.group('hcno'), int),
             self._encode_value(HEFStatusParticleKey.HCNO_LAST_CAL, self.match.group('hcno_last_cal'), int),
@@ -800,13 +798,12 @@ class HEFStatusParticle(HPIESDataParticle):
             self._encode_value(HEFStatusParticleKey.PINCH_TIMING_ERRORS, self.match.group('pinch_errors'), int),
         ]
 
-        return result
-
 
 class IESDataParticleKey(BaseEnum):
     """
     Inverted Echo-Sounder data stream
     """
+    DATA_VALID = 'hpies_data_valid'
     IES_TIMESTAMP = 'hpies_ies_timestamp'
     TRAVEL_TIMES = 'hpies_n_travel_times'
     TRAVEL_TIME_1 = 'hpies_travel_time1'
@@ -859,6 +856,7 @@ class IESDataParticle(HPIESDataParticle):
         """
 
         return [
+            self._encode_value(IESDataParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(IESDataParticleKey.IES_TIMESTAMP, self.match.group('ies_timestamp'), int),
             self._encode_value(IESDataParticleKey.TRAVEL_TIMES, self.match.group('n_travel_times'), int),
             self._encode_value(IESDataParticleKey.TRAVEL_TIME_1, self.match.group('travel_1'), int),
@@ -877,6 +875,7 @@ class IESStatusParticleKey(BaseEnum):
     """
     HEF Motor Current data stream
     """
+    DATA_VALID = 'hpies_data_valid'
     IES_TIME = 'hpies_ies_timestamp'
     TRAVEL_TIMES = 'hpies_status_travel_times'
     PRESSURES = 'hpies_status_pressures'
@@ -893,6 +892,8 @@ class IESStatusParticleKey(BaseEnum):
     MEAN_TRAVEL = 'hpies_average_travel_time'
     MEAN_PRESSURE = 'hpies_average_pressure'
     MEAN_TEMPERATURE = 'hpies_average_temperature'
+    LAST_PRESSURE = 'hpies_last_pressure'
+    LAST_TEMPERATURE = 'hpies_last_temperature'
     IES_OFFSET = 'hpies_ies_clock_error'
 
 
@@ -939,7 +940,7 @@ class IESStatusParticle(HPIESDataParticle):
             (?P<mean_travel>     %(float)s) \s
             (?P<mean_pressure>   %(int)s)   \s
             (?P<mean_temp>       %(int)s)   \s
-            (?P<ies_offset>      %(float)s) \s
+            (?P<last_pressure>   %(float)s) \s
             (?P<last_temp>       %(float)s) \s
             (?P<clock_offset>    %(float)s) \s
                                  \\r\\n\*
@@ -968,9 +969,9 @@ class IESStatusParticle(HPIESDataParticle):
         tfrequencies = temp[1::2]
 
         return [
+            self._encode_value(IESStatusParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(IESStatusParticleKey.IES_TIME, self.match.group('ies_time'), int),
             self._encode_value(IESStatusParticleKey.TRAVEL_TIMES, travel_times, int),
-
             self._encode_value(IESStatusParticleKey.PRESSURES, pressures, int),
             self._encode_value(IESStatusParticleKey.TEMPERATURES, temperatures, int),
             self._encode_value(IESStatusParticleKey.PFREQUENCIES, pfrequencies, int),
@@ -985,7 +986,9 @@ class IESStatusParticle(HPIESDataParticle):
             self._encode_value(IESStatusParticleKey.MEAN_TRAVEL, self.match.group('mean_travel'), float),
             self._encode_value(IESStatusParticleKey.MEAN_PRESSURE, self.match.group('mean_pressure'), int),
             self._encode_value(IESStatusParticleKey.MEAN_TEMPERATURE, self.match.group('mean_temp'), int),
-            self._encode_value(IESStatusParticleKey.IES_OFFSET, self.match.group('ies_offset'), float),
+            self._encode_value(IESStatusParticleKey.LAST_PRESSURE, self.match.group('last_pressure'), float),
+            self._encode_value(IESStatusParticleKey.LAST_TEMPERATURE, self.match.group('last_temp'), float),
+            self._encode_value(IESStatusParticleKey.IES_OFFSET, self.match.group('clock_offset'), float),
         ]
 
 
@@ -993,6 +996,7 @@ class TimestampParticleKey(BaseEnum):
     """
     HEF Motor Current data stream
     """
+    DATA_VALID = 'hpies_data_valid'
     RSN_TIME = 'hpies_rsn_timestamp'
     STM_TIME = 'hpies_stm_timestamp'
 
@@ -1025,6 +1029,7 @@ class TimestampParticle(HPIESDataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         return [
+            self._encode_value(TimestampParticleKey.DATA_VALID, self.check_crc(), bool),
             self._encode_value(TimestampParticleKey.RSN_TIME, self.match.group('rsn_time'), int),
             self._encode_value(TimestampParticleKey.STM_TIME, self.match.group('stm_time'), int),
         ]
@@ -1046,12 +1051,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
 
     def _build_protocol(self):
         """
@@ -1069,7 +1069,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    __metaclass__ = get_logging_metaclass(log_level='info')
+    __metaclass__ = get_logging_metaclass(log_level='debug')
 
     particles = [
         DataHeaderParticle,  # HPIES_DATA_HEADER
@@ -1176,7 +1176,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
     @staticmethod
@@ -1221,6 +1220,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name='Debug Level',
                              description='Debug logging control value (0 means no output).',
                              visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=0,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.WSRUN_PINCH,
@@ -1228,9 +1228,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
+                             units=Units.SECOND,
                              display_name='WS Run Pinch',
                              description='Half cycle interval between water switch tube pinch',
                              visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=120,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.NFC_CALIBRATE,
@@ -1238,10 +1240,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='cycles',
+                             units=HPIESUnits.CYCLE,
                              display_name='Calibration Periodicity',
                              description='Number of cycles of water switch between applying cal',
                              visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=15,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.CAL_HOLD,
@@ -1253,6 +1256,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name='Calibrate Hold',
                              description='hold time of calibration voltage',
                              visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=20,
                              startup_param=True,
                              direct_access=True)
         self._param_dict.add(Parameter.CAL_SKIP,
@@ -1271,12 +1275,13 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
-                             units='half cycles',
+                             units=HPIESUnits.HALF_CYCLE,
                              display_name='Compass Measurement Periodicity',
                              description='Number of half cycles between compass measurements',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=30,
                              direct_access=True,
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             startup_param=True)
         self._param_dict.add(Parameter.COMPASS_SAMPLES,
                              r'compass nget\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1284,9 +1289,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              display_name='Compass Samples',
                              description='Number of compass samples to acquire in a burst',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=1,
                              direct_access=True,
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             startup_param=True)
         # time between measurements in a burst
         self._param_dict.add(Parameter.COMPASS_DELAY,
                              r'compass dsecs\s+= (%(int)s)' % common_matches,
@@ -1296,9 +1302,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.SECOND,
                              display_name='Compass Samples',
                              description='Time between measurements in a burst',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=10,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         # initial compass measurement (in seconds)
         self._param_dict.add(Parameter.INITIAL_COMPASS,
                              r'icompass run secs\s+= (%(int)s)' % common_matches,
@@ -1308,20 +1315,20 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.SECOND,
                              display_name='Initial Compass Run',
                              description='Initial compass measurement',
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
-                             direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
-        # INITIAL_COMPASS_DELAY = 'icompass dsecs'  #
+                             direct_access=False)
         self._param_dict.add(Parameter.INITIAL_COMPASS_DELAY,
                              r'icompass dsecs\s+= (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
                              None,
-                             type=ParameterDictType.INT,
+                             type=ParameterDictType.FLOAT,
+                             units=Units.SECOND,
                              display_name='Compass Samples',
                              description='Initial compass delay',
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
-                             direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             direct_access=False)
         # FILE_LENGTH = 'secs per ofile'  # seconds per file (default 86400 - one day)
         self._param_dict.add(Parameter.MOTOR_SAMPLES,
                              r'navg mot\s+= (%(int)s)' % common_matches,
@@ -1330,9 +1337,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              display_name='Number of Motor Samples',
                              description='Number of samples to average (motor is sampled every 25 ms)',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=10,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(Parameter.EF_SAMPLES,
                              r'navg ef\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1340,9 +1348,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              display_name='Number of HEF Samples',
                              description='Number of samples to average (EF is sampled every 0.1024 s)',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=10,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(Parameter.CAL_SAMPLES,
                              r'navg cal\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1350,50 +1359,56 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              display_name='Number of Calibration Samples',
                              description='Number of samples to average (ef is sampled every 0.1024 s during cal)',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=10,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(
             Parameter.CONSOLE_TIMEOUT,
             r'console off timeout\s+= (%(int)s)' % common_matches,
             lambda match: int(match.group(1)),
             None,
             type=ParameterDictType.INT,
+            units=Units.SECOND,
             display_name='Console Timeout',
             description='UART drivers turns off for console port (will come on temporarily for data out).',
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=300,
             startup_param=True,
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE)
+            direct_access=True)
         self._param_dict.add(Parameter.WSRUN_DELAY,
                              r'wsrun delay secs\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
+                             units=Units.SECOND,
                              display_name='WS Run Delay (secs)',
                              description='',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=0,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.MOTOR_DIR_NHOLD,
                              r'motor dir nhold\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
                              display_name='Motor Direction',
-                             description='',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=0,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.MOTOR_DIR_INIT,
                              r'motor dir init\s+= (\w+)',
                              lambda match: match.group(1),
                              None,
                              type=ParameterDictType.STRING,
                              display_name='Motor Direction (Initial)',
-                             description='',
+                             value_description='f - forward, r - reverse',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value='f',  # forward
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.POWER_COMPASS_W_MOTOR,
                              r'do_compass_pwr_with_motor\s+= (%(int)s)' % common_matches,
                              lambda match: bool(int(match.group(1))),
@@ -1401,9 +1416,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.BOOL,
                              display_name='Power Compass with Motor',
                              description='Apply power to compass when motor is on',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=False,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.KEEP_AWAKE_W_MOTOR,
                              r'do_keep_awake_with_motor\s+= (%(int)s)' % common_matches,
                              lambda match: bool(int(match.group(1))),
@@ -1411,9 +1427,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.BOOL,
                              display_name='Keep Awake with Motor',
                              description='Keep instrument awake while motor is running',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=True,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_1A,
                              r'm1a_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1422,9 +1439,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 1A',
                              description='Timeout counts for motor 1A',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=200,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_1B,
                              r'm1b_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1433,9 +1451,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 1B',
                              description='Timeout counts for motor 1B',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=200,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_2A,
                              r'm2a_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1444,9 +1463,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 2A',
                              description='Timeout counts for motor 2A',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=200,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(Parameter.MOTOR_TIMEOUTS_2B,
                              r'm2b_tmoc\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1455,9 +1475,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units='25 ' + Units.MILLISECOND,
                              display_name='Motor Timeouts 2B',
                              description='Timeout counts for motor 2B',
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             default_value=200,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             direct_access=True)
         self._param_dict.add(Parameter.RSN_CONFIG,
                              r'do_rsn\s+= (%(int)s)' % common_matches,
                              lambda match: bool(int(match.group(1))),
@@ -1465,9 +1486,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.BOOL,
                              display_name='Configured for RSN',
                              description='Use RSN configuration',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=True,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.INVERT_LED_DRIVERS,
                              r'led_drivers_invert\s+= (%(int)s)' % common_matches,
                              lambda match: bool(int(match.group(1))),
@@ -1475,9 +1497,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.BOOL,
                              display_name='Invert LED Drivers',
                              description='Whether or not LED drivers have been inverted',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=False,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.M1A_LED,
                              r'm1a_led\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1485,9 +1508,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              display_name='M1A LED',
                              description='',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             default_value=1,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             direct_access=True)
         self._param_dict.add(Parameter.M2A_LED,
                              r'm2a_led\s+= (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1495,21 +1519,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              display_name='M2A LED',
                              description='',
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
-                             direct_access=True,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
-        # IES Parameters
-        self._param_dict.add(Parameter.IES_TIME,
-                             r'TODO',  # TODO
-                             lambda match: match.group(1),
-                             None,
-                             type=ParameterDictType.STRING,
-                             display_name='IES Clock',
-                             description='IES clock time',
-                             units='YYMMDDTHHMMSS',
-                             startup_param=False,
-                             direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             direct_access=True)
+        # IES Parameters - read only - no defaults
         self._param_dict.add(Parameter.ECHO_SAMPLES,
                              r'Travel Time Measurements: (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
@@ -1527,6 +1540,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match: int(match.group(1)),
                              None,
                              type=ParameterDictType.INT,
+                             units=Units.METER,
                              display_name='Estimated Water Depth',
                              description='Estimate of water depth at instrument location',
                              startup_param=False,
@@ -1547,7 +1561,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'Acoustic Output: (%(int)s)' % common_matches,
                              lambda match: int(match.group(1)),
                              None,
-                             type=ParameterDictType.FLOAT,
+                             type=ParameterDictType.INT,
                              units=Units.DECIBEL,
                              display_name='Acoustic Output',
                              description='',
@@ -1566,9 +1580,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COLLECT_TELEMETRY,
                              r'Telemetry data file (enabled|disabled)',
-                             lambda match: match.group(1),
+                             lambda match: True if match.group(1) == 'enabled' else False,
                              None,
-                             type=ParameterDictType.STRING,
+                             type=ParameterDictType.BOOL,
                              display_name='Telemetry Data File',
                              description='',
                              startup_param=False,
@@ -1734,8 +1748,26 @@ class Protocol(CommandResponseInstrumentProtocol):
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
-        # TODO - missing Temperature offset - -0.51 deg C
-        # TODO - missing Pressure offset - 0.96 psi
+        self._param_dict.add(Parameter.TEMP_OFFSET,
+                             r'Temperature offset = (%(float)s)' % common_matches,
+                             lambda match: float(match.group(1)),
+                             None,
+                             type=ParameterDictType.FLOAT,
+                             units=Units.DEGREE_CELSIUS,
+                             display_name='Temperature Offset',
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+        self._param_dict.add(Parameter.PRES_OFFSET,
+                             r'Pressure offset = (%(float)s)' % common_matches,
+                             lambda match: float(match.group(1)),
+                             None,
+                             type=ParameterDictType.FLOAT,
+                             units=Units.POUND_PER_SQUARE_INCH,
+                             display_name='Pressure Offset',
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLILEY_0,
                              r'B0 = (%(float)s)' % common_matches,
                              lambda match: float(match.group(1)),
@@ -1950,9 +1982,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             if prefix_file is not None:
                 prefix_bad = False
                 log.debug('opened file with prefix: %s', prefix_file)
-            # TODO - remove
-            else:
-                log.debug('unable to open file: %s', prefix_root)
         return prefix_file
 
     def _do_cmd_ies_on(self):
@@ -2010,13 +2039,13 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Unknown handlers
     ########################################################################
 
-    def _handler_unknown_enter(self, *args, **kwargs):
+    def _handler_unknown_enter(self):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_exit(self, *args, **kwargs):
         pass
 
-    def _handler_unknown_discover(self, *args, **kwargs):
+    def _handler_unknown_discover(self):
         # any existing mission needs to be stopped. If one is not already running, no harm in sending the stop.
         self._do_cmd_no_resp(Command.MISSION_STOP)
         # delay so the instrument doesn't overwrite the next response
@@ -2028,7 +2057,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Command handlers.
     ########################################################################
 
-    def _handler_command_enter(self, *args, **kwargs):
+    def _handler_command_enter(self):
         """
         Enter command state.
 
@@ -2074,7 +2103,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return self._handler_get(*args, **kwargs)
 
-    def _handler_command_set(self, *args, **kwargs):
+    def _handler_command_set(self, *args):
         """
         perform a set command
         @param args[0] parameter : value dict.
@@ -2118,7 +2147,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Autosample handlers
     ########################################################################
-    def _handler_autosample_enter(self, *args, **kwargs):
+    def _handler_autosample_enter(self):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         try:
@@ -2131,7 +2160,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._async_raise_fsm_event(ProtocolEvent.STOP_AUTOSAMPLE)
             raise e
 
-    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+    def _handler_autosample_stop_autosample(self):
         """
         Process command to stop auto-sampling. Return to command state.
         """
@@ -2181,10 +2210,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         If we need to set parameters then we might need to transition to
         command first.  Then we will transition back when complete.
 
-        @todo: This feels odd.  It feels like some of this logic should
-               be handled by the state machine.  It's a pattern that we
-               may want to review.  I say this because this command
-               needs to be run from autosample or command mode.
         @raise: InstrumentProtocolException if not in command or streaming
         """
         # Let's give it a try in unknown state
@@ -2262,9 +2287,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("parameters updated, sending event")
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-    def _another_function(self):
-        pass
-
     def _verify_set_values(self, params):
         """
         Verify supplied values are in range, if applicable
@@ -2325,11 +2347,3 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug('djm configuration differs, saving parameters and signaling event')
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-            # def _apply_params(self):
-            # """
-            #     apply startup parameters to the instrument.
-            #     @raise: InstrumentProtocolException if in wrong mode.
-            #     """
-            #     config = self.get_startup_config()
-            #     # Pass true to _set_params so we know these are startup values
-            #     self._set_params(config, True)

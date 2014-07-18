@@ -1,0 +1,9 @@
+data:
+- _index: 1
+  cdomflo: 184
+  internal_timestamp: 3594243015.226313
+  raw_time_microseconds: 226313
+  raw_time_seconds: 1385254215
+header:
+  particle object: FlcdrXMmpCdsParserDataParticle
+  particle_type: flcdr_x_mmp_cds_instrument

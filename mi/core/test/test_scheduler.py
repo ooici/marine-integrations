@@ -39,6 +39,9 @@ class TestScheduler(MiUnitTest):
 
         self.assertTrue(self._scheduler.daemonic)
 
+    def tearDown(self):
+        self._scheduler.shutdown()
+
     def _callback(self):
         """
         event callback for event processing
