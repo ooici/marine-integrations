@@ -76,7 +76,6 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'phsen_abcdef_sio_mule_instrument'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -184,27 +183,38 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to start processing in mid-state
         """
+
         self.create_sample_data_set_dir("node59p1_step1.dat", TELEM_DIR, "node59p1.dat",
                                         copy_metadata=False)
 
-        driver_config = self._driver_config()['startup_config']
-        sio_mule_config = driver_config['harvester'][DataSourceKey.PHSEN_ABCDEF_SIO_MULE]
-        fullfile = os.path.join(sio_mule_config['directory'], sio_mule_config['pattern'])
-        mod_time = os.path.getmtime(fullfile)
+        phsen_abcdef_file = "SAMI_P0080_180713_integration.txt"
+        self.create_sample_data_set_dir(phsen_abcdef_file, RECOVERED_DIR)
 
-        file_size = 911
+        driver_config = self._driver_config()['startup_config']
+
+        sio_mule_config = driver_config['harvester'][DataSourceKey.PHSEN_ABCDEF_SIO_MULE]
+        phsen_abcdef_sio_mule_file = os.path.join(sio_mule_config['directory'], sio_mule_config['pattern'])
+
+        phsen_abcdef_sio_mule_stat = os.stat(phsen_abcdef_sio_mule_file)
+
+        phsen_abcdef_config = driver_config['harvester'][DataSourceKey.PHSEN_ABCDEF]
+        phsen_abcdef_fullfile = os.path.join(phsen_abcdef_config['directory'], phsen_abcdef_file)
+
+        phsen_abcdef_stat = os.stat(phsen_abcdef_fullfile)
+
+        # start in mid-state
 
         # Create and store the new driver state
         memento = {
             DataSourceKey.PHSEN_ABCDEF_SIO_MULE: {
                 "node59p1.dat": {
-                    DriverStateKey.FILE_SIZE: file_size,
+                    DriverStateKey.FILE_SIZE: phsen_abcdef_sio_mule_stat.st_size,
                     DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
-                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                    DriverStateKey.FILE_MOD_DATE: phsen_abcdef_sio_mule_stat.st_mtime,
                     DriverStateKey.PARSER_STATE: {
                         SioMuleStateKey.IN_PROCESS_DATA: [],
                         SioMuleStateKey.UNPROCESSED_DATA: [[0, 172]],
-                        SioMuleStateKey.FILE_SIZE: file_size
+                        SioMuleStateKey.FILE_SIZE: phsen_abcdef_sio_mule_stat.st_size
                     }
                 }
             },
@@ -212,9 +222,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 "SAMI_P0080_180713_integration.txt": {
                     DriverStateKey.INGESTED: False,
                     DriverStateKey.PARSER_STATE: {
-                        StateKey.POSITION: 0x168,
-                        StateKey.START_OF_DATA: False
-                    }
+                        StateKey.POSITION: 1313,
+                        StateKey.START_OF_DATA: True,
+                    },
+                    DriverStateKey.FILE_SIZE: phsen_abcdef_stat.st_size,
+                    DriverStateKey.FILE_MOD_DATE: phsen_abcdef_stat.st_mtime
                 }
             }
         }
@@ -227,62 +239,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                         copy_metadata=False)
         driver.start_sampling()
 
-        # verify data is produced
+        # # verify data is produced
         self.assert_data(PhsenParserDataParticle, 'test_data_2.txt.result.yml',
                          count=2, timeout=10)
 
         # Test Recovered
-        self.clear_async_data()
-        # create some recovered data to parse
-        self.create_sample_data_set_dir("SAMI_P0080_180713_integration.txt", RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration.txt")
-
-        # start in mid-state
-        driver.start_sampling()
-
-        # verify data is produced
-        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
-                         count=2, timeout=10)
-
-        # step 2
-        # recovered create some data to parse
-        self.create_sample_data_set_dir("SAMI_P0080_180713_integration.txt", RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration.txt")
-
-        # Create and store the new driver state, move to a new position for recovered.
-        memento = {
-            DataSourceKey.PHSEN_ABCDEF_SIO_MULE: {
-                "node59p1.dat": {
-                    DriverStateKey.FILE_SIZE: 911,
-                    DriverStateKey.FILE_CHECKSUM: '8b7cf73895eded0198b3f3621f962abc',
-                    DriverStateKey.FILE_MOD_DATE: 0,
-                    DriverStateKey.INGESTED: False,
-                    DriverStateKey.PARSER_STATE: {
-                        'in_process_data': None,
-                        'unprocessed_data': [[]]
-                    }
-                }
-            },
-            DataSourceKey.PHSEN_ABCDEF: {
-                "SAMI_P0080_180713_integration.txt": {
-                    DriverStateKey.INGESTED: False,
-                    DriverStateKey.PARSER_STATE: {
-                        StateKey.POSITION: 0x5c2,
-                        StateKey.START_OF_DATA: True
-                    }
-                }
-            }
-        }
-
-        driver = self._get_driver_object(memento=memento)
-
-        self.clear_async_data()
-
-        driver.start_sampling()
-
-        # verify data is produced
-        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_2.yml',
-                         count=2, timeout=10)
+        # verify recovered data is produced
+        self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_mid_state_start.yml',
+                         count=1, timeout=10)
 
     def test_back_fill(self):
         """
@@ -335,8 +299,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("======== START INTEG TEST SAMPLE EXCEPTION FAMILY ==========")
 
         self.clear_async_data()
-        self.create_sample_data_set_dir('SAMI_P0080_180713_invalid_control.txt', RECOVERED_DIR,
-                                        'SAMI_P0080_180713_invalid_control.txt')
+        self.create_sample_data_set_dir('SAMI_P0080_180713_invalid_control.txt', RECOVERED_DIR)
         self.driver.start_sampling()
 
         # an event catches the sample exception - excess data at end of record
@@ -356,14 +319,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # create some recovered data to parse
-        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_1.txt", RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_1.txt")
-        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_2.txt", RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_2.txt")
-        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_3.txt", RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_3.txt")
-        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_4.txt", RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_4.txt")
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_1.txt", RECOVERED_DIR)
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_2.txt", RECOVERED_DIR)
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_3.txt", RECOVERED_DIR)
+        self.create_sample_data_set_dir("SAMI_P0080_180713_integration_4.txt", RECOVERED_DIR)
 
         # verify data is produced
         self.assert_data(PhsenRecoveredMetadataDataParticle, 'SAMI_test_stop_resume_recovered_step_1.yml',
@@ -433,9 +392,7 @@ class QualificationTest(DataSetQualificationTestCase):
         exception callback called.
         """
         # need to put data in the file, not just make an empty file for this to work
-        self.create_sample_data_set_dir('SAMI_P0080_180713_integration.txt', RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration.txt",
-                                        mode=000)
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration.txt', RECOVERED_DIR, mode=000)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -445,8 +402,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.clear_sample_data()
-        self.create_sample_data_set_dir('SAMI_P0080_180713_integration.txt', RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration.txt")
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration.txt', RECOVERED_DIR)
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
@@ -458,10 +414,8 @@ class QualificationTest(DataSetQualificationTestCase):
         """
 
         self.create_sample_data_set_dir('node59p1_step1.dat', TELEM_DIR, "node59p1.dat")
-        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_1.txt', RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_1.txt")
-        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_ph_10.txt', RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_ph_10.txt")
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_1.txt', RECOVERED_DIR)
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_ph_10.txt', RECOVERED_DIR)
 
         self.assert_initialize()
 
@@ -496,8 +450,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # the data server for the gp03flmb platform
         self.create_sample_data_set_dir('node59p1_orig.dat', TELEM_DIR, 'node59p1.dat')
         # For Recovered, using the original sample input file from the IDD
-        self.create_sample_data_set_dir('SAMI_P0080_180713_orig.txt', RECOVERED_DIR,
-                                        'SAMI_P0080_180713_orig.txt')
+        self.create_sample_data_set_dir('SAMI_P0080_180713_orig.txt', RECOVERED_DIR)
         self.assert_initialize()
         # one bad sample in here:
         # PH1236501_01D5u51F361E0_EC_162E has non ascii bytes at the end and is missing \r
@@ -551,8 +504,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'test_data_1-2.txt.result.yml')
 
             # Setup for Recovered
-            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph.txt', RECOVERED_DIR,
-                                            "SAMI_P0080_180713_integration_control_ph.txt")
+            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph.txt', RECOVERED_DIR)
             # Read the first recovered file
             result = self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 2)
             # Note - increase default timeout for Instrument particles
@@ -590,8 +542,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
 
             # Test recovered file
-            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph_2.txt', RECOVERED_DIR,
-                                            "SAMI_P0080_180713_integration_control_ph_2.txt")
+            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph_2.txt', RECOVERED_DIR)
             # Now read the first three records of the second recovered file then stop
             result = self.data_subscribers.get_samples(RecoveredDataParticleType.METADATA, 2)
             result1 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 1)
@@ -599,8 +550,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Stop sampling
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(RecoveredDataParticleType.METADATA, 0)
-            self.assert_sample_queue_size(RecoveredDataParticleType.INSTRUMENT, 0)
 
             # Restart sampling and ensure we get the last records of the file
             self.assert_start_sampling()
@@ -621,8 +570,7 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         log.info("CONFIG: %s", self._agent_config())
         self.create_sample_data_set_dir('node59p1_step2.dat', TELEM_DIR, "node59p1.dat")
-        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph.txt', RECOVERED_DIR,
-                                        "SAMI_P0080_180713_integration_control_ph.txt")
+        self.create_sample_data_set_dir('SAMI_P0080_180713_integration_control_ph.txt', RECOVERED_DIR)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -678,8 +626,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Test Recovered, continue sampling
 
-            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_ph_10.txt', RECOVERED_DIR,
-                                            "SAMI_P0080_180713_integration_ph_10.txt")
+            self.create_sample_data_set_dir('SAMI_P0080_180713_integration_ph_10.txt', RECOVERED_DIR)
             # # Now read first 3 records from recovered file, then stop
             result = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 3)
             self.assert_stop_sampling()

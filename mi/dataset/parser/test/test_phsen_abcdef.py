@@ -151,7 +151,6 @@ class PhsenRecoveredParserUnitTestCase(ParserUnitTestCase):
 
         self.particle_129 = PhsenRecoveredMetadataDataParticle(['129',	'3456975599', '67', '4', '0', '566'])
 
-
         self.state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = []

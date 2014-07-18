@@ -28,7 +28,11 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
 # ASCII File with records separated by carriage return, newline, or carriage return - line feed
-RECORD_REGEX = r'.*[\r|\n|\r\n]'
+NEW_LINE = r'[\n\r]+'
+
+RECORD_REGEX = r'.*'
+RECORD_REGEX += NEW_LINE
+
 RECORD_MATCHER = re.compile(RECORD_REGEX)
 
 START_OF_DATA_REGEX = r'^:Data'
@@ -51,8 +55,8 @@ START_OF_DATA_MATCHER = re.compile(START_OF_DATA_REGEX)
 #   ...
 #   2962 1585 2439 2171
 #   0 -> Not Used
-#  2857 -> Battery
-#  2297 -> End Thermistor
+#   2857 -> Battery
+#   2297 -> End Thermistor
 #
 
 PH_REGEX = r'(10)'          # record type
@@ -63,7 +67,9 @@ PH_REGEX += r'(\d+\t){92}'  # light measurements
 PH_REGEX += r'\d+'          # unused
 PH_REGEX += r'\t(\d+)'      # battery status
 PH_REGEX += r'\t(\d+)'      # end thermistor
-PH_REGEX += '\t*(\r|\r\n|\n)'
+PH_REGEX += '\t*'
+PH_REGEX += NEW_LINE
+
 PH_MATCHER = re.compile(PH_REGEX)
 
 CONTROL_REGEX = r'(\d{3})\t'
@@ -96,17 +102,15 @@ TIMESTAMP_FIELD = 1
 
 
 def time_to_unix_time(sec_since_1904):
-        """
-        Convert between seconds since 1904 into unix time (epoch time)
-        @param sec_since_1904 ascii string of seconds since Jan 1 1904
-        @retval sec_since_1970 epoch time
-        """
-        local_dt_1904 = parser.parse("1904-01-01T00:00:00.00Z")
-        elapse_1904 = float(local_dt_1904.strftime("%s.%f"))
-        # log.debug('seconds since 1904 %d, elapsed 1904 %d', sec_since_1904, elapse_1904)
-        sec_since_1970 = sec_since_1904 + elapse_1904 - time.timezone
-        # log.debug("seconds since 1904 %d seconds since 1970 %f", sec_since_1904, sec_since_1970)
-        return sec_since_1970
+    """
+    Convert between seconds since 1904 into unix time (epoch time)
+    @param sec_since_1904 ascii string of seconds since Jan 1 1904
+    @retval sec_since_1970 epoch time
+    """
+    local_dt_1904 = parser.parse("1904-01-01T00:00:00.00Z")
+    elapse_1904 = float(local_dt_1904.strftime("%s.%f"))
+    sec_since_1970 = sec_since_1904 + elapse_1904 - time.timezone
+    return sec_since_1970
 
 
 class StateKey(BaseEnum):
@@ -207,8 +211,6 @@ class PhsenRecoveredInstrumentDataParticle(DataParticle):
                                      list),
                   self._encode_value(PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY, battery_voltage, int),
                   self._encode_value(PhsenRecoveredInstrumentDataParticleKey.THERMISTOR_END, end_thermistor, int)]
-
-        # log.debug('PhsenAbcdefParserDataParticle: particle %s', result)
         return result
 
 
@@ -314,22 +316,16 @@ class PhsenRecoveredMetadataDataParticle(DataParticle):
                   self._encode_value(PhsenRecoveredMetadataDataParticleKey.NUM_ERROR_RECORDS, num_error_records, int),
                   self._encode_value(PhsenRecoveredMetadataDataParticleKey.NUM_BYTES_STORED, num_bytes_stored, int)]
 
-        log.debug("record_type: %s", record_type)
         record_type = int(record_type)
         if record_type in BATTERY_CONTROL_TYPE:
-            log.debug("have battery - control type: %s", record_type)
             field += 1
             battery_voltage = self.raw_data[field]
             temp_result = self._encode_value(PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY, battery_voltage, int)
             result.append(temp_result)
-            log.debug("have battery: %s", result)
         else:
-            log.debug("in else for record_type")
             # This will handle anything after NUM_ERROR_RECORDS, including data in type 191 and 255.
             result.append({DataParticleKey.VALUE_ID: PhsenRecoveredDataParticleKey.VOLTAGE_BATTERY,
                            DataParticleKey.VALUE: None})
-
-        # log.debug('PhsenRecoveredMetadataDataParticle: particle %s', result)
         return result
 
 
@@ -358,8 +354,6 @@ class PhsenRecoveredParser(BufferLoadingParser):
 
         if state:
             self.set_state(self._state)
-
-        self.ph_count = 0
 
     def set_state(self, state_obj):
         """
@@ -403,13 +397,16 @@ class PhsenRecoveredParser(BufferLoadingParser):
         self.handle_non_data(non_data, non_end, start)
 
         while chunk is not None:
-            # log.debug('PARSER chunk: <%s>', chunk)
+
+            log.info("Chunk: ****%s****", chunk)
+
             self._increment_state(len(chunk))
             if not self._read_state[StateKey.START_OF_DATA]:
 
+                log.info("In if not self._read_state[StateKey.START_OF_DATA]")
+
                 start_of_data = START_OF_DATA_MATCHER.match(chunk)
                 if start_of_data:
-                    log.debug("matched start_of_data")
                     self._read_state[StateKey.START_OF_DATA] = True
             else:
 
@@ -418,10 +415,7 @@ class PhsenRecoveredParser(BufferLoadingParser):
                 control_match = CONTROL_MATCHER.match(chunk)
 
                 if ph_match:
-                    self.ph_count += 1
-                    log.debug("matched ph %d %s", self.ph_count, chunk)
                     fields = chunk.split()
-                    # log.debug('PH len %d fields %s', len(fields), fields)
 
                     # particle-ize the data block received, return the record
                     sample = self._extract_sample(PhsenRecoveredInstrumentDataParticle,
@@ -430,35 +424,30 @@ class PhsenRecoveredParser(BufferLoadingParser):
                     if sample:
                         # create particle
                         result_particles.append((sample, copy.copy(self._read_state)))
-                        # log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
 
                 elif control_match:
-                    log.debug("matched control %s", chunk)
                     record_type = int(control_match.group(1), 10)
                     fields = chunk.split()
                     if record_type in CONTROL_TYPE or record_type in BATTERY_CONTROL_TYPE \
                             or record_type in DATA_CONTROL_TYPE:
-                        log.debug('num fields in control msg: %d', len(fields))
                         # Check the length of the battery control messages first.
                         if record_type in BATTERY_CONTROL_TYPE and len(fields) != BATTERY_CONTROL_MSG_NUM_FIELDS:
-                                log.warn('Unexpected num of fields (%d) for control record type (battery) %d',
-                                         len(fields), record_type)
-                                self._exception_callback(SampleException("Unexpected number of fields %d"
-                                                                         % len(fields)))
+                                error_str = 'Unexpected num of fields (%d) for control record type (battery) %d'
+                                log.warn(error_str, len(fields), record_type)
+                                self._exception_callback(SampleException(error_str % (len(fields), record_type)))
 
                         # DATA_CONTROL_TYPE messages may or may not have a data field
                         elif record_type in DATA_CONTROL_TYPE and \
                                 (len(fields) != DATA_CONTROL_MSG_NUM_FIELDS) and \
                                 (len(fields) != DATA_CONTROL_MSG_NUM_FIELDS-1):
-                                log.warn('Unexpected num of fields (%d) for control record type (data) %d',
-                                         len(fields), record_type)
-                                self._exception_callback(SampleException("Unexpected number of fields %d"
-                                                                         % len(fields)))
+                                error_str = 'Unexpected num of fields (%d) for control record type (data) %d'
+                                log.warn(error_str, len(fields), record_type)
+                                self._exception_callback(SampleException(error_str % (len(fields), record_type)))
 
                         elif record_type in CONTROL_TYPE and len(fields) != CONTROL_MSG_NUM_FIELDS:
-                            log.warn('Unexpected number of fields (%d) for control record type %d', len(fields),
-                                     record_type)
-                            self._exception_callback(SampleException("Unexpected number of fields %d" % len(fields)))
+                            error_str = 'Unexpected number of fields (%d) for control record type %d'
+                            log.warn(error_str, len(fields), record_type)
+                            self._exception_callback(SampleException(error_str % (len(fields), record_type)))
 
                         else:
                             # particle-ize the data block received, return the record
@@ -468,16 +457,16 @@ class PhsenRecoveredParser(BufferLoadingParser):
                             if sample:
                                 # create particle
                                 result_particles.append((sample, copy.copy(self._read_state)))
-                                # log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
-
                     else:
                         # Matched by REGEX but not a supported control type
-                        log.warn("Invalid Record Type %d", record_type)
-                        self._exception_callback(SampleException("Invalid Record Type %d" % record_type))
+                        error_str = 'Invalid Record Type %d'
+                        log.warn(error_str, record_type)
+                        self._exception_callback(SampleException(error_str % record_type))
                 else:
                     # Non-PH or non-Control type or REGEX not matching PH/Control record
-                    log.warn("REGEX doesn't match PH or Control record %s", chunk)
-                    self._exception_callback(SampleException("REGEX doesn't match PH or Control record"))
+                    error_str = 'REGEX does not match PH or Control record %s'
+                    log.warn(error_str, chunk)
+                    self._exception_callback(SampleException(error_str % chunk))
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)

@@ -11,7 +11,6 @@ initial release
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import string
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
@@ -21,7 +20,9 @@ from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle, PhsenControlDataParticle
-from mi.dataset.parser.phsen_abcdef import PhsenRecoveredParser, PhsenRecoveredInstrumentDataParticle, PhsenRecoveredMetadataDataParticle
+from mi.dataset.parser.phsen_abcdef import PhsenRecoveredParser, PhsenRecoveredInstrumentDataParticle, \
+    PhsenRecoveredMetadataDataParticle
+
 
 class DataSourceKey(BaseEnum):
     """
@@ -30,9 +31,8 @@ class DataSourceKey(BaseEnum):
     PHSEN_ABCDEF_SIO_MULE = 'phsen_abcdef_sio_mule'
     PHSEN_ABCDEF = 'phsen_abcdef'
 
-class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
 
-    parser_created_count = 0
+class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
 
     @classmethod
     def stream_config(cls):
@@ -60,9 +60,6 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
             parser = self._build_telemetered_parser(parser_state, stream_in)
         elif data_key == DataSourceKey.PHSEN_ABCDEF:
             parser = self._build_recovered_parser(parser_state, stream_in)
-            self.parser_created_count += 1
-            log.debug("just built parser, count %d state: %s", self.parser_created_count,
-                      parser_state)
         else:
             raise ConfigurationException('Tried to build parser for unknown data source key %s' % data_key)
         return parser
@@ -101,8 +98,6 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
                                                      'PhsenRecoveredMetadataDataParticle']
         })
 
-        log.debug("MYCONFIG: %s", config)
-
         parser = PhsenRecoveredParser(
             config, parser_state, stream_in,
             lambda state, ingested:
@@ -135,13 +130,9 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
                 driver_state[DataSourceKey.PHSEN_ABCDEF],
                 lambda filename: self._new_file_callback(filename, DataSourceKey.PHSEN_ABCDEF),
                 lambda modified: self._modified_file_callback(modified, DataSourceKey.PHSEN_ABCDEF),
-                self._exception_callback)
-
-            if recov_harvester is not None:
-                log.debug("harvester was built")
-                harvesters.append(recov_harvester)
-            else:
-                log.debug("Recovered Harvester could not be built")
+                self._exception_callback
+            )
+            harvesters.append(recov_harvester)
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.PHSEN_ABCDEF)
 
