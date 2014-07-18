@@ -276,8 +276,8 @@ class SatlanticPARDataParticle(DataParticle):
             if checksum != received_checksum:
                 log.warn("Calculated checksum %s did not match packet checksum %s.", checksum, received_checksum)
                 return False
-            else:
-                return True
+
+            return True
 
 
 class SatlanticPARConfigParticleKey(BaseEnum):
