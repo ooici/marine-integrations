@@ -75,8 +75,12 @@ GET_REGEX = re.compile(GET_PATTERN)
 
 INIT_PATTERN = 'Initializing system. Please wait...'
 
+UNSAVED_PATTERN = 'The configuration parameters have been modified.' #\r\n' \
+                  #r'Save changes [y/n]?'
+
 INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
+VALID_MAXRATES = (0, 0.125, 0.5, 1, 2, 4, 8, 10, 12)
 EOLN = "\r\n"
 
 
@@ -175,6 +179,7 @@ class Prompt(BaseEnum):
     NULL = ''
     ENTER_EXIT_CMD_MODE = '\x0c'
     SAMPLES = 'SATPAR'
+    UNSAVED = UNSAVED_PATTERN
 
 
 ###############################################################################
@@ -226,19 +231,17 @@ class SatlanticPARDataParticle(DataParticle):
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
 
-        sernum = str(match.group('sernum'))
-        timer = float(match.group('timer'))
-        counts = int(match.group('counts'))
-        checksum = int(match.group('checksum'))
-
-        if not sernum:
-            raise SampleException("No serial number value parsed")
-        if not timer:
-            raise SampleException("No timer value parsed")
-        if not counts:
-            raise SampleException("No counts value parsed")
-        if not checksum:
-            raise SampleException("No checksum value parsed")
+        try:
+            sernum = str(match.group('sernum'))
+            timer = float(match.group('timer'))
+            counts = int(match.group('counts'))
+            checksum = int(match.group('checksum'))
+        except ValueError:
+            log.warn("_build_parsed_values")
+            raise SampleException('malformed particle - missing required value(s)')
+        except TypeError:
+            log.warn("_build_parsed_values")
+            raise SampleException('malformed particle - missing required value(s)')
 
         if not self._checksum_check(self.raw_data):
             self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
@@ -256,8 +259,6 @@ class SatlanticPARDataParticle(DataParticle):
             @param data The entire line of data, including the checksum
             @retval True if the checksum fits, False if the checksum is bad
             """
-            assert data is not None
-            assert data != ""
             match = SAMPLE_REGEX.match(data)
             if not match:
                 return False
@@ -297,24 +298,11 @@ class SatlanticPARConfigParticle(DataParticle):
     Overrides the building of values, and the rest comes along for free.
     Serial Number, Firmware, & Instrument are read only values retrieved from the param dictionary.
     """
-
-    def __init__(self, serial_num, firmware, instrument,
-                 raw_data,
-                 port_timestamp=None,
-                 internal_timestamp=None,
-                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                 quality_flag=DataParticleValue.OK,
-                 new_sequence=None):
+    def __init__(self, serial_num, firmware, instrument, *args, **kwargs):
         self._serial_num = serial_num
         self._firmware = firmware
         self._instrument = instrument
-        super(SatlanticPARConfigParticle, self).__init__(
-            raw_data,
-            port_timestamp=port_timestamp,
-            internal_timestamp=internal_timestamp,
-            preferred_timestamp=preferred_timestamp,
-            quality_flag=quality_flag,
-            new_sequence=new_sequence)
+        super(SatlanticPARConfigParticle, self).__init__(*args, **kwargs)
 
     _data_particle_type = DataParticleType.CONFIG
 
@@ -328,16 +316,18 @@ class SatlanticPARConfigParticle(DataParticle):
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
 
-        maxrate = float(match.group('maxrate'))
-        baud = int(match.group('baud'))
+        try:
+            maxrate = float(match.group('maxrate'))
+            baud = int(match.group('baud'))
+        except ValueError:
+            log.warn("_build_parsed_values")
+            raise SampleException('malformed particle - missing required value(s)')
+        except TypeError:
+            log.warn("_build_parsed_values")
+            raise SampleException('malformed particle - missing required value(s)')
 
-        log.debug("_build_parsed_values: %s, %s, %s, %s, %s",
+        log.trace("_build_parsed_values: %s, %s, %s, %s, %s",
                   maxrate, baud, self._serial_num, self._firmware, self._instrument)
-
-        if maxrate is None:
-            raise SampleException("No maxrate value parsed")
-        if baud is None:
-            raise SampleException("No baud rate value parsed")
 
         result = [{DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.BAUD_RATE, DataParticleKey.VALUE: baud},
                   {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.MAX_RATE, DataParticleKey.VALUE: maxrate},
@@ -362,7 +352,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     """
 
     #logging level
-    __metaclass__ = get_logging_metaclass(log_level='debug')
+    __metaclass__ = get_logging_metaclass(log_level='trace')
 
     def __init__(self, callback=None):
         CommandResponseInstrumentProtocol.__init__(self, Prompt, EOLN, callback)
@@ -373,7 +363,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(PARProtocolState.UNKNOWN, PARProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
@@ -415,13 +405,13 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              description='Maximum sampling rate in Hz',
                              type=ParameterDictType.FLOAT,
                              units=Units.HERTZ,
-                             value_description='Only certain standard frame rates are accepted by this parameter: \
-                             0, 0.125, 0.5, 1, 2, 4, 8, 10, and 12. Any non-integer values are truncated. \
-                             To specify an automatic (AUTO) frame rate, input "0" as the value parameter. \
-                             This will cause the instrument to output frames as fast as possible. \
-                             Specifying a frame rate faster than is practically possible will not force the \
-                             actual frame rate to that level. The instrument will only transmit as fast as possible \
-                             for the given operating parameters.')
+                             value_description='Only certain standard frame rates are accepted by this parameter:'
+                             '0, 0.125, 0.5, 1, 2, 4, 8, 10, and 12. Any non-integer values are truncated.'
+                             'To specify an automatic (AUTO) frame rate, input "0" as the value parameter.'
+                             'This will cause the instrument to output frames as fast as possible.'
+                             'Specifying a frame rate faster than is practically possible will not force the'
+                             'actual frame rate to that level. The instrument will only transmit as fast as possible'
+                             'for the given operating parameters.')
 
         self._param_dict.add(Parameter.INSTRUMENT,
                              HEADER_PATTERN,
@@ -532,36 +522,37 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             # & allows the entire line of a commands to be sent successfully.
             # self._connection.send("    ".join(map(None, cmd_line)))
 
-            time.sleep(0.115)
-            starttime = time.time()
-            self._connection.send(EOLN)
-            while EOLN not in self._promptbuf[len(cmd_line):len(cmd_line)+2] and Prompt.ENTER_EXIT_CMD_MODE \
-                       not in self._promptbuf[len(cmd_line):len(cmd_line)+2]:
-                time.sleep(0.0015)
-                if time.time() > starttime + 3:
-                    break
-
-            # Limit resend_check_value from expected_prompt to one of the two below
-            resend_check_value = None
-            if expected_prompt is not None:
-                for check in (Prompt.COMMAND, Prompt.SAMPLES):
-                    if check in expected_prompt:
-                        log.trace('_do_cmd: command: %s, check=%s' % (cmd_line, check))
-                        resend_check_value = check
-
-            # Resend the EOLN if it did not go through the first time
-            starttime = time.time()
-            if resend_check_value is not None:
-                while True:
-                    time.sleep(0.1)
-                    if time.time() > starttime + 2:
-                        log.debug("Sending eoln again.")
-                        self._connection.send(EOLN)
-                        starttime = time.time()
-                    if resend_check_value in self._promptbuf:
+            if EOLN not in cmd_line:    # Note: Direct access commands may already include an EOLN
+                time.sleep(0.115)
+                starttime = time.time()
+                self._connection.send(EOLN)
+                while EOLN not in self._promptbuf[len(cmd_line):len(cmd_line)+2] and Prompt.ENTER_EXIT_CMD_MODE \
+                           not in self._promptbuf[len(cmd_line):len(cmd_line)+2]:
+                    time.sleep(0.0015)
+                    if time.time() > starttime + 3:
                         break
-                    if PARProtocolError.INVALID_COMMAND in self._promptbuf:
-                        break
+
+                # Limit resend_check_value from expected_prompt to one of the two below
+                resend_check_value = None
+                if expected_prompt is not None:
+                    for check in (Prompt.COMMAND, Prompt.SAMPLES):
+                        if check in expected_prompt:
+                            log.trace('_do_cmd: command: %s, check=%s' % (cmd_line, check))
+                            resend_check_value = check
+
+                # Resend the EOLN if it did not go through the first time
+                starttime = time.time()
+                if resend_check_value is not None:
+                    while True:
+                        time.sleep(0.1)
+                        if time.time() > starttime + 2:
+                            log.debug("Sending eoln again.")
+                            self._connection.send(EOLN)
+                            starttime = time.time()
+                        if resend_check_value in self._promptbuf:
+                            break
+                        if PARProtocolError.INVALID_COMMAND in self._promptbuf:
+                            break
 
         return cmd_line
 
@@ -670,7 +661,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             probe_resp = self._do_cmd_resp(Command.SAMPLE, timeout=2,
                                            expected_prompt=[Prompt.SAMPLES, PARProtocolError.INVALID_COMMAND])
         except InstrumentTimeoutException:
-            self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
+            self._do_cmd_resp(Command.SWITCH_TO_AUTOSAMPLE, expected_prompt=Prompt.SAMPLES, timeout=15)
             return PARProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
 
         log.trace("_handler_unknown_discover: returned: %s", probe_resp)
@@ -678,7 +669,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             return PARProtocolState.COMMAND, ResourceAgentState.IDLE
         else:
             # Put the instrument into full autosample in case it isn't already (could be in polled mode)
-            self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
+            self._do_cmd_resp(Command.SWITCH_TO_AUTOSAMPLE, expected_prompt=Prompt.SAMPLES, timeout=15)
             return PARProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING
 
     ########################################################################
@@ -696,39 +687,19 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_command_get(self, *args):
-        """
-        Handle getting data from command mode
-        @param params List of the parameters to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentParameterException For invalid parameter
-        """
-        # Retrieve the required parameter, raise if not present.
+    def _send_exit(self):
         try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-        # If all params requested, retrieve config.
-        if (params == DriverParameter.ALL) or (params == [DriverParameter.ALL]):
-            result = self._param_dict.get_config()
+            prompt = self._do_cmd_resp(Command.EXIT, expected_prompt=[Prompt.SAMPLES, Prompt.UNSAVED], timeout=15)
+        except InstrumentTimeoutException:
+            # Failed exit command, assume unknown instrument
+            next_state, next_agent_state = self._handler_unknown_discover()
+            if next_state != DriverProtocolState.AUTOSAMPLE:
+                self._handler_command_start_autosample()
 
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retrieve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-
-        log.debug("Get finished, next: %s, result: %s", None, result)
-        return None, result
+            # make sure instrument is in autosample
+        if prompt == Prompt.UNSAVED:
+            # A parameter was changed, but somehow not saved. Need to send 'y' + EOLN
+            self._do_cmd_no_resp('y' + EOLN)
 
     def _get_header_params(self):
         """
@@ -737,7 +708,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         self._do_cmd_resp(Command.EXIT, expected_prompt=Prompt.SAMPLES, timeout=15)
         time.sleep(0.115)
-        (instr, sernum, firm) = self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=5)
+        instr, sernum, firm = self._do_cmd_resp(Command.RESET, expected_prompt=INIT_PATTERN, timeout=5)
         time.sleep(1)
         self._do_cmd_resp(Command.BREAK, response_regex=COMMAND_REGEX, timeout=5)
         self._param_dict.set_value(Parameter.INSTRUMENT, instr)
@@ -777,10 +748,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         instrument_params_changed = False
         old_config = self._param_dict.get_all()
 
-        if (params is None) or (not isinstance(params, dict)):
+        if not isinstance(params, dict):
             raise InstrumentParameterException('Set params requires a parameter dict.')
         self._verify_not_readonly(params, startup)
-        for name in params.keys():
+        for name, value in params.iteritems():
             if EngineeringParameter.has(name):
                 try:
                     old_val = self._param_dict.format(name)
@@ -791,6 +762,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                     self._param_dict.set_value(name, new_val)
                     scheduling_interval_changed = True
             elif Parameter.has(name):
+                if name == Parameter.MAXRATE and value not in VALID_MAXRATES:
+                    raise InstrumentParameterException("Maxrate %s out of range" % value)
                 try:
                     old_val = self._param_dict.format(name)
                     new_val = self._param_dict.format(name, params[name])
@@ -885,7 +858,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         self._do_cmd_resp(Command.EXIT, expected_prompt=Prompt.SAMPLES, timeout=15)
         time.sleep(0.115)
-        self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE)
+        self._do_cmd_resp(Command.SWITCH_TO_AUTOSAMPLE, expected_prompt=Prompt.SAMPLES, timeout=15)
         return PARProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     def _handler_command_start_direct(self):
@@ -924,9 +897,16 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         High level command for the operator to get the status from the instrument in autosample state
         """
-        self._handler_autosample_stop_autosample()
-        self._handler_acquire_status()
-        self._handler_command_start_autosample()
+        try:
+            self._handler_autosample_stop_autosample()
+            self._handler_acquire_status()
+            self._handler_command_start_autosample()
+
+        # Since this is registered only for autosample mode, make sure this ends w/ instrument in autosample mode
+        except InstrumentTimeoutException:
+            next_state, next_agent_state = self._handler_unknown_discover()
+            if next_state != DriverProtocolState.AUTOSAMPLE:
+                self._handler_command_start_autosample()
 
         return None, (None, None)
 
@@ -1011,6 +991,16 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         pass
 
+    def _do_cmd_direct(self, cmd):
+        """
+        Issue an untranslated command to the instrument. No response is handled as a result of the command.
+        Overridden: Use _do_cmd to send commands reliably. Remove if digi-serial interface is ever fixed.
+
+        @param cmd The high level command to issue
+        """
+        # Send command.
+        self._do_cmd(cmd)
+
     def _handler_direct_access_execute_direct(self, data):
         """
         Execute Direct Access command(s)
@@ -1025,6 +1015,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Stop Direct Access, and put the driver into a healthy state
         """
         next_state, next_agent_state = self._handler_unknown_discover()
+        if next_state == DriverProtocolState.COMMAND:
+            next_agent_state = ResourceAgentState.COMMAND
 
         return next_state, (next_agent_state, None)
 
@@ -1115,7 +1107,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _send_break_poll(self):
         """
-        Send a burst of stop auto poll commands (^S) and wait to confirm success based on current max rate settting.
+        Send a burst of stop auto poll commands (^S) and wait to confirm success based on current max rate setting.
         Note: Current maxrate can be either 0(maximum output), 0.125, 0.5, 1, 2, 4, 8, 10, or 12.
         At maxrates above 4, sending a single stop auto poll command is highly unreliable.
         Generally, a Digital PAR sensor cannot exceed a frame rate faster than 7.5 Hz.
@@ -1133,9 +1125,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         while True:
             if send_flag:
-                for _ in xrange(25):    # 25 x 0.15 seconds = 3.75 seconds
+                if current_maxrate < 8:
                     self._connection.send(Command.SWITCH_TO_POLL)
-                    time.sleep(.15)
+                else:
+                    for _ in xrange(25):    # 25 x 0.15 seconds = 3.75 seconds
+                        self._connection.send(Command.SWITCH_TO_POLL)
+                        time.sleep(.15)
                 send_flag = False
             time.sleep(0.1)
 
@@ -1150,9 +1145,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                 break
 
         # Give some time for the buffer to clear from the burst of stop commands
-        extra_sleep = 5 - (time.time() - (starttime + time_between_samples))
-        if extra_sleep > 0:
-            time.sleep(extra_sleep)
+        if current_maxrate >= 8:
+            extra_sleep = 5 - (time.time() - (starttime + time_between_samples))
+            if extra_sleep > 0:
+                time.sleep(extra_sleep)
 
     def _send_continuous_break(self):
         """
