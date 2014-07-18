@@ -134,7 +134,6 @@ class FlortdParser(SioMuleParser):
                  state_callback,
                  publish_callback,
                  exception_callback,
-                 recovered_flag=False,
                  *args, **kwargs):
         super(FlortdParser, self).__init__(config,
                                           stream_handle,
@@ -143,7 +142,6 @@ class FlortdParser(SioMuleParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          recovered_flag,
                                           *args,
                                           **kwargs)
 
