@@ -1,0 +1,21 @@
+# Result data after parsing SAMI_P0080_180713_integration.txt
+# Step 4 of test_stop_resume_recovered phsen_abcdef integration test
+header:
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
+
+data:
+ - _index: 1
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583122299.0
+   record_type: 10
+   record_time: 3456978299
+   thermistor_start: 2329
+   reference_light_measurements: [3048, 2021, 2734, 2780, 3043, 2021, 2735, 2780, 3045, 2018, 2733, 2776, 3046, 2018, 2732, 2778]
+   light_measurements: [3048, 2019, 2735, 2776, 3044, 2023, 2734, 2780, 3044, 2004, 2733, 2768, 3045, 1708, 2734, 2549, 3045, 1147, 2731, 2080, 3046, 692, 2734, 1610, 3047, 463, 2733, 1314, 3042, 371, 2730, 1178, 3046, 354, 2733, 1141, 3044, 378, 2734, 1184, 3043, 434, 2728, 1267, 3045, 513, 2732, 1374, 3047, 604, 2733, 1497, 3044, 708, 2731, 1624, 3045, 816, 2732, 1750, 3042, 935, 2737, 1868, 3045, 1045, 2735, 1981, 3048, 1146, 2735, 2077, 3044, 1247, 2732, 2171, 3049, 1339, 2737, 2249, 3046, 1422, 2733, 2320, 3044, 1496, 2732, 2379, 3051, 1560, 2736, 2432]
+   voltage_battery: 2842
+   thermistor_end: 2330
+
+
+
