@@ -42,11 +42,22 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'spkir_abj_cspp',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: '',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+                DataSetDriverConfigKeys.PATTERN: '',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+
+            DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+                DataSetDriverConfigKeys.PATTERN: '',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED: {},
+            DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED: {}
+        }
     }
 )
 

@@ -122,7 +122,7 @@ class SpkirAbjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             if telemetered_harvester is not None:
                 harvesters.append(telemetered_harvester)
             else:
-               log.warn('Creation of spkir_abj_cspp telemetered harvester failed')
+                log.warn('Creation of spkir_abj_cspp telemetered harvester failed')
         else:
             log.warn('No configuration for spkir_abj_cspp telemetered harvester, not building')
 
@@ -134,7 +134,7 @@ class SpkirAbjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             if recovered_harvester is not None:
                 harvesters.append(recovered_harvester)
             else:
-               log.warn('Creation of spkir_abj_cspp recovered harvester failed')
+                log.warn('Creation of spkir_abj_cspp recovered harvester failed')
         else:
             log.warn('No configuration for spkir_abj_cspp recovered harvester, not building')
 
