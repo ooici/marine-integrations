@@ -27,11 +27,15 @@ from mi.dataset.parser.cspp_base import \
     CsppParser, \
     FLOAT_REGEX, \
     INT_REGEX, \
+    Y_OR_N_REGEX, \
     MULTIPLE_TAB_REGEX, \
     CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
     CsppMetadataDataParticle, \
-    MetadataRawDataKey, PARTICLE_KEY_INDEX, \
-    DATA_MATCHES_GROUP_NUMBER_INDEX, TYPE_ENCODING_INDEX
+    MetadataRawDataKey, \
+    PARTICLE_KEY_INDEX, \
+    DATA_MATCHES_GROUP_NUMBER_INDEX, \
+    TYPE_ENCODING_INDEX, \
+    encode_y_or_n
 
 INSTRUMENT_ID_REGEX = r'SAT\w+'  # instrument ids all begin with SAT
 CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'  # hex characters
@@ -41,6 +45,7 @@ CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'  # hex characters
 #
 # string 	float64 	    Profiler Timestamp 	seconds 	Seconds since 1/1/70 with millisecond resolution
 # string 	float32 	    Depth 	            decibars
+# string    string          Suspect Timestamp   1           "y" or "n"
 # string 	string 	        Instrument ID    	1 	        "SAT" + instrument type
 # string 	string 	        Serial Number 	    1
 # string 	float64 	    Timer (On Secs) 	seconds 	This field is left padded with zeros
@@ -61,6 +66,7 @@ CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'  # hex characters
 # *** Need to define data regex for this parser ***
 DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
+DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX # Suspect Timestamp
 DATA_REGEX += '(' + INSTRUMENT_ID_REGEX + ')' + MULTIPLE_TAB_REGEX  # Instrument ID
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Serial Number
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Timer
@@ -98,22 +104,23 @@ class DataMatchesGroupNumber(BaseEnum):
     """
     PROFILER_TIMESTAMP = 1
     PRESSURE = 2
-    MODEL = 3
-    SERIAL_NUMBER = 4
-    TIMER = 5
-    SAMPLE_DELAY = 6
-    CHANNEL_1 = 7
-    CHANNEL_2 = 8
-    CHANNEL_3 = 9
-    CHANNEL_4 = 10
-    CHANNEL_5 = 11
-    CHANNEL_6 = 12
-    CHANNEL_7 = 13
-    VIN = 14
-    VA = 15
-    INTERNAL_TEMPERATURE = 16
-    FRAME_COUNTER = 17
-    CHECKSUM = 18
+    SUSPECT_TIMESTAMP = 3
+    MODEL = 4
+    SERIAL_NUMBER = 5
+    TIMER = 6
+    SAMPLE_DELAY = 7
+    CHANNEL_1 = 8
+    CHANNEL_2 = 9
+    CHANNEL_3 = 10
+    CHANNEL_4 = 11
+    CHANNEL_5 = 12
+    CHANNEL_6 = 13
+    CHANNEL_7 = 14
+    VIN = 15
+    VA = 16
+    INTERNAL_TEMPERATURE = 17
+    FRAME_COUNTER = 18
+    CHECKSUM = 19
 
 
 class DataParticleType(BaseEnum):
@@ -135,6 +142,7 @@ class SpkirAbjCsppParserDataParticleKey(BaseEnum):
     SERIAL_NUMBER = 'serial_number'
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure_depth'
+    SUSPECT_TIMESTAMP = 'suspect_timestamp'
     TIMER = 'timer'
     SAMPLE_DELAY = 'sample_delay'
     CHANNEL_ARRAY = 'channel_array'
@@ -235,6 +243,10 @@ class SpkirAbjCsppInstrumentDataParticle(DataParticle):
             results.append(self._encode_value(SpkirAbjCsppParserDataParticleKey.PRESSURE,
                                               self.raw_data.group(DataMatchesGroupNumber.PRESSURE),
                                               float))
+
+            results.append(self._encode_value(SpkirAbjCsppParserDataParticleKey.SUSPECT_TIMESTAMP,
+                                              self.raw_data.group(DataMatchesGroupNumber.SUSPECT_TIMESTAMP),
+                                              encode_y_or_n))
 
             results.append(self._encode_value(SpkirAbjCsppParserDataParticleKey.TIMER,
                                               self.raw_data.group(DataMatchesGroupNumber.TIMER),

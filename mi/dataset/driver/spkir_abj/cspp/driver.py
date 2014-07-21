@@ -59,11 +59,12 @@ class SpkirAbjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
                                                         exception_callback,
                                                         data_keys)
 
-    def _build_parser(self, parser_state, stream_in, data_key, file_in):
+    def _build_parser(self, parser_state, stream_in, data_key):
         """
         Build and return the parser
         """
-        config = self._parser_config(data_key)
+
+        config = self._parser_config.get(data_key)
 
         if config is None:
             log.warn('Parser config does not exist for key = %s.  Not building parser', data_key)

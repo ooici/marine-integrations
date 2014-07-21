@@ -149,7 +149,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         particles = parser.get_records(20)
 
-        self.particle_to_yml(particles, '11079419_PPB_OCR_20.yml')
+        self.particle_to_yml(particles, '11079419_PPB_OCR_recov.yml')
         fid.close()
 
     def assert_result(self, test, particle):
@@ -227,20 +227,13 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         log.debug("*** test_simple Num particles %s", len(particles))
 
         # check the first particle, which should be the metadata particle (recovered)
-        test_data = self.get_dict_from_yml('test_simple_meta_1.yml')
-        self.assert_result(test_data['data'][0], particles[0])
+        test_data = self.get_dict_from_yml('11079419_PPB_OCR_recov.yml')
 
-        # check the second particle, which should be the first data particle (recovered)
-        test_data = self.get_dict_from_yml('test_simple_inst_1.yml')
-        self.assert_result(test_data['data'][0], particles[1])
+        # check all the values against expected results.
 
-        # check the tenth particle, which should be the ninth data particle (recovered)
-        test_data = self.get_dict_from_yml('test_simple_inst_9.yml')
-        self.assert_result(test_data['data'][0], particles[9])
+        for i in range(len(particles)):
 
-        # check the last particle, which should be the nineteenth data particle (recovered)
-        test_data = self.get_dict_from_yml('test_simple_inst_19.yml')
-        self.assert_result(test_data['data'][0], particles[19])
+            self.assert_result(test_data['data'][i], particles[i])
 
         stream_handle.close()
 
@@ -278,9 +271,9 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
         stream_handle = open(file_path, 'rb')
 
-        # position 1329 is the end of the frist data record, which would have produced the
+        # position 1410 is the end of the frist data record, which would have produced the
         # metadata particle and the first instrument particle
-        initial_state = {StateKey.POSITION: 1329, StateKey.METADATA_EXTRACTED: True}
+        initial_state = {StateKey.POSITION: 1410, StateKey.METADATA_EXTRACTED: True}
 
         parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
                                     initial_state, stream_handle,
@@ -300,7 +293,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
             self.assert_result(expected_results['data'][i], particles[i])
 
         # now expect the state to be the end of the 4 data record and metadata sent
-        the_new_state = {StateKey.POSITION: 1619, StateKey.METADATA_EXTRACTED: True}
+        the_new_state = {StateKey.POSITION: 1704, StateKey.METADATA_EXTRACTED: True}
         log.debug("********** expected state: %s", the_new_state)
         log.debug("******** new parser state: %s", parser._state)
         self.assertTrue(parser._state == the_new_state)
@@ -319,7 +312,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         # 11079419_PPB_OCR_20.yml has the metadata and the first 19
         # instrument particles in it
-        expected_results = self.get_dict_from_yml('11079419_PPB_OCR_20.yml')
+        expected_results = self.get_dict_from_yml('11079419_PPB_OCR_recov.yml')
 
         parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
                                        None, stream_handle,
@@ -336,7 +329,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
             self.assert_result(expected_results['data'][i], particles[i])
 
         # position 3656 is the byte at the start of the 18th data record
-        new_state = {StateKey.POSITION: 3656, StateKey.METADATA_EXTRACTED: True}
+        new_state = {StateKey.POSITION: 3769, StateKey.METADATA_EXTRACTED: True}
 
         parser.set_state(new_state)
 
@@ -373,6 +366,8 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         particles = parser.get_records(2)
 
         expected_results = self.get_dict_from_yml('bad_data_record.yml')
+
+        self.assertTrue(len(particles) == 2)
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
