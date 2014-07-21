@@ -257,7 +257,9 @@ class DataSetTestCase(MiIntTestCase):
         self.clear_sample_data()
         if isinstance(data_dir, list):
             for d_dir in data_dir:
-                os.rmdir(d_dir)
+                # confirm this path exists in case we configure two parsers to look at the same dir
+                if os.path.exists(d_dir):
+                    os.rmdir(d_dir)
         else:
             os.rmdir(data_dir)
 
