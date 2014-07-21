@@ -128,74 +128,11 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
                                             self.state_callback, self.pub_callback,
                                             self.exception_callback)
 
-        particles = self.parser.get_records(1000)
+        particles = self.parser.get_records(20)
 
         log.info("Exception callback value: %s", self.exception_callback_value)
 
-        self.particle_to_yml(particles, 'test.yml')
-
-    def test_newline(self):
-        """
-        Read test data and pull out data particles one at a time.
-        Assert that the results are those we expected.
-        """
-        file_path = os.path.join(RESOURCE_PATH, 'test_newline.txt')
-        stream_handle = open(file_path, 'rb')
-
-        parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
-                                       None, stream_handle,
-                                       self.state_callback, self.pub_callback,
-                                       self.exception_callback)
-
-        particles = parser.get_records(2)
-
-        # log.info("Exception callback value: %s", self.exception_callback_value)
-        #
-        # self.assertTrue(self.exception_callback_value is None)
-        #
-        # self.assertTrue(len(particles) == 5)
-        #
-        # expected_results = self.get_dict_from_yml('simple.yml')
-        #
-        # for i in range(len(particles)):
-        #     self.assert_result(expected_results['data'][i], particles[i])
-
-        stream_handle.close()
-
-    def test_temp(self):
-        """
-        Read test data and pull out data particles one at a time.
-        Assert that the results are those we expected.
-        """
-        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OPT.txt')
-        stream_handle = open(file_path, 'rb')
-
-        parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
-                                       None, stream_handle,
-                                       self.state_callback, self.pub_callback,
-                                       self.exception_callback)
-
-        particles = parser.get_records(5)
-
-        log.info("Exception callback value: %s", self.exception_callback_value)
-
-        self.assertTrue(len(particles) == 5)
-
-        expected_results = self.get_dict_from_yml('test_get_recovered_one.yml')
-
-        for i in range(len(particles)):
-            self.assert_result(expected_results['data'][i], particles[i])
-
-        particles = parser.get_records(5)
-
-        self.assertTrue(len(particles) == 5)
-
-        expected_results = self.get_dict_from_yml('test_get_recovered_two.yml')
-
-        for i in range(len(particles)):
-            self.assert_result(expected_results['data'][i], particles[i])
-
-        stream_handle.close()
+        self.particle_to_yml(particles, '11079894_PPB_OPT.yml')
 
     def test_simple(self):
         """
@@ -218,7 +155,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 5)
 
-        expected_results = self.get_dict_from_yml('simple.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
@@ -247,30 +184,16 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
 
-        expected_results = self.get_dict_from_yml('get_many_one.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
-
-        # Let's attempt to retrieve 30 particles
-        particles = parser.get_records(30)
-
-        log.info("Exception callback value: %s", self.exception_callback_value)
-
-        # Should end up with 30 particles
-        self.assertTrue(len(particles) == 30)
-
-        expected_results = self.get_dict_from_yml('get_many_two.yml')
-        for i in range(len(particles)):
-            self.assert_result(expected_results['data'][i], particles[i])
-
-        stream_handle.close()
 
     def test_long_stream(self):
         """
         Test a long stream 
         """
 
-        file_path = os.path.join(RESOURCE_PATH, 'LargeImport_PPB_OPT.txt')
+        file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_OPT.txt')
         stream_handle = open(file_path, 'rb')
 
         parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
@@ -279,14 +202,14 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
                                        self.exception_callback)
 
         # Let's attempt to retrieve 2000 particles
-        particles = parser.get_records(2000)
+        particles = parser.get_records(300)
 
         log.info("Num particles: %s", len(particles))
 
         log.info("Exception callback value: %s", self.exception_callback_value)
 
-        # Should end up with 1532 particles
-        self.assertTrue(len(particles) == 1532)
+        # Should end up with 272 particles
+        self.assertTrue(len(particles) == 272)
 
         stream_handle.close()
 
@@ -296,7 +219,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         a time.
         """
 
-        expected_results = self.get_dict_from_yml('set_state.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
 
         file_path = os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt')
         stream_handle = open(file_path, 'rb')
@@ -331,7 +254,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("22222222 Read State: %s", parser._read_state)
         log.info("22222222 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 296, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 332, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][1], particles[0])
 
@@ -347,7 +270,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("33333333 Read State: %s", parser._read_state)
         log.info("33333333 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 388, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 425, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][2], particles[0])
 
@@ -363,7 +286,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("44444444 Read State: %s", parser._read_state)
         log.info("44444444 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 480, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 518, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][3], particles[0])
 
@@ -379,7 +302,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("55555555 Read State: %s", parser._read_state)
         log.info("55555555 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 572, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 611, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][4], particles[0])
 
@@ -389,7 +312,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         a time.
         """
 
-        expected_results = self.get_dict_from_yml('set_state.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
 
         file_path = os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt')
         stream_handle = open(file_path, 'rb')
@@ -411,7 +334,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("11111111 Read State: %s", parser._read_state)
         log.info("11111111 State: %s", parser._state)
 
-        the_new_state = {StateKey.POSITION: 296, StateKey.METADATA_EXTRACTED: True}
+        the_new_state = {StateKey.POSITION: 332, StateKey.METADATA_EXTRACTED: True}
         log.info("11111111 new parser state: %s", the_new_state)
 
         parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
@@ -457,7 +380,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         and setting the METADATA_EXTRACTED to False.
         """
 
-        expected_results = self.get_dict_from_yml('set_state.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
 
         file_path = os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt')
         stream_handle = open(file_path, 'rb')
@@ -489,6 +412,8 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
         particles = parser.get_records(1)
 
+        self.assertTrue(len(particles) == 1)
+
         log.info("22222222 Read State: %s", parser._read_state)
         log.info("22222222 State: %s", parser._state)
 
@@ -505,10 +430,12 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
         particles = parser.get_records(1)
 
+        self.assertTrue(len(particles) == 1)
+
         log.info("22222222 Read State: %s", parser._read_state)
         log.info("22222222 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 296, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 332, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][1], particles[0])
 
@@ -516,12 +443,12 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         """
         This test makes sure that we retrieve the correct particles upon starting with an offsetted state.
         """
-        expected_results = self.get_dict_from_yml('set_state.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
 
         file_path = os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt')
         stream_handle = open(file_path, 'rb')
 
-        initial_state = {StateKey.POSITION: 296, StateKey.METADATA_EXTRACTED: True}
+        initial_state = {StateKey.POSITION: 332, StateKey.METADATA_EXTRACTED: True}
 
         parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
                                        initial_state, stream_handle,
@@ -540,13 +467,13 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("******** Read State: %s", parser._read_state)
         log.info("******** State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 480, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 518, StateKey.METADATA_EXTRACTED: True})
 
     def test_state_reset(self):
         """
         This test makes sure that we retrieve the correct particles upon resetting the state to a prior position.
         """
-        expected_results = self.get_dict_from_yml('set_state.yml')
+        expected_results = self.get_dict_from_yml('11079894_PPB_OPT.yml')
 
         file_path = os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt')
         stream_handle = open(file_path, 'rb')
@@ -581,7 +508,9 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("22222222 Read State: %s", parser._read_state)
         log.info("22222222 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 296, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(len(particles) == 1)
+
+        self.assertTrue(parser._state == {StateKey.POSITION: 332, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][1], particles[0])
 
@@ -597,7 +526,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("33333333 Read State: %s", parser._read_state)
         log.info("33333333 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 388, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 425, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][2], particles[0])
 
@@ -614,7 +543,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("44444444 Read State: %s", parser._read_state)
         log.info("44444444 State: %s", parser._state)
 
-        self.assertTrue(parser._state == {StateKey.POSITION: 296, StateKey.METADATA_EXTRACTED: True})
+        self.assertTrue(parser._state == {StateKey.POSITION: 332, StateKey.METADATA_EXTRACTED: True})
 
         self.assert_result(expected_results['data'][1], particles[0])
 
@@ -733,7 +662,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
                 particle_data = particle.get_value('internal_timestamp')
                 #the timestamp is in the header part of the particle
 
-                log.info("internal_timestamp %.10f", particle_data)
+                # log.info("internal_timestamp %.10f", particle_data)
 
             else:
                 particle_data = particle_values.get(key)
@@ -747,14 +676,14 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
                 log.info("Key: %s", key)
                 log.info("Expected Results Type: %s: ", type(expected_results))
                 if isinstance(expected_results, float):
-                    log.info("Expected data: %.10f", expected_results)
-                    log.info("Actual data: %.10f", particle_data)
+                    # log.info("Expected data: %.10f", expected_results)
+                    # log.info("Actual data: %.10f", particle_data)
                     # slightly different test for these values as they are floats.
                     compare = numpy.abs(expected_results - particle_data) <= 1e-5
                     self.assertTrue(compare)
                 else:
-                    log.info("Expected data: %s", expected_results)
-                    log.info("Actual data: %s", particle_data)
+                    # log.info("Expected data: %s", expected_results)
+                    # log.info("Actual data: %s", particle_data)
                     # otherwise they are all ints and should be exactly equal
                     self.assertEqual(expected_results, particle_data)
 

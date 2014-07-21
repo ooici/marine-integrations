@@ -20,22 +20,39 @@ log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle
-from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, CsppMetadataDataParticle, MetadataRawDataKey, PARTICLE_KEY_INDEX, \
-    DATA_MATCHES_GROUP_NUMBER_INDEX, TYPE_ENCODING_INDEX
+from mi.dataset.parser.cspp_base import \
+    CsppParser, \
+    FLOAT_REGEX, \
+    INT_REGEX, \
+    MULTIPLE_TAB_REGEX, \
+    Y_OR_N_REGEX, \
+    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
+    CsppMetadataDataParticle, \
+    MetadataRawDataKey, \
+    PARTICLE_KEY_INDEX, \
+    DATA_MATCHES_GROUP_NUMBER_INDEX, \
+    TYPE_ENCODING_INDEX, \
+    encode_y_or_n
 
 
 # A regular expression for special characters that could exist in a data record preceding the model
 SPECIAL_CHARS_REGEX = r'(?:[\?][%])?'
 
 # A regular expression that should match a dosta_abcdjm data record
-DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             SPECIAL_CHARS_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # Profiler Timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # Depth
+DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX # Suspect Timestamp
+DATA_REGEX += SPECIAL_CHARS_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX # Model Number
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX # Serial Numbe
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # oxygen content
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # ambient temperature
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # calibrated phase
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # temperature compensated phase
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # phase measurement with blue excitation
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # phase measurement with red excitation
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # amplitude measurement with blue excitation
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # amplitude measurement with red excitation
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH # raw temperature, voltage from thermistor
 
 
 class DataMatchesGroupNumber(BaseEnum):
@@ -44,17 +61,18 @@ class DataMatchesGroupNumber(BaseEnum):
     """
     PROFILER_TIMESTAMP = 1
     PRESSURE = 2
-    MODEL = 3
-    SERIAL_NUMBER = 4
-    ESTIMATED_OXYGEN_CONCENTRATION = 5
-    OPTODE_TEMPERATURE = 6
-    CALIBRATED_PHASE = 7
-    TEMP_COMPENSATED_PHASE = 8
-    BLUE_PHASE = 9
-    RED_PHASE = 10
-    BLUE_AMPLITUDE = 11
-    RED_AMPLITUDE = 12
-    RAW_TEMPERATURE = 13
+    SUSPECT_TIMESTAMP = 3
+    MODEL = 4
+    SERIAL_NUMBER = 5
+    ESTIMATED_OXYGEN_CONCENTRATION = 6
+    OPTODE_TEMPERATURE = 7
+    CALIBRATED_PHASE = 8
+    TEMP_COMPENSATED_PHASE = 9
+    BLUE_PHASE = 10
+    RED_PHASE = 11
+    BLUE_AMPLITUDE = 12
+    RED_AMPLITUDE = 13
+    RAW_TEMPERATURE = 14
 
 
 class DataParticleType(BaseEnum):
@@ -75,6 +93,7 @@ class DostaAbcdjmCsppParserDataParticleKey(BaseEnum):
     SERIAL_NUMBER = 'serial_number'
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure'
+    SUSPECT_TIMESTAMP = 'suspect_timestamp'
     ESTIMATED_OXYGEN_CONCENTRATION = 'estimated_oxygen_concentration'
     OPTODE_TEMPERATURE = 'optode_temperature'
     CALIBRATED_PHASE = 'calibrated_phase'
@@ -96,6 +115,7 @@ NON_COMMON_METADATA_PARTICLE_ENCODING_RULES = [
 INSTRUMENT_PARTICLE_ENCODING_RULES = [
     (DostaAbcdjmCsppParserDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
     (DostaAbcdjmCsppParserDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
+    (DostaAbcdjmCsppParserDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
     (DostaAbcdjmCsppParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION,
      DataMatchesGroupNumber.ESTIMATED_OXYGEN_CONCENTRATION, float),
     (DostaAbcdjmCsppParserDataParticleKey.OPTODE_TEMPERATURE, DataMatchesGroupNumber.OPTODE_TEMPERATURE, float),
