@@ -11,16 +11,18 @@ initial release
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import string
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import ConfigurationException
 
-from mi.dataset.harvester import SingleFileHarvester
+from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle, PhsenControlDataParticle
+from mi.dataset.parser.phsen_abcdef import PhsenRecoveredParser, PhsenRecoveredInstrumentDataParticle, \
+    PhsenRecoveredMetadataDataParticle
+
 
 class DataSourceKey(BaseEnum):
     """
@@ -29,16 +31,18 @@ class DataSourceKey(BaseEnum):
     PHSEN_ABCDEF_SIO_MULE = 'phsen_abcdef_sio_mule'
     PHSEN_ABCDEF = 'phsen_abcdef'
 
+
 class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
 
     @classmethod
     def stream_config(cls):
         return [PhsenParserDataParticle.type(),
-                PhsenControlDataParticle.type()]
+                PhsenControlDataParticle.type(), PhsenRecoveredMetadataDataParticle.type(),
+                PhsenRecoveredInstrumentDataParticle.type()]
     
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.PHSEN_ABCDEF_SIO_MULE, DataSourceKey.PHSEN_ABCDEF]
+        data_keys = DataSourceKey.list()
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.PHSEN_ABCDEF_SIO_MULE: HarvesterType.SINGLE_FILE,
                           DataSourceKey.PHSEN_ABCDEF: HarvesterType.SINGLE_DIRECTORY}
@@ -87,8 +91,19 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
         """
         Build and return the parser
         """
-        # recovered parser is not written yet
-        parser = None
+        config = self._parser_config.get(DataSourceKey.PHSEN_ABCDEF)
+        config.update({
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.phsen_abcdef',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: ['PhsenRecoveredInstrumentDataParticle',
+                                                     'PhsenRecoveredMetadataDataParticle']
+        })
+
+        parser = PhsenRecoveredParser(
+            config, parser_state, stream_in,
+            lambda state, ingested:
+            self._save_parser_state(state, DataSourceKey.PHSEN_ABCDEF, ingested),
+            self._data_callback, self._sample_exception_callback
+        )
         return parser
 
     def _build_harvester(self, driver_state):
@@ -108,6 +123,17 @@ class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.PHSEN_ABCDEF_SIO_MULE)
 
-        # Need to add recovered harvester when adding recovered parser here
+        if DataSourceKey.PHSEN_ABCDEF in self._harvester_config:
+
+            recov_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.PHSEN_ABCDEF),
+                driver_state[DataSourceKey.PHSEN_ABCDEF],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.PHSEN_ABCDEF),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.PHSEN_ABCDEF),
+                self._exception_callback
+            )
+            harvesters.append(recov_harvester)
+        else:
+            log.warn('No configuration for %s harvester, not building', DataSourceKey.PHSEN_ABCDEF)
 
         return harvesters
