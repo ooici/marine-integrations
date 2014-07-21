@@ -52,7 +52,7 @@ log = get_logger()
 
 Directions = MenuInstrumentProtocol.MenuTree.Directions
 
-SAMPLE_PATTERN = '\s+'.join(['(\d+\.\d+)'] * 12) + '\r\n'
+SAMPLE_PATTERN = '\s+'.join(['(-?\d+\.\d+)'] * 12) + '\r\n'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
 # newline.
@@ -158,6 +158,7 @@ class ProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    SCHEDULED_ACQUIRE_STATUS = 'DRIVER_EVENT_SCHEDULED_ACQUIRE_STATUS'
 
 
 class Capability(BaseEnum):
@@ -168,9 +169,6 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = ProtocolEvent.EXECUTE_DIRECT
-    START_DIRECT = ProtocolEvent.START_DIRECT
-    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
@@ -219,8 +217,7 @@ MENU_PROMPTS = [Prompt.MAIN_MENU, Prompt.CHANGE_PARAM_MENU,
 
 MENU = MenuInstrumentProtocol.MenuTree({
 
-    SubMenu.MAIN: [Directions(command=Command.BLANK,
-                                      response=Prompt.MAIN_MENU)],
+    SubMenu.MAIN: [Directions(command=Command.BLANK, response=Prompt.MAIN_MENU)],
     SubMenu.CHANGE_PARAM: [Directions(command=Command.CHANGE_PARAM,
                                       response=Prompt.CHANGE_PARAM_MENU)],
     SubMenu.SHOW_PARAM: [Directions(SubMenu.CHANGE_PARAM),
@@ -365,8 +362,7 @@ class BarsStatusParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: BarsStatusParticleKey.METADATA_ON_POWERUP,
                   DataParticleKey.VALUE: print_on_powerup},
                   {DataParticleKey.VALUE_ID: BarsStatusParticleKey.METADATA_ON_RESTART,
-                  DataParticleKey.VALUE: print_on_restart},
-        ]
+                  DataParticleKey.VALUE: print_on_restart}]
         return result
 
 
@@ -425,7 +421,7 @@ class BarsDataParticle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.raw_data)
 
-        log.trace("Matching sample %r", match.groups())
+        log.debug("Matching Sample Data Particle %r", match.groups())
         res_5 = float(match.group(1))
         res_x1 = float(match.group(2))
         res_x5 = float(match.group(3))
@@ -462,8 +458,7 @@ class BarsDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: BarsDataParticleKey.RESISTIVITY_TEMP_DEG_C,
                    DataParticleKey.VALUE: res_temp_c},
                   {DataParticleKey.VALUE_ID: BarsDataParticleKey.BATTERY_VOLTAGE,
-                   DataParticleKey.VALUE: batt_v}
-        ]
+                   DataParticleKey.VALUE: batt_v}]
 
         return result
 
@@ -487,11 +482,9 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
-
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
-
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -501,7 +494,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
-
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -550,7 +542,7 @@ class Protocol(MenuInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
                                        self._handler_autosample_stop)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS,
                                        self._handler_autosample_acquire_status)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
@@ -588,8 +580,6 @@ class Protocol(MenuInstrumentProtocol):
         self._add_build_handler(Command.CHANGE_REFERENCE_TEMP_POWER, self._build_menu_command)
 
         # Add response handlers for device commands.
-        #self._add_response_handler(Command.GET, self._parse_get_response)
-        #self._add_response_handler(Command.SET, self._parse_get_response)
         self._add_response_handler(Command.BACK_MENU, self._parse_menu_change_response)
         self._add_response_handler(Command.BLANK, self._parse_menu_change_response)
         self._add_response_handler(Command.SHOW_PARAM, self._parse_show_param_response)
@@ -605,7 +595,7 @@ class Protocol(MenuInstrumentProtocol):
         self._add_response_handler(Command.CHANGE_REFERENCE_TEMP_POWER, self._parse_menu_change_response)
         self._add_response_handler(Command.DIRECT_SET, self._parse_menu_change_response)
 
-        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS)
 
         # Add sample handlers.
 
@@ -666,11 +656,9 @@ class Protocol(MenuInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
@@ -692,12 +680,11 @@ class Protocol(MenuInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.IDLE
 
-        return (next_state, next_agent_state)
+        return next_state, next_agent_state
 
     ########################################################################
     # Command handlers.
     ########################################################################
-
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
@@ -717,10 +704,9 @@ class Protocol(MenuInstrumentProtocol):
         @throw InstrumentParameterException for invalid parameter
         """
         next_state = None
-        result = None
         result_vals = {}
 
-        if (params == None):
+        if params is None:
             raise InstrumentParameterException("GET parameter list empty!")
 
         if Parameter.ALL in params:
@@ -741,8 +727,7 @@ class Protocol(MenuInstrumentProtocol):
         result = result_vals
 
         #log.debug("Get finished, next: %s, result: %s", next_state, result)
-        return (next_state, result)
-
+        return next_state, result
 
     def _set_trhph_params(self, params):
         """
@@ -751,21 +736,20 @@ class Protocol(MenuInstrumentProtocol):
 
         self._go_to_root_menu()
         for (key, val) in params.iteritems():
-            #log.debug(" KEY = %s VALUE = %s", key, val)
             if not Parameter.has(key):
                 raise InstrumentParameterException()
 
             # restrict operations to just the read/write parameters
-            if (key == Parameter.CYCLE_TIME):
+            if key == Parameter.CYCLE_TIME:
                 self._navigate(SubMenu.CYCLE_TIME)
                 (unit, value) = self._from_seconds(val)
 
                 try:
-                    result = self._do_cmd_resp(Command.DIRECT_SET, unit,
-                                               expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
-                                                                Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
-                    result = self._do_cmd_resp(Command.DIRECT_SET, value,
-                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                    self._do_cmd_resp(Command.DIRECT_SET, unit,
+                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
+                                                       Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
+                    self._do_cmd_resp(Command.DIRECT_SET, value,
+                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
 
                 except InstrumentParameterException:
 
@@ -774,7 +758,7 @@ class Protocol(MenuInstrumentProtocol):
 
                 self._go_to_root_menu()
 
-            elif (key == Parameter.METADATA_POWERUP):
+            elif key == Parameter.METADATA_POWERUP:
                 self._navigate(SubMenu.METADATA_POWERUP)
                 result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(key))),
                                            expected_prompt=Prompt.CHANGE_PARAM_MENU)
@@ -783,7 +767,7 @@ class Protocol(MenuInstrumentProtocol):
 
                 self._go_to_root_menu()
 
-            elif (key == Parameter.METADATA_RESTART):
+            elif key == Parameter.METADATA_RESTART:
 
                 self._navigate(SubMenu.METADATA_RESTART)
                 result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(key))),
@@ -793,13 +777,17 @@ class Protocol(MenuInstrumentProtocol):
 
                 self._go_to_root_menu()
 
-            elif (key == Parameter.VERBOSE):
+            elif key == Parameter.VERBOSE:
 
                 self._navigate(SubMenu.VERBOSE)
                 result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_init_value(key),
                                            expected_prompt=Prompt.CHANGE_PARAM_MENU)
                 if not result:
                     raise InstrumentParameterException("Could not set param %s" % key)
+
+                #need to set value direct because the instrument does not indicate whether it was successful
+                #as long as the instrument returns from 'setting' with the command prompt, we assume success
+                self._param_dict.set_value(key, self._param_dict.get_init_value(key))
 
                 self._go_to_root_menu()
 
@@ -808,16 +796,13 @@ class Protocol(MenuInstrumentProtocol):
         Verify not readonly params and call set_trhph_params to issue commands to the instrument
         to set various parameters
         """
-
-        next_state = None
-        result = None
         try:
             params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
         # set parameters are only allowed in COMMAND state
-        if (self.get_current_state() != ProtocolState.COMMAND):
+        if self.get_current_state() != ProtocolState.COMMAND:
             raise InstrumentProtocolException("Not in command state. Unable to set params")
 
         self._verify_not_readonly(*args, **kwargs)
@@ -827,7 +812,6 @@ class Protocol(MenuInstrumentProtocol):
         # re-sync with param dict
         self._go_to_root_menu()
         self._update_params()
-
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -848,7 +832,7 @@ class Protocol(MenuInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('_handler_command_set requires a parameter dict.')
 
-        if ((params == None) or (not isinstance(params, dict))):
+        if params is None or (not isinstance(params, dict)):
             raise InstrumentParameterException()
 
         # Verify parameters are not read only
@@ -860,7 +844,7 @@ class Protocol(MenuInstrumentProtocol):
         self._go_to_root_menu()
         self._update_params()
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_autosample(self, *args, **kwargs):
         """
@@ -875,7 +859,7 @@ class Protocol(MenuInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -886,7 +870,7 @@ class Protocol(MenuInstrumentProtocol):
         self._navigate(SubMenu.MAIN)
         self._do_cmd_no_resp(Command.SHOW_STATUS)
 
-        return (None, (None, None))
+        return None, (None, None)
 
     def _handler_command_start_direct(self):
         """
@@ -894,11 +878,10 @@ class Protocol(MenuInstrumentProtocol):
         """
 
         result = None
-
         next_state = ProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Direct access handlers.
@@ -944,7 +927,7 @@ class Protocol(MenuInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, None))
+        return next_state, (next_agent_state, None)
 
     ########################################################################
     # Autosample handlers
@@ -973,7 +956,7 @@ class Protocol(MenuInstrumentProtocol):
         self._navigate(SubMenu.MAIN)
         self._do_cmd_no_resp(Command.START_AUTOSAMPLE)
 
-        return (None, (None, None))
+        return None, (None, None)
 
     def _handler_autosample_stop(self):
         """
@@ -984,11 +967,11 @@ class Protocol(MenuInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        if (self._send_break()):
+        if self._send_break():
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Command builders
@@ -1034,7 +1017,7 @@ class Protocol(MenuInstrumentProtocol):
     # Utilities
     ########################################################################
 
-    def _wakeup(self, timeout):
+    def _wakeup(self, timeout, delay=1):
         # Always awake for this instrument!
         pass
 
@@ -1095,14 +1078,14 @@ class Protocol(MenuInstrumentProtocol):
                 time.sleep(1)
                 (prompt, result) = self._get_raw_response(timeout, expected_prompt=[Prompt.BREAK_ACK,
                                                                                     Prompt.CMD_PROMPT])
-                if (prompt == Prompt.BREAK_ACK):
+                if prompt == Prompt.BREAK_ACK:
 
                     self._connection.send(COMMAND_CHAR[Command.BREAK])
                     time.sleep(1)
 
-                    (prompt, result) = self._get_response(timeout, expected_prompt=Prompt.CMD_PROMPT)
+                    self._get_response(timeout, expected_prompt=Prompt.CMD_PROMPT)
                     return True
-                elif (prompt == Prompt.CMD_PROMPT):
+                elif prompt == Prompt.CMD_PROMPT:
                     return True
 
             except InstrumentTimeoutException:
@@ -1111,13 +1094,11 @@ class Protocol(MenuInstrumentProtocol):
         log.trace("_send_break failing after several attempts")
         return False
 
-
     def _build_driver_dict(self):
         """
         Populate the driver dictionary with options
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
-
 
     def _build_command_dict(self):
         """
@@ -1127,11 +1108,7 @@ class Protocol(MenuInstrumentProtocol):
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
         self._cmd_dict.add(Capability.GET, display_name="get")
         self._cmd_dict.add(Capability.SET, display_name="set")
-        self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct")
-        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct")
-        self._cmd_dict.add(Capability.EXECUTE_DIRECT, display_name="execute direct")
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
-
 
     def _build_param_dict(self):
         """
@@ -1161,7 +1138,7 @@ class Protocol(MenuInstrumentProtocol):
                              submenu_write=[["1", Prompt.CYCLE_TIME_PROMPT]])
 
         self._param_dict.add(Parameter.VERBOSE,
-                             r'',  # Write-only, so does it really matter?
+                             r'bogusdatadontmatch',  # Write-only
                              lambda match: None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -1169,7 +1146,7 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
-                             init_value=1,
+                             init_value=0,
                              menu_path_write=SubMenu.CHANGE_PARAM,
                              submenu_write=[["2", Prompt.VERBOSE_PROMPT]])
 
@@ -1208,7 +1185,6 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
-                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1223,7 +1199,6 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
-                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1238,7 +1213,6 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
-                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1253,7 +1227,6 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
-                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1268,7 +1241,6 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
-                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1309,8 +1281,7 @@ class Protocol(MenuInstrumentProtocol):
         if (value < 15) or (value > 3600):
             raise InstrumentParameterException("Invalid seconds value: %s" % value)
 
-        if (value < 60):
-            return (1, value)
+        if value < 60:
+            return 1, value
         else:
-            return (2, value // 60)
-        
+            return 2, value // 60
