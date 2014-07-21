@@ -624,12 +624,12 @@ class CalStatusParticleKey(BaseEnum):
     """
     DATA_VALID = 'hpies_data_valid'
     INDEX = 'hpies_cindex'
-    E1C = 'hpies_e1c'
-    E1A = 'hpies_e1a'
-    E1B = 'hpies_e1b'
-    E2C = 'hpies_e2c'
-    E2A = 'hpies_e2a'
-    E2B = 'hpies_e2b'
+    E1C = 'hpies_c1c'
+    E1A = 'hpies_c1a'
+    E1B = 'hpies_c1b'
+    E2C = 'hpies_c2c'
+    E2A = 'hpies_c2a'
+    E2B = 'hpies_c2b'
 
 
 class CalStatusParticle(HPIESDataParticle):

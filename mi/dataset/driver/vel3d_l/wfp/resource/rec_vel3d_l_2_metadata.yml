@@ -1,0 +1,21 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: Vel3dLWfpMetadataRecoveredParticle
+    particle_type: vel3d_l_wfp_metadata_recovered
+    internal_timestamp: 3599815519.0
+    vel3d_l_time_on: 1390820402
+    vel3d_l_time_off: 1390826719
+    vel3d_l_serial_number: 65535
+    vel3d_l_number_of_records: 4
+  - _index: 2
+    particle_object: Vel3dLWfpMetadataRecoveredParticle
+    particle_type: vel3d_l_wfp_metadata_recovered
+    internal_timestamp: 3599815520.0
+    vel3d_l_time_on: 1390820403
+    vel3d_l_time_off: 1390826720
+    vel3d_l_serial_number: 65535
+    vel3d_l_number_of_records: 6

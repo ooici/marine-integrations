@@ -43,7 +43,7 @@ INSTRUMENT_IDS = b'(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE|CO|PS|CS)'
 SIO_HEADER_REGEX = SIO_HEADER_START     # Start of SIO Header (start of SIO block)
 SIO_HEADER_REGEX += INSTRUMENT_IDS      # Any 1 of the Instrument IDs
 SIO_HEADER_REGEX += b'[0-9]{5}'         # Controller ID
-SIO_HEADER_REGEX += b'([0-9]{2})'       # Number of Instrument / Inductive ID
+SIO_HEADER_REGEX += b'[0-9]{2}'         # Number of Instrument / Inductive ID
 SIO_HEADER_REGEX += b'_'                # Spacer (0x5F)
 SIO_HEADER_REGEX += b'([0-9a-fA-F]{4})' # Number of Data Bytes (hex)
 SIO_HEADER_REGEX += b'[0-9A-Za-z]'      # MFLM Processing Flag (coded value)
@@ -57,11 +57,10 @@ SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
 
 # The SIO_HEADER_MATCHER produces the following groups:
 SIO_HEADER_GROUP_ID = 1             # Instrument ID
-SIO_HEADER_GROUP_INDUCTIVE_ID = 2   # Number of Instrument / Inductive ID
-SIO_HEADER_GROUP_DATA_LENGTH = 3    # Number of Data Bytes
-SIO_HEADER_GROUP_TIMESTAMP = 4      # POSIX timestamp
-SIO_HEADER_GROUP_BLOCK_NUMBER = 5   # Block Number
-SIO_HEADER_GROUP_CHECKSUM = 6       # checksum
+SIO_HEADER_GROUP_DATA_LENGTH = 2    # Number of Data Bytes
+SIO_HEADER_GROUP_TIMESTAMP = 3      # POSIX timestamp
+SIO_HEADER_GROUP_BLOCK_NUMBER = 4   # Block Number
+SIO_HEADER_GROUP_CHECKSUM = 5       # checksum
 
 # blocks can be uniquely identified a combination of block number and timestamp,
 # since block numbers roll over after 255
