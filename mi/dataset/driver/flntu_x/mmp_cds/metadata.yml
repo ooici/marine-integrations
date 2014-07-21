@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeremy Amundson
+  constructor: FlntuXMmpCdsDataSetDriver
+  driver_name: flntu_x_mmp_cds
+  driver_path: flntu_x/mmp_cds
+  email: jeremy.s.amundson@raytheon.com
+  release notes: initial release
+  version: 0.0.1

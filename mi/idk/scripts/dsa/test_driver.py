@@ -14,6 +14,7 @@ from glob import glob
 from mi.idk.config import Config
 
 DEFAULT_DIR='/tmp/dsa_ingest'
+EXCLUDED_DRIVERS = ['antelope/orb']
 
 def run():
     """
@@ -75,8 +76,10 @@ def get_metadata(opts):
     if(opts.buildall):
         paths = get_driver_paths()
         for path in paths:
-            log.debug("Adding driver path: %s", path)
-            result.append(Metadata(path))
+            # Some drivers can't be run in batch tests
+            if path not in EXCLUDED_DRIVERS:
+                log.debug("Adding driver path: %s", path)
+                result.append(Metadata(path))
     else:
         result.append(Metadata())
 
