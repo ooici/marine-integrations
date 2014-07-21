@@ -1,0 +1,20 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: DostaAbcdjmCsppInstrumentRecoveredDataParticle
+    particle_type: dosta_abcdjm_cspp_instrument_recovered
+    internal_timestamp: 3606763054.4499998093
+    profiler_timestamp: 1397774254.4500000477
+    pressure:        19.2830000000
+    estimated_oxygen_concentration:       286.4120000000
+    optode_temperature:         9.7280000000
+    calibrated_phase:        34.1260000000
+    temp_compensated_phase:        34.1260000000
+    blue_phase:        43.3530000000
+    red_phase:         9.2260000000
+    blue_amplitude:      1002.6000000000
+    red_amplitude:       1002.6000000000
+    raw_temperature:       618.0000000000
