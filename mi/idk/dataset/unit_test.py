@@ -609,7 +609,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                     if particle_class is None or isinstance(data, particle_class):
                         found += 1
                         result.append(self.data_callback_result.pop(check_idx))
-                        log.debug("Found sample index %d, #%d", check_idx, found)
+                        log.trace("Found sample index %d, #%d", check_idx, found)
                     else:
                         # skip past a particle that doesn't match our particle class
                         check_idx += 1
