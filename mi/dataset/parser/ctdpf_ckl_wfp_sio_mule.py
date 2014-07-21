@@ -233,6 +233,7 @@ class CtdpfCklWfpSioMuleParser(SioMuleParser):
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
         while chunk is not None:
+
             sample_count = 0
 
             self.process_header(chunk)

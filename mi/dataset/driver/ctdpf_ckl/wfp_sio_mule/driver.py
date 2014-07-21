@@ -18,7 +18,6 @@ log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import ConfigurationException
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
-
 from mi.dataset.dataset_driver import HarvesterType
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -86,6 +85,7 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
         # provide a config that includes the specific recovered particle types.
         #
         if data_key == DataTypeKey.CTDPF_CKL_WFP:
+            log.debug('CAG DRIVER - build parser for %s. State is %s', data_key, parser_state)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp_particles',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
@@ -108,6 +108,7 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
         # provide a config that includes the specific telemetered particle types.
         #
         elif data_key == DataTypeKey.CTDPF_CKL_WFP_SIO_MULE:
+            log.debug('CAG DRIVER - build parser for %s. State is %s', data_key, parser_state)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp_sio_mule',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
@@ -134,7 +135,6 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
         """
         Build and return the harvesters
         """
-
         harvesters = []    # list of harvesters to be returned
 
         #
@@ -143,6 +143,7 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
         # list of harvesters.
         #
         if DataTypeKey.CTDPF_CKL_WFP in self._harvester_config:
+            log.debug('CAG DRIVER - build harvester for %s', driver_state[DataTypeKey.CTDPF_CKL_WFP])
             harvester = SingleDirectoryHarvester(
                 self._harvester_config.get(DataTypeKey.CTDPF_CKL_WFP),
                 driver_state[DataTypeKey.CTDPF_CKL_WFP],
@@ -161,6 +162,7 @@ class CtdpfCklWfpDataSetDriver(SioMuleDataSetDriver):
         # list of harvesters.
         #
         if DataTypeKey.CTDPF_CKL_WFP_SIO_MULE in self._harvester_config:
+            log.debug('CAG DRIVER - build harvester for %s', driver_state[DataTypeKey.CTDPF_CKL_WFP_SIO_MULE])
             harvester = SingleFileHarvester(
                 self._harvester_config.get(DataTypeKey.CTDPF_CKL_WFP_SIO_MULE),
                 driver_state[DataTypeKey.CTDPF_CKL_WFP_SIO_MULE],
