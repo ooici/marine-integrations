@@ -1,92 +1,110 @@
 #!/usr/bin/env python
 
-'''
+"""
 @file ion/services/mi/drivers/satlantic_par/test/test_satlantic_par.py
-@author Steve Foley
+@author Steve Foley, Ronald Ronquillo
 @test ion.services.mi.drivers.satlantic_par
 Unit test suite to test Satlantic PAR sensor
-@todo Find a way to test timeouts?
-'''
+"""
 
-from gevent import monkey; monkey.patch_all()
-import gevent
+from gevent import monkey
+monkey.patch_all()
 
 import unittest
 
 from mi.core.unit_test import MiTestCase
 import time
 import json
-from mock import Mock, call, DEFAULT
-from pyon.util.unit_test import PyonTestCase
+import random
 from nose.plugins.attrib import attr
-from unittest import TestCase
-
-from mi.core.log import get_logger ; log = get_logger()
-
-from mi.core.common import InstErrorCode
-from mi.core.instrument.instrument_driver import DriverState
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_protocol import InterfaceType
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
-from mi.core.instrument.chunker import StringChunker
-
-from mi.idk.unit_test import DriverTestMixin
-from mi.idk.unit_test import ParameterTestConfigKey
-
-from mi.core.exceptions import InstrumentProtocolException
-from mi.core.exceptions import InstrumentDataException
-from mi.core.exceptions import InstrumentCommandException
-from mi.core.exceptions import InstrumentStateException
-from mi.core.exceptions import InstrumentParameterException
-
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import AgentCapabilityType
-
-from mi.instrument.satlantic.par_ser_600m.driver import DataParticleType
-from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentProtocol
-from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState
-from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolEvent
-from mi.instrument.satlantic.par_ser_600m.driver import PARCapability
-from mi.instrument.satlantic.par_ser_600m.driver import ScheduledJob
-from mi.instrument.satlantic.par_ser_600m.driver import Parameter
-from mi.instrument.satlantic.par_ser_600m.driver import Command
-from mi.instrument.satlantic.par_ser_600m.driver import SatlanticChecksumDecorator
-from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
-from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticleKey
-from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentDriver
+from mock import Mock
+from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import AgentCommand
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
-from pyon.core.exception import Conflict
+from mi.core.log import get_logger
+log = get_logger()
 
-VALID_SAMPLE = "SATPAR0229,10.01,2206748544,234\r\n"
+from mi.core.instrument.instrument_driver import DriverConnectionState, DriverEvent
+from mi.core.instrument.instrument_driver import ConfigMetadataKey, DriverConfigKey
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.protocol_cmd_dict import CommandDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictKey
+
+from mi.idk.unit_test import DriverTestMixin, ParameterTestConfigKey, InstrumentDriverTestCase
+
+from mi.core.exceptions import InstrumentCommandException, InstrumentParameterException, SampleException
+
+from mi.idk.unit_test import InstrumentDriverUnitTestCase, InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase, AgentCapabilityType
+
+from mi.instrument.satlantic.par_ser_600m.driver import Command, DataParticleType, SatlanticPARInstrumentProtocol
+from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState, PARProtocolEvent, PARCapability, Parameter
+from mi.instrument.satlantic.par_ser_600m.driver import ScheduledJob, EOLN, Prompt, SatlanticPARConfigParticle
+from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
+from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticleKey, SatlanticPARConfigParticleKey
+from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentDriver, EngineeringParameter
+
+
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.satlantic.par_ser_600m.driver',
+    driver_class="SatlanticPARInstrumentDriver",
+
+    instrument_agent_resource_id='satlantic_par_ser_600m_ooicore',
+    instrument_agent_name='satlantic_par_ser_600m_agent',
+    instrument_agent_packet_config=DataParticleType(),
+    driver_startup_config={
+        DriverConfigKey.PARAMETERS: {
+            Parameter.MAXRATE: 1,
+            Parameter.FIRMWARE: '1.0.0',
+            Parameter.SERIAL: '4278190306',
+            Parameter.INSTRUMENT: 'SATPAR'}}
+)
+
+
+# SATPAR4278190306,49.02,2157023616,171
+VALID_SAMPLE = "SATPAR4278190306,49.02,2157023616,171\r\n"
+INVALID_SAMPLE = "SATPAR4278190306,49.02,2157023616,172\r\n"
+
+
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v ion/services/mi/drivers/test/test_satlantic_par.py
 # All unit tests: add "-a UNIT" to end, integration add "-a INT"
-# Test device is at 10.180.80.173, port 2001
+# Test device is at 10.180.80.173, port 2101
 
-VALID_HEADER = "Satlantic Digital PAR Sensor\r\n" + \
-               "Copyright (C) 2003, Satlantic Inc. All rights reserved.\r\n" + \
-               "Instrument: SATPAR\r\n" + \
-               "S/N: 0226\r\n" + \
-               "Firmware: 1.0.0\r\n"
-VALID_FIRMWARE = "1.0.0"
-VALID_SERIAL = "0226"
-VALID_INSTRUMENT = "SATPAR"
+# these values checkout against the sample above
+valid_particle = [{DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: '4278190306'},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.TIMER, DataParticleKey.VALUE: 49.02},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.COUNTS, DataParticleKey.VALUE: 2157023616},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.CHECKSUM, DataParticleKey.VALUE: 171}]
+
+bad_checksum_particle = [{DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: '4278190306'},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.TIMER, DataParticleKey.VALUE: 49.02},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.COUNTS, DataParticleKey.VALUE: 2157023616},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.CHECKSUM, DataParticleKey.VALUE: 172}]
+
+VALID_CONFIG = "Maximum Frame Rate: 0.125 Hz\r\n" + \
+               "Telemetry Baud Rate: 19200 bps"
+
+valid_config_particle = [{DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.BAUD_RATE, DataParticleKey.VALUE: 19200},
+                  {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.MAX_RATE, DataParticleKey.VALUE: 0.125},
+                  {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.SERIAL_NUM, DataParticleKey.VALUE: '4278190306'},
+                  {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.FIRMWARE, DataParticleKey.VALUE: '1.0.0'},
+                  {DataParticleKey.VALUE_ID: SatlanticPARConfigParticleKey.TYPE, DataParticleKey.VALUE: 'SATPAR'}]
+
+port_timestamp = 3555423720.711772
+driver_timestamp = 3555423722.711772
+
+TIMEOUT = 30
+
 
 class PARMixin(DriverTestMixin):
-    '''
+    """
     Mixin class used for storing data particle constance and common data assertion methods.
-    '''
+    """
+    SatlanticPARInstrumentDriver = SatlanticPARInstrumentDriver
+
     # Create some short names for the parameter test config
     TYPE      = ParameterTestConfigKey.TYPE
     READONLY  = ParameterTestConfigKey.READONLY
@@ -95,29 +113,69 @@ class PARMixin(DriverTestMixin):
     VALUE     = ParameterTestConfigKey.VALUE
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
 
     ###
     #  Parameter and Type Definitions
     ###
+
     _driver_parameters = {
+        Parameter.MAXRATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4, REQUIRED: True},
+        Parameter.FIRMWARE: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0', REQUIRED: False},
+        Parameter.SERIAL: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '4278190306', REQUIRED: False},
+        Parameter.INSTRUMENT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR', REQUIRED: False},
+        Parameter.ACQUIRE_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, VALUE: '00:00:00', REQUIRED: True}
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        PARProtocolEvent.ACQUIRE_SAMPLE: {STATES: [PARProtocolState.COMMAND]},
+        PARProtocolEvent.START_AUTOSAMPLE: {STATES: [PARProtocolState.COMMAND]},
+        PARProtocolEvent.STOP_AUTOSAMPLE: {STATES: [PARProtocolState.AUTOSAMPLE]},
+        PARProtocolEvent.ACQUIRE_STATUS: {STATES: [PARProtocolState.COMMAND, PARProtocolState.AUTOSAMPLE]},
+        PARProtocolEvent.RESET: {STATES: [PARProtocolState.COMMAND]},
+    }
+
+    _config_parameters = {
         # Parameters defined in the IOS
-        Parameter.MAXRATE : {TYPE: bool, READONLY: False, DA: True, STARTUP: True, VALUE: 2},
-        Parameter.FIRMWARE : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0'},
-        Parameter.SERIAL : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: 229},
-        Parameter.INSTRUMENT : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR'},
+        SatlanticPARConfigParticleKey.BAUD_RATE: {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 19200, REQUIRED: True},
+        SatlanticPARConfigParticleKey.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0.5, REQUIRED: True},
+        SatlanticPARConfigParticleKey.SERIAL_NUM: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: '4278190306', REQUIRED: True},
+        SatlanticPARConfigParticleKey.FIRMWARE: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0', REQUIRED: True},
+        SatlanticPARConfigParticleKey.TYPE: {TYPE: unicode, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR', REQUIRED: True},
     }
 
     _sample_parameters = {
-        SatlanticPARDataParticleKey.SERIAL_NUM: {TYPE: int, VALUE: 229, REQUIRED: True },
-        SatlanticPARDataParticleKey.COUNTS: {TYPE: int, VALUE: 2206748544, REQUIRED: True },
-        SatlanticPARDataParticleKey.TIMER: {TYPE: float, VALUE: 10.01, REQUIRED: True },
-        SatlanticPARDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 234, REQUIRED: True },
+        SatlanticPARDataParticleKey.SERIAL_NUM: {TYPE: unicode, VALUE: '4278190306', REQUIRED: True},
+        SatlanticPARDataParticleKey.COUNTS: {TYPE: int, VALUE: 2157023616, REQUIRED: True},
+        SatlanticPARDataParticleKey.TIMER: {TYPE: float, VALUE: 49.02, REQUIRED: True},
+        SatlanticPARDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 171, REQUIRED: True},
+    }
+
+    _capabilities = {
+        PARProtocolState.UNKNOWN:      [PARProtocolEvent.DISCOVER],
+
+        PARProtocolState.COMMAND:      [PARProtocolEvent.GET,
+                                        PARProtocolEvent.SET,
+                                        PARProtocolEvent.START_DIRECT,
+                                        PARProtocolEvent.START_AUTOSAMPLE,
+                                        PARProtocolEvent.ACQUIRE_SAMPLE,
+                                        PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS,
+                                        PARProtocolEvent.ACQUIRE_STATUS],
+
+        PARProtocolState.AUTOSAMPLE:   [PARProtocolEvent.STOP_AUTOSAMPLE,
+                                        PARProtocolEvent.ACQUIRE_STATUS,
+                                        PARProtocolEvent.SCHEDULED_ACQUIRE_STATUS,
+                                        PARProtocolEvent.RESET],
+
+        PARProtocolState.DIRECT_ACCESS: [PARProtocolEvent.STOP_DIRECT,
+                                         PARProtocolEvent.EXECUTE_DIRECT]
     }
 
     ###
     #   Driver Parameter Methods
     ###
-    def assert_driver_parameters(self, current_parameters, verify_values = False):
+    def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify values.
         @param current_parameters: driver parameters read from the driver instance
@@ -125,12 +183,22 @@ class PARMixin(DriverTestMixin):
         """
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
-    def assert_particle_sample(self, data_particle, verify_values = False):
-        '''
+    def assert_config_parameters(self, current_parameters, verify_values=False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_data_particle_keys(SatlanticPARConfigParticleKey, self._config_parameters)
+        self.assert_data_particle_header(current_parameters, DataParticleType.CONFIG)
+        self.assert_data_particle_parameters(current_parameters, self._config_parameters, verify_values)
+
+    def assert_particle_sample(self, data_particle, verify_values=False):
+        """
         Verify sample particle
         @param data_particle:  SBE16DataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(SatlanticPARDataParticleKey, self._sample_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
@@ -149,10 +217,34 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         self.assert_enum_has_no_duplicates(PARProtocolState())
         self.assert_enum_has_no_duplicates(PARProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(Prompt())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilites for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(PARCapability())
         self.assert_enum_complete(PARCapability(), PARProtocolEvent())
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = self.SatlanticPARInstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
+    def test_driver_protocol_filter_capabilities(self):
+        """
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
+        """
+        mock_callback = Mock(spec="PortAgentClient")
+        protocol = SatlanticPARInstrumentProtocol(mock_callback)
+        driver_capabilities = PARCapability().list()
+        test_capabilities = PARCapability().list()
+
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
+
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(sorted(driver_capabilities), sorted(protocol._filter_capabilities(test_capabilities)))
 
     def test_chunker(self):
         """
@@ -162,16 +254,124 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         chunker = StringChunker(SatlanticPARInstrumentProtocol.sieve_function)
 
         self.assert_chunker_sample(chunker, VALID_SAMPLE)
-        self.assert_chunker_sample(chunker, VALID_HEADER)
+        self.assert_chunker_sample(chunker, VALID_CONFIG)
 
         self.assert_chunker_fragmented_sample(chunker, VALID_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, VALID_HEADER)
+        self.assert_chunker_fragmented_sample(chunker, VALID_CONFIG)
 
         self.assert_chunker_combined_sample(chunker, VALID_SAMPLE)
-        self.assert_chunker_combined_sample(chunker, VALID_HEADER)
+        self.assert_chunker_combined_sample(chunker, VALID_CONFIG)
 
         self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE)
-        self.assert_chunker_sample_with_noise(chunker, VALID_HEADER)
+        self.assert_chunker_sample_with_noise(chunker, VALID_CONFIG)
+
+    def test_corrupt_data_structures(self):
+        """
+        Verify when generating the particle, if the particle is corrupt, an exception is raised
+        """
+        log.debug('test_corrupt_data_structures: %s', VALID_SAMPLE.replace('A', 'B'))
+        particle = SatlanticPARDataParticle(VALID_SAMPLE.replace('A', 'B'), port_timestamp=port_timestamp)
+        with self.assertRaises(SampleException):
+            json_str = particle.generate()
+            obj = json.loads(json_str)
+            self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
+
+    def test_sample_format(self):
+        """
+        Verify driver can get sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: valid_particle
+        }
+
+        self.compare_parsed_data_particle(SatlanticPARDataParticle, VALID_SAMPLE, expected_particle)
+
+    def test_bad_checksum_sample_format(self):
+        """
+        Verify driver can get sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.CHECKSUM_FAILED,
+            DataParticleKey.VALUES: bad_checksum_particle
+        }
+
+        self.compare_parsed_data_particle(SatlanticPARDataParticle, INVALID_SAMPLE, expected_particle)
+
+    def compare_parsed_data_particle_override(self, particle_type, raw_input, happy_structure):
+        """
+        Compare a data particle created with the raw input string to the structure that should be generated.
+
+        @param particle_type The data particle class to create
+        @param raw_input The input string that is instrument-specific
+        @param happy_structure The structure that should result from parsing the
+            raw input during DataParticle creation
+        """
+        port_timestamp = happy_structure[DataParticleKey.PORT_TIMESTAMP]
+        if DataParticleKey.INTERNAL_TIMESTAMP in happy_structure:
+            internal_timestamp = happy_structure[DataParticleKey.INTERNAL_TIMESTAMP]
+            test_particle = particle_type(raw_input, port_timestamp=port_timestamp,
+                                          internal_timestamp=internal_timestamp)
+        else:
+            test_particle = particle_type("4278190306", "1.0.0", "SATPAR", raw_input, port_timestamp=port_timestamp)
+
+        parsed_result = test_particle.generate(sorted=True)
+        decoded_parsed = json.loads(parsed_result)
+
+        driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
+        happy_structure[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
+
+        # run it through json so unicode and everything lines up
+        standard = json.dumps(happy_structure, sort_keys=True)
+
+        log.debug("Parsed Result:\n%s", json.dumps(json.loads(parsed_result), sort_keys=True, indent=2))
+        log.debug("Standard:\n%s", json.dumps(json.loads(standard), sort_keys=True, indent=2))
+
+        self.assertEqual(parsed_result, standard)
+
+    def test_config_format(self):
+        """
+        Verify driver can get sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.CONFIG,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: valid_config_particle
+        }
+
+        self.compare_parsed_data_particle_override(SatlanticPARConfigParticle, VALID_CONFIG, expected_particle)
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+
+        driver = SatlanticPARInstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, self._capabilities)
 
     def test_got_data(self):
         """
@@ -186,428 +386,268 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
         # Start validating data particles
         self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
 
-    def test_extract_header(self):
-        '''
-        Test if we can extract the firmware, serial number and instrument label
-        from the header.
-        '''
-        def event_callback(event):
-            pass
-
-        protocol = SatlanticPARInstrumentProtocol(event_callback)
-        protocol._extract_header(VALID_HEADER)
-
-        self.assertEqual(protocol._firmware, VALID_FIRMWARE)
-        self.assertEqual(protocol._serial, VALID_SERIAL)
-        self.assertEqual(protocol._instrument, VALID_INSTRUMENT)
 
 @attr('INT', group='mi')
-class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
-    
-    def check_state(self, expected_state):
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, expected_state)
+class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase, PARMixin):
 
-
-    def put_instrument_in_command_mode(self):
-        """Wrap the steps and asserts for going into command mode.
-           May be used in multiple test cases.
+    def test_parameters(self):
         """
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
+        Verify that we can set the parameters
 
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(PARProtocolState.UNKNOWN)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        # Test that the driver protocol is in state command.
-        self.check_state(PARProtocolState.COMMAND)
-
-
-    def _start_stop_autosample(self):
-        """Wrap the steps and asserts for going into and out of auto sample.
-           May be used in multiple test cases.
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
         """
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
 
-        self.check_state(PARProtocolState.AUTOSAMPLE)
-        
-        # @todo check samples arriving here
-        # @todo check publishing samples from here
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-                
-        self.check_state(PARProtocolState.COMMAND)
+        #test read/write parameter good values
+        self.assert_set(Parameter.MAXRATE, 2)
+        self.assert_set(Parameter.MAXRATE, 0.0)
+        self.assert_set(Parameter.MAXRATE, 1.0)
+        self.assert_set(Parameter.MAXRATE, 00.50)
 
+        #test read/write parameter out of range values
+        self.assert_set_exception(Parameter.MAXRATE, 20)
+        self.assert_set_exception(Parameter.MAXRATE, -20)
+        self.assert_set_exception(Parameter.MAXRATE, 1.5)
+        self.assert_set_exception(Parameter.MAXRATE, 7)
+        self.assert_set_exception(Parameter.MAXRATE, 13)
 
-    def test_startup_configuration(self):
-        '''
-        Test that the startup configuration is applied correctly
-        '''
-        self.assert_initialize_driver()
+        #test read only parameter
+        self.assert_set_exception(Parameter.FIRMWARE, '1.0.1')
+        self.assert_set_exception(Parameter.SERIAL, '4278190307')
+        self.assert_set_exception(Parameter.INSTRUMENT, 'CATCAR')
 
-        result = self.driver_client.cmd_dvr('apply_startup_params')
-
-        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.MAXRATE])
-
-        self.assertEquals(reply, {Parameter.MAXRATE: 2})
-
-        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
-
-
-    def test_configuration(self):
+    def test_metadata_generation(self):
         """
-        Test to configure the driver process for device comms and transition
-        to disconnected state.
-        """
-
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Re-Initialize the driver and transition to unconfigured.
-        self.driver_client.cmd_dvr('initialize')
-
-        # Test that the driver returned to state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-        
-
-    def test_connect_disconnect(self):
-        """
-        Test configuring and connecting to the device through the port
-        agent. Discover device state.  Then disconnect and re-initialize
+        Verify the driver generates metadata information
         """
         self.assert_initialize_driver()
 
-        return
-        # Stop comms and transition to disconnected.
-        self.driver_client.cmd_dvr('disconnect')
+        self.assert_metadata_generation(instrument_params=Parameter.list(), commands=PARCapability.list())
 
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
+        # check one to see that the file is loading data from somewhere.
+        json_result = self.driver_client.cmd_dvr("get_config_metadata")
+        result = json.loads(json_result)
 
-        # Re-Initialize the driver and transition to unconfigured.
-        self.driver_client.cmd_dvr('initialize')
-    
-        # Test that the driver returned to state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-        
+        params = result[ConfigMetadataKey.PARAMETERS]
+        self.assertEqual(params[Parameter.MAXRATE][ParameterDictKey.DISPLAY_NAME], "Max Rate")
 
-    def test_get(self):
-        
-        self.put_instrument_in_command_mode()
+        cmds = result[ConfigMetadataKey.COMMANDS]
+        self.assertEqual(cmds[PARCapability.ACQUIRE_SAMPLE][CommandDictKey.DISPLAY_NAME], "Acquire Sample")
 
-        params = {
-                   Parameter.MAXRATE: 1,
-                   Parameter.FIRMWARE: "1.0.0",
-                   Parameter.SERIAL: "0226",
-                   Parameter.INSTRUMENT: "SATPAR"
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+        """
+
+        # Explicitly verify these values after discover.  They should match
+        # what the startup values should be
+        get_values = {
+            Parameter.MAXRATE: 4,
+            Parameter.FIRMWARE: '1.0.0',
+            Parameter.SERIAL: '4278190306',
+            Parameter.INSTRUMENT: 'SATPAR',
+            Parameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'
         }
 
-        reply = self.driver_client.cmd_dvr('get_resource',
-                                           params.keys(),
-                                           timeout=20)
-        
-        self.assertEquals(reply, params)
-        
-        self.assertRaises(InstrumentCommandException,
-                          self.driver_client.cmd_dvr,
-                          'bogus', [Parameter.MAXRATE])
+        # Change the values of these parameters to something before the
+        # driver is reinitialized.  They should be blown away on reinit.
+        new_values = {
+            Parameter.MAXRATE: 0.5,
+            Parameter.ACQUIRE_STATUS_INTERVAL: '00:00:25'
+        }
 
-        # Assert get fails without a parameter.
-        self.assertRaises(InstrumentParameterException,
-                          self.driver_client.cmd_dvr, 'get_resource')
-            
-        # Assert get fails with a bad parameter (not ALL or a list).
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = 'I am a bogus param list.'
-            self.driver_client.cmd_dvr('get_resource', bogus_params)
-            
-        # Assert get fails with a bad parameter in a list).
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = [
-                'a bogus parameter name',
-                Parameter.MAXRATE
-                ]
-            self.driver_client.cmd_dvr('get_resource', bogus_params)        
-        
+        self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-    def test_set(self):
-        config_key = Parameter.MAXRATE
-        value_A = 12
-        value_B = 1
-        config_A = {config_key:value_A}
-        config_B = {config_key:value_B}
-        
-        self.put_instrument_in_command_mode()
-        
-        reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=20)
-        self.assertEquals(reply[config_key], value_A)
-                 
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
-        self.assertEquals(reply, config_A)
-        
-        reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=20)
-        self.assertEquals(reply[config_key], value_B)
-         
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
-        self.assertEquals(reply, config_B)
+        # Change values and try again
+        self.assert_set_bulk(new_values)
+        self.assert_startup_parameters(self.assert_driver_parameters)
 
-        # Assert we cannot set a bogus parameter.
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = {
-                'a bogus parameter name' : 'bogus value'
-            }
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
-            
-        # Assert we cannot set a real parameter to a bogus value.
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = {
-                Parameter.MAXRATE : 'bogus value'
-            }
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
-        
-        
-    #@unittest.skip('temp for debugging')
-    def test_error_conditions(self):
+
+    def test_acquire_status(self):
+        """
+        Test acquire status command and events.
+
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRE STATUS
+        3. verify the status particle coming in
+        """
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
+        self.assert_driver_command(PARProtocolEvent.ACQUIRE_STATUS, state=PARProtocolState.COMMAND, delay=5)
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters)
+
+    def test_acquire_sample(self):
+        """
+        Test acquire sample command and events.
+
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRE SAMPLE
+        3. verify the particle coming in
+        """
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
+        self.assert_driver_command(PARProtocolEvent.ACQUIRE_SAMPLE, state=PARProtocolState.COMMAND, delay=5)
+        self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample)
+
+    def test_command_autosample(self, sleep_time=15):
+        """
+        Test autosample command and events.
+
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to AUTOSAMPLE
+        3. verify the particle coming in
+        4. command the instrument back to COMMAND state
+        """
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
+        self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=3)
+        time.sleep(sleep_time)
+        self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample, particle_count=40)
+        self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE, state=PARProtocolState.COMMAND, delay=3)
+
+    # @unittest.skip('temp disable')  # Keep: This is a useful stress test
+    def test_command_autosample_multiple(self):
+        """
+        Similar to the test_command_autosample above, but this will test getting in & out of sampling at
+        all possible maxrate values with a random amount of sample wait time between
+        """
+        timeout = 10*60
+        count = 0
+        starttime = time.time()
+        startstamp = time.strftime("%H:%M:%S", time.gmtime())
+        maxrates = [[0, 1], [0.125, 9], [0.5, 3], [1, 2], [2, 1], [4, 1], [8, 1], [10, 1], [12, 1]]
+
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
+
+        while True:
+            random.shuffle(maxrates)
+            for maxrate, min_sleep in maxrates:
+                sleep_time = random.uniform(min_sleep, 15)
+                count += 1
+                log.debug('START test_command_autosample: #%s maxrate=%s, %s, sleep=%s',
+                          count, maxrate, time.strftime("%H:%M:%S", time.gmtime()), sleep_time)
+                self.assert_set(Parameter.MAXRATE, maxrate)
+
+                self.assert_driver_command(PARProtocolEvent.ACQUIRE_STATUS, state=PARProtocolState.COMMAND, delay=5)
+                self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters)
+
+                self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE,
+                                           state=PARProtocolState.AUTOSAMPLE, delay=3)
+                time.sleep(sleep_time)
+                self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample)
+                self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE, state=PARProtocolState.COMMAND, delay=3)
+
+            if time.time() > starttime + timeout:
+                break
+
+        self.assert_set(Parameter.MAXRATE, 4, no_get=True)
+        log.debug('FINISHED test_command_autosample: #%s, start:%s/end:%s, timeout=%s',
+                  count, startstamp, time.strftime("%H:%M:%S", time.gmtime()), timeout)
+
+    def test_direct_access(self):
+        """
+        Verify the driver can enter/exit the direct access state
+        """
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
+
+        self.assert_state_change(PARProtocolState.COMMAND, 5)
+        log.debug('in command mode')
+
+        self.driver_client.cmd_dvr('start_direct')
+        self.assert_state_change(PARProtocolState.DIRECT_ACCESS, 5)
+        log.debug('in direct access')
+
+        time.sleep(3)
+
+        self.driver_client.cmd_dvr('stop_direct')
+        self.assert_state_change(PARProtocolState.COMMAND, 5)
+        log.debug('leaving direct access')
+
+    def test_errors(self):
+        """
+        Verify response to erroneous commands and setting bad parameters.
+        """
+        self.assert_initialize_driver(PARProtocolState.COMMAND)
+
+        #Assert an invalid command
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(PARProtocolEvent.STOP_AUTOSAMPLE,
+                                             exception_class=InstrumentCommandException)
+
+        # Assert set fails with a bad parameter (not ALL or a list).
+        self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
+
+        # #Assert set fails with bad parameter and bad value
+        self.assert_set_exception('I am a bogus param.', value='bogus value',
+                                  exception_class=InstrumentParameterException)
+
+        # put driver in disconnected state.
+        self.driver_client.cmd_dvr('disconnect')
+
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(PARProtocolEvent.STOP_AUTOSAMPLE,
+                                             exception_class=InstrumentCommandException)
+
+        # Test that the driver is in state disconnected.
+        self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('initialize')
+
         # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
+        self.assert_state_change(DriverConnectionState.UNCONFIGURED, timeout=TIMEOUT)
 
         # Assert we forgot the comms parameter.
-        self.assertRaises(InstrumentParameterException,
-                          self.driver_client.cmd_dvr, 'configure')
+        self.assert_driver_command_exception('configure', exception_class=InstrumentParameterException)
 
-        # Assert we send a bad config object (not a dict).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = 'not a config dict'            
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-            
-        # Assert we send a bad config object (missing addr value).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = self.port_agent_comm_config().copy()
-            BOGUS_CONFIG.pop('addr')
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-
-        # Assert we send a bad config object (bad addr value).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = self.port_agent_comm_config().copy()
-            BOGUS_CONFIG['addr'] = ''
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-        
         # Configure driver and transition to disconnected.
         self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
+        self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
 
-        # Assert for a known command, invalid state.
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(PARProtocolState.UNKNOWN)
-
-        # Assert for a known command, invalid state.
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        # Test that the driver protocol is in state command.
-        self.check_state(PARProtocolState.COMMAND)
-
-        # tests when driver is in command mode
-        # Test a bad driver command 
-        self.assertRaises(InstrumentCommandException, 
-                          self.driver_client.cmd_dvr, 'bogus_command')
-        
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'connect')
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.RESET)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_POLL)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.EXECUTE_DIRECT)
-
-        # tests when driver is in auto-sample mode
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        self.check_state(PARProtocolState.AUTOSAMPLE)
-
-        # Test a bad driver command 
-        self.assertRaises(InstrumentCommandException, 
-                          self.driver_client.cmd_dvr, 'bogus_command')
-        
-        # Test get from wrong state
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
-
-        # Test set from wrong state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
-
-        # test commands for invalid state
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.EXECUTE_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_POLL)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-
-        # tests when driver is in poll mode
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_POLL)
-        self.check_state(PARProtocolState.POLL)
-
-        # Test a bad driver command 
-        self.assertRaises(InstrumentCommandException, 
-                          self.driver_client.cmd_dvr, 'bogus_command')
-        
-        # Test get from wrong state
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
-
-        # Test set from wrong state
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
-
-        # test commands for invalid state
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.EXECUTE_DIRECT)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_POLL)
-
-
-    def test_stop_from_slow_autosample(self):
-        # test break from autosample at low data rates
-        self.put_instrument_in_command_mode()
-        
-        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
-
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        #time.sleep(5)
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-        self.check_state(PARProtocolState.COMMAND)
-
-
-    def test_stop_from_fast_autosample(self):
-        # test break from autosample at high data rates
-        self.put_instrument_in_command_mode()
-        
-        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:12}, timeout=20)
-
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        #time.sleep(5)
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-        self.check_state(PARProtocolState.COMMAND)
-        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
-
-
-
-    def test_start_stop_autosample(self):
+    def test_scheduled_status_command(self):
         """
-        Test moving into and out of autosample, gathering some data, and
-        seeing it published
-        @todo check the publishing, integrate this with changes in march 2012
+        Verify the device status command can be triggered and run in command
         """
+        self.assert_initialize_driver()
+        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:00:20")
 
-        self.put_instrument_in_command_mode()
-        self._start_stop_autosample()
-                
+        # Verify that the event got scheduled
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters, timeout=60)
 
-    def test_start_stop_poll(self):
-        self.put_instrument_in_command_mode()
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_POLL)
-        self.check_state(PARProtocolState.POLL)
-        time.sleep(2)
+        # Reset the interval
+        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:00:10")
 
-        # Already in poll mode, so this shouldn't give us anything
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_POLL)
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
+        # Verify that the event got scheduled
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters, timeout=30)
 
-        # @todo check samples arriving here
-        # @todo check publishing samples from here
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)        
-        self.check_state(PARProtocolState.COMMAND)
+        # This should unschedule the acquire status event
+        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:00:00")
 
+        # Now verify that no more status particles get generated, provide generous timeout
+        with self.assertRaises(AssertionError):
+            self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters, timeout=50)
 
+        self.assert_current_state(PARProtocolState.COMMAND)
 
+    def test_scheduled_status_autosample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_initialize_driver()
+        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, "00:00:15")
 
-    @unittest.skip('Need to write this test')
-    def test_reset(self):
-        pass
+        self.assert_driver_command(PARProtocolEvent.START_AUTOSAMPLE, state=PARProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_current_state(PARProtocolState.AUTOSAMPLE)
 
-        
-@attr('UNIT', group='mi')
-class SatlanticParDecoratorTest(MiTestCase):
-    
-    def setUp(self):
-        self.checksum_decorator = SatlanticChecksumDecorator()
+        #verify that the event got scheduled
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_config_parameters,
+                                              particle_count=5, timeout=90)
 
-    @unittest.skip("Needs to be revisited.  Is this used?")
-    def test_checksum(self):
-        self.assertEquals(("SATPAR0229,10.01,2206748544,234","SATPAR0229,10.01,2206748544,234"),
-            self.checksum_decorator.handle_incoming_data("SATPAR0229,10.01,2206748544,234","SATPAR0229,10.01,2206748544,234"))
-        self.assertRaises(InstrumentDataException,
-                          self.checksum_decorator.handle_incoming_data,
-                          "SATPAR0229,10.01,2206748544,235",
-                          "SATPAR0229,10.01,2206748544,235")
+        self.assert_driver_command(PARProtocolEvent.STOP_AUTOSAMPLE)
 
 
 ###############################################################################
@@ -617,105 +657,142 @@ class SatlanticParDecoratorTest(MiTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCase):
+class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCase, PARMixin):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
 
-    def assertSampleDataParticle(self, val):
-        """
-        Verify the value for a par sample data particle
-
-        {
-          'quality_flag': 'ok',
-          'preferred_timestamp': 'driver_timestamp',
-          'stream_name': 'parsed',
-          'pkt_format_id': 'JSON_Data',
-          'pkt_version': 1,
-          'driver_timestamp': 3559843883.8029947,
-          'values': [
-            {'value_id': 'serial_num', 'value': '0226'},
-            {'value_id': 'elapsed_time', 'value': 7.17},
-            {'value_id': 'counts', 'value': 2157033280},
-            {'value_id': 'checksum', 'value': 27}
-          ],
-        }
-        """
-
-        if (isinstance(val, SatlanticPARDataParticle)):
-            sample_dict = json.loads(val.generate())
-        else:
-            sample_dict = val
-
-        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleType.PARSED)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-            list))
-        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['serial_num', 'elapsed_time', 'counts', 'checksum'])
-            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
-            if(x['value_id'] == 'elapsed_time'):
-                self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'serial_num'):
-                self.assertTrue(isinstance(x['value'], str))
-            elif(x['value_id'] == 'counts'):
-                self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'checksum'):
-                self.assertTrue(isinstance(x['value'], int))
-            else:
-                # Shouldn't get here.  If we have then we aren't checking a parameter
-                self.assertFalse(True)
-
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test verifies that the Instrument Driver
+               properly supports direct access to the physical
+               instrument. (telnet mode)
         """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.MAXRATE, 4)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.send_data("set maxrate 1" + EOLN)
+
+        #need to sleep as the instrument needs time to apply the new param value
+        time.sleep(5)
+
+        # Verify the param value got changed on the instrument
+        self.tcp_client.send_data("show maxrate" + EOLN)
+
+        self.tcp_client.expect("Maximum Frame Rate: 1 Hz")
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting remained unchanged in the param dict
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.MAXRATE, 4)
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.MAXRATE, 4)
+        # go into direct access
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        self.tcp_client.send_data("\r\n")
-        self.tcp_client.expect("Invalid command")
+        #start sampling
+        self.tcp_client.send_data("exit!" + EOLN)
+        time.sleep(2)
 
+        #verify we're sampling
+        self.tcp_client.expect("SATPAR")
+
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.STREAMING, PARProtocolState.AUTOSAMPLE, timeout=10)
 
-    @unittest.skip("polled mode note implemented")
-    def test_poll(self):
-        '''
-        No polling for a single sample
-        '''
+        #now stop autosampling
+        self.assert_stop_autosample()
 
-        #self.assert_sample_polled(self.assertSampleDataParticle,
-        #                          DataParticleValue.PARSED)
-
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-        self.assert_sample_autosample(self.assertSampleDataParticle, DataParticleValue.PARSED)
-
-
-    def test_get_set_parameters(self):
-        '''
-        verify that all parameters can be get set properly
-        '''
+    def test_direct_access_telnet_timeout(self):
+        """
+        Verify that direct access times out as expected and the agent transitions back to command mode.
+        """
         self.assert_enter_command_mode()
 
-        self.assert_set_parameter(Parameter.MAXRATE, 4)
-        self.assert_set_parameter(Parameter.MAXRATE, 1)
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=30)
+        self.assertTrue(self.tcp_client)
 
+        self.assert_state_change(ResourceAgentState.COMMAND, PARProtocolState.COMMAND, 180)
+
+    def test_direct_access_telnet_closed(self):
+        """
+        Verify that a disconnection from the DA server transitions the agent back to
+        command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.COMMAND, PARProtocolState.COMMAND, 120)
+
+    def test_get_set_parameters(self):
+        """
+        Verify that parameters can be get/set properly
+        """
+        self.assert_enter_command_mode()
+
+        #read/write params
+        self.assert_set_parameter(Parameter.MAXRATE, 2)
+
+        #read-only params
         self.assert_get_parameter(Parameter.FIRMWARE, "1.0.0")
-        self.assert_get_parameter(Parameter.SERIAL, "0226")
+        self.assert_get_parameter(Parameter.SERIAL, "4278190306")
         self.assert_get_parameter(Parameter.INSTRUMENT, "SATPAR")
 
-        self.assert_reset()
+    def test_poll(self):
+        """
+        Verify data particles for a single sample that are specific to PARAD
+        """
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.PARSED,
+                                    timeout=60, sample_count=1)
+
+    def test_autosample(self):
+        """
+        Verify data particles for auto-sampling that are specific to PARAD
+        """
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+
+        # Default maxrate is 4, expecting a sample every 0.25 seconds. Note: Qual seems to have a 2 second lag.
+        self.assert_particle_async(DataParticleType.PARSED, self.assert_particle_sample, particle_count=40, timeout=12)
+
+        self.assert_stop_autosample()
+
+    def test_acquire_status(self):
+        """
+        Verify the driver can command an acquire status from the instrument
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(PARCapability.ACQUIRE_STATUS, self.assert_config_parameters,
+                                    DataParticleType.CONFIG)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
     def test_get_capabilities(self):
         """
@@ -728,74 +805,49 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Command Mode
         ##################
 
-        capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: [
-                ResourceAgentEvent.CLEAR,
-                ResourceAgentEvent.RESET,
-                ResourceAgentEvent.GO_DIRECT_ACCESS,
-                ResourceAgentEvent.GO_INACTIVE,
-                ResourceAgentEvent.PAUSE
-            ],
-            AgentCapabilityType.AGENT_PARAMETER: ['example'],
-            AgentCapabilityType.RESOURCE_COMMAND: [
-                DriverEvent.SET, DriverEvent.ACQUIRE_SAMPLE, DriverEvent.GET,
-                PARProtocolEvent.START_POLL, DriverEvent.START_AUTOSAMPLE
-            ],
-            AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: [
-                Parameter.INSTRUMENT, Parameter.SERIAL, Parameter.MAXRATE, Parameter.FIRMWARE
+        capabilities = {}
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [PARProtocolEvent.ACQUIRE_SAMPLE,
+                                                               PARProtocolEvent.ACQUIRE_STATUS,
+                                                               PARProtocolEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
-            ],
-        }
-
+        self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
-
-        ##################
-        #  Polled Mode
-        ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
-            ResourceAgentEvent.CLEAR,
-            ResourceAgentEvent.RESET,
-            ResourceAgentEvent.GO_DIRECT_ACCESS,
-            ResourceAgentEvent.GO_INACTIVE,
-            ResourceAgentEvent.PAUSE,
-        ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            DriverEvent.START_AUTOSAMPLE, DriverEvent.RESET, PARProtocolEvent.STOP_POLL
-        ]
-
-        self.assert_switch_driver_state(PARProtocolEvent.START_POLL, DriverProtocolState.POLL)
-
-        self.assert_capabilities(capabilities)
-
-        self.assert_switch_driver_state(PARProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
-
 
         ##################
         #  Streaming Mode
         ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            PARProtocolEvent.START_POLL,
-            DriverEvent.STOP_AUTOSAMPLE,
-            DriverEvent.RESET
-        ]
+        capabilities = {}
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_AUTOSAMPLE,
+                                                              PARProtocolEvent.ACQUIRE_STATUS,
+                                                              PARProtocolEvent.RESET]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
+        # ##################
+        # #  DA Mode
+        # ##################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
         #######################
         #  Uninitialized Mode
         #######################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
-
