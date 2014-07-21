@@ -153,9 +153,6 @@ class _Recv(Thread):
         if len(self._promptbuf) > self._max_buffer_size():
             self._promptbuf = self._linebuf[self._max_buffer_size()*-1:]
 
-        # print "LINE BUF: %r" % self._linebuf
-        # print "PROMPT BUF: %r" % self._promptbuf
-
     @staticmethod
     def _max_buffer_size():
         return MAX_BUFFER_SIZE
@@ -198,14 +195,13 @@ class _Direct(object):
 
                 if cmd == "^C":
                     # print "### sending '%s'" % cmd
-                    # self._bt._time_start = (time.strftime("%H:%M:%S", time.gmtime()))
-                    # self._bt._block_flag = True
                     self.send_control('c')
 
                 elif cmd == "^S":
                     # print "### sending '%s'" % cmd
 
                     # self.send('\x13')
+
                     # self._bt._promptbuf = ''
                     # time.sleep(0.2)   # at 8 - max rate only have to wait 1/8s
                     # if SAMPLE_REGEX.search(self._bt._promptbuf):    # got a sample, still stuck in auto mode
@@ -220,21 +216,21 @@ class _Direct(object):
                     #             break
 
                     # self._time_start = (time.strftime("%H:%M:%S", time.gmtime()))
-                    x = 500
-                    y = 0.115
-                    p = y/x
-                    self._bt._promptbuf = ''
-                    while True:
-                        print "### sending '%s'" % cmd
-                        for _ in xrange(15):
-                            self.send('\x13')
-                            time.sleep(.15)
-                        if SAMPLE_REGEX.search(self._bt._promptbuf):
-                            self._bt._promptbuf = ''
-                        else:
-                            break
+                    # x = 500
+                    # y = 0.115
+                    # p = y/x
+                    # self._bt._promptbuf = ''
+                    # while True:
+                    #     print "### sending '%s'" % cmd
+                    #     for _ in xrange(15):
+                    #         self.send('\x13')
+                    #         time.sleep(.15)
+                    #     if SAMPLE_REGEX.search(self._bt._promptbuf):
+                    #         self._bt._promptbuf = ''
+                    #     else:
+                    #         break
 
-                    # self.send_control('s')
+                    self.send_control('s')
 
                 elif cmd == "^A":
                     #print "### sending '%s'" % cmd
@@ -257,12 +253,14 @@ class _Direct(object):
                     break
 
                 else:
-                    #print "### sending '%s'" % cmd
+                    # print "### sending '%s'" % cmd
                     self.sendCharacters(cmd)
-                    self.send('\r\n')
+                    # time.sleep(0.3)
+                    # self.send('\r\n')
 
             except KeyboardInterrupt:
-                self._time_start = (time.strftime("%H:%M:%S", time.gmtime()))
+
+                # self._time_start = (time.strftime("%H:%M:%S", time.gmtime()))
                 self._bt._promptbuf = ''
                 while True:
                     for n in xrange(n_send):
@@ -273,6 +271,7 @@ class _Direct(object):
                     # print "PROMPT BUF: %r" % self._bt._promptbuf
                     self.count += 1
                     press_match = re.compile('([Cc]ommand)').search(self._bt._promptbuf)
+                    print "promptbuf: %r" % self._bt._promptbuf
                     if press_match:
                         # print "### _Direct: found match: %s ### on count #%s, start: %s, stop: %s" % (press_match, self.count, self._time_start, time.strftime("%H:%M:%S", time.gmtime()))
                         self.count = 0
@@ -299,13 +298,37 @@ class _Direct(object):
         a = ord(char)
         a = a - ord('a') + 1
         print "send control: ", chr(a)
-        return self.send(chr(a))
+        self.send(chr(a))
+
+        # time.sleep(0.5)
+        # print "promptbuf: %r" % self._bt._promptbuf
 
     def sendCharacters(self, s):
         """
         Sends a string one char at a time with a delay between each
         """
-        self.send("    ".join(map(None, s)))
+        # # self.send("    ".join(map(None, s)))
+
+
+        # new send alg: send, then wait for it to appear before sending next one?
+        self._bt._promptbuf = ""
+        for char in s:
+            self.send(char)
+            while len(self._bt._promptbuf) == 0 or char not in self._bt._promptbuf[-1]:
+                time.sleep(0.0015)
+
+        exit_enter_end_char = '\x0c'
+        end_char = '\r\n'
+        self.send(end_char)
+
+        if len(s) == 0:
+            return
+
+        while end_char not in self._bt._promptbuf[len(s):len(s)+2] and exit_enter_end_char not in self._bt._promptbuf[len(s):len(s)+2]:
+            time.sleep(0.0015)
+
+        # time.sleep(0.5)
+        # print "promptbuf: %r" % self._bt._promptbuf[len(s):len(s)+2]
 
 if __name__ == '__main__':
     if len(sys.argv) <= 1:
