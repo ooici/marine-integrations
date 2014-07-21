@@ -134,6 +134,69 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.particle_to_yml(particles, 'test.yml')
 
+    def test_newline(self):
+        """
+        Read test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        """
+        file_path = os.path.join(RESOURCE_PATH, 'test_newline.txt')
+        stream_handle = open(file_path, 'rb')
+
+        parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
+                                       None, stream_handle,
+                                       self.state_callback, self.pub_callback,
+                                       self.exception_callback)
+
+        particles = parser.get_records(2)
+
+        # log.info("Exception callback value: %s", self.exception_callback_value)
+        #
+        # self.assertTrue(self.exception_callback_value is None)
+        #
+        # self.assertTrue(len(particles) == 5)
+        #
+        # expected_results = self.get_dict_from_yml('simple.yml')
+        #
+        # for i in range(len(particles)):
+        #     self.assert_result(expected_results['data'][i], particles[i])
+
+        stream_handle.close()
+
+    def test_temp(self):
+        """
+        Read test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        """
+        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OPT.txt')
+        stream_handle = open(file_path, 'rb')
+
+        parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
+                                       None, stream_handle,
+                                       self.state_callback, self.pub_callback,
+                                       self.exception_callback)
+
+        particles = parser.get_records(5)
+
+        log.info("Exception callback value: %s", self.exception_callback_value)
+
+        self.assertTrue(len(particles) == 5)
+
+        expected_results = self.get_dict_from_yml('test_get_recovered_one.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        particles = parser.get_records(5)
+
+        self.assertTrue(len(particles) == 5)
+
+        expected_results = self.get_dict_from_yml('test_get_recovered_two.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        stream_handle.close()
+
     def test_simple(self):
         """
         Read test data and pull out data particles one at a time.

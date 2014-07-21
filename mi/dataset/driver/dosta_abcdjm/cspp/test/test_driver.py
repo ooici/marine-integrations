@@ -15,6 +15,9 @@ USAGE:
 __author__ = 'Mark Worden'
 __license__ = 'Apache 2.0'
 
+import hashlib
+import os
+
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
@@ -26,6 +29,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.dosta_abcdjm.cspp.driver import DostaAbcdjmCsppDataSetDriver, DataTypeKey
+from mi.dataset.parser.cspp_base import StateKey
 from mi.dataset.parser.dosta_abcdjm_cspp import \
     DostaAbcdjmCsppInstrumentRecoveredDataParticle, DostaAbcdjmCsppInstrumentTelemeteredDataParticle, \
     DostaAbcdjmCsppMetadataRecoveredDataParticle, DostaAbcdjmCsppMetadataTelemeteredDataParticle
@@ -76,7 +80,29 @@ TEL_PARTICLES = (DostaAbcdjmCsppMetadataTelemeteredDataParticle,
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
- 
+
+    def get_file_state(self, path, ingested=False, position=None, metadata_extracted=False):
+        """
+        Create a state object for a file.  If a position is passed then add a parser state as well.
+        """
+        mod_time = os.path.getmtime(path)
+        file_size = os.path.getsize(path)
+        with open(path) as filehandle:
+            md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+
+        parser_state = {
+            StateKey.POSITION: position,
+            StateKey.METADATA_EXTRACTED: metadata_extracted
+        }
+
+        return {
+                   'ingested': ingested,
+                   'file_mod_date': mod_time,
+                   'file_checksum': md5_checksum,
+                   'file_size': file_size,
+                   'parser_state': parser_state
+        }
+
     def test_get(self):
         """
         Test that we can get data from files.
@@ -88,65 +114,89 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Notify the driver to start sampling
         self.driver.start_sampling()
 
+        # Test simple recovered data handling
+        self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
+        self.assert_data(REC_PARTICLES, 'test_get_recovered_one.yml', count=5, timeout=10)
+
         # Test simple telemetered data handling
-        self.create_sample_data_set_dir('11079894_PPD_OPT.txt', DIR_TEL)
-        self.assert_data(TEL_PARTICLES, 'test_get_telemetered.yml', count=5, timeout=10)
+        self.create_sample_data_set_dir('11079419_PPD_OPT.txt', DIR_TEL)
+        self.assert_data(TEL_PARTICLES, 'test_get_telemetered_one.yml', count=5, timeout=10)
 
-        # # Test simple recovered data handling
-        self.create_sample_data_set_dir('11079894_PPB_OPT.txt', DIR_REC)
-        self.assert_data(REC_PARTICLES, 'test_get_recovered.yml', count=5, timeout=10)
-
-    def test_stop_resume(self):
+    def test_midstate_start(self):
         """
         Test the ability to stop and restart the process
         """
 
-#         # Clear any existing sampling
-#         self.clear_sample_data()
-#
-#         path_1 = self.create_sample_data_set_dir('11079894_PPB_OPT.txt', DIR_REC)
-#         path_2 = self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
-#         path_3 = self.create_sample_data_set_dir('11079894_PPD_OPT.txt', DIR_TEL)
-#         path_4 = self.create_sample_data_set_dir('11079419_PPD_OPT.txt', DIR_TEL)
-#
-#         key_rec = DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED
-#         key_tel = DataTypeKey.DOSTA_ABCDJM_CSPP_TELEMETERED
-#
-#         # Set the state of the driver to the prior state altered to have ingested the first recovered
-#         # data file fully, not ingested the second recovered data file, and to have not returned the fifth
-#         # telemetered data particle in the original version of the telemetered data file
-#         state = {
-#             key_rec: {
-#                 # The following recovered file state will be fully read
-#                 RECOV_FILE_ONE: self.get_file_state(path_1, True, position=50),
-#                 # The following recovered file state will start at byte 76
-#                 RECOV_FILE_TWO: self.get_file_state(path_2, False, position=76)
-#             },
-#             key_tel: {
-#                 TELEM_FILE_TWO: self.get_file_state(path_4, True, position=76),
-#                 TELEM_FILE_ONE: self.get_file_state(path_3, False, position=0)
-# }
-#         }
-#
-#         self.driver = self._get_driver_object(memento=state)
-#
-#         # create some data to parse
-#         self.clear_async_data()
-#
-#         self.driver.start_sampling()
-#
-#         # verify data is produced
-#         self.assert_data(RECOV_PARTICLES, 'recovered_partial.result.yml', count=2, timeout=10)
-#
-#         self.assert_data(TELEM_PARTICLES, 'telemetered_partial.result.yml', count=2, timeout=10)
+        recovered_file_one = '11079419_PPB_OPT.txt'
+        telemetered_file_one = '11079419_PPD_OPT.txt'
 
+        # Clear any existing sampling
+        self.clear_sample_data()
 
-    def test_stop_start_resume(self):
+        recovered_path_1 = self.create_sample_data_set_dir(recovered_file_one, DIR_REC)
+        telemetered_path_1 = self.create_sample_data_set_dir(telemetered_file_one, DIR_TEL)
+
+        state = {
+            DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED: {
+                recovered_file_one: self.get_file_state(recovered_path_1,
+                                                        ingested=False,
+                                                        position=483,
+                                                        metadata_extracted=True),
+            },
+            DataTypeKey.DOSTA_ABCDJM_CSPP_TELEMETERED: {
+                telemetered_file_one: self.get_file_state(telemetered_path_1,
+                                                          ingested=False,
+                                                          position=392,
+                                                          metadata_extracted=True),
+            }
+        }
+
+        self.driver = self._get_driver_object(memento=state)
+
+        # create some data to parse
+        self.clear_async_data()
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(REC_PARTICLES, 'test_recovered_midstate_start.yml', count=1, timeout=10)
+
+        self.assert_data(TEL_PARTICLES, 'test_telemetered_midstate_start.yml', count=2, timeout=10)
+
+    def test_start_stop_resume(self):
         """
-        Test the ability to stop and restart sampling, ingesting files in the
-        correct order
+        Test the ability to stop and restart the process
         """
-        pass
+
+        recovered_file_one = '11079419_PPB_OPT.txt'
+        telemetered_file_one = '11079419_PPD_OPT.txt'
+
+        # Clear any existing sampling
+        self.clear_sample_data()
+
+        self.create_sample_data_set_dir(recovered_file_one, DIR_REC)
+        self.create_sample_data_set_dir(telemetered_file_one, DIR_TEL)
+
+        # create some data to parse
+        self.clear_async_data()
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(REC_PARTICLES, 'test_recovered_start_stop_resume_one.yml', count=1, timeout=10)
+
+        self.assert_data(TEL_PARTICLES, 'test_telemetered_start_stop_resume_one.yml', count=1, timeout=10)
+
+        self.driver.stop_sampling()
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(REC_PARTICLES, 'test_recovered_start_stop_resume_two.yml', count=4, timeout=10)
+
+        self.assert_data(TEL_PARTICLES, 'test_telemetered_start_stop_resume_two.yml', count=4, timeout=10)
+
+        self.driver.stop_sampling()
 
     def test_sample_exception(self):
         """
