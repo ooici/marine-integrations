@@ -4,17 +4,6 @@
 @author Godfrey Duke
 @brief Instrument driver classes that provide structure towards interaction
 with the Satlantic OCR507 ICSW w/ Midrange Bioshutter
-
-TODO:
-The basic interface (and, thus, driver) is very similar to that for PARAD. As a result this driver is based on the
-PARAD driver. The following changes are required:
-[ ] Rework regex
-  [x] Sample pattern
-  [ ] Header pattern
-  [ ] Init pattern
-  [ ] Configuration pattern
-[-] Rework data particles
-[ ] Add spkir_configuration_record stream
 """
 import functools
 from mi.core.instrument.chunker import StringChunker
@@ -70,6 +59,7 @@ CONFIG_PATTERN = '''Satlantic\ OCR.*?
 CONFIG_REGEX = re.compile(CONFIG_PATTERN, re.DOTALL | re.VERBOSE)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
 init_regex = re.compile(init_pattern)
+COMMAND_PATTERN = 'Command Console'
 WRITE_DELAY = 0.2 # should be 0.2
 RESET_DELAY = 6
 EOLN = "\r\n"
@@ -99,10 +89,10 @@ class Command(BaseEnum):
     EXIT_AND_RESET = 'exit!'
     GET = 'show'
     SET = 'set'
-    RESET = 0x12                # CTRL-R
-    BREAK = 0x03                # CTRL-C
-    SWITCH_TO_AUTOSAMPLE = 0x01 # CTRL-A
-    SAMPLE = 0x0D               # CR
+    RESET = '\x12'                # CTRL-R
+    BREAK = '\x03'                # CTRL-C
+    SWITCH_TO_AUTOSAMPLE = '\x01' # CTRL-A
+    SAMPLE = '\x0D'               # CR
     ID = 'id'
     SHOW_ALL = 'show all'
     INVALID = 'foo'
@@ -138,8 +128,6 @@ class SatlanticCapability(BaseEnum):
     STOP_AUTOSAMPLE = SatlanticProtocolEvent.STOP_AUTOSAMPLE
     ACQUIRE_STATUS = SatlanticProtocolEvent.ACQUIRE_STATUS
     RESET = SatlanticProtocolEvent.RESET
-    GET = SatlanticProtocolEvent.GET
-    SET = SatlanticProtocolEvent.SET
 
 class Parameter(DriverParameter):
     MAX_RATE = 'maxrate'
@@ -489,18 +477,18 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.start(SatlanticProtocolState.UNKNOWN)
 
-        self._add_build_handler(Command.SET, self._build_set_command)
-        self._add_build_handler(Command.GET, self._build_param_fetch_command)
-        self._add_build_handler(Command.SAVE, self._build_exec_command)
-        self._add_build_handler(Command.EXIT, self._build_exec_command)
-        self._add_build_handler(Command.EXIT_AND_RESET, self._build_exec_command)
-        self._add_build_handler(Command.SWITCH_TO_AUTOSAMPLE, self._build_control_command)
-        self._add_build_handler(Command.RESET, self._build_control_command)
-        self._add_build_handler(Command.BREAK, self._build_multi_control_command)
-        self._add_build_handler(Command.SAMPLE, self._build_control_command)
-        self._add_build_handler(Command.ID, self._build_id_command)
-        self._add_build_handler(Command.SHOW_ALL, self._build_show_all_command)
-        self._add_build_handler(Command.INVALID, self._build_invalid_command)
+        # self._add_build_handler(Command.SET, self._build_set_command)
+        # self._add_build_handler(Command.GET, self._build_param_fetch_command)
+        # self._add_build_handler(Command.SAVE, self._build_exec_command)
+        # self._add_build_handler(Command.EXIT, self._build_exec_command)
+        # self._add_build_handler(Command.EXIT_AND_RESET, self._build_exec_command)
+        # self._add_build_handler(Command.SWITCH_TO_AUTOSAMPLE, self._build_control_command)
+        # self._add_build_handler(Command.RESET, self._build_control_command)
+        # self._add_build_handler(Command.BREAK, self._build_multi_control_command)
+        # self._add_build_handler(Command.SAMPLE, self._build_control_command)
+        # self._add_build_handler(Command.ID, self._build_id_command)
+        # self._add_build_handler(Command.SHOW_ALL, self._build_show_all_command)
+        # self._add_build_handler(Command.INVALID, self._build_invalid_command)
 
         self._add_response_handler(Command.GET, self._parse_get_response)
         self._add_response_handler(Command.SET, self._parse_set_response)
@@ -621,57 +609,55 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _do_cmd(self, cmd, *args, **kwargs):
         """
-        Issue a command to the instrument after clearing of buffers. No response is handled as a result of the command.
+        Issue a command to the instrument after clearing of buffers.
 
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @retval The fully built command to be sent
-        @raises InstrumentTimeoutException if the response did not occur in time.
+        @retval The fully built command that was sent
         @raises InstrumentProtocolException if command could not be built.
         """
         expected_prompt = kwargs.get('expected_prompt', None)
-        response_regex = kwargs.get('response_regex', None)
-
-        # Get the build handler.
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
-
-        cmd_line = build_handler(cmd, *args)
-
-        write_delay = kwargs.get('write_delay', WRITE_DELAY)
+        cmd_line = self._build_default_command(cmd, *args)
 
         # Send command.
         log.debug('_do_cmd: %s, length=%s' % (repr(cmd_line), len(cmd_line)))
-        if len(cmd_line) <= 1:
+        if len(cmd_line) == 1:
             self._connection.send(cmd_line)
-
         else:
             for char in cmd_line:
+                starttime = time.time()
                 self._connection.send(char)
-                time.sleep(write_delay)
-            # self._connection.send("    ".join(map(None, cmd_line)))
+                while len(self._promptbuf) == 0 or char not in self._promptbuf[-1]:
+                    time.sleep(0.0015)
+                    if time.time() > starttime + 3:
+                        break
 
-            time.sleep(0.4)
-            self._connection.send(self.eoln)
+            time.sleep(0.115)
             starttime = time.time()
+            self._connection.send(EOLN)
+            while EOLN not in self._promptbuf[len(cmd_line):len(cmd_line)+2]:
+                time.sleep(0.0015)
+                if time.time() > starttime + 3:
+                    break
 
-            check_value = None
+            # Limit resend_check_value from expected_prompt to one of the two below
+            resend_check_value = None
             if expected_prompt is not None:
-                checks = (Prompt.COMMAND, "SATDI7")
-                for check in checks:
+                for check in (Prompt.COMMAND, "SATDI7"):
                     if check in expected_prompt:
-                        log.debug('_do_cmd: command: %s, check=%s' % (cmd_line, check))
-                        check_value = check
+                        log.trace('_do_cmd: command: %s, check=%s' % (cmd_line, check))
+                        resend_check_value = check
 
-            if check_value is not None:
+            # Resend the EOLN if it did not go through the first time
+            starttime = time.time()
+            if resend_check_value is not None:
                 while True:
                     time.sleep(0.1)
                     if time.time() > starttime + 2:
                         log.debug("Sending eoln again.")
-                        self._connection.send(self.eoln)
+                        self._connection.send(EOLN)
                         starttime = time.time()
-                    if check_value in self._promptbuf:
+                    if resend_check_value in self._promptbuf:
                         break
                     if Prompt.INVALID_COMMAND in self._promptbuf:
                         break
@@ -680,26 +666,32 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
         """
-        Issue a command to the instrument after clearing of
-        buffers. No response is handled as a result of the command.
-
+        Issue a command to the instrument after clearing of buffers. No response is handled as a result of the command.
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup timeout.
-        @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built.
         """
         self._do_cmd(cmd, *args, **kwargs)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param expected_prompt kwarg offering a specific prompt to look for
+        other than the ones in the protocol class itself.
+        @param response_regex kwarg with a compiled regex for the response to
+        match. Groups that match will be returned as a string.
+        Cannot be supplied with expected_prompt. May be helpful for instruments that do not have a prompt.
+        @retval resp_result The (possibly parsed) response result including the
+        first instance of the prompt matched. If a regex was used, the prompt
+        will be an empty string and the response will be the joined collection of matched groups.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response was not recognized.
         """
-        # Get timeout and initialize response.
         timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
         response_regex = kwargs.get('response_regex', None)
-        write_delay = kwargs.get('write_delay', WRITE_DELAY)
-        retry_count = kwargs.get('retry_count', 5)
 
         if response_regex and not isinstance(response_regex, RE_PATTERN):
             raise InstrumentProtocolException('Response regex is not a compiled pattern!')
@@ -707,9 +699,11 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         if expected_prompt and response_regex:
             raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
 
-
-
+        retry_count = 5
         retry_num = 0
+        cmd_line = ""
+        result = ""
+        prompt = ""
         for retry_num in xrange(retry_count):
             # Clear line and prompt buffers for result.
             self._linebuf = ''
@@ -717,33 +711,28 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
             cmd_line = self._do_cmd(cmd, *args, **kwargs)
 
-            log.debug("_do_cmd_resp: Sending command: %s, %s attempts, expected_prompt=%s, write_delay=%s.",
-                  cmd_line, retry_num, expected_prompt, write_delay)
-
             # Wait for the prompt, prepare result and return, timeout exception
             if response_regex:
-                prompt = ""
-                result_tuple = self._get_response(timeout, response_regex=response_regex, expected_prompt=expected_prompt)
+                result_tuple = self._get_response(timeout, response_regex=response_regex,
+                                                  expected_prompt=expected_prompt)
                 result = "".join(result_tuple)
             else:
                 (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
 
-            # check for "Invalid command", if received resend for n times then raise an error.
-            # (expected_prompt is not None and PARProtocolError.INVALID_COMMAND not in expected_prompt or
+            # Confirm the entire command was sent, otherwise resend retry_count number of times
             if len(cmd_line) > 1 and \
                 (expected_prompt is not None or
                 (response_regex is not None))\
                     and cmd_line not in result:
                 log.debug("_do_cmd_resp: Send command: %s failed %s attempt, result = %s.", cmd, retry_num, result)
-                if retry_num == retry_count:
+                if retry_num >= retry_count:
                     raise InstrumentCommandException('_do_cmd_resp: Failed %s attempts sending command: %s' %
                                                      (retry_count, cmd))
-                write_delay += 0.05
             else:
                 break
 
-        log.debug("_do_cmd_resp: Sent command: %s, %s attempts, expected_prompt=%s, result=%s, prompt=%s, write_delay=%s.",
-                  cmd_line, retry_num, expected_prompt, result, prompt, write_delay)
+        log.debug("_do_cmd_resp: Sent command: %s, %s reattempts, expected_prompt=%s, result=%s.",
+                  cmd_line, retry_num, expected_prompt, result)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
@@ -754,6 +743,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         time.sleep(0.3)     # give some time for the instrument connection to keep up
 
         return resp_result
+
 
     ########################################################################
     # Unknown handlers.
@@ -926,7 +916,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         try:
             self._send_break()
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
             next_state = SatlanticProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
@@ -984,6 +973,12 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
     ###################################################################
     # Builders
     ###################################################################
+    def _build_default_command(self, *args):
+        """
+        Join each command component into a string with spaces in between
+        """
+        return " ".join(str(x) for x in args)
+
     def _build_set_command(self, cmd, param, value):
         """
         Build a command that is ready to send out to the instrument. Checks for
@@ -1251,27 +1246,27 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._confirm_autosample_mode():
                 break
 
+
     def _send_break(self, timeout=10):
-        """Send a blind break command to the device, confirm command mode after
-
-        @throw InstrumentTimeoutException
-        @throw InstrumentProtocolException
-        @todo handle errors correctly here, deal with repeats at high sample rate
-        """
-        write_delay = 0.2
-        log.debug("Sending break char")
-        # do the magic sequence of sending lots of characters really fast...
-        # but not too fast
-        if self._protocol_fsm.get_current_state() == SatlanticProtocolState.COMMAND:
-            return
-
-        # TODO: infinite loop bad idea
+        # """
+        # send break every 0.3 seconds until the Command Console banner
+        # """
+        self._promptbuf = ""
+        self._connection.send(Command.BREAK)
+        starttime = time.time()
+        resendtime = time.time()
         while True:
-            self._do_cmd_no_resp(Command.BREAK, timeout=timeout,
-                                 expected_prompt=Prompt.COMMAND,
-                                 write_delay=write_delay)
-            if self._confirm_command_mode():
+            time.sleep(0.1)
+            if time.time() > resendtime + 0.3:
+                log.debug("Sending break again.")
+                self._connection.send(Command.BREAK)
+                resendtime = time.time()
+
+            if COMMAND_PATTERN in self._promptbuf:
                 break
+
+            if time.time() > starttime + 5:
+                raise InstrumentTimeoutException("Break command failing to stop autosample!")
 
 
     def _got_chunk(self, chunk, timestamp):

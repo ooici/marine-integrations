@@ -468,98 +468,142 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
 
-    def assertSampleDataParticle(self, val):
-        """
-        Verify the value for a par sample data particle
-
-        {
-          'quality_flag': 'ok',
-          'preferred_timestamp': 'driver_timestamp',
-          'stream_name': 'parsed',
-          'pkt_format_id': 'JSON_Data',
-          'pkt_version': 1,
-          'driver_timestamp': 3559843883.8029947,
-          'values': [
-            {'value_id': 'serial_num', 'value': '0226'},
-            {'value_id': 'elapsed_time', 'value': 7.17},
-            {'value_id': 'counts', 'value': 2157033280},
-            {'value_id': 'checksum', 'value': 27}
-          ],
-        }
-        """
-
-        if (isinstance(val, SatlanticOCR507DataParticle)):
-            sample_dict = json.loads(val.generate())
-        else:
-            sample_dict = val
-
-        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleType.PARSED)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
-        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-            list))
-        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['serial_num', 'elapsed_time', 'counts', 'checksum'])
-            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
-            if(x['value_id'] == 'elapsed_time'):
-                self.assertTrue(isinstance(x['value'], float))
-            elif(x['value_id'] == 'serial_num'):
-                self.assertTrue(isinstance(x['value'], str))
-            elif(x['value_id'] == 'counts'):
-                self.assertTrue(isinstance(x['value'], int))
-            elif(x['value_id'] == 'checksum'):
-                self.assertTrue(isinstance(x['value'], int))
-            else:
-                # Shouldn't get here.  If we have then we aren't checking a parameter
-                self.assertFalse(True)
-
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test verifies that the Instrument Driver
+               properly supports direct access to the physical
+               instrument. (telnet mode)
         """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.MAX_RATE, 4)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.send_data("set maxrate 1")
+        time.sleep(0.4)
+        self.tcp_client.send_data(EOLN)
+        time.sleep(0.4)
+
+        #need to sleep as the instrument needs time to apply the new param value
+        time.sleep(5)
+
+        # Verify the param value got changed on the instrument
+        self.tcp_client.send_data("show maxrate")
+        time.sleep(0.4)
+        self.tcp_client.send_data(EOLN)
+        time.sleep(0.4)
+
+        self.tcp_client.expect("Maximum Frame Rate: 1 Hz")
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting remained unchanged in the param dict
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.MAXRATE, 4)
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.MAXRATE, 4)
+        # go into direct access
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        self.tcp_client.send_data("\r\n")
-        self.tcp_client.expect("Invalid command")
+        #start sampling
+        self.tcp_client.send_data("exit!")
+        time.sleep(0.4)
+        self.tcp_client.send_data(EOLN)
+        time.sleep(2)
 
+        #verify we're sampling
+        self.tcp_client.expect("SATPAR")
+
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.STREAMING, PARProtocolState.AUTOSAMPLE, timeout=10)
 
-    @unittest.skip("polled mode note implemented")
-    def test_poll(self):
-        '''
-        No polling for a single sample
-        '''
+        #now stop autosampling
+        self.assert_stop_autosample()
 
-        #self.assert_sample_polled(self.assertSampleDataParticle,
-        #                          DataParticleValue.PARSED)
-
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-        self.assert_sample_autosample(self.assertSampleDataParticle, DataParticleValue.PARSED)
-
-
-    def test_get_set_parameters(self):
-        '''
-        verify that all parameters can be get set properly
-        '''
+    def test_direct_access_telnet_timeout(self):
+        """
+        Verify that direct access times out as expected and the agent transitions back to command mode.
+        """
         self.assert_enter_command_mode()
 
-        self.assert_set_parameter(Parameter.MAXRATE, 4)
-        self.assert_set_parameter(Parameter.MAXRATE, 1)
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=30)
+        self.assertTrue(self.tcp_client)
 
+        self.assert_state_change(ResourceAgentState.IDLE, PARProtocolState.COMMAND, 180)
+
+    def test_direct_access_telnet_closed(self):
+        """
+        Verify that a disconnection from the DA server transitions the agent back to
+        command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.IDLE, PARProtocolState.COMMAND, 120)
+
+    def test_get_set_parameters(self):
+        """
+        Verify that parameters can be get/set properly
+        """
+        self.assert_enter_command_mode()
+
+        #read/write params
+        self.assert_set_parameter(Parameter.MAXRATE, 2)
+
+        #read-only params
         self.assert_get_parameter(Parameter.FIRMWARE, "1.0.0")
-        self.assert_get_parameter(Parameter.SERIAL, "0226")
+        self.assert_get_parameter(Parameter.SERIAL, "4278190306")
         self.assert_get_parameter(Parameter.INSTRUMENT, "SATPAR")
 
-        self.assert_reset()
+    def test_poll(self):
+        """
+        Verify data particles for a single sample that are specific to Parad
+        """
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.PARSED,
+                                    timeout=60, sample_count=1)
+
+    def test_autosample(self):
+        """
+        Verify data particles for auto-sampling that are specific to Parad
+        """
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+
+        self.assert_particle_async(DataParticleType.PARSED, self.assert_particle_sample)
+
+        self.assert_stop_autosample()
+
+    def test_acquire_status(self):
+        """
+        Verify the driver can command an acquire status from the instrument
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(PARCapability.ACQUIRE_STATUS, self.assert_config_parameters,
+                                    DataParticleType.CONFIG)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
     def test_get_capabilities(self):
         """
@@ -572,74 +616,52 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
         #  Command Mode
         ##################
 
-        capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: [
-                ResourceAgentEvent.CLEAR,
-                ResourceAgentEvent.RESET,
-                ResourceAgentEvent.GO_DIRECT_ACCESS,
-                ResourceAgentEvent.GO_INACTIVE,
-                ResourceAgentEvent.PAUSE
-            ],
-            AgentCapabilityType.AGENT_PARAMETER: ['example'],
-            AgentCapabilityType.RESOURCE_COMMAND: [
-                DriverEvent.SET, DriverEvent.ACQUIRE_SAMPLE, DriverEvent.GET,
-                SatlanticProtocolEvent.START_POLL, DriverEvent.START_AUTOSAMPLE
-            ],
-            AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: [
-                Parameter.INSTRUMENT, Parameter.SERIAL, Parameter.MAXRATE, Parameter.FIRMWARE
+        capabilities = {}
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [PARProtocolEvent.GET,
+                                                               PARProtocolEvent.SET,
+                                                               PARProtocolEvent.ACQUIRE_SAMPLE,
+                                                               PARProtocolEvent.ACQUIRE_STATUS,
+                                                               PARProtocolEvent.START_AUTOSAMPLE,
+                                                               PARProtocolEvent.START_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
-            ],
-        }
-
+        self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
-
-        ##################
-        #  Polled Mode
-        ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
-            ResourceAgentEvent.CLEAR,
-            ResourceAgentEvent.RESET,
-            ResourceAgentEvent.GO_DIRECT_ACCESS,
-            ResourceAgentEvent.GO_INACTIVE,
-            ResourceAgentEvent.PAUSE,
-        ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            DriverEvent.START_AUTOSAMPLE, DriverEvent.RESET, SatlanticProtocolEvent.STOP_POLL
-        ]
-
-        self.assert_switch_driver_state(SatlanticProtocolEvent.START_POLL, DriverProtocolState.POLL)
-
-        self.assert_capabilities(capabilities)
-
-        self.assert_switch_driver_state(SatlanticProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
-
 
         ##################
         #  Streaming Mode
         ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            SatlanticProtocolEvent.START_POLL,
-            DriverEvent.STOP_AUTOSAMPLE,
-            DriverEvent.RESET
-        ]
+        capabilities = {}
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_AUTOSAMPLE,
+                                                              PARProtocolEvent.ACQUIRE_STATUS,
+                                                              PARProtocolEvent.RESET]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
+        # ##################
+        # #  DA Mode
+        # ##################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_DIRECT]
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
         #######################
         #  Uninitialized Mode
         #######################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
-
