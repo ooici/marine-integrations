@@ -343,8 +343,7 @@ class CsppParser(BufferLoadingParser):
                     result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
                                                                     StateKey.METADATA_EXTRACTED: True}))
 
-            if self._read_state[StateKey.METADATA_EXTRACTED]:
-                result_particles.append((data_particle, copy.copy(self._read_state)))
+            result_particles.append((data_particle, copy.copy(self._read_state)))
 
     def _process_header_part_match(self, header_part_match):
         """
