@@ -20,7 +20,9 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+log = get_logger()
+
 from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
