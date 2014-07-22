@@ -169,7 +169,6 @@ class DostaAbcdjmCsppMetadataDataParticle(CsppMetadataDataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        log.debug('DostaAbcdjmCsppMetadataRecoveredDataParticle: particle=%s', results)
         return results
 
 
@@ -226,7 +225,6 @@ class DostaAbcdjmCsppInstrumentDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        log.debug('DostaAbcdjmCsppInstrumentDataParticle: particle=%s', results)
         return results
 
 

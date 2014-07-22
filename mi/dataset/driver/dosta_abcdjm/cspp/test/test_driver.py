@@ -29,10 +29,15 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.dosta_abcdjm.cspp.driver import DostaAbcdjmCsppDataSetDriver, DataTypeKey
+
 from mi.dataset.parser.cspp_base import StateKey
+
 from mi.dataset.parser.dosta_abcdjm_cspp import \
-    DostaAbcdjmCsppInstrumentRecoveredDataParticle, DostaAbcdjmCsppInstrumentTelemeteredDataParticle, \
-    DostaAbcdjmCsppMetadataRecoveredDataParticle, DostaAbcdjmCsppMetadataTelemeteredDataParticle
+    DostaAbcdjmCsppInstrumentRecoveredDataParticle, \
+    DostaAbcdjmCsppInstrumentTelemeteredDataParticle, \
+    DostaAbcdjmCsppMetadataRecoveredDataParticle, \
+    DostaAbcdjmCsppMetadataTelemeteredDataParticle, \
+    DataParticleType
 
 DIR_REC = '/tmp/dsatest_rec'
 DIR_TEL = '/tmp/dsatest_tel'
@@ -151,12 +156,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
             }
         }
 
-        self.driver = self._get_driver_object(memento=state)
+        driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
 
-        self.driver.start_sampling()
+        driver.start_sampling()
 
         # verify data is produced
         self.assert_data(REC_PARTICLES, 'test_recovered_midstate_start.yml', count=1, timeout=10)
@@ -203,7 +208,15 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test a case that should produce a sample exception and confirm the
         sample exception occurs
         """
-        pass
+        # Start sampling.
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        # test that everything works for the telemetered harvester
+        self.create_sample_data_set_dir('BadDataRecord_PPB_OPT.txt', DIR_REC)
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -218,7 +231,21 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        log.info("=========== START QUAL TEST PUBLISH PATH =================")
+
+        self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
+        self.create_sample_data_set_dir('11194982_PPD_OPT.txt', DIR_TEL)
+
+        self.assert_initialize()
+
+        result = self.data_subscribers.get_samples(REC_PARTICLES,
+                                                   20, 40)
+        self.assert_data_values(result, '11079419_PPB_OPT.yml')
+
+        result = self.data_subscribers.get_samples(TEL_PARTICLES,
+                                                   18, 40)
+        self.assert_data_values(result, '11194982_PPD_OPT.yml')
+
 
     def test_large_import(self):
         """
