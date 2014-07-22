@@ -118,12 +118,12 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         """
 
         #ADCP_data_20130702.PD0 has one record in it
-        fid = open(os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt'))
+        fid = open(os.path.join(RESOURCE_PATH, '11194982_PPD_OPT.txt'))
         test_buffer = fid.read()
         fid.close()
 
         self.stream_handle = StringIO(test_buffer)
-        self.parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED),
+        self.parser = DostaAbcdjmCsppParser(self.config.get(DataTypeKey.DOSTA_ABCDJM_CSPP_TELEMETERED),
                                             None, self.stream_handle,
                                             self.state_callback, self.pub_callback,
                                             self.exception_callback)
@@ -132,7 +132,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
         log.info("Exception callback value: %s", self.exception_callback_value)
 
-        self.particle_to_yml(particles, '11079894_PPB_OPT.yml')
+        self.particle_to_yml(particles, '11194982_PPD_OPT.yml')
 
     def test_simple(self):
         """

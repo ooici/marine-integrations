@@ -116,11 +116,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Test simple recovered data handling
         self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
-        self.assert_data(REC_PARTICLES, 'test_get_recovered_one.yml', count=5, timeout=10)
+        self.assert_data(REC_PARTICLES, '11079419_PPB_OPT.yml', count=20, timeout=10)
 
         # Test simple telemetered data handling
-        self.create_sample_data_set_dir('11079419_PPD_OPT.txt', DIR_TEL)
-        self.assert_data(TEL_PARTICLES, 'test_get_telemetered_one.yml', count=5, timeout=10)
+        self.create_sample_data_set_dir('11194982_PPD_OPT.txt', DIR_TEL)
+        self.assert_data(TEL_PARTICLES, '11194982_PPD_OPT.yml', count=18, timeout=10)
 
     def test_midstate_start(self):
         """
@@ -128,7 +128,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         recovered_file_one = '11079419_PPB_OPT.txt'
-        telemetered_file_one = '11079419_PPD_OPT.txt'
+        telemetered_file_one = '11194982_PPD_OPT.txt'
 
         # Clear any existing sampling
         self.clear_sample_data()
@@ -140,13 +140,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
             DataTypeKey.DOSTA_ABCDJM_CSPP_RECOVERED: {
                 recovered_file_one: self.get_file_state(recovered_path_1,
                                                         ingested=False,
-                                                        position=483,
+                                                        position=521,
                                                         metadata_extracted=True),
             },
             DataTypeKey.DOSTA_ABCDJM_CSPP_TELEMETERED: {
                 telemetered_file_one: self.get_file_state(telemetered_path_1,
                                                           ingested=False,
-                                                          position=392,
+                                                          position=433,
                                                           metadata_extracted=True),
             }
         }
@@ -169,7 +169,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         recovered_file_one = '11079419_PPB_OPT.txt'
-        telemetered_file_one = '11079419_PPD_OPT.txt'
+        telemetered_file_one = '11194982_PPD_OPT.txt'
 
         # Clear any existing sampling
         self.clear_sample_data()
