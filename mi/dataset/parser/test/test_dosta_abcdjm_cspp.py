@@ -117,7 +117,6 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        #ADCP_data_20130702.PD0 has one record in it
         fid = open(os.path.join(RESOURCE_PATH, '11194982_PPD_OPT.txt'))
         test_buffer = fid.read()
         fid.close()
