@@ -233,14 +233,10 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
-    GET = ProtocolEvent.GET
-    SET = ProtocolEvent.SET
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
@@ -516,7 +512,7 @@ class NortekUserConfigDataParticleKey(BaseEnum):
     CELL_SIZE = 'cell_size'
     MEASUREMENT_INTERVAL = 'measurement_interval'
     DEPLOYMENT_NAME = 'deployment_name'
-    WRAP_MODE = 'wrap_mode'
+    WRAP_MODE = 'wrap_moder'
     DEPLOY_START_TIME = 'deployment_start_time'
     DIAG_INTERVAL = 'diagnostics_interval'
     MODE = 'mode'
@@ -541,7 +537,7 @@ class NortekUserConfigDataParticleKey(BaseEnum):
     FILE_COMMENTS = 'file_comments'
     WAVE_MODE = 'wave_mode'
     WAVE_DATA_RATE = 'wave_data_rate'
-    WAVE_CELL_POS = 'wave_cell_pos'
+    WAVE_CELL_POS = 'wave_cell_position'
     DYNAMIC_POS_TYPE = 'dynamic_position_type'
     PERCENT_WAVE_CELL_POS = 'percent_wave_cell_position'
     WAVE_TX_PULSE = 'wave_transmit_pulse'
@@ -1453,7 +1449,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL) != '00:00:00':
                 self.start_scheduled_job(EngineeringParameter.CLOCK_SYNC_INTERVAL, ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
 
-        if self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL) is not None:
+        if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) is not None:
             log.debug("Configuring the scheduler to acquire status %s", self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
             if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) != '00:00:00':
                 self.start_scheduled_job(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
@@ -1874,14 +1870,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         from a file if present.
         """
         self._cmd_dict = ProtocolCommandDict()
-        self._cmd_dict.add(Capability.SET, display_name='set')
-        self._cmd_dict.add(Capability.GET, display_name='get')
         self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire sample')
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='start autosample')
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='stop autosample')
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='clock sync')
-        self._cmd_dict.add(Capability.START_DIRECT, display_name='start direct access')
-        self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct access')
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
 
     def _build_param_dict(self):
