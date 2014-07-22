@@ -1,0 +1,82 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162676222.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 302460
+    conductivity: 402460
+    pressure: 502460
+    pressure_temp: 62460
+    ctd_time: 7002622
+  - _index:  2
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162676444.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 302682
+    conductivity: 402682
+    pressure: 502682
+    pressure_temp: 62682
+    ctd_time: 7002844
+  - _index:  3
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162676666.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 302904
+    conductivity: 402904
+    pressure: 502904
+    pressure_temp: 62904
+    ctd_time: 7003066
+  - _index:  4
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162676888.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 303126
+    conductivity: 403126
+    pressure: 503126
+    pressure_temp: 63126
+    ctd_time: 7003288
+  - _index:  5
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162677110.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 303348
+    conductivity: 403348
+    pressure: 503348
+    pressure_temp: 63348
+    ctd_time: 7003510
+  - _index:  6
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162677332.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 303570
+    conductivity: 403570
+    pressure: 503570
+    pressure_temp: 63570
+    ctd_time: 7003732
+  - _index:  7
+    particle_object: CtdmoRecoveredInstrumentDataParticle
+    particle_type: ctdmo_ghqr_instrument_recovered
+    internal_timestamp: 3162677554.0
+    inductive_id: 55
+    instrument_serial_number_u32: 20130704
+    temperature: 303792
+    conductivity: 403792
+    pressure: 503792
+    pressure_temp: 63792
+    ctd_time: 7003954

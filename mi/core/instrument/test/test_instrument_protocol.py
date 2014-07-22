@@ -59,6 +59,10 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         self._events = []
 
         self.protocol = InstrumentProtocol(self.event_callback)
+
+    def tearDown(self):
+        if self.protocol._scheduler:
+            self.protocol._scheduler._scheduler.shutdown()
                 
     def event_callback(self, event, value=None):
         log.debug("Test event callback: %s" % event)

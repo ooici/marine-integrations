@@ -18,6 +18,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.driver.sio_mule.sio_mule_single_driver import SioMuleSingleDataSetDriver
 from mi.dataset.parser.dosta_ln_wfp_sio_mule import DostaLnWfpSioMuleParser, DostaLnWfpSioMuleParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester, SingleFileHarvester
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
 
 class DostaLnWfpSioMuleDataSetDriver(SioMuleSingleDataSetDriver):
@@ -34,8 +35,8 @@ class DostaLnWfpSioMuleDataSetDriver(SioMuleSingleDataSetDriver):
         config = self._parser_config
         # Fill in blanks with particle info
         config.update({
-            'particle_module': 'mi.dataset.parser.dosta_ln_wfp_sio_mule',
-            'particle_class': 'DostaLnWfpSioMuleParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dosta_ln_wfp_sio_mule',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaLnWfpSioMuleParserDataParticle'
         })
         log.debug("My Config: %s", config)
         self._parser = DostaLnWfpSioMuleParser(

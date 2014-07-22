@@ -1,0 +1,10 @@
+data:
+- _index: 1
+  chlaflo: 91
+  internal_timestamp: 3594243022.830297
+  ntuflo: 158
+  raw_time_microseconds: 830297
+  raw_time_seconds: 1385254222
+header:
+  particle object: FlntuXMmpCdsParserDataParticle
+  particle_type: flntu_x_mmp_cds_instrument

@@ -1,0 +1,32 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243032.3220400810
+    raw_time_microseconds: 322040
+    raw_time_seconds: 1385254232.0000000000
+    conductivity: 37.4670000000
+    pressure: 16.4520
+    temperature: 7.7897
+  - _index: 2
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243033.9075899124
+    raw_time_microseconds: 907590
+    raw_time_seconds: 1385254233.0000000000
+    conductivity: 35.6851000000
+    pressure: 15.2679
+    temperature: 9.6319
+  - _index: 3
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243032.2397079468
+    raw_time_microseconds: 239708
+    raw_time_seconds: 1385254232.0000000000
+    conductivity: 20.8856000000
+    pressure: 19.7685
+    temperature: 10.9121

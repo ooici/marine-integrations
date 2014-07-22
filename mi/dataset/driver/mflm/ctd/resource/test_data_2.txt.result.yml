@@ -1,7 +1,7 @@
 # Result data after parsing test_data_1.txt 
 
 header:
-  particle_object: CtdmoParserDataParticle
+  particle_object: CtdmoTelemeteredInstrumentDataParticle
   particle_type: ctdmo_ghqr_sio_mule_instrument
 
 data:

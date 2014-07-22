@@ -1,0 +1,47 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: CtdmoRecoveredOffsetDataParticle
+    particle_type: ctdmo_ghqr_offset_recovered
+    internal_timestamp: 3573390982
+    sio_controller_timestamp: 1364402182
+    inductive_id: 55
+    ctd_time_offset: -30
+  - _index:  2
+    particle_object: CtdmoRecoveredOffsetDataParticle
+    particle_type: ctdmo_ghqr_offset_recovered
+    internal_timestamp: 3573390983
+    sio_controller_timestamp: 1364402183
+    inductive_id: 55
+    ctd_time_offset: 10
+  - _index:  3
+    particle_object: CtdmoRecoveredOffsetDataParticle
+    particle_type: ctdmo_ghqr_offset_recovered
+    internal_timestamp: 3573390983
+    sio_controller_timestamp: 1364402183
+    inductive_id: 55
+    ctd_time_offset: 90
+  - _index:  4
+    particle_object: CtdmoRecoveredOffsetDataParticle
+    particle_type: ctdmo_ghqr_offset_recovered
+    internal_timestamp: 3573390983
+    sio_controller_timestamp: 1364402183
+    inductive_id: 55
+    ctd_time_offset: 130
+  - _index:  5
+    particle_object: CtdmoRecoveredOffsetDataParticle
+    particle_type: ctdmo_ghqr_offset_recovered
+    internal_timestamp: 3573390983
+    sio_controller_timestamp: 1364402183
+    inductive_id: 55
+    ctd_time_offset: 170
+  - _index:  6
+    particle_object: CtdmoRecoveredOffsetDataParticle
+    particle_type: ctdmo_ghqr_offset_recovered
+    internal_timestamp: 3573390985
+    sio_controller_timestamp: 1364402185
+    inductive_id: 55
+    ctd_time_offset: 210

@@ -1,0 +1,46 @@
+# Result data after parsing SAMI_P0080_180713_integration.txt
+# Step 3 of test_stop_resume_recovered phsen_abcdef integration test
+header:
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
+
+data:
+  - _index: 1
+    particle_object: PhsenRecoveredMetadataDataParticle
+    particle_type: phsen_abcdef_metadata
+    internal_timestamp: 3583114176.0
+    record_type: 254
+    record_time: 3456970176
+    voltage_battery: !!null
+    clock_active: 0
+    recording_active: 0
+    record_end_on_time: 0
+    record_memory_full: 0
+    record_end_on_error: 0
+    data_download_ok: 0
+    flash_memory_open: 0
+    battery_low_prestart: 0
+    battery_low_measurement: 0
+    battery_low_blank: 0
+    battery_low_external: 0
+    external_device1_fault: 0
+    external_device2_fault: 0
+    external_device3_fault: 0
+    flash_erased: 0
+    power_on_invalid: 1
+    num_data_records: 1
+    num_error_records: 0
+    num_bytes_stored: 512
+
+ - _index: 2
+   particle_object: PhsenRecoveredInstrumentDataParticle
+   particle_type: phsen_abcdef_instrument
+   internal_timestamp: 3583119600.0
+   record_type: 10
+   record_time: 3456975600
+   thermistor_start: 2276
+   reference_light_measurements: [2955, 2002, 2436, 2495, 2962, 1998, 2440, 2492, 2960, 2001, 2440, 2494, 2964, 2002, 2444, 2496]
+   light_measurements: [2962, 2004, 2438, 2496, 2960, 2002, 2437, 2494, 2959, 1977, 2438, 2477, 2963, 1653, 2440, 2219, 2961, 1121, 2441, 1757, 2962, 694, 2437, 1327, 2963, 465, 2439, 1059, 2958, 365, 2436, 933, 2959, 343, 2434, 901, 2961, 370, 2443, 937, 2960, 425, 2441, 1013, 2961, 506, 2438, 1118, 2962, 602, 2441, 1232, 2963, 707, 2439, 1356, 2964, 828, 2440, 1484, 2962, 948, 2439, 1604, 2962, 1065, 2440, 1716, 2968, 1173, 2444, 1816, 2962, 1273, 2440, 1910, 2961, 1363, 2442, 1986, 2959, 1449, 2439, 2059, 2963, 1521, 2442, 2120, 2962, 1585, 2439, 2171]
+   voltage_battery: 2857
+   thermistor_end: 2297
+
