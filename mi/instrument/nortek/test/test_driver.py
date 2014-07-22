@@ -909,7 +909,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 ###############################################################################
 @attr('INT', group='mi')
 class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
-    
+
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -1160,12 +1160,9 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
         capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.ACQUIRE_SAMPLE,
-                                                              ProtocolEvent.GET,
-                                                              ProtocolEvent.SET,
                                                               ProtocolEvent.ACQUIRE_STATUS,
                                                               ProtocolEvent.CLOCK_SYNC,
-                                                              ProtocolEvent.START_AUTOSAMPLE,
-                                                              ProtocolEvent.START_DIRECT]
+                                                              ProtocolEvent.START_AUTOSAMPLE]
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
@@ -1188,7 +1185,7 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         # #  DA Mode
         # ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
