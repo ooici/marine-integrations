@@ -15,13 +15,12 @@ __license__ = 'Apache 2.0'
 
 import re
 import numpy
-import string
 
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.exceptions import SampleException
 
 from mi.dataset.parser.cspp_base import \
     CsppParser, \
@@ -35,9 +34,9 @@ from mi.dataset.parser.cspp_base import \
     encode_y_or_n
 
 # Date is in format MM/DD/YY, example 04/17/14
-DATE_REGEX = r'(\d{2}/\d{2}/\d{2})'
+DATE_REGEX = r'\d{2}/\d{2}/\d{2}'
 # Time is in format HH:MM:SS, example 15:22:31
-TIME_REGEX = r'(\d{2}:\d{2}:\d{2})'
+TIME_REGEX = r'\d{2}:\d{2}:\d{2}'
 
 # *** Need to define data regex for this parser ***
 DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
@@ -54,7 +53,7 @@ DATA_REGEX += '(' + INT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH    # par
 # do not match the data record or the header rows formats
 IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX     # Profiler Timestamp
 IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX    # Depth
-IGNORE_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX     # Suspect Timestamp
+IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX     # Suspect Timestamp
 IGNORE_REGEX += '.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH    # any text after the Depth
 
 IGNORE_MATCHER = re.compile(IGNORE_REGEX)
@@ -75,7 +74,7 @@ class DataMatchesGroupNumber(BaseEnum):
 
 class DataParticleType(BaseEnum):
     """
-    The data particle types that a dosta_abcdjm_cspp parser could generate
+    The data particle types that a parad_j_cspp parser could generate
     """
     METADATA_RECOVERED = 'parad_j_cspp_metadata_recovered'
     INSTRUMENT_RECOVERED = 'parad_j_cspp_instrument_recovered'
@@ -168,7 +167,7 @@ class ParadJCsppInstrumentDataParticle(DataParticle):
                                               numpy.float))
 
             results.append(self._encode_value(ParadJCsppParserDataParticleKey.PRESSURE_DEPTH,
-                                              self.raw_data.group(DataMatchesGroupNumber.PRESSURE_DEPTH),
+                                              self.raw_data.group(DataMatchesGroupNumber.DEPTH),
                                               float))
 
             results.append(self._encode_value(ParadJCsppParserDataParticleKey.SUSPECT_TIMESTAMP,
@@ -177,17 +176,17 @@ class ParadJCsppInstrumentDataParticle(DataParticle):
 
             results.append(self._encode_value(ParadJCsppParserDataParticleKey.DATE_STRING,
                                               self.raw_data.group(DataMatchesGroupNumber.DATE),
-                                              string))
+                                              str))
 
             results.append(self._encode_value(ParadJCsppParserDataParticleKey.TIME_STRING,
                                               self.raw_data.group(DataMatchesGroupNumber.TIME),
-                                              string))
+                                              str))
 
             results.append(self._encode_value(ParadJCsppParserDataParticleKey.PAR,
                                               self.raw_data.group(DataMatchesGroupNumber.PAR),
                                               int))
 
-            # # Set the internal timestamp
+            # Set the internal timestamp
             internal_timestamp_unix = numpy.float(self.raw_data.group(
                 DataMatchesGroupNumber.PROFILER_TIMESTAMP))
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
