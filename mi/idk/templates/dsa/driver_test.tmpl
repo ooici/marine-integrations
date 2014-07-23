@@ -28,8 +28,11 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from ${driver_module} import ${constructor}
+from ${driver_module} import ${constructor}, DataSourceKey
 from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}ParserDataParticle
+
+TEST_DIR_1 = '/tmp/dsatest1'
+TEST_DIR_2 = '/tmp/dsatest2'
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -42,15 +45,23 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: '${full_instrument_lower}',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: '',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSourceKey.KEY_1: {
+                DataSetDriverConfigKeys.DIRECTORY: TEST_DIR_1,
+                DataSetDriverConfigKeys.PATTERN: '',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+            DataSourceKey.KEY_2: {
+                DataSetDriverConfigKeys.DIRECTORY: TEST_DIR_2,
+                DataSetDriverConfigKeys.PATTERN: '',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataSourceKey.KEY_1: {}
+            DataSourceKey.KEY_2: {}
+        }
     }
 )
-
-SAMPLE_STREAM = '${full_instrument_lower}_parsed'
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
@@ -73,14 +84,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_stop_resume(self):
         """
-        Test the ability to stop and restart the process
-        """
-        pass
-
-    def test_stop_start_resume(self):
-        """
-        Test the ability to stop and restart sampling, ingesting files in the
-        correct order
+        Start the driver in a state that it could have previously stopped at,
+        and confirm the driver starts outputting particles where it left off
         """
         pass
 
