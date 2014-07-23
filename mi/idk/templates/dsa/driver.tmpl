@@ -15,7 +15,8 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import ConfigurationException
 
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, \
+                                      DataSetDriverConfigKeys
 from mi.dataset.harvester import SingleDirectoryHarvester
 from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}Parser, ${full_instrument_camelcase}ParserDataParticle
 
