@@ -17,10 +17,12 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import ConfigurationException
 
-from mi.dataset.harvester import SingleFileHarvester
+from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.dataset_driver import HarvesterType
-from mi.dataset.parser.flortd import FlortdParser, FlortdParserDataParticle
+from mi.dataset.parser.flortd import FlortdParser, FlortdRecoveredParser, \
+                                     FlortdParserDataParticle, \
+                                     FlortdRecoveredParserDataParticle
 
 class DataSourceKey(BaseEnum):
     """
@@ -33,7 +35,8 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [FlortdParserDataParticle.type()]
+        return [FlortdParserDataParticle.type(),
+                FlortdRecoveredParserDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
@@ -71,7 +74,7 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
             'particle_module': 'mi.dataset.parser.flortd',
             'particle_class': 'FlortdParserDataParticle'
         })
-        log.debug("My Config: %s", config)
+        log.debug("Telemetered Config: %s", config)
         parser = FlortdParser(
             config,
             parser_state,
@@ -89,7 +92,20 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
         @param stream_in Handle of open file to pass to parser
         """
         # recovered parser is not written yet
-        parser = None
+        config = self._parser_config
+        config.update({
+            'particle_module': 'mi.dataset.parser.flortd',
+            'particle_class': 'FlortdRecoveredParserDataParticle'
+        })
+        log.debug("Recovered Config: %s", config)
+        parser = FlortdRecoveredParser(
+            config,
+            parser_state,
+            stream_in,
+            lambda state, ingested: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_RECOVERED, ingested),
+            self._data_callback,
+            self._sample_exception_callback
+        )
         return parser
 
     def _build_harvester(self, driver_state):
@@ -109,17 +125,16 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
         else:
             log.warn('No configuration for %s harvester, not building', DataSourceKey.FLORT_DJ_SIO_TELEMETERED)
 
-        #if DataSourceKey.FLORT_DJ_SIO_RECOVERED in self._harvester_config:
-        #    recov_harvester = SingleDirectoryHarvester(
-        #        self._harvester_config.get(DataSourceKey.FLORT_DJ_SIO_RECOVERED),
-        #        driver_state[DataSourceKey.FLORT_DJ_SIO_RECOVERED],
-        #        lambda file_state, file_ingested: self._file_changed_callback(file_state,
-        #                                                                      DataSourceKey.FLORT_DJ_SIO_RECOVERED,
-        #                                                                      file_ingested),
-        #        self._exception_callback
-        #    )
-        #    harvesters.append(recov_harvester)
-        #else:
-        #    log.warn('No configuration for %s harvester, not building', DataSourceKey.FLORT_DJ_SIO_RECOVERED)
+        if DataSourceKey.FLORT_DJ_SIO_RECOVERED in self._harvester_config:
+            recov_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.FLORT_DJ_SIO_RECOVERED),
+                driver_state[DataSourceKey.FLORT_DJ_SIO_RECOVERED],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.FLORT_DJ_SIO_RECOVERED),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.FLORT_DJ_SIO_RECOVERED),
+                self._exception_callback
+            )
+            harvesters.append(recov_harvester)
+        else:
+            log.warn('No configuration for %s harvester, not building', DataSourceKey.FLORT_DJ_SIO_RECOVERED)
         return harvesters
 

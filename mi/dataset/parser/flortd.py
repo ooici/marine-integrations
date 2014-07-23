@@ -20,12 +20,14 @@ from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
-from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
+from mi.dataset.dataset_parser import Parser
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SioParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException
 
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'flort_dj_sio_instrument'
+    SAMPLE_RECOVERED = 'flort_dj_sio_instrument_recovered'
 
 class FlortdParserDataParticleKey(BaseEnum):
     CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
@@ -48,12 +50,10 @@ DATA_MATCHER = re.compile(DATA_REGEX)
 TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
 TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
 
-class FlortdParserDataParticle(DataParticle):
+class FlortdCommonParserDataParticle(DataParticle):
     """
-    Class for parsing data from the FLORT-D instrument on a MSFM platform node
+    Class for parsing data from the FLORT-D instrument
     """
-
-    _data_particle_type = DataParticleType.SAMPLE
 
     def __init__(self, raw_data,
                  port_timestamp=None,
@@ -61,12 +61,12 @@ class FlortdParserDataParticle(DataParticle):
                  preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                  quality_flag=DataParticleValue.OK,
                  new_sequence=None):
-        super(FlortdParserDataParticle, self).__init__(raw_data,
-                                                      port_timestamp=None,
-                                                      internal_timestamp=None,
-                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                                      quality_flag=DataParticleValue.OK,
-                                                      new_sequence=None)
+        super(FlortdCommonParserDataParticle, self).__init__(raw_data,
+                                                      port_timestamp,
+                                                      internal_timestamp,
+                                                      preferred_timestamp,
+                                                      quality_flag,
+                                                      new_sequence)
         # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
         timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
         if not timestamp_match:
@@ -125,7 +125,63 @@ class FlortdParserDataParticle(DataParticle):
             return None
         return int(val_str)
 
-class FlortdParser(SioMuleParser):
+
+class FlortdParserDataParticle(FlortdCommonParserDataParticle):
+    """
+    Class for parsing telemetered FLORT-D data
+    """
+    _data_particle_type = DataParticleType.SAMPLE
+
+
+class FlortdRecoveredParserDataParticle(FlortdCommonParserDataParticle):
+    """
+    Class for parsing recovered FLORT-D data
+    """
+    _data_particle_type = DataParticleType.SAMPLE_RECOVERED
+
+
+class FlortdCommonParser(Parser):
+
+    def parse_chunks(self):
+        """
+        Parse out any pending data chunks in the chunker. If
+        it is a valid data piece, build a particle, update the position and
+        timestamp. Go until the chunker has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list of nothing was parsed.
+        """
+        result_particles = []
+        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+
+        while (chunk != None):
+            header_match = SIO_HEADER_MATCHER.match(chunk)
+            sample_count = 0
+            if header_match.group(1) == 'FL':
+                data_match = DATA_MATCHER.search(chunk)
+                if data_match:
+                    log.debug('Found data match in chunk %s', chunk[1:32])
+
+                    # particle-ize the data block received, return the record
+                    # prepend the timestamp from sio mule header to the flort raw data,
+                    # which is stored in header_match.group(3)
+                    sample = self._extract_sample(self._particle_class, None,
+                                                  header_match.group(3) + data_match.group(0),
+                                                  None)
+                    if sample:
+                        # create particle
+                        result_particles.append(sample)
+                        sample_count += 1
+
+            self._chunk_sample_count.append(sample_count)
+
+            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+
+        return result_particles
+
+
+class FlortdParser(FlortdCommonParser, SioMuleParser):
 
     def __init__(self,
                  config,
@@ -145,43 +201,24 @@ class FlortdParser(SioMuleParser):
                                           *args,
                                           **kwargs)
 
-    def parse_chunks(self):
-        """
-        Parse out any pending data chunks in the chunker. If
-        it is a valid data piece, build a particle, update the position and
-        timestamp. Go until the chunker has no more valid data.
-        @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state. An empty list of nothing was parsed.
-        """
-        result_particles = []
-        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
-        while (chunk != None):
-            header_match = SIO_HEADER_MATCHER.match(chunk)
-            sample_count = 0
-            log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == 'FL':
-                data_match = DATA_MATCHER.search(chunk)
-                if data_match:
-                    log.debug('Found data match in chunk %s', chunk[1:32])
+class FlortdRecoveredParser(FlortdCommonParser, SioParser):
 
-                    # particle-ize the data block received, return the record
-                    # prepend the timestamp from sio mule header to the flort raw data,
-                    # which is stored in header_match.group(3)
-                    sample = self._extract_sample(FlortdParserDataParticle, None,
-                                                  header_match.group(3) + data_match.group(0),
-                                                  None)
-                    if sample:
-                        # create particle
-                        result_particles.append(sample)
-                        sample_count += 1
-
-            self._chunk_sample_count.append(sample_count)
-
-            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-
-        return result_particles
-
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 exception_callback,
+                 *args, **kwargs):
+        super(FlortdRecoveredParser, self).__init__(config,
+                                          stream_handle,
+                                          state,
+                                          self.sieve_function,
+                                          state_callback,
+                                          publish_callback,
+                                          exception_callback,
+                                          *args,
+                                          **kwargs)
 
