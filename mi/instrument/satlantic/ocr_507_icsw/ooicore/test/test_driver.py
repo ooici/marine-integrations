@@ -13,6 +13,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+import time
 
 __author__ = 'Godfrey Duke'
 __license__ = 'Apache 2.0'
@@ -27,8 +28,7 @@ from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverEvent
+from pyon.agent.agent import ResourceAgentState
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -44,7 +44,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import DataParticleType, \
-    SatlanticOCR507ConfigurationParticleKey, SAMPLE_REGEX
+    SatlanticOCR507ConfigurationParticleKey, SAMPLE_REGEX, EOLN
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentProtocol
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtocolState
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtocolEvent
@@ -54,8 +54,6 @@ from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Command
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticle
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticleKey
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentDriver
-
-from pyon.agent.agent import ResourceAgentEvent
 
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
@@ -203,12 +201,9 @@ class SatlanticMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.CONFIG)
         self.assert_data_particle_parameters(data_particle, self._config_parameters, verify_values)
 
-# FIXME Additional tests (incl. those for command response and verification of READ_ONLY, etc. should be added)
-
 @attr('UNIT', group='mi')
 class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
-    # PASSES
-    # @unittest.skip('temp for debugging')
+
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -224,8 +219,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         self.assert_enum_has_no_duplicates(SatlanticCapability())
         self.assert_enum_complete(SatlanticCapability(), SatlanticProtocolEvent())
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -233,8 +226,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         driver = SatlanticOCR507InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_chunker(self):
         """
         Tests the chunker
@@ -254,8 +245,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE_INVALID_CHECKSUM)
         self.assert_chunker_sample_with_noise(chunker, VALID_CONFIG)
 
-    # PASSES
-    #@unittest.skip('temp for debugging')
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -270,8 +259,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         self.assert_particle_published(driver, VALID_SAMPLE_INVALID_CHECKSUM, self.assert_particle_sample, True)
         self.assert_particle_published(driver, VALID_CONFIG, self.assert_particle_config, True)
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -290,8 +277,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -312,8 +297,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         driver = SatlanticOCR507InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_checksum(self):
         """
         Verify the checksum validation occurs as expected.
@@ -338,13 +321,10 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin):
-    # PASSES
-    # @unittest.skip('temp for debugging')
+
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_commands(self):
         """
         Run instrument commands from command mode.
@@ -376,12 +356,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-
-
-
-
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_autosample_and_status_particle_gen(self):
         """
         Verify that we can enter streaming and that all particles are produced
@@ -403,8 +377,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_driver_command(SatlanticProtocolEvent.ACQUIRE_STATUS, state=SatlanticProtocolState.COMMAND)
         self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_particle_config, timeout=10)
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_parameters(self):
         """
         Verify that we can set the parameters
@@ -438,8 +410,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_set_exception(Parameter.NET_MODE, True)
         self.assert_set_exception(Parameter.NET_MODE, False)
 
-    # PASSES
-    # @unittest.skip('temp for debugging')
     def test_direct_access(self):
         """
         Verify we can enter the direct access state
@@ -461,7 +431,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
+class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, SatlanticMixin):
     """Qualification Test Container"""
 
     # Qualification tests live in the base class.  This class is extended
@@ -503,36 +473,7 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
 
         # verify the setting remained unchanged in the param dict
         self.assert_enter_command_mode()
-        self.assert_get_parameter(Parameter.MAXRATE, 4)
-
-    def test_direct_access_telnet_mode_autosample(self):
-        """
-        @brief Same as the previous DA test except in this test
-               we force the instrument into streaming when in
-               DA.  Then we need to verify the transition back
-               to the driver works as expected.
-        """
-        self.assert_enter_command_mode()
-        self.assert_get_parameter(Parameter.MAXRATE, 4)
-        # go into direct access
-        self.assert_direct_access_start_telnet()
-        self.assertTrue(self.tcp_client)
-
-        #start sampling
-        self.tcp_client.send_data("exit!")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(2)
-
-        #verify we're sampling
-        self.tcp_client.expect("SATPAR")
-
-        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
-        self.assert_direct_access_stop_telnet()
-        self.assert_state_change(ResourceAgentState.STREAMING, PARProtocolState.AUTOSAMPLE, timeout=10)
-
-        #now stop autosampling
-        self.assert_stop_autosample()
+        self.assert_get_parameter(Parameter.MAX_RATE, 4)
 
     def test_direct_access_telnet_timeout(self):
         """
@@ -541,24 +482,10 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_enter_command_mode()
 
         # go into direct access
-        self.assert_direct_access_start_telnet(timeout=30)
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
         self.assertTrue(self.tcp_client)
 
-        self.assert_state_change(ResourceAgentState.IDLE, PARProtocolState.COMMAND, 180)
-
-    def test_direct_access_telnet_closed(self):
-        """
-        Verify that a disconnection from the DA server transitions the agent back to
-        command mode.
-        """
-        self.assert_enter_command_mode()
-
-        # go into direct access
-        self.assert_direct_access_start_telnet(timeout=600)
-        self.assertTrue(self.tcp_client)
-        self.tcp_client.disconnect()
-
-        self.assert_state_change(ResourceAgentState.IDLE, PARProtocolState.COMMAND, 120)
+        self.assert_state_change(ResourceAgentState.COMMAND, SatlanticProtocolState.COMMAND, 180)
 
     def test_get_set_parameters(self):
         """
@@ -567,24 +494,16 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_enter_command_mode()
 
         #read/write params
-        self.assert_set_parameter(Parameter.MAXRATE, 2)
+        self.assert_set_parameter(Parameter.MAX_RATE, 2)
 
         #read-only params
-        self.assert_get_parameter(Parameter.FIRMWARE, "1.0.0")
-        self.assert_get_parameter(Parameter.SERIAL, "4278190306")
-        self.assert_get_parameter(Parameter.INSTRUMENT, "SATPAR")
-
-    def test_poll(self):
-        """
-        Verify data particles for a single sample that are specific to Parad
-        """
-        self.assert_enter_command_mode()
-        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.PARSED,
-                                    timeout=60, sample_count=1)
+        self.assert_get_parameter(Parameter.INIT_AT, True)
+        self.assert_get_parameter(Parameter.INIT_SM, True)
+        self.assert_get_parameter(Parameter.NET_MODE, False)
 
     def test_autosample(self):
         """
-        Verify data particles for auto-sampling that are specific to Parad
+        Verify data particles for auto-sampling that are specific to SPKIR
         """
         self.assert_enter_command_mode()
         self.assert_start_autosample()
@@ -599,7 +518,7 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
         """
         self.assert_enter_command_mode()
 
-        self.assert_particle_polled(PARCapability.ACQUIRE_STATUS, self.assert_config_parameters,
+        self.assert_particle_polled(SatlanticCapability.ACQUIRE_STATUS, self.assert_particle_config,
                                     DataParticleType.CONFIG)
 
         state = self.instrument_agent_client.get_agent_state()
@@ -619,12 +538,8 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
         capabilities = {}
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
         capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [PARProtocolEvent.GET,
-                                                               PARProtocolEvent.SET,
-                                                               PARProtocolEvent.ACQUIRE_SAMPLE,
-                                                               PARProtocolEvent.ACQUIRE_STATUS,
-                                                               PARProtocolEvent.START_AUTOSAMPLE,
-                                                               PARProtocolEvent.START_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [SatlanticProtocolEvent.START_AUTOSAMPLE,
+                                                              SatlanticProtocolEvent.ACQUIRE_STATUS]
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
@@ -636,20 +551,18 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase):
         ##################
         capabilities = {}
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_AUTOSAMPLE,
-                                                              PARProtocolEvent.ACQUIRE_STATUS,
-                                                              PARProtocolEvent.RESET]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [SatlanticProtocolEvent.STOP_AUTOSAMPLE]
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
-        # ##################
-        # #  DA Mode
-        # ##################
+        ###################
+        #  DA Mode
+        ###################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [PARProtocolEvent.STOP_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)
