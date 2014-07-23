@@ -20,6 +20,9 @@ import os
 
 from nose.plugins.attrib import attr
 
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
+
 from mi.core.log import get_logger
 log = get_logger()
 
@@ -27,7 +30,10 @@ from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import \
+    DataSourceConfigKey, \
+    DataSetDriverConfigKeys, \
+    DriverParameter
 from mi.dataset.driver.dosta_abcdjm.cspp.driver import DostaAbcdjmCsppDataSetDriver, DataTypeKey
 
 from mi.dataset.parser.cspp_base import StateKey
@@ -212,7 +218,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         self.clear_async_data()
 
-        # test that everything works for the telemetered harvester
         self.create_sample_data_set_dir('BadDataRecord_PPB_OPT.txt', DIR_REC)
 
         # an event catches the sample exception
@@ -238,39 +243,230 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_initialize()
 
-        result = self.data_subscribers.get_samples(REC_PARTICLES,
-                                                   20, 40)
-        self.assert_data_values(result, '11079419_PPB_OPT.yml')
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        #get the recovered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 19, 40)
+        # combine the results
+        result1.extend(result2)
 
-        result = self.data_subscribers.get_samples(TEL_PARTICLES,
-                                                   18, 40)
-        self.assert_data_values(result, '11194982_PPD_OPT.yml')
+        # check the results
+        self.assert_data_values(result1, '11079419_PPB_OPT.yml')
 
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get the telemetered metadata particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 17, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, '11194982_PPD_OPT.yml')
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
         """
-        pass
+        log.info("=========== START QUAL TEST LARGE IMPORT =================")
+
+        # using the same file for both telemetered and recovered because
+        # there are no large telemetered files available at this time
+        self.create_sample_data_set_dir('11079364_PPB_OPT.txt', DIR_REC)
+        self.create_sample_data_set_dir('11079364_PPB_OPT.txt', DIR_TEL, '11079364_PPD_OPT.txt')
+
+        self.assert_initialize()
+
+        # get the recovered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        #get the recovered instrument particles
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 271, 40)
+
+        # get the telemetered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 20)
+        # # get the telemetered metadata particle
+
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 271, 40)
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.info("=========== START QUAL TEST STOP START =================")
+
+        self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
+        self.create_sample_data_set_dir('11194982_PPD_OPT.txt', DIR_TEL)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        #get the first 5 recovered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 5, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get the first 9 telemetered metadata particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 9, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_telemetered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        #restart sampling
+        self.assert_start_sampling()
+
+        #get the next 8 recovered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 8, 40)
+
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
+
+        # get the next 4 telemetered metadata particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
+
+        self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
 
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        pass
+        log.info("========== START QUAL TEST SHUTDOWN RESTART ===============")
+
+        self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
+        self.create_sample_data_set_dir('11194982_PPD_OPT.txt', DIR_TEL)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        #get the first 5 recovered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 5, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get the first 9 telemetered metadata particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 9, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_telemetered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        # Re-initialize
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        #restart sampling
+        self.assert_start_sampling()
+
+        #get the next 8 recovered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 8, 40)
+
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
+
+        # get the next 4 telemetered metadata particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
+
+        self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
+
+
+    def test_shutdown_restart_2(self):
+        """
+        Test a full stop of the dataset agent, then restart the agent
+        and confirm it restarts at the correct spot.
+
+        This tests verifies that the parser will restart correctly if only the meta data particle
+        was retrieved before being shutdown
+        """
+        log.info("========== START QUAL TEST SHUTDOWN RESTART 2 ===============")
+
+        self.create_sample_data_set_dir('11079419_PPB_OPT.txt', DIR_REC)
+        self.create_sample_data_set_dir('11194982_PPD_OPT.txt', DIR_TEL)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_meta_one.yml')
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get the first 9 telemetered metadata particle
+        # check the results
+
+        self.assert_data_values(result1, 'test_telemetered_stop_meta_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        # Re-initialize
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        #restart sampling
+        self.assert_start_sampling()
+
+        # verify the metadata queues are empty
+        self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
+        self.assert_sample_queue_size(DataParticleType.METADATA_TELEMETERED, 0)
+
+        #get the first 5 recovered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 5, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_meta_two.yml')
+
+        # get the first 9 telemetered metadata particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 9, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_telemetered_stop_meta_two.yml')
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        log.info("=========== START QUAL TEST PARSER EXCEPTION =================")
 
+        self.create_sample_data_set_dir('BadDataRecord_PPB_OPT.txt', DIR_REC)
+
+        self.assert_initialize()
+
+        self.assert_event_received(ResourceAgentErrorEvent, 10)

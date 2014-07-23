@@ -47,7 +47,8 @@ from mi.dataset.parser.spkir_abj_cspp import \
 DIR_SPKIR_TELEMETERED = '/tmp/spkir/telem/test'
 DIR_SPKIR_RECOVERED = '/tmp/spkir/recov/test'
 
-SPKIR_PATTERN = '*_OCR.txt'
+SPKIR_REC_PATTERN = '*PPB_OCR.txt'
+SPKIR_TEL_PATTERN = '*PPD_OCR.txt'
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -62,12 +63,12 @@ DataSetTestCase.initialize(
         {
             DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED: {
                 DataSetDriverConfigKeys.DIRECTORY: DIR_SPKIR_TELEMETERED,
-                DataSetDriverConfigKeys.PATTERN: SPKIR_PATTERN,
+                DataSetDriverConfigKeys.PATTERN: SPKIR_TEL_PATTERN,
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             },
             DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED: {
                 DataSetDriverConfigKeys.DIRECTORY: DIR_SPKIR_RECOVERED,
-                DataSetDriverConfigKeys.PATTERN: SPKIR_PATTERN,
+                DataSetDriverConfigKeys.PATTERN: SPKIR_REC_PATTERN,
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
