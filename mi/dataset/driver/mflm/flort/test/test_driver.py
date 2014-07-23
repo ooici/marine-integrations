@@ -331,7 +331,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # get the recovered samples
         result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 96, 30)
 
-    def test_stop_start(self):
+    def test_stop_start_telem(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
@@ -413,7 +413,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    def test_shutdown_restart(self):
+    def test_shutdown_restart_telem(self):
         """
         Test a full stop of the dataset agent, then restart the agent and
         confirm it restarts at the correct spot.

@@ -39,13 +39,13 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
                 FlortdRecoveredParserDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
-        # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.FLORT_DJ_SIO_TELEMETERED, DataSourceKey.FLORT_DJ_SIO_RECOVERED]
+
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.FLORT_DJ_SIO_TELEMETERED: HarvesterType.SINGLE_FILE,
                           DataSourceKey.FLORT_DJ_SIO_RECOVERED: HarvesterType.SINGLE_DIRECTORY}
+
         super(MflmFLORTDDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
-                                                     exception_callback, data_keys, harvester_type=harvester_type)
+                                                     exception_callback, DataSourceKey.list(), harvester_type=harvester_type)
 
     def _build_parser(self, parser_state, stream_in, data_key):
         """
@@ -55,57 +55,38 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
         @param file_in Filename string to pass to parser
         @param data_key Key to determine which parser type is built
         """
+        # get the starting parser config
+        config = self._parser_config
+        # particle_module is common for telemetered and recovered
+        config.update({'particle_module': 'mi.dataset.parser.flortd'})
+
         if data_key == DataSourceKey.FLORT_DJ_SIO_TELEMETERED:
-            parser = self._build_telemetered_parser(parser_state, stream_in)
+            config.update({'particle_class': 'FlortdParserDataParticle'})
+            # build the telemetered parser
+            parser = FlortdParser(
+                config,
+                parser_state,
+                stream_in,
+                lambda state: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_TELEMETERED),
+                self._data_callback,
+                self._sample_exception_callback
+            )
+
         elif data_key == DataSourceKey.FLORT_DJ_SIO_RECOVERED:
-            parser = self._build_recovered_parser(parser_state, stream_in)
+            config.update({'particle_class': 'FlortdRecoveredParserDataParticle'})
+            # build the recovered parser
+            parser = FlortdRecoveredParser(
+                config,
+                parser_state,
+                stream_in,
+                lambda state, ingested: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_RECOVERED, ingested),
+                self._data_callback,
+                self._sample_exception_callback
+            )
+
         else:
             raise ConfigurationException('Tried to build parser for unknown data source key %s' % data_key)
-        return parser
 
-    def _build_telemetered_parser(self, parser_state, stream_in):
-        """
-        Build and return the telemetered parser
-        @param parser_state starting parser state to pass to parser
-        @param stream_in Handle of open file to pass to parser
-        """
-        config = self._parser_config
-        config.update({
-            'particle_module': 'mi.dataset.parser.flortd',
-            'particle_class': 'FlortdParserDataParticle'
-        })
-        log.debug("Telemetered Config: %s", config)
-        parser = FlortdParser(
-            config,
-            parser_state,
-            stream_in,
-            lambda state: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_TELEMETERED),
-            self._data_callback,
-            self._sample_exception_callback
-        )
-        return parser
-
-    def _build_recovered_parser(self, parser_state, stream_in):
-        """
-        Build and return the recovered parser
-        @param parser_state starting parser state to pass to parser
-        @param stream_in Handle of open file to pass to parser
-        """
-        # recovered parser is not written yet
-        config = self._parser_config
-        config.update({
-            'particle_module': 'mi.dataset.parser.flortd',
-            'particle_class': 'FlortdRecoveredParserDataParticle'
-        })
-        log.debug("Recovered Config: %s", config)
-        parser = FlortdRecoveredParser(
-            config,
-            parser_state,
-            stream_in,
-            lambda state, ingested: self._save_parser_state(state, DataSourceKey.FLORT_DJ_SIO_RECOVERED, ingested),
-            self._data_callback,
-            self._sample_exception_callback
-        )
         return parser
 
     def _build_harvester(self, driver_state):
