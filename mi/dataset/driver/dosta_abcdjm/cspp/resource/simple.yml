@@ -1,0 +1,78 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: DostaAbcdjmCsppMetadataRecoveredDataParticle
+    particle_type: dosta_abcdjm_cspp_metadata_recovered
+    internal_timestamp: 3606767020.0290002823
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9894
+    processing_time: '06/12/2014 20:07:45'
+    source_file: 'C:\data\ooi\CSPP\uCSPP_2014_04_14_deploy\recoveredData\11079894.PPB'
+    preprocessing_software_version: '1.10'
+    start_date: '04/17/2014'
+    product_number: 4831
+    serial_number: 209
+  - _index: 2
+    particle_object: DostaAbcdjmCsppInstrumentRecoveredDataParticle
+    particle_type: dosta_abcdjm_cspp_instrument_recovered
+    internal_timestamp: 3606767020.0290002823
+    profiler_timestamp: 1397778220.029000
+    pressure:        22.634000
+    estimated_oxygen_concentration:       234.656000
+    optode_temperature:         9.091000
+    calibrated_phase:        36.930000
+    temp_compensated_phase:        36.930000
+    blue_phase:        46.151000
+    red_phase:         9.221000
+    blue_amplitude:      1047.500000
+    red_amplitude:       979.700000
+    raw_temperature:       637.700000
+  - _index: 3
+    particle_object: DostaAbcdjmCsppInstrumentRecoveredDataParticle
+    particle_type: dosta_abcdjm_cspp_instrument_recovered
+    internal_timestamp: 3606767022.2579998970
+    profiler_timestamp: 1397778222.258000
+    pressure:        22.634000
+    estimated_oxygen_concentration:       233.463000
+    optode_temperature:         9.087000
+    calibrated_phase:        36.996000
+    temp_compensated_phase:        36.996000
+    blue_phase:        46.207000
+    red_phase:         9.211000
+    blue_amplitude:      1049.000000
+    red_amplitude:       981.800000
+    raw_temperature:       637.800000
+  - _index: 4
+    particle_object: DostaAbcdjmCsppInstrumentRecoveredDataParticle
+    particle_type: dosta_abcdjm_cspp_instrument_recovered
+    internal_timestamp: 3606767024.2010002136
+    profiler_timestamp: 1397778224.201000
+    pressure:        22.634000
+    estimated_oxygen_concentration:       233.331000
+    optode_temperature:         9.086000
+    calibrated_phase:        37.003000
+    temp_compensated_phase:        37.003000
+    blue_phase:        46.208000
+    red_phase:         9.205000
+    blue_amplitude:      1049.500000
+    red_amplitude:       978.200000
+    raw_temperature:       637.800000
+  - _index: 5
+    particle_object: DostaAbcdjmCsppInstrumentRecoveredDataParticle
+    particle_type: dosta_abcdjm_cspp_instrument_recovered
+    internal_timestamp: 3606767025.190000
+    profiler_timestamp: 1397778225.190000
+    pressure:        22.634000
+    estimated_oxygen_concentration:       232.887000
+    optode_temperature:         9.088000
+    calibrated_phase:        37.026000
+    temp_compensated_phase:        37.026000
+    blue_phase:        46.227000
+    red_phase:         9.201000
+    blue_amplitude:      1050.000000
+    red_amplitude:       976.000000
+    raw_temperature:       637.700000
