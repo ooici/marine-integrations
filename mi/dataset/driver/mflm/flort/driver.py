@@ -11,12 +11,11 @@ initial release
 __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import string
-
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import ConfigurationException
 
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.dataset_driver import HarvesterType
@@ -52,16 +51,13 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
         Build the requested parser based on the data key
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
-        @param file_in Filename string to pass to parser
         @param data_key Key to determine which parser type is built
         """
-        # get the starting parser config
-        config = self._parser_config
-        # particle_module is common for telemetered and recovered
-        config.update({'particle_module': 'mi.dataset.parser.flortd'})
 
         if data_key == DataSourceKey.FLORT_DJ_SIO_TELEMETERED:
-            config.update({'particle_class': 'FlortdParserDataParticle'})
+            config = self._parser_config.get(DataSourceKey.FLORT_DJ_SIO_TELEMETERED)
+            config.update({DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flortd',
+                           DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortdParserDataParticle'})
             # build the telemetered parser
             parser = FlortdParser(
                 config,
@@ -73,7 +69,9 @@ class MflmFLORTDDataSetDriver(SioMuleDataSetDriver):
             )
 
         elif data_key == DataSourceKey.FLORT_DJ_SIO_RECOVERED:
-            config.update({'particle_class': 'FlortdRecoveredParserDataParticle'})
+            config = self._parser_config.get(DataSourceKey.FLORT_DJ_SIO_RECOVERED)
+            config.update({DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flortd',
+                           DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortdRecoveredParserDataParticle'})
             # build the recovered parser
             parser = FlortdRecoveredParser(
                 config,
