@@ -18,15 +18,16 @@ import time
 __author__ = 'Godfrey Duke'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey; monkey.patch_all()
+from gevent import monkey;
 
-import unittest
+monkey.patch_all()
 
-import json
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+
+log = get_logger()
 
 from pyon.agent.agent import ResourceAgentState
 from mi.core.instrument.data_particle import DataParticleKey
@@ -44,7 +45,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import DataParticleType, \
-    SatlanticOCR507ConfigurationParticleKey, SAMPLE_REGEX, EOLN
+    SatlanticOCR507ConfigurationParticleKey, EOLN
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentProtocol
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtocolState
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtocolEvent
@@ -55,16 +56,16 @@ from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507D
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticleKey
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentDriver
 
-## Initialize the test parameters
+# # Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.ocr_507_icsw.ooicore.driver',
     driver_class="SatlanticOCR507InstrumentDriver",
 
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_preload_id = 'IA2',
-    instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType(),
-    driver_startup_config = {
+    instrument_agent_resource_id='123xyz',
+    instrument_agent_preload_id='IA2',
+    instrument_agent_name='Agent007',
+    instrument_agent_packet_config=DataParticleType(),
+    driver_startup_config={
         DriverStartupConfigKey.PARAMETERS: {
             Parameter.MAX_RATE: 4.0,
             Parameter.INIT_SM: True,
@@ -104,28 +105,28 @@ VALID_CONFIG = "Satlantic OCR-507 Multispectral Radiometer\r\n" + \
 
 
 class SatlanticMixin(DriverTestMixin):
-    '''
+    """
     Mixin class used for storing data particle constance and common data assertion methods.
-    '''
+    """
     # Create some short names for the parameter test config
-    TYPE      = ParameterTestConfigKey.TYPE
-    READONLY  = ParameterTestConfigKey.READONLY
-    STARTUP   = ParameterTestConfigKey.STARTUP
-    DA        = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE     = ParameterTestConfigKey.VALUE
-    REQUIRED  = ParameterTestConfigKey.REQUIRED
-    DEFAULT   = ParameterTestConfigKey.DEFAULT
-    STATES    = ParameterTestConfigKey.STATES
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
 
     ###
     #  Parameter and Type Definitions
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.MAX_RATE : {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4.0},
-        Parameter.INIT_SM : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
-        Parameter.INIT_AT : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
-        Parameter.NET_MODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
+        Parameter.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4.0},
+        Parameter.INIT_SM: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
+        Parameter.INIT_AT: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
+        Parameter.NET_MODE: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
     }
 
     _sample_parameters = {
@@ -148,7 +149,8 @@ class SatlanticMixin(DriverTestMixin):
     }
 
     _config_parameters = {
-        SatlanticOCR507ConfigurationParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '3.0A - SatNet Type B', REQUIRED: True},
+        SatlanticOCR507ConfigurationParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '3.0A - SatNet Type B',
+                                                                   REQUIRED: True},
         SatlanticOCR507ConfigurationParticleKey.INSTRUMENT_ID: {TYPE: unicode, VALUE: 'SATDI7', REQUIRED: True},
         SatlanticOCR507ConfigurationParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: '0233', REQUIRED: True},
         SatlanticOCR507ConfigurationParticleKey.TELEMETRY_BAUD_RATE: {TYPE: int, VALUE: 57600, REQUIRED: True},
@@ -171,7 +173,7 @@ class SatlanticMixin(DriverTestMixin):
     ###
     #   Driver Parameter Methods
     ###
-    def assert_driver_parameters(self, current_parameters, verify_values = False):
+    def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify values.
         @param current_parameters: driver parameters read from the driver instance
@@ -179,31 +181,31 @@ class SatlanticMixin(DriverTestMixin):
         """
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
-    def assert_particle_sample(self, data_particle, verify_values = False):
-        '''
+    def assert_particle_sample(self, data_particle, verify_values=False):
+        """
         Verify sample particle
         @param data_particle:  SBE16DataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         log.debug('data_particle: %r', data_particle)
         self.assert_data_particle_keys(SatlanticOCR507DataParticleKey, self._sample_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
-    def assert_particle_config(self, data_particle, verify_values = False):
-        '''
+    def assert_particle_config(self, data_particle, verify_values=False):
+        """
         Verify sample particle
         @param data_particle:  SBE16DataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         log.debug('data_particle: %r', data_particle)
         self.assert_data_particle_keys(SatlanticOCR507ConfigurationParticleKey, self._config_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.CONFIG)
         self.assert_data_particle_parameters(data_particle, self._config_parameters, verify_values)
 
+
 @attr('UNIT', group='mi')
 class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -321,7 +323,6 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin):
-
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -334,7 +335,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         ####
         # Test invalid state transitions from command
         ####
-        self.assert_driver_command_exception(SatlanticProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(SatlanticProtocolEvent.STOP_AUTOSAMPLE,
+                                             exception_class=InstrumentCommandException)
 
         ####
         # Test valid commands from command
@@ -344,7 +346,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         ####
         # Test invalid state transitions from autosample
         ####
-        self.assert_driver_command_exception(SatlanticProtocolEvent.START_AUTOSAMPLE, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(SatlanticProtocolEvent.START_AUTOSAMPLE,
+                                             exception_class=InstrumentCommandException)
 
         ####
         # Test valid commands from autosample

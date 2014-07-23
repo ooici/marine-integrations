@@ -150,14 +150,14 @@ class Prompt(BaseEnum):
 
 
 ###############################################################################
-# Satlantic PAR Sensor Driver.
+# Satlantic OCR507 Sensor Driver.
 ###############################################################################
 
 class SatlanticOCR507InstrumentDriver(SingleConnectionInstrumentDriver):
     """
-    The InstrumentDriver class for the Satlantic PAR sensor PARAD.
+    The InstrumentDriver class for the Satlantic OCR507 sensor SPKIR.
     @note If using this via Ethernet, must use a delayed send
-    or commands may not make it to the PAR successfully. A delay of 0.1
+    or commands may not make it to the OCR507 successfully. A delay of 0.1
     appears to be sufficient for most 19200 baud operations (0.5 is more
     reliable), more may be needed for 9600. Note that control commands
     should not be delayed.
@@ -204,7 +204,7 @@ class SatlanticOCR507ConfigurationParticleKey(BaseEnum):
 class SatlanticOCR507DataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure for the
-    Satlantic PAR sensor. Overrides the building of values, and the rest comes
+    Satlantic OCR507 sensor. Overrides the building of values, and the rest comes
     along for free.
     """
     __metaclass__ = get_logging_metaclass(log_level='debug')
@@ -217,7 +217,7 @@ class SatlanticOCR507DataParticle(DataParticle):
     def _build_parsed_values(self):
         """
         Take something in the sample format and split it into
-        a PAR values (with an appropriate tag)
+        a OCR507 values (with an appropriate tag)
 
         @throws SampleException If there is a problem with sample creation
         """
@@ -295,10 +295,10 @@ class SatlanticOCR507DataParticle(DataParticle):
 
     def _checksum_check(self, data):
         """
-            Confirm that the checksum is valid for the data line
-            @param data The entire line of data, including the checksum
-            @retval True if the checksum fits, False if the checksum is bad
-            """
+        Confirm that the checksum is valid for the data line
+        @param data The entire line of data, including the checksum
+        @retval True if the checksum fits, False if the checksum is bad
+        """
         assert (data is not None)
         assert (data != "")
         match = SAMPLE_REGEX.match(data)
@@ -323,7 +323,7 @@ class SatlanticOCR507DataParticle(DataParticle):
 class SatlanticOCR507ConfigurationParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure for the
-    Satlantic PAR sensor. Overrides the building of values, and the rest comes
+    Satlantic OCR507 sensor. Overrides the building of values, and the rest comes
     along for free.
     """
     _data_particle_type = DataParticleType.CONFIG
@@ -331,7 +331,7 @@ class SatlanticOCR507ConfigurationParticle(DataParticle):
     def _build_parsed_values(self):
         """
         Take something in the sample format and split it into
-        a PAR values (with an appropriate tag)
+        a OCR507 values (with an appropriate tag)
 
         @throws SampleException If there is a problem with sample creation
         """
@@ -414,7 +414,7 @@ class SatlanticOCR507ConfigurationParticle(DataParticle):
 # Satlantic OCR507 Sensor Protocol
 ####################################################################
 class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
-    """The instrument protocol classes to deal with a Satlantic PAR sensor.
+    """The instrument protocol classes to deal with a Satlantic OCR507 sensor.
     The protocol is a very simple command/response protocol with a few show
     commands and a few set commands.
     Note protocol state machine must be called "self._protocol_fsm"
@@ -820,7 +820,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        self._do_cmd_no_resp(Command.EXIT_AND_RESET, None, write_delay=self.write_delay)
+        self._do_cmd_no_resp(Command.EXIT_AND_RESET, write_delay=self.write_delay)
         time.sleep(RESET_DELAY)
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         next_state = SatlanticProtocolState.AUTOSAMPLE
@@ -841,7 +841,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         return next_state, (next_agent_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
-        """Handle PARProtocolState.POLL PARProtocolEvent.ACQUIRE_SAMPLE
+        """Handle SatlanticProtocolState.COMMAND SatlanticProtocolEvent.ACQUIRE_STATUS
 
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid command
@@ -863,7 +863,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
 
     def _handler_autosample_enter(self, *args, **kwargs):
-        """ Handle PARProtocolState.AUTOSAMPLE PARProtocolEvent.ENTER
+        """ Handle SatlanticProtocolState.AUTOSAMPLE SatlanticProtocolEvent.ENTER
 
         @param params Parameters to pass to the state
         @retval return (next state, result)
@@ -881,7 +881,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         return next_state, result
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
-        """Handle PARProtocolState.AUTOSAMPLE stop
+        """Handle SatlanticProtocolState.AUTOSAMPLE stop
 
         @param params Parameters to pass to the state
         @retval return (next state, result)
@@ -1024,7 +1024,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             self._param_dict.set_value(key, params[key])
 
         self._update_params()
-        result = self._do_cmd_resp(Command.SAVE, None, None,
+        result = self._do_cmd_resp(Command.SAVE,
                                    expected_prompt=Prompt.COMMAND,
                                    write_delay=self.write_delay)
 
