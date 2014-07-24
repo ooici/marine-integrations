@@ -491,7 +491,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                              self._boolean_to_off_on,
                              type=ParameterDictType.BOOL,
                              display_name="Init AT",
-                             default_value='on',
+                             default_value=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
@@ -502,7 +502,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                              self._boolean_to_off_on,
                              type=ParameterDictType.BOOL,
                              display_name="Init SM",
-                             default_value='on',
+                             default_value=True,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
@@ -513,7 +513,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                              self._boolean_to_off_on,
                              type=ParameterDictType.BOOL,
                              display_name="Net Mode",
-                             default_value='off',
+                             default_value=False,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
@@ -1016,6 +1016,8 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         old_config = self._param_dict.get_config()
 
         for key in params:
+            if key not in self._param_dict._param_dict:
+                raise InstrumentParameterException ("Bad parameter: %r" % key)
             val = self._param_dict.format(key, params[key])
             log.debug("KEY = " + str(key) + " VALUE = " + str(val))
             # Check for existance in dict (send only on change)

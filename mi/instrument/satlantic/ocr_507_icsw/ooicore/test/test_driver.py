@@ -14,6 +14,8 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 import time
+from pyon.core.exception import BadRequest
+from mi.core.instrument.instrument_driver import DriverConfigKey
 
 __author__ = 'Godfrey Duke'
 __license__ = 'Apache 2.0'
@@ -37,7 +39,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.idk.unit_test import DriverTestMixin, InstrumentDriverTestCase, DriverStartupConfigKey
 from mi.idk.unit_test import ParameterTestConfigKey
 
-from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import InstrumentCommandException, InstrumentParameterException
 
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -387,6 +389,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         1. Cannot set read only parameters
         2. Can set read/write parameters
         3. Can set read/write parameters w/direct access only
+        4. Cannot set bad parameter values
+        5. Cannot get/set a bad parameter
         """
         self.assert_initialize_driver(SatlanticProtocolState.COMMAND)
 
@@ -412,6 +416,14 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_set_exception(Parameter.INIT_AT, True)
         self.assert_set_exception(Parameter.NET_MODE, True)
         self.assert_set_exception(Parameter.NET_MODE, False)
+
+        # test set bad param values
+        self.assert_set_exception(Parameter.NET_MODE, 'Do a barrel roll!')
+
+        # test get/set bad param
+        self.assert_set_exception('bad_param', False)
+        with self.assertRaises(Exception):
+            self.assert_get('bad_param', False)
 
     def test_direct_access(self):
         """
@@ -455,9 +467,21 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, 
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.MAX_RATE, 4)
 
-        # go into direct access, and muck up a setting.
+        # go into direct access, and modify the DA parameters
         self.assert_direct_access_start_telnet()
         self.tcp_client.send_data("set maxrate 1")
+        time.sleep(0.4)
+        self.tcp_client.send_data(EOLN)
+        time.sleep(0.4)
+        self.tcp_client.send_data("set initat false")
+        time.sleep(0.4)
+        self.tcp_client.send_data(EOLN)
+        time.sleep(0.4)
+        self.tcp_client.send_data("set initsm false")
+        time.sleep(0.4)
+        self.tcp_client.send_data(EOLN)
+        time.sleep(0.4)
+        self.tcp_client.send_data("set netmode on")
         time.sleep(0.4)
         self.tcp_client.send_data(EOLN)
         time.sleep(0.4)
@@ -474,9 +498,12 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, 
         self.tcp_client.expect("Maximum Frame Rate: 1 Hz")
         self.assert_direct_access_stop_telnet()
 
-        # verify the setting remained unchanged in the param dict
+        # verify the DA parameters revert to their pre-DA values
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.MAX_RATE, 4)
+        self.assert_get_parameter(Parameter.INIT_AT, True)
+        self.assert_get_parameter(Parameter.INIT_SM, True)
+        self.assert_get_parameter(Parameter.NET_MODE, False)
 
     def test_direct_access_telnet_timeout(self):
         """
