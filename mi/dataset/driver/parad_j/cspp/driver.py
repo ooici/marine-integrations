@@ -16,7 +16,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.exceptions import ConfigurationException
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, HarvesterType, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.cspp_base import METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
 from mi.dataset.parser.parad_j_cspp import ParadJCsppParser, \
     ParadJCsppInstrumentRecoveredDataParticle, ParadJCsppInstrumentTelemeteredDataParticle, \
@@ -31,28 +31,22 @@ class DataTypeKey(BaseEnum):
 
 class ParadJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
 
-    def __init__(self, config, memento, data_callback, state_callback,
-                 event_callback, exception_callback):
-
-        data_keys = [DataTypeKey.PARAD_J_CSPP_RECOVERED,
-                     DataTypeKey.PARAD_J_CSPP_TELEMETERED]
-
-        harvester_type = {
-            DataTypeKey.PARAD_J_CSPP_RECOVERED: HarvesterType.SINGLE_DIRECTORY,
-            DataTypeKey.PARAD_J_CSPP_TELEMETERED: HarvesterType.SINGLE_DIRECTORY
-        }
-
-        super(ParadJCsppDataSetDriver, self).__init__(config, memento, data_callback,
-                                                      state_callback, event_callback,
-                                                      exception_callback,
-                                                      data_keys, harvester_type)
-
     @classmethod
     def stream_config(cls):
         return [ParadJCsppInstrumentRecoveredDataParticle.type(),
                 ParadJCsppInstrumentTelemeteredDataParticle.type(),
                 ParadJCsppMetadataRecoveredDataParticle.type(),
                 ParadJCsppMetadataTelemeteredDataParticle.type()]
+
+    def __init__(self, config, memento, data_callback, state_callback,
+                 event_callback, exception_callback):
+
+        data_keys = DataTypeKey.list()
+
+        super(ParadJCsppDataSetDriver, self).__init__(config, memento, data_callback,
+                                                      state_callback, event_callback,
+                                                      exception_callback,
+                                                      data_keys)
 
     def _build_parser(self, parser_state, infile, data_key=None):
         """
@@ -107,40 +101,41 @@ class ParadJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the harvester
         """
 
-        harvesters = []     # list of harvesters to be returned
+        harvesters = []
 
-        #
-        # Verify that the PARAD_J_CSPP_RECOVERED harvester has been configured.
-        # If so, build the harvester and add it to the list of harvesters.
-        #
-        if DataTypeKey.PARAD_J_CSPP_RECOVERED in self._harvester_config:
-            harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataTypeKey.PARAD_J_CSPP_RECOVERED),
-                driver_state[DataTypeKey.PARAD_J_CSPP_RECOVERED],
-                lambda filename: self._new_file_callback(filename, DataTypeKey.PARAD_J_CSPP_RECOVERED),
-                lambda modified: self._modified_file_callback(modified, DataTypeKey.PARAD_J_CSPP_RECOVERED),
-                self._exception_callback)
-
-            if harvester is not None:
-                harvesters.append(harvester)
-            else:
-                log.warn('PARAD_J_CSPP_RECOVERED HARVESTER NOT BUILT')
-
-        #
-        # Verify that the PARAD_J_CSPP_TELEMETERED harvester has been configured.
-        # If so, build the harvester and add it to the list of harvesters.
-        #
         if DataTypeKey.PARAD_J_CSPP_TELEMETERED in self._harvester_config:
-            harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataTypeKey.PARAD_J_CSPP_TELEMETERED),
-                driver_state[DataTypeKey.PARAD_J_CSPP_TELEMETERED],
-                lambda filename: self._new_file_callback(filename, DataTypeKey.PARAD_J_CSPP_TELEMETERED),
-                lambda modified: self._modified_file_callback(modified, DataTypeKey.PARAD_J_CSPP_TELEMETERED),
-                self._exception_callback)
+            telemetered_harvester = self.build_single_harvester(
+                driver_state,
+                DataTypeKey.PARAD_J_CSPP_TELEMETERED)
 
-            if harvester is not None:
-                harvesters.append(harvester)
+            if telemetered_harvester is not None:
+                harvesters.append(telemetered_harvester)
             else:
-                log.warn('PARAD_J_CSPP_TELEMETERED HARVESTER NOT BUILT')
+                log.warn('Creation of parad_j_cspp telemetered harvester failed')
+        else:
+            log.warn('No configuration for parad_j_cspp telemetered harvester, not building')
+
+        if DataTypeKey.PARAD_J_CSPP_TELEMETERED in self._harvester_config:
+            recovered_harvester = self.build_single_harvester(
+                driver_state,
+                DataTypeKey.PARAD_J_CSPP_RECOVERED)
+
+            if recovered_harvester is not None:
+                harvesters.append(recovered_harvester)
+            else:
+                log.warn('Creation of parad_j_cspp recovered harvester failed')
+        else:
+            log.warn('No configuration for parad_j_cspp recovered harvester, not building')
+
+        return harvesters
+
+    def build_single_harvester(self, driver_state, key):
+
+        harvester = SingleDirectoryHarvester(
+            self._harvester_config.get(key),
+            driver_state[key],
+            lambda filename: self._new_file_callback(filename, key),
+            lambda modified: self._modified_file_callback(modified, key),
+            self._exception_callback)
 
         return harvester

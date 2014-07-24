@@ -134,17 +134,17 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        fid = open(os.path.join(RESOURCE_PATH, '11079364_PPB_PARS.txt'), 'r')
+        fid = open(os.path.join(RESOURCE_PATH, '11079364_PPD_PARS.txt'), 'r')
 
         stream_handle = fid
-        parser = ParadJCsppParser(self.config.get(DataTypeKey.PARAD_J_CSPP_RECOVERED),
+        parser = ParadJCsppParser(self.config.get(DataTypeKey.PARAD_J_CSPP_TELEMETERED),
                                   None, stream_handle,
                                   self.state_callback, self.pub_callback,
                                   self.exception_callback)
 
         particles = parser.get_records(20)
 
-        self.particle_to_yml(particles, '11079364_PPB_PARS_recov.yml')
+        self.particle_to_yml(particles, '11079364_PPD_PARS_telem.yml')
         fid.close()
 
     def assert_result(self, test, particle):
