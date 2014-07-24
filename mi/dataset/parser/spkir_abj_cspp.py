@@ -21,7 +21,7 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import RecoverableSampleException
 
 from mi.dataset.parser.cspp_base import \
     CsppParser, \
@@ -63,7 +63,6 @@ CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'  # hex characters
 # string 	uint8 	        Frame Counter 	    counts 	    maintains a count of each frame transmitted
 # string 	string 	        Checksum 	        1 	        ASCII-Hex formatted Checksum
 
-# *** Need to define data regex for this parser ***
 DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
 DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX # Suspect Timestamp
@@ -195,10 +194,8 @@ class SpkirAbjCsppMetadataDataParticle(CsppMetadataDataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
-
-        #log.debug('*** metadata particle result %s',results)
 
         return results
 
@@ -297,7 +294,7 @@ class SpkirAbjCsppInstrumentDataParticle(DataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
         #log.debug('*** instrument particle result %s', results)
