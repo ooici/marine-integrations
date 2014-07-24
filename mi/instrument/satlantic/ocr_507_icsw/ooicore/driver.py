@@ -291,6 +291,9 @@ class SatlanticOCR507DataParticle(DataParticle):
             self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
             log.warn("Invalid checksum encountered: %r.", checksum)
 
+        log.debug('OCR507 Data Particle raw data: %r', self.raw_data)
+        log.debug('OCR507 Data Particle parsed data: %r', result)
+
         return result
 
     def _checksum_check(self, data):
@@ -406,6 +409,9 @@ class SatlanticOCR507ConfigurationParticle(DataParticle):
                    DataParticleKey.VALUE: network_address},
                   {DataParticleKey.VALUE_ID: SatlanticOCR507ConfigurationParticleKey.NETWORK_BAUD_RATE,
                    DataParticleKey.VALUE: network_baud_rate}]
+
+        log.debug('OCR507 Configuration Particle raw data: %r', self.raw_data)
+        log.debug('OCR507 Configuration Particle parsed data: %r', result)
 
         return result
 
