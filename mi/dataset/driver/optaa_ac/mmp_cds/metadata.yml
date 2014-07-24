@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Mark Worden
+  constructor: OptaaAcMmpCdsDataSetDriver
+  driver_name: optaa_ac_mmp_cds
+  driver_path: optaa_ac/mmp_cds
+  email: mark_c_worden@raytheon.com
+  release_notes: initial release
+  version: 0.0.1
