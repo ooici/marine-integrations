@@ -18,7 +18,6 @@ __license__ = 'Apache 2.0'
 import unittest
 import os
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from pyon.agent.agent import ResourceAgentState
 from mi.idk.exceptions import SampleTimeout
@@ -61,12 +60,6 @@ DataSetTestCase.initialize(
         }
     }
 )
-
-#SAMPLE_STREAM = 'sio_eng_sio_mule_parsed'
-
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -160,7 +153,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
  
         # Using 2 files, one with a block of sio header and data filled with
-        #   zeros (node59p1_backfill.dat)
+        #   zeros (node59p1_test_backfill.dat)
         #   
         self.clear_async_data()
         ## This file has had a section of CS data replaced with 0s
@@ -176,12 +169,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                 copy_metadata=False)
         self.assert_data(SioEngSioMuleParserDataParticle, 'test_back_fill2.yml',
                          count=3)
-        #
-        #
-        # start over now, using step 4
-        self.driver.shutdown()
-        self.clear_sample_data()
-        #
     
     def test_bad_data(self):
         # Put bad data into the file and make sure an exemption is raised
@@ -215,7 +202,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
         
         try:    
-            # Verify we get a sample
+            # Verify we get samples
             result = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
             log.debug("RESULT: %s", result)
 
@@ -260,7 +247,6 @@ class QualificationTest(DataSetQualificationTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
-        # Verify we get one sample
         try:
             # Read the first file and verify the data
             

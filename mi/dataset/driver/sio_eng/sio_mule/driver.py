@@ -21,7 +21,7 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import ConfigurationException
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester
-from mi.dataset.dataset_driver import HarvesterType
+from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
 from mi.dataset.parser.sio_eng_sio_mule import SioEngSioMuleParser, SioEngSioMuleParserDataParticle
 from mi.dataset.parser.sio_mule_common import StateKey
@@ -30,8 +30,8 @@ class DataSourceKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    SIO_ENG_SIO_MULE_TELEMETERED = 'sio_eng_sio_mule_telemetered'
-    SIO_ENG_SIO_MULE_RECOVERED = 'sio_eng_sio_mule_recovered'
+    SIO_ENG_SIO_MULE_TELEMETERED = 'sio_eng_control_status'
+    SIO_ENG_SIO_MULE_RECOVERED = 'sio_eng_control_status_recovered'
 
 class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
     
@@ -62,6 +62,9 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         elif data_key == DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED:
             parser = self._build_recovered_parser(parser_state, stream_in)
             log.debug("_build_parser::::  BIULDING RECOVERED PARSER, %s",type(parser) )
+        else:
+            raise ConfigurationException("Bad data key: %s" % data_key)
+            
         return parser
         
         
@@ -74,8 +77,8 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         
         config = self._parser_config[DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED]
         config.update({
-            'particle_module': 'mi.dataset.parser.sio_eng_sio_mule',
-            'particle_class': 'SioEngSioMuleParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.sio_eng_sio_mule',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioMuleParserDataParticle'
         })
         log.debug("My Config in _build_telemetered_parser: %s", config)
         parser = SioEngSioMuleParser(
@@ -89,27 +92,27 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
         log.debug("_build_parser::::   Built parser, returning %s", type(parser))
         return parser
     
-    def _build_recovered_parser(self, parser_state, stream_in):
-        """
-        Build and return the telemetered parser
-        @param parser_state starting parser state to pass to parser
-        @param stream_in Handle of open file to pass to parser
-        """
-        config = self._parser_config[DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
-        config.update({
-            'particle_module': 'mi.dataset.parser.sio_eng_sio_mule',
-            'particle_class': 'SioEngSioMuleParserDataParticle'
-        })
-        log.debug("My Config: %s", config)
-        parser = SioEngSioMuleParser(
-            config,
-            parser_state,
-            infile,
-            self._save_parser_state,
-            self._data_callback,
-            self._sample_exception_callback 
-        )
-        return parser
+    #def _build_recovered_parser(self, parser_state, stream_in):
+    #    """
+    #    Build and return the telemetered parser
+    #    @param parser_state starting parser state to pass to parser
+    #    @param stream_in Handle of open file to pass to parser
+    #    """
+    #    config = self._parser_config[DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
+    #    config.update({
+    #        DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.sio_eng_sio_mule',
+    #        DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioMuleParserDataParticle'
+    #    })
+    #    log.debug("My Config: %s", config)
+    #    parser = SioEngSioMuleParser(
+    #        config,
+    #        parser_state,
+    #        infile,
+    #        self._save_parser_state,
+    #        self._data_callback,
+    #        self._sample_exception_callback 
+    #    )
+    #    return parser
     
     def _build_harvester(self, driver_state):
         """

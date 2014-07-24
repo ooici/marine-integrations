@@ -32,7 +32,7 @@ from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 
 
 
-# *** Need to define data regex for this parser ***
+
 
 ENG_REGEX = r'\x01CS([0-9]{5})[0-9]{2}_[0-9A-Fa-f]{4}[a-zA-Z]([0-9A-Fa-f]{8})_'\
             '[0-9A-Fa-f]{2}_[0-9A-Fa-f]{4}\x02\n([-\d]+\.\d+) '\
@@ -117,7 +117,6 @@ class SioEngSioMuleParser(SioMuleParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
-        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
         
 
@@ -130,7 +129,6 @@ class SioEngSioMuleParser(SioMuleParser):
                 log.debug('\n\nCS Header detected:::  %s\n\n', header_match.group(0)[1:32])
                 data_match = ENG_MATCHER.match(chunk)
                 if data_match:
-                    log.debug('Found data match in chunk: %s', chunk)
                     # put timestamp from hex string to float:
                     posix_time = int(header_match.group(3), 16)
                     log.debug('utc timestamp %s', datetime.utcfromtimestamp(posix_time))
@@ -147,7 +145,6 @@ class SioEngSioMuleParser(SioMuleParser):
                     
             self._chunk_sample_count.append(sample_count)
             
-            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
         return result_particles

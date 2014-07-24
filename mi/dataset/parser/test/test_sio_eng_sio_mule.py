@@ -36,7 +36,6 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
     def state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
-        #self.file_ingested_value = file_ingested
 
     def exception_callback(self, exception):
         """ Call back method to watch what comes in via the exception callback """
@@ -147,18 +146,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	self.particle_DD = SioEngSioMuleParserDataParticle(
 	    '\x01CS1236501_0014u51EF1B95_0D_B13D\x02\n18.93 14.2 71 11 0\n\x03',
 	    internal_timestamp = self._timestampDD)
-	#self.particle_to_yml(self.particle_a)
-	#self.particle_to_yml(self.particle_b)
-	#self.particle_to_yml(self.particle_c)
-	#self.particle_to_yml(self.particle_d)
-	#self.particle_to_yml(self.particle_e)
-	#self.particle_to_yml(self.particle_f)
-	#self.particle_to_yml(self.particle_11)
-	#self.particle_to_yml(self.particle_12)
-	#self.particle_to_yml(self.particle_AA)
-	#self.particle_to_yml(self.particle_BB)
-	self.particle_to_yml(self.particle_CC)
-	self.particle_to_yml(self.particle_DD)
+
 
 	
         self.file_ingested_value = None
@@ -190,9 +178,9 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	"""
 	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'STA15908.DAT'))
-	# NOTE: using the unprocessed data state of 0,1000 limits the file to reading
-	# just 1000 bytes, so even though the file is longer it only reads the first
-	# 1000
+	# NOTE: using the unprocessed data state of 0,200 limits the file to reading
+	# just 200 bytes, so even though the file is longer it only reads the first
+	# 200. FILE_SIZE is also ignored but must be present, so a dummy value is set
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 200]],
 	    StateKey.IN_PROCESS_DATA:[],
 	    StateKey.FILE_SIZE: 7}
@@ -227,9 +215,11 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	"""
 	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1.dat'))
-	# NOTE: using the unprocessed data state of 0,1000 limits the file to reading
-	# just 1000 bytes, so even though the file is longer it only reads the first
-	# 1000
+	# A second test simple was written to use the node59p1.dat file instead
+	# of the smaller STA15908.DAT. Unprocessed data was set to two sections
+	# of the file so a reasonable number of particles would be created while
+	# assuring the parser could read a larger file. FILE_SIZE is also ignored
+	# but must be present, so a dummy value is set
 	
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000],[7800, 8800]],
 	    StateKey.IN_PROCESS_DATA:[],
@@ -367,7 +357,6 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	self.assertEqual(result[0], self.particle_e)
 	self.assertEqual(result[1], self.particle_f)
 	log.debug('raw data in result:::::: %s',result[1].raw_data)
-	log.debug('raw data in self.particle_f::::::: %s',self.particle_f.raw_data)
 	
 	self.assert_state([],[[348,600]])
 	
@@ -384,9 +373,10 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	
 	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'STA15908.DAT'))
-	# NOTE: using the unprocessed data state of 0,1000 limits the file to reading
+	# NOTE: using the unprocessed data state of 0,700 limits the file to reading
 	# just 700 bytes, so even though the file is longer it only reads the first
-	# 700
+	# 700. Also, FILE_SIZE must exist but is unused so a dummy value is inserted
+	
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 700]],
 	    StateKey.IN_PROCESS_DATA:[],
 	    StateKey.FILE_SIZE: 7}
@@ -399,21 +389,15 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 	new_state2 = {StateKey.IN_PROCESS_DATA:[[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
 	    StateKey.UNPROCESSED_DATA:[[174,600]],
 	    StateKey.FILE_SIZE: 7}
-	log.debug("\n******************\nCurrent state: %s", self.parser._read_state)
+	
 	log.debug("----------------- Setting State!------------")
 	log.debug("New_state: %s", new_state2)
 	self.parser.set_state(new_state2)
-	log.debug("Post parser.set_state to: %s\n************\n", self.parser._read_state)
 	
-	#self.assert_state([[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
-	#    [[174,600]])
 	
 	result = self.parser.get_records(2)
 	self.assertEqual(result[0], self.particle_d)
-	self.assertEqual(result[1], self.particle_e)
-	#log.debug('raw data in result:::::: %s',result[1].raw_data)
-	#log.debug('raw data in self.particle_f::::::: %s',self.particle_f.raw_data)
-	
+	self.assertEqual(result[1], self.particle_e)	
 	self.assert_state([[290, 348, 1, 0]],[[290,600]])
 	
 
