@@ -252,11 +252,7 @@ class DriverTestMixinSub(DriverTestMixin):
                 log.trace("my_send: data: %r, my_response: %r", data, my_response)
                 # scans repeat over and over, sleep between them to prevent overloading cpu
                 if data == 'SC1':
-<<<<<<< HEAD
-                    time.sleep(1)
-=======
                     time.sleep(0.9)
->>>>>>> upstream/master
                 self._send_port_agent_packet(driver, my_response + '\n' + NEWLINE)
                 return len(my_response)
 
@@ -341,15 +337,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.SCAN)
 
         particles = []
-<<<<<<< HEAD
-        time.sleep(5)
-=======
 
         # loop, because the monkey patched time doesn't reliably sleep long enough...
         now = time.time()
         while time.time() < (now+5):
             time.sleep(1)
->>>>>>> upstream/master
 
         for p in self._data_particle_received:
             particle_dict = json.loads(p)
