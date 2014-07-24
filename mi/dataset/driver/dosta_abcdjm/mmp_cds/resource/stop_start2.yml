@@ -1,0 +1,53 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243031.2988777161
+    raw_time_microseconds: 298878
+    raw_time_seconds: 1385254231.0000000000
+    calibrated_phase: 37.6878000000
+    optode_temperature: 6.6125
+  - _index: 2
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243030.2198491096
+    raw_time_microseconds: 219849
+    raw_time_seconds: 1385254230.0000000000
+    calibrated_phase: 22.5175000000
+    optode_temperature: 9.5517
+  - _index: 3
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243031.9913482666
+    raw_time_microseconds: 991348
+    raw_time_seconds: 1385254231.0000000000
+    calibrated_phase: 28.3757000000
+    optode_temperature: 8.4554
+  - _index: 4
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243027.9125699997
+    raw_time_microseconds: 912570
+    raw_time_seconds: 1385254227.0000000000
+    calibrated_phase: 35.2704000000
+    optode_temperature: 8.7467
+  - _index: 5
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243037.6946487427
+    raw_time_microseconds: 694649
+    raw_time_seconds: 1385254237.0000000000
+    calibrated_phase: 22.8625000000
+    optode_temperature: 6.3551
+  - _index: 6
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243027.7976260185
+    raw_time_microseconds: 797626
+    raw_time_seconds: 1385254227.0000000000
+    calibrated_phase: 22.3318000000
+    optode_temperature: 9.0639
