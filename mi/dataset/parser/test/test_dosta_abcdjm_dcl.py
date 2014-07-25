@@ -62,13 +62,11 @@ from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.dosta_abcdjm_dcl import \
     DostaAbcdjmDclRecoveredParser, \
     DostaAbcdjmDclTelemeteredParser, \
-    DostaRecoveredInstrumentDataParticle, \
-    DostaTelemeteredInstrumentDataParticle, \
+    DostaAbcdjmDclRecoveredInstrumentDataParticle, \
+    DostaAbcdjmDclTelemeteredInstrumentDataParticle, \
     DostaStateKey
 
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-#from mi.core.instrument.data_particle import DataParticleKey
-#from mi.core.exceptions import DatasetParserException
 
 from mi.idk.config import Config
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver',
@@ -265,7 +263,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         return parser
 
     def open_file(self, filename):
-        file = open(os.path.join(RESOURCE_PATH, filename), mode='rU')
+        file = open(os.path.join(RESOURCE_PATH, filename), mode='r')
         return file
 
     def rec_state_callback(self, state, file_ingested):
@@ -303,14 +301,14 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.dosta_abcdjm_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
-                'DostaRecoveredInstrumentDataParticle'
+                'DostaAbcdjmDclRecoveredInstrumentDataParticle'
         }
 
         self.tel_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.dosta_abcdjm_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
-                'DostaTelemeteredInstrumentDataParticle'
+                'DostaAbcdjmDclTelemeteredParser'
         }
 
         self.rec_state_callback_value = None
@@ -373,7 +371,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         # Generate a list of expected result particles.
         expected_particle = []
         for expected in EXPECTED_FILE3:
-            particle = DostaRecoveredInstrumentDataParticle(expected)
+            particle = DostaAbcdjmDclRecoveredInstrumentDataParticle(expected)
             expected_particle.append(particle)
 
         # In a single read, get all particles for this file.
@@ -390,7 +388,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         # Generate a list of expected result particles.
         expected_particle = []
         for expected in EXPECTED_FILE3:
-            particle = DostaTelemeteredInstrumentDataParticle(expected)
+            particle = DostaAbcdjmDclTelemeteredInstrumentDataParticle(expected)
             expected_particle.append(particle)
 
         # In a single read, get all particles for this file.
@@ -418,7 +416,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE5:
 
             # Generate expected particle
-            expected_particle = DostaRecoveredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclRecoveredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)
@@ -434,7 +432,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         # Generate a list of expected result particles.
         expected_particle = []
         for expected in EXPECTED_FILE6:
-            particle = DostaTelemeteredInstrumentDataParticle(expected)
+            particle = DostaAbcdjmDclTelemeteredInstrumentDataParticle(expected)
             expected_particle.append(particle)
 
         # In a single read, get all particles for this file.
@@ -496,7 +494,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         # Generate a list of expected result particles.
         expected_particle = []
         for expected in EXPECTED_FILE3[-22: ]:
-            particle = DostaRecoveredInstrumentDataParticle(expected)
+            particle = DostaAbcdjmDclRecoveredInstrumentDataParticle(expected)
             expected_particle.append(particle)
 
         # In a single read, get all particles for this file.
@@ -520,7 +518,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         # Generate a list of expected result particles.
         expected_particle = []
         for expected in EXPECTED_FILE2[-12: ]:
-            particle = DostaTelemeteredInstrumentDataParticle(expected)
+            particle = DostaAbcdjmDclTelemeteredInstrumentDataParticle(expected)
             expected_particle.append(particle)
 
         # In a single read, get all particles for this file.
@@ -547,7 +545,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE2[ : 5]:
 
             # Generate expected particle
-            expected_particle = DostaRecoveredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclRecoveredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)
@@ -565,7 +563,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE2[-10: ]:
 
             # Generate expected particle
-            expected_particle = DostaRecoveredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclRecoveredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)
@@ -580,7 +578,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE3[ : 30]:
 
             # Generate expected particle
-            expected_particle = DostaTelemeteredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclTelemeteredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)
@@ -598,7 +596,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE3[-25: ]:
 
             # Generate expected particle
-            expected_particle = DostaTelemeteredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclTelemeteredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)
@@ -618,7 +616,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE1:
 
             # Generate expected particle
-            expected_particle = DostaRecoveredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclRecoveredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)
@@ -634,7 +632,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         for expected in EXPECTED_FILE1:
 
             # Generate expected particle
-            expected_particle = DostaTelemeteredInstrumentDataParticle(expected)
+            expected_particle = DostaAbcdjmDclTelemeteredInstrumentDataParticle(expected)
 
             # Get record and verify.
             result = parser.get_records(1)

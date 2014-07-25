@@ -46,9 +46,9 @@ from mi.core.exceptions import \
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
 # Basic patterns
-ANY_CHARS = r'.*'          # any characters excluding a newline
-FLOAT = r'(\d+\.\d*)'      # unsigned floating point number
-NEW_LINE = r'[\n\r]+'      # any type of new line
+ANY_CHARS = r'([\x00-\x09\x0B\x0C\x0E-\xFF]*)'  # any characters excluding a newline
+FLOAT = r'(\d+\.\d*)'          # unsigned floating point number
+NEW_LINE = r'(?:\r\n|\r|\n)'   # any type of new line
 SPACE = ' '
 TAB = '\t'
 
@@ -98,8 +98,7 @@ SENSOR_DATA_PATTERN += NEW_LINE            # Record ends with a newline
 SENSOR_DATA_MATCHER = re.compile(SENSOR_DATA_PATTERN)
 
 # SENSOR_DATA_MATCHER produces the following groups,
-# but since they are used as indices into raw_data,
-# numbering starts at 0.
+# but since they are used as indices into raw_data, numbering starts at 0.
 SENSOR_GROUP_TIMESTAMP = 0
 SENSOR_GROUP_YEAR = 1
 SENSOR_GROUP_MONTH = 2
@@ -121,24 +120,24 @@ SENSOR_GROUP_BLUE_AMPLITUDE = 17
 SENSOR_GROUP_RED_AMPLITUDE = 18
 SENSOR_GROUP_RAW_TEMPERATURE = 19
 
-# This table is used to generate the instrument data particle.
-# Column 1 - parameter name (key)
+# This table is used in the generation of the instrument data particle.
+# Column 1 - particle parameter name
 # Column 2 - group number (index into raw_data)
-# Column 3 - data type (conversion required - int, float, etc)
+# Column 3 - data encoding function (conversion required - int, float, etc)
 INSTRUMENT_PARTICLE_MAP = [
-    ['dcl_controller_timestamp',       SENSOR_GROUP_TIMESTAMP,           str],
-    ['product_number',                 SENSOR_GROUP_PRODUCT,             int],
-    ['serial_number',                  SENSOR_GROUP_SERIAL,              int],
-    ['estimated_oxygen_concentration', SENSOR_GROUP_OXYGEN_CONTENT,      float],
-    ['estimated_oxygen_saturation',    SENSOR_GROUP_AIR_SATURATION,      float],
-    ['optode_temperature',             SENSOR_GROUP_AMBIENT_TEMPERATURE, float],
-    ['calibrated_phase',               SENSOR_GROUP_CALIBRATED_PHASE,    float],
-    ['temp_compensated_phase',         SENSOR_GROUP_COMPENSATED_PHASE,   float],
-    ['blue_phase',                     SENSOR_GROUP_BLUE_PHASE,          float],
-    ['red_phase',                      SENSOR_GROUP_RED_PHASE,           float],
-    ['blue_amplitude',                 SENSOR_GROUP_BLUE_AMPLITUDE,      float],
-    ['red_amplitude',                  SENSOR_GROUP_RED_AMPLITUDE,       float],
-    ['raw_temperature',                SENSOR_GROUP_RAW_TEMPERATURE,     float]
+    ('dcl_controller_timestamp',       SENSOR_GROUP_TIMESTAMP,           str),
+    ('product_number',                 SENSOR_GROUP_PRODUCT,             int),
+    ('serial_number',                  SENSOR_GROUP_SERIAL,              int),
+    ('estimated_oxygen_concentration', SENSOR_GROUP_OXYGEN_CONTENT,      float),
+    ('estimated_oxygen_saturation',    SENSOR_GROUP_AIR_SATURATION,      float),
+    ('optode_temperature',             SENSOR_GROUP_AMBIENT_TEMPERATURE, float),
+    ('calibrated_phase',               SENSOR_GROUP_CALIBRATED_PHASE,    float),
+    ('temp_compensated_phase',         SENSOR_GROUP_COMPENSATED_PHASE,   float),
+    ('blue_phase',                     SENSOR_GROUP_BLUE_PHASE,          float),
+    ('red_phase',                      SENSOR_GROUP_RED_PHASE,           float),
+    ('blue_amplitude',                 SENSOR_GROUP_BLUE_AMPLITUDE,      float),
+    ('red_amplitude',                  SENSOR_GROUP_RED_AMPLITUDE,       float),
+    ('raw_temperature',                SENSOR_GROUP_RAW_TEMPERATURE,     float)
 ]
 
 
@@ -151,10 +150,9 @@ class DataParticleType(BaseEnum):
     TEL_INSTRUMENT_PARTICLE = 'dosta_abcdjm_dcl_instrument'
 
 
-class DostaInstrumentDataParticle(DataParticle):
+class DostaAbcdjmDclInstrumentDataParticle(DataParticle):
     """
-    Class for generating the Offset Data Particle from the CTDMO instrument
-    on a MSFM platform node
+    Class for generating the Dosta instrument particle.
     """
 
     def __init__(self, raw_data,
@@ -164,7 +162,7 @@ class DostaInstrumentDataParticle(DataParticle):
                  quality_flag=DataParticleValue.OK,
                  new_sequence=None):
 
-        super(DostaInstrumentDataParticle, self).__init__(raw_data,
+        super(DostaAbcdjmDclInstrumentDataParticle, self).__init__(raw_data,
                                                           port_timestamp,
                                                           internal_timestamp,
                                                           preferred_timestamp,
@@ -172,44 +170,39 @@ class DostaInstrumentDataParticle(DataParticle):
                                                           new_sequence)
 
         # The particle timestamp is the DCL Controller timestamp.
+        # The individual fields have already been extracted by the parser.
 
-        timestamp = (int(self.raw_data[SENSOR_GROUP_YEAR]),
-                     int(self.raw_data[SENSOR_GROUP_MONTH]),
-                     int(self.raw_data[SENSOR_GROUP_DAY]),
-                     int(self.raw_data[SENSOR_GROUP_HOUR]),
-                     int(self.raw_data[SENSOR_GROUP_MINUTE]),
-                     int(self.raw_data[SENSOR_GROUP_SECOND]),
-                     0, 0, 0)
+        timestamp = (
+            int(self.raw_data[SENSOR_GROUP_YEAR]),
+            int(self.raw_data[SENSOR_GROUP_MONTH]),
+            int(self.raw_data[SENSOR_GROUP_DAY]),
+            int(self.raw_data[SENSOR_GROUP_HOUR]),
+            int(self.raw_data[SENSOR_GROUP_MINUTE]),
+            int(self.raw_data[SENSOR_GROUP_SECOND]),
+            0, 0, 0)
         elapsed_seconds = calendar.timegm(timestamp)
         self.set_internal_timestamp(unix_time=elapsed_seconds)
 
     def _build_parsed_values(self):
         """
         Build parsed values for Recovered and Telemetered Instrument Data Particle.
-        @throws SampleException If there is a problem with sample creation
         """
 
         # For each field in the instrument particle,
-        # encode appropriate value from the raw_data with associated key.
+        # call encode_value to generate a name,value pair.
 
-        particle = []
-        #log.debug('BUILD %s', self.raw_data)
-        for key, group, data_type in INSTRUMENT_PARTICLE_MAP:
-            particle.append(self._encode_value(key,
-                                               self.raw_data[group],
-                                               data_type))
-
-        return particle
+        return [self._encode_value(name, self.raw_data[group], function)
+            for name, group, function in INSTRUMENT_PARTICLE_MAP]
 
 
-class DostaRecoveredInstrumentDataParticle(DostaInstrumentDataParticle):
+class DostaAbcdjmDclRecoveredInstrumentDataParticle(DostaAbcdjmDclInstrumentDataParticle):
     """
     Class for generating Offset Data Particles from Recovered data.
     """
     _data_particle_type = DataParticleType.REC_INSTRUMENT_PARTICLE
 
 
-class DostaTelemeteredInstrumentDataParticle(DostaInstrumentDataParticle):
+class DostaAbcdjmDclTelemeteredInstrumentDataParticle(DostaAbcdjmDclInstrumentDataParticle):
     """
     Class for generating Offset Data Particles from Telemetered data.
     """
@@ -251,6 +244,8 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
         self.input_file = stream_handle
         self.particle_class = particle_class
 
+        # If there's a pre-existing state, update to it.
+
         if state is not None:
             self.set_state(state)
 
@@ -273,19 +268,18 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
 
     def _increment_position(self, bytes_read):
         """
-        Increment the parser position
+        Increment the position within the file.
         @param bytes_read The number of bytes just read
         """
         self._read_state[DostaStateKey.POSITION] += bytes_read
 
     def parse_chunks(self):
         """
-        Parse chunks for the Dosta parser.
-        Parse out any pending data chunks in the chunker. If
-        it is a valid data piece, build a particle, update the position and
-        timestamp. Go until the chunker has no more valid data.
+        Parse out any pending data chunks in the chunker.
+        If it is valid data, build a particle.
+        Go until the chunker has no more valid data.
         @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state. An empty list of nothing was parsed.
+            parsing, plus the state.
         """
         result_particles = []
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -293,15 +287,14 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
         self.handle_non_data(non_data, non_end, start)
 
         while chunk is not None:
-            log.debug('CHUNK %s', chunk)
+            log.debug('PPPPParse %d, %s', len(chunk), chunk)
             self._increment_position(len(chunk))
 
             # If this is a valid sensor data record,
-            # use the fields to generate a particle.
+            # use the extracted fields to generate a particle.
 
             sensor_match = SENSOR_DATA_MATCHER.match(chunk)
             if sensor_match is not None:
-                log.debug('SENSOR %s', sensor_match.groups())
                 particle = self._extract_sample(self.particle_class,
                                                 None,
                                                 sensor_match.groups(),
@@ -309,25 +302,21 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
                 if particle is not None:
                     result_particles.append((particle, copy.copy(self._read_state)))
 
-            # See if it's a metadata record.
+            # It's not a sensor data record, see if it's a metadata record.
 
             else:
-                meta_match = METADATA_MATCHER.match(chunk)
 
-                # If it is not a metadata record,
-                # generate warning and raise recoverable exception.
                 # If it appears to be a metadata record,
                 # look for multiple lines which have been garbled,
-                # i.e., metadata plus tab-separated values.
+                # i.e., metadata record minus the newline
+                # plus tab-separated values from a following sensor data record.
+                # find returns -1 if not found.
 
+                meta_match = METADATA_MATCHER.match(chunk)
                 if meta_match is None or chunk.find(TAB) != -1:
                     error_message = 'Unknown data found in chunk %s' % chunk
                     log.warn(error_message)
                     self._exception_callback(UnexpectedDataException(error_message))
-
-                # sgm remove this when done testing
-                else:
-                    log.debug('VALID METADATA FOUND')
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
@@ -374,7 +363,7 @@ class DostaAbcdjmDclRecoveredParser(DostaAbcdjmDclParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          DostaRecoveredInstrumentDataParticle,
+                                          DostaAbcdjmDclRecoveredInstrumentDataParticle,
                                           *args,
                                           **kwargs)
 
@@ -398,6 +387,6 @@ class DostaAbcdjmDclTelemeteredParser(DostaAbcdjmDclParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          DostaTelemeteredInstrumentDataParticle,
+                                          DostaAbcdjmDclTelemeteredInstrumentDataParticle,
                                           *args,
                                           **kwargs)
