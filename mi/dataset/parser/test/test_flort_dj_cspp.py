@@ -30,6 +30,8 @@ from mi.idk.config import Config
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flort_dj', 'cspp', 'resource')
 
+TEST_RECOVERED = 'first_data_recovered.yml'
+
 @attr('UNIT', group='mi')
 class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
     """
@@ -129,15 +131,15 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        fid = open(os.path.join(RESOURCE_PATH, 'BAD.txt'), 'r')
+        fid = open(os.path.join(RESOURCE_PATH, 'second_data.txt'), 'r')
 
         self.stream_handle = fid
         self.parser = FlortDjCsppParser(self.config.get(DataTypeKey.FLORT_DJ_CSPP_RECOVERED), None, self.stream_handle,
                                         self.state_callback, self.pub_callback, self.exception_callback)
 
-        particles = self.parser.get_records(222)
+        particles = self.parser.get_records(150)
 
-        self.particle_to_yml(particles, 'BAD.yml')
+        self.particle_to_yml(particles, 'second_data_recovered.yml')
         fid.close()
 
     def test_simple(self):
@@ -147,6 +149,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'first_data.txt')
         stream_handle = open(file_path, 'r')
 
+
         parser = FlortDjCsppParser(self.config.get(DataTypeKey.FLORT_DJ_CSPP_RECOVERED),
                                    None, stream_handle,
                                    self.state_callback, self.pub_callback,
@@ -155,9 +158,9 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         particles = parser.get_records(6)
 
         for particle in particles:
-            print particle.generate_dict()
+            particle.generate_dict()
 
-        test_data = self.get_dict_from_yml('first_data.yml')
+        test_data = self.get_dict_from_yml(TEST_RECOVERED)
         for n in range(6):
             self.assert_result(test_data['data'][n], particles[n])
 
@@ -170,7 +173,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'first_data.txt')
         stream_handle = open(file_path, 'rb')
 
-        parser = FlortDjCsppParser(self.config.get(DataTypeKey.FLORT_DJ_CSPP_RECOVERED),
+        parser = FlortDjCsppParser(self.config.get(DataTypeKey.FLORT_DJ_CSPP_TELEMETERED),
                                    None, stream_handle,
                                    self.state_callback, self.pub_callback,
                                    self.exception_callback)
@@ -180,9 +183,9 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("Num particles %s", len(particles))
 
         for particle in particles:
-            print particle.generate_dict()
+            particle.generate_dict()
 
-        test_data = self.get_dict_from_yml('first_data.yml')
+        test_data = self.get_dict_from_yml('first_data_telemetered.yml')
         for n in range(10):
             self.assert_result(test_data['data'][n], particles[n])
 
@@ -216,7 +219,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         for particle in particles:
             print particle.generate_dict()
 
-        test_data = self.get_dict_from_yml('first_data.yml')
+        test_data = self.get_dict_from_yml(TEST_RECOVERED)
 
         for n in range(193):
             self.assert_result(test_data['data'][n], particles[n])
@@ -247,7 +250,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 2)
 
-        expected_results = self.get_dict_from_yml('first_data.yml')
+        expected_results = self.get_dict_from_yml(TEST_RECOVERED)
 
         for i in range(len(particles)):
 
@@ -272,7 +275,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'first_data.txt')
         stream_handle = open(file_path, 'r')
 
-        expected_results = self.get_dict_from_yml('first_data.yml')
+        expected_results = self.get_dict_from_yml(TEST_RECOVERED)
 
         parser = FlortDjCsppParser(self.config.get(DataTypeKey.FLORT_DJ_CSPP_RECOVERED),
                 None, stream_handle,
@@ -322,7 +325,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
 
         particles = parser.get_records(2)
 
-        expected_results = self.get_dict_from_yml('BAD.yml')
+        expected_results = self.get_dict_from_yml('BAD_recovered.yml')
 
         self.assertTrue(len(particles) == 2)
 

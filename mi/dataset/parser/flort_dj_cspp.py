@@ -74,7 +74,7 @@ class FlortDjCsppParserDataParticleKey(BaseEnum):
     """
     The data particle keys associated with flort_dj_cspp data particle parameters
     """
-    PROFILER_TIMESTAMP = 'time'
+    PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure_depth'
     SUSPECT_TIMESTAMP = 'suspect_timestamp'
     DATE = 'date_string'
@@ -91,7 +91,7 @@ class FlortDjCsppParserDataParticleKey(BaseEnum):
 INSTRUMENT_PARTICLE_ENCODING_RULES = [
     (FlortDjCsppParserDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
     (FlortDjCsppParserDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
-    (FlortDjCsppParserDataParticleKey.DATE, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
+    (FlortDjCsppParserDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
     (FlortDjCsppParserDataParticleKey.DATE, DataMatchesGroupNumber.DATE, str),
     (FlortDjCsppParserDataParticleKey.TIME, DataMatchesGroupNumber.TIME, str),
     (FlortDjCsppParserDataParticleKey.BETA, DataMatchesGroupNumber.BETA, int),

@@ -1,0 +1,69 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+ 
+  - _index: 1
+    particle_object: FlortDjCsppInstrumentRecoveredDataParticle
+    particle_type: flort_dj_cspp_instrument_recovered
+    internal_timestamp: 3606762623.770000
+    profiler_timestamp: 1397773823.7699999809265137
+    pressure_depth: 8.6660000000000004
+    suspect_timestamp: 1
+    date_string: '04/17/14'
+    time_string: '15:24:07'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 440
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 498
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 65
+    raw_internal_temp: 65
+  - _index: 2
+    particle_object: FlortDjCsppInstrumentRecoveredDataParticle
+    particle_type: flort_dj_cspp_instrument_recovered
+    internal_timestamp: 3606762624.907000
+    profiler_timestamp: 1397773824.9070000648498535
+    pressure_depth: 8.5510000000000002
+    suspect_timestamp: 0
+    date_string: '04/17/14'
+    time_string: '15:24:09'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 466
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 509
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 65
+    raw_internal_temp: 65
+  - _index: 3
+    particle_object: FlortDjCsppInstrumentRecoveredDataParticle
+    particle_type: flort_dj_cspp_instrument_recovered
+    internal_timestamp: 3606762626.043000
+    profiler_timestamp: 1397773826.0429999828338623
+    pressure_depth: 8.4710000000000001
+    suspect_timestamp: 0
+    date_string: '04/17/14'
+    time_string: '15:24:10'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 482
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 496
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 66
+    raw_internal_temp: 66
+  - _index: 4
+    particle_object: FlortDjCsppInstrumentRecoveredDataParticle
+    particle_type: flort_dj_cspp_instrument_recovered
+    internal_timestamp: 3606762627.179000
+    profiler_timestamp: 1397773827.1789999008178711
+    pressure_depth: 8.4109999999999996
+    suspect_timestamp: 1
+    date_string: '04/17/14'
+    time_string: '15:24:11'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 483
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 498
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 64
+    raw_internal_temp: 64

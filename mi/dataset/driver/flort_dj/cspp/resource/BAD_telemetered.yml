@@ -1,0 +1,63 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: FlortDjCsppMetadataTelemeteredDataParticle
+    particle_type: flort_dj_cspp_metadata
+    internal_timestamp: 3606762499.950000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 12:23:15'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.PPB'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+  - _index: 2
+    particle_object: FlortDjCsppInstrumentTelemeteredDataParticle
+    particle_type: flort_dj_cspp_instrument
+    internal_timestamp: 3606762499.950000
+    profiler_timestamp: 1397773699.9500000476837158
+    pressure_depth: 19.7560000000000002
+    suspect_timestamp: 1
+    date_string: '04/17/14'
+    time_string: '15:22:04'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 585
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 191
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 67
+    raw_internal_temp: 67
+  - _index: 3
+    particle_object: FlortDjCsppInstrumentTelemeteredDataParticle
+    particle_type: flort_dj_cspp_instrument
+    internal_timestamp: 3606762505.637000
+    profiler_timestamp: 1397773705.6370000839233398
+    pressure_depth: 19.2049999999999983
+    suspect_timestamp: 0
+    date_string: '04/17/14'
+    time_string: '15:22:09'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 896
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 191
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 68
+    raw_internal_temp: 68
+  - _index: 4
+    particle_object: FlortDjCsppInstrumentTelemeteredDataParticle
+    particle_type: flort_dj_cspp_instrument
+    internal_timestamp: 3606762506.770000
+    profiler_timestamp: 1397773706.7699999809265137
+    pressure_depth: 19.0360000000000014
+    suspect_timestamp: 1
+    date_string: '04/17/14'
+    time_string: '15:22:10'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 777
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 190
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 66
+    raw_internal_temp: 66
