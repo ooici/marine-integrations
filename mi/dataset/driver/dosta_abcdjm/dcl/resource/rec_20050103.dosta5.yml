@@ -10,16 +10,16 @@ data:
     dcl_controller_timestamp: '2005/01/03 01:02:32.264'
     product_number: 4831
     serial_number: 205
-    estimated_oxygen_concentration: 0.000000
-    estimated_oxygen_saturation: 0.000000
-    optode_temperature: 0.000000
-    calibrated_phase: 0.000000
-    temp_compensated_phase: 0.000000
-    blue_phase: 0.000000
-    red_phase: 0.000000
-    blue_amplitude: 0.000000
-    red_amplitude: 0.000000
-    raw_temperature: 0.000000
+    estimated_oxygen_concentration: 0.000
+    estimated_oxygen_saturation: 0.000
+    optode_temperature: 0.000
+    calibrated_phase: 0.000
+    temp_compensated_phase: 0.000
+    blue_phase: 0.000
+    red_phase: 0.000
+    blue_amplitude: 0.000
+    red_amplitude: 0.000
+    raw_temperature: 0.000
   - _index:  2
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
@@ -27,16 +27,16 @@ data:
     dcl_controller_timestamp: '2005/01/03 01:02:42.017'
     product_number: 4831
     serial_number: 205
-    estimated_oxygen_concentration: 250.000000
-    estimated_oxygen_saturation: 60.000000
-    optode_temperature: 50.000000
-    calibrated_phase: 45.000000
-    temp_compensated_phase: 45.000000
-    blue_phase: 45.000000
-    red_phase: 45.000000
-    blue_amplitude: 750.000000
-    red_amplitude: 750.000000
-    raw_temperature: 125.000000
+    estimated_oxygen_concentration: 250.000
+    estimated_oxygen_saturation: 60.000
+    optode_temperature: 50.000
+    calibrated_phase: 45.000
+    temp_compensated_phase: 45.000
+    blue_phase: 45.000
+    red_phase: 45.000
+    blue_amplitude: 750.000
+    red_amplitude: 750.000
+    raw_temperature: 125.000
   - _index:  3
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
@@ -44,13 +44,13 @@ data:
     dcl_controller_timestamp: '2005/01/03 01:02:51.770'
     product_number: 4831
     serial_number: 205
-    estimated_oxygen_concentration: 500.000000
-    estimated_oxygen_saturation: 120.000000
-    optode_temperature: 100.000000
-    calibrated_phase: 90.000000
-    temp_compensated_phase: 90.000000
-    blue_phase: 90.000000
-    red_phase: 90.000000
-    blue_amplitude: 1500.000000
-    red_amplitude: 1500.000000
-    raw_temperature: 250.000000
+    estimated_oxygen_concentration: 500.000
+    estimated_oxygen_saturation: 120.000
+    optode_temperature: 100.000
+    calibrated_phase: 90.000
+    temp_compensated_phase: 90.000
+    blue_phase: 90.000
+    red_phase: 90.000
+    blue_amplitude: 1500.000
+    red_amplitude: 1500.000
+    raw_temperature: 250.000
