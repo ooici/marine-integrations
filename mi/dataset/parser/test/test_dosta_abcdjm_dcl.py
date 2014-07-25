@@ -6,7 +6,7 @@
 @author Steve Myerson
 @brief Test code for a Dosta_abcdjm_dcl data parser
 
-In the following files, Metadata consists of 3 records
+In the following files, Metadata consists of 4 records
 and Garbled consist of 3 records.
 There is 1 group of Sensor Data records for each set of metadata.
 
@@ -34,13 +34,13 @@ Files used for testing:
 
 20070114.dosta7.log
   This file contains a boatload of invalid sensor data records.
-   1. year
-   2. month
-   3. day
-   4. hour
-   5. minute
-   6. second
-   7. product
+   1. invalid year
+   2. invalid month
+   3. invalid day
+   4. invalid hour
+   5. invalid minute
+   6. invalid second
+   7. invalid product
    8. spaces instead of tabs
    9. a 2-digit serial number
   10. floating point number missing the decimal point
@@ -48,6 +48,7 @@ Files used for testing:
   12. one of the floating point numbers missing
   13. Date in form YYYY-MM-DD
   14. time field missing milliseconds
+  15. extra floating point number in sensor data
 """
 
 import unittest
@@ -455,7 +456,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         in_file = self.open_file(FILE7)
         parser = self.create_rec_parser(in_file)
 
-        expected_exceptions = 14
+        expected_exceptions = 15
 
         # Try to get records and verify that none are returned.
         result = parser.get_records(1)
@@ -487,7 +488,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
 
         # Start at the beginning of the 21st record (of 42 total).
         initial_state = {
-            DostaStateKey.POSITION: 2540
+            DostaStateKey.POSITION: 2738
         }
 
         parser = self.create_rec_parser(in_file, new_state=initial_state)
@@ -511,7 +512,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
 
         # Start at the beginning of the 33rd record (of 44 total).
         initial_state = {
-            DostaStateKey.POSITION: 3879
+            DostaStateKey.POSITION: 4079
         }
 
         parser = self.create_tel_parser(in_file, new_state=initial_state)
@@ -554,7 +555,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
 
         # Skip ahead in the file so that we get the last 10 particles.
         new_state = {
-            DostaStateKey.POSITION: 4101
+            DostaStateKey.POSITION: 4301
         }
 
         # Set the state.
@@ -587,7 +588,7 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
 
         # Skip back in the file so that we get the last 25 particles.
         new_state = {
-            DostaStateKey.POSITION: 2216,
+            DostaStateKey.POSITION: 2414,
         }
 
         # Set the state.
