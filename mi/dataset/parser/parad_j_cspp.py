@@ -38,7 +38,7 @@ DATE_REGEX = r'\d{2}/\d{2}/\d{2}'
 # Time is in format HH:MM:SS, example 15:22:31
 TIME_REGEX = r'\d{2}:\d{2}:\d{2}'
 
-# *** Need to define data regex for this parser ***
+# regex for the data record
 DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
 DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX     # Suspect Timestamp
@@ -123,8 +123,8 @@ class ParadJCsppMetadataDataParticle(CsppMetadataDataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
+            self._exception_callback(SampleException("Error (%s) while decoding parameters in data: [%s]"
+                                     % (ex, self.raw_data)))
 
         log.debug('*** metadata particle result %s', results)
 
@@ -193,8 +193,8 @@ class ParadJCsppInstrumentDataParticle(DataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
+            self._exception_callback(SampleException("Error (%s) while decoding parameters in data: [%s]"
+                                     % (ex, self.raw_data)))
 
         log.debug('*** instrument particle result %s', results)
         return results
