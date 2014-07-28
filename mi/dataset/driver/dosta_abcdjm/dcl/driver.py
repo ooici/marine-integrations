@@ -34,8 +34,8 @@ class DataTypeKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    DOSTA_ABCDJM_RECOVERED = 'dosta_abcdjm_dcl_instrument_recovered'
-    DOSTA_ABCDJM_TELEMETERED = 'dosta_abcdjm_dcl_instrument'
+    DOSTA_ABCDJM_RECOVERED = 'dosta_abcdjm_dcl_recovered'
+    DOSTA_ABCDJM_TELEMETERED = 'dosta_abcdjm_dcl_telemetered'
 
 
 class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
