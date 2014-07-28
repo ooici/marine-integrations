@@ -289,7 +289,6 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
         self.handle_non_data(non_data, non_end, start)
 
         while chunk is not None:
-            log.debug('PPPPParse %d, %s', len(chunk), chunk)
             self._increment_position(len(chunk))
 
             # If this is a valid sensor data record,
