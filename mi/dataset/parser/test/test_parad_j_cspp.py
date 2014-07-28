@@ -361,3 +361,26 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(self.exception_callback_value is not None)
 
         stream_handle.close()
+
+    def test_additional_column(self):
+        """
+        Ensure that additional column heading will cause an exception.
+        """
+
+        file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_PARS_ADDED_COLUMN.txt')
+        stream_handle = open(file_path, 'rb')
+
+        log.info(self.exception_callback_value)
+
+        parser = ParadJCsppParser(self.config.get(DataTypeKey.PARAD_J_CSPP_RECOVERED),
+                                  None, stream_handle,
+                                  self.state_callback, self.pub_callback,
+                                  self.exception_callback)
+
+        parser.get_records(1)
+
+        log.info("Exception callback value: %s", self.exception_callback_value)
+
+        self.assertTrue(self.exception_callback_value is not None)
+
+        stream_handle.close()
