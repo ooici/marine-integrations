@@ -364,7 +364,7 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_additional_column(self):
         """
-        Ensure that additional column heading will cause an exception.
+        Ensure that additional column of data will cause an exception.
         """
 
         file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_PARS_ADDED_COLUMN.txt')
