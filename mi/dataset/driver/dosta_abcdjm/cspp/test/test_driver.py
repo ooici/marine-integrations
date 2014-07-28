@@ -94,8 +94,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def get_file_state(self, path, ingested=False, position=None, metadata_extracted=False):
         """
-        Create a state object for a file.  If a position is passed then add a parser state as well.
+        Create a parser state object for a file and return it.
         """
+
+        if position is None:
+            position = 0
+
         mod_time = os.path.getmtime(path)
         file_size = os.path.getsize(path)
         with open(path) as filehandle:
@@ -255,7 +259,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the telemetered metadata particle
         result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
-        # get the telemetered metadata particle
+        # get the telemetered insturment particle
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 17, 40)
         # combine the results
         result1.extend(result2)
@@ -283,8 +287,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the telemetered metadata particle
         self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 20)
-        # # get the telemetered metadata particle
-
+        # # get the telemetered insturment particle
         self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 271, 40)
 
     def test_stop_start(self):
@@ -315,7 +318,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the telemetered metadata particle
         result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
-        # get the first 9 telemetered metadata particle
+        # get the first 9 telemetered insturment particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 9, 40)
         # combine the results
         result1.extend(result2)
@@ -334,7 +337,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
-        # get the next 4 telemetered metadata particle
+        # get the next 4 telemetered insturment particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
 
         self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
@@ -367,7 +370,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the telemetered metadata particle
         result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
-        # get the first 9 telemetered metadata particle
+        # get the first 9 telemetered insturment particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 9, 40)
         # combine the results
         result1.extend(result2)
@@ -392,7 +395,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
-        # get the next 4 telemetered metadata particle
+        # get the next 4 telemetered insturment particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
 
         self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
@@ -425,7 +428,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the telemetered metadata particle
         result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
-        # get the first 9 telemetered metadata particle
         # check the results
 
         self.assert_data_values(result1, 'test_telemetered_stop_meta_one.yml')
@@ -452,7 +454,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # check the results
         self.assert_data_values(result2, 'test_recovered_stop_meta_two.yml')
 
-        # get the first 9 telemetered metadata particle
+        # get the first 9 telemetered insturment particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 9, 40)
 
         # check the results

@@ -26,7 +26,7 @@ from mi.dataset.parser.cspp_base import \
     INT_REGEX, \
     MULTIPLE_TAB_REGEX, \
     Y_OR_N_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
+    END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
     PARTICLE_KEY_INDEX, \
@@ -52,7 +52,7 @@ DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # phase measurement w
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # phase measurement with red excitation
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # amplitude measurement with blue excitation
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX # amplitude measurement with red excitation
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH # raw temperature, voltage from thermistor
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + END_OF_LINE_REGEX # raw temperature, voltage from thermistor
 
 
 class DataMatchesGroupNumber(BaseEnum):

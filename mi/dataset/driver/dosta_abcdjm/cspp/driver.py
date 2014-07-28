@@ -125,8 +125,9 @@ class DostaAbcdjmCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             if harvester is not None:
                 harvesters.append(harvester)
             else:
-                log.debug('DOSTA_ABCDJM_CSPP_RECOVERED HARVESTER NOT BUILT')
-
+                log.warn('DOSTA_ABCDJM_CSPP_RECOVERED harvester not built')
+        else:
+            log.warn('DOSTA_ABCDJM_CSPP_RECOVERED key missing from config harvester not built')
         #
         # Verify that the DOSTA_ABCDJM_CSPP_TELEMETERED harvester has been configured.
         # If so, build the harvester and add it to the list of harvesters.
@@ -142,6 +143,8 @@ class DostaAbcdjmCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             if harvester is not None:
                 harvesters.append(harvester)
             else:
-                log.debug('DOSTA_ABCDJM_CSPP_TELEMETERED HARVESTER NOT BUILT')
+                log.warn('DOSTA_ABCDJM_CSPP_TELEMETERED harvester not built')
+        else:
+            log.warn('DOSTA_ABCDJM_CSPP_TELEMETERED key missing from config harvester not built')
 
         return harvesters

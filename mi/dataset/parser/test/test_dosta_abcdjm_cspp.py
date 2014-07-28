@@ -135,7 +135,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_simple(self):
         """
-        Read test data and pull out data particles one at a time.
+        Read test data and pull out data particles.
         Assert that the results are those we expected.
         """
         file_path = os.path.join(RESOURCE_PATH, '11079894_PPB_OPT.txt')
