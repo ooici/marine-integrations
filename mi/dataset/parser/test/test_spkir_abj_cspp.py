@@ -8,7 +8,7 @@
 
 spkir_abj_cspp is based on cspp_base.py
 test_dosta_abcdjm_cspp.py fully tests all of the capabilities of the
-base parser.  that lervel of testing is omitted from this test suite
+base parser.  That level of testing is omitted from this test suite
 """
 
 import os
@@ -374,3 +374,44 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_extra_data(self):
+
+        """
+        Ensure that bad data is skipped when it exists.
+        """
+
+        # the first data record in this file is corrupted and will be ignored
+        # we expect the first 2 particles to be the metadata particle and the
+        # intrument particle from the data record after the corrupted one
+
+        file_path = os.path.join(RESOURCE_PATH, '11079364_EXTRA_DATA_PPD_OCR.txt')
+
+        stream_handle = open(file_path, 'rb')
+
+        log.info(self.exception_callback_value)
+
+        parser = SpkirAbjCsppParser(self.config.get(DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED),
+                                    None, stream_handle,
+                                    self.state_callback, self.pub_callback,
+                                    self.exception_callback)
+
+        particles = parser.get_records(2)
+
+        self.assertTrue(self.exception_callback_value != None)
+
+        log.debug('TEST EXTRA DATA exception call back is %s', self.exception_callback_value)
+
+        log.debug('TEST EXTRA DATA particle are  %s', particles)
+
+        expected_results = self.get_dict_from_yml('extra_data_values.yml')
+
+        self.assertTrue(len(particles) == 2)
+
+        # since the first two records were corrupted the first records recieved
+        # should be metadata particle with the timestamp of the 3rd data row
+        # and the insturment particle from the 3rd row
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        stream_handle.close()

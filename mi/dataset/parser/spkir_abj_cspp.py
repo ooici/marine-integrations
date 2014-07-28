@@ -29,7 +29,7 @@ from mi.dataset.parser.cspp_base import \
     INT_REGEX, \
     Y_OR_N_REGEX, \
     MULTIPLE_TAB_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
+    END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
     PARTICLE_KEY_INDEX, \
@@ -81,7 +81,7 @@ DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Vin
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Va
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Internal Temperature
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Frame Counter
-DATA_REGEX += '(' + CHECKSUM_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH  # Checksum
+DATA_REGEX += '(' + CHECKSUM_REGEX + ')' + END_OF_LINE_REGEX  # Checksum
 
 # IDD states the configuration rows after the header as well as occasional malformed data rows
 # can be ignored.
@@ -91,7 +91,8 @@ DATA_REGEX += '(' + CHECKSUM_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH  # 
 
 IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX  # Profiler Timestamp
 IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX  # Depth
-IGNORE_REGEX += '.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH  # any text after the Depth
+IGNORE_REGEX += Y_OR_N_REGEX  + MULTIPLE_TAB_REGEX # Suspect Timestamp
+IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX  # any text after the Depth
 
 IGNORE_MATCHER = re.compile(IGNORE_REGEX)
 
