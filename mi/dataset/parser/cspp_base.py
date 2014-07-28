@@ -29,14 +29,14 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # The following defines a regular expression for one or more
-# instances of a carriage return, line feed or both
-CARRIAGE_RETURN_LINE_FEED_OR_BOTH = r'(?:\r\n|\r|\n)'
-SIEVE_MATCHER = re.compile(r'.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH)
+# instances of a carriage return and line feed or just line feed
+END_OF_LINE_REGEX = r'(?:\r\n|\n)'
+SIEVE_MATCHER = re.compile(r'.*' + END_OF_LINE_REGEX)
 
-HEADER_PART_REGEX = r'(.*):\s+(.*)' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+HEADER_PART_REGEX = r'(.*):\s+(.*)' + END_OF_LINE_REGEX
 HEADER_PART_MATCHER = re.compile(HEADER_PART_REGEX)
 
-TIMESTAMP_LINE_REGEX = r'Timestamp.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+TIMESTAMP_LINE_REGEX = r'Timestamp.*' + END_OF_LINE_REGEX
 TIMESTAMP_LINE_MATCHER = re.compile(TIMESTAMP_LINE_REGEX)
 
 # A regex to capture a float value
