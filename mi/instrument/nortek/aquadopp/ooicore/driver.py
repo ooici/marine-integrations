@@ -19,7 +19,7 @@ log = get_logger()
 
 from mi.core.exceptions import SampleException
 
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
     NEWLINE, ParameterUnits
@@ -42,6 +42,7 @@ class NortekDataParticleType(BaseEnum):
     """
     List of data particles.  Names match those in the IOS, need to overwrite enum defined in base class
     """
+    RAW = CommonDataParticleType.RAW
     VELOCITY = 'velpt_velocity_data'
     HARDWARE_CONFIG = 'velpt_hardware_configuration'
     HEAD_CONFIG = 'velpt_head_configuration'
@@ -186,7 +187,7 @@ class Protocol(NortekInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        super(Protocol, self).__init__(prompts, newline, driver_event)
+        super(Protocol, self).__init__(prompts, newline, driver_event, NortekDataParticleType)
 
     ########################################################################
     # overridden superclass methods
