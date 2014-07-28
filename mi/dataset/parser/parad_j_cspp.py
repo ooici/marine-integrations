@@ -28,7 +28,7 @@ from mi.dataset.parser.cspp_base import \
     INT_REGEX, \
     Y_OR_N_REGEX, \
     MULTIPLE_TAB_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
+    END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
     encode_y_or_n
@@ -44,7 +44,7 @@ DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
 DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX     # Suspect Timestamp
 DATA_REGEX += '(' + DATE_REGEX + ')' + MULTIPLE_TAB_REGEX     # Date
 DATA_REGEX += '(' + TIME_REGEX + ')' + MULTIPLE_TAB_REGEX     # Time
-DATA_REGEX += '(' + INT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH    # par
+DATA_REGEX += '(' + INT_REGEX + ')' + END_OF_LINE_REGEX    # par
 
 # IDD states the configuration rows after the header as well as occasional malformed data rows
 # can be ignored.
@@ -54,7 +54,8 @@ DATA_REGEX += '(' + INT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH    # par
 IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX     # Profiler Timestamp
 IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX    # Depth
 IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX     # Suspect Timestamp
-IGNORE_REGEX += '.*' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH    # any text after the Depth
+#IGNORE_REGEX += '.*' + END_OF_LINE_REGEX    # any text after the Suspect Timestamp
+IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX    # any text (excluding tabs) after the Suspect Timestamp
 
 IGNORE_MATCHER = re.compile(IGNORE_REGEX)
 
