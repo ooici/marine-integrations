@@ -380,7 +380,8 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
 
-        # the first data record in this file is corrupted and will be ignored
+        # the first 2 data record in this file are corrupted by adding additional
+        # data vlaues separated by tabs and will be ignored
         # we expect the first 2 particles to be the metadata particle and the
         # intrument particle from the data record after the corrupted one
 
@@ -399,9 +400,8 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(self.exception_callback_value != None)
 
+        # expect to see a recoverable sample exception in the log
         log.debug('TEST EXTRA DATA exception call back is %s', self.exception_callback_value)
-
-        log.debug('TEST EXTRA DATA particle are  %s', particles)
 
         expected_results = self.get_dict_from_yml('extra_data_values.yml')
 
