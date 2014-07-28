@@ -59,7 +59,7 @@ class PARADDataSetDriver(MultipleHarvesterDataSetDriver):
         elif data_key == DataTypeKey.PARAD_RECOVERED:
             parser = self._build_parad_recovered_parser(parser_state, infile, data_key)
         else:
-            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
+            raise ConfigurationException("Parser Configuration incorrect, invalid key: %s" % data_key)
 
         return parser
 

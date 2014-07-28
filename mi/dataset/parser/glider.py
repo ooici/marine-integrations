@@ -5,7 +5,7 @@
 @author Stuart Pearce & Chris Wingard
 @brief Module containing parser scripts for glider data set agents
 """
-__author__ = 'Stuart Pearce & Chris Wingard'
+__author__ = 'Stuart Pearce, Chris Wingard, Nick Almonte'
 __license__ = 'Apache 2.0'
 
 import re
@@ -135,14 +135,10 @@ class GliderParticle(DataParticle):
                     # add the value to the record
                     list_of_found_particle_parameters.append({DataParticleKey.VALUE_ID: key,
                                    DataParticleKey.VALUE: value})
-                    #log.debug(" + + + ")
-                    #log.debug(" @@@ GliderParticle._parsed_values(): Adding Key: %s, value: %s to particle", key, value)
                     log.trace("GliderParticle._parsed_values(): Adding Key: %s, value: %s to particle", key, value)
                 else:
                     # check to see that the value is not a 'NaN'
                     if np.isnan(value):
-                        #log.debug(" + + +  ")
-                        #log.debug(" @@@ GliderParticle._parsed_values(): NaN Value: %s", key)
                         log.trace("GliderParticle._parsed_values(): NaN Value: %s", key)
                         value = None
 
@@ -268,14 +264,14 @@ class DostaRecoveredDataParticle(GliderParticle):
 
 class FlordParticleKey(GliderParticleKey):
     # science data made available via telemetry or glider recovery
-    SCI_FLBBCD_TIMESTAMP = 'sci_flbbcd_timestamp'
-    SCI_FLBBCD_BB_REF = 'sci_flbbcd_bb_ref'
-    SCI_FLBBCD_BB_SIG = 'sci_flbbcd_bb_sig'
-    SCI_FLBBCD_BB_UNITS = 'sci_flbbcd_bb_units'
-    SCI_FLBBCD_CHLOR_REF = 'sci_flbbcd_chlor_ref'
-    SCI_FLBBCD_CHLOR_SIG = 'sci_flbbcd_chlor_sig'
-    SCI_FLBBCD_CHLOR_UNITS = 'sci_flbbcd_chlor_units'
-    SCI_FLBBCD_THERM = 'sci_flbbcd_therm'
+    SCI_FLBB_TIMESTAMP = 'sci_flbb_timestamp'
+    SCI_FLBB_BB_REF = 'sci_flbb_bb_ref'
+    SCI_FLBB_BB_SIG = 'sci_flbb_bb_sig'
+    SCI_FLBB_BB_UNITS = 'sci_flbb_bb_units'
+    SCI_FLBB_CHLOR_REF = 'sci_flbb_chlor_ref'
+    SCI_FLBB_CHLOR_SIG = 'sci_flbb_chlor_sig'
+    SCI_FLBB_CHLOR_UNITS = 'sci_flbb_chlor_units'
+    SCI_FLBB_THERM = 'sci_flbb_therm'
 
 
 class FlordTelemeteredDataParticle(GliderParticle):
@@ -750,7 +746,7 @@ class EngineeringTelemeteredDataParticle(GliderParticle):
         @returns result a list of dictionaries of particle data
         @throws SampleException if the data is not a glider data dictionary
         """
-        # need to exclude sci_m_present_times
+        # need to exclude sci times
         return self._parsed_values(EngineeringTelemeteredDataParticle.keys_exclude_sci_times)
 
 
@@ -772,6 +768,7 @@ class EngineeringMetadataDataParticle(GliderParticle):
         @returns result a list of dictionaries of particle data
         @throws SampleException if the data is not a glider data dictionary
         """
+        # need to exclude m times
         return self._parsed_values(EngineeringMetadataDataParticle.keys_exclude_times)
 
 
@@ -793,6 +790,7 @@ class EngineeringMetadataRecoveredDataParticle(GliderParticle):
         @returns result a list of dictionaries of particle data
         @throws SampleException if the data is not a glider data dictionary
         """
+        # need to exclude all times
         return self._parsed_values(EngineeringMetadataDataParticle.keys_exclude_times)
 
 
@@ -812,6 +810,7 @@ class EngineeringScienceTelemeteredDataParticle(GliderParticle):
         @returns result a list of dictionaries of particle data
         @throws SampleException if the data is not a glider data dictionary
         """
+        # need to exclude m times
         return self._parsed_values(EngineeringScienceTelemeteredDataParticle.keys_exclude_times)
 
 
@@ -831,6 +830,7 @@ class EngineeringRecoveredDataParticle(GliderParticle):
         @returns result a list of dictionaries of particle data
         @throws SampleException if the data is not a glider data dictionary
         """
+        # need to exclude sci times
         return self._parsed_values(EngineeringRecoveredDataParticle.keys_exclude_sci_times)
 
 
@@ -850,6 +850,7 @@ class EngineeringScienceRecoveredDataParticle(GliderParticle):
         @returns result a list of dictionaries of particle data
         @throws SampleException if the data is not a glider data dictionary
         """
+        # need to exclude m times
         return self._parsed_values(EngineeringScienceRecoveredDataParticle.keys_exclude_times)
 
 class GliderParser(BufferLoadingParser):
@@ -869,27 +870,11 @@ class GliderParser(BufferLoadingParser):
                  exception_callback,
                  *args, **kwargs):
 
-        # log.debug(" #########################")
-        # log.debug(" #########################")
-        # log.debug(" #########################")
+
         # log.debug(" ######################### GliderParser._init_(): MY CONFIG: %s", config)
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" ######################### GliderParser._init_(): STATE: %s", state)
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
+
+        # log.debug(" ######################### GliderParser._init_(): STATE: %s", state)
+
         self._stream_handle = stream_handle
 
         self._record_buffer = []  # holds tuples of (record, state)
@@ -988,7 +973,7 @@ class GliderParser(BufferLoadingParser):
 
         num_ascii_tags_value = self._header_dict.get('num_ascii_tags')
 
-        if num_ascii_tags_value != 14:
+        if num_ascii_tags_value != num_hdr_lines:
             raise UnexpectedDataException("GliderParser._read_file_definition(): "
                                           "Header is not 14 rows, num_ascii_tags = %s" % num_ascii_tags_value)
 
@@ -1071,24 +1056,6 @@ class GliderParser(BufferLoadingParser):
         log.debug("GliderParser._set_state(): seek to position: %d", state_obj[StateKey.POSITION])
         self._stream_handle.seek(state_obj[StateKey.POSITION])
 
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" ######################### GliderParser.set_state(): STATE: %s", state_obj)
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-
     def _increment_state(self, increment):
         """
         Increment the parser position by a certain amount in bytes. This
@@ -1105,24 +1072,9 @@ class GliderParser(BufferLoadingParser):
                   self._read_state, increment)
         self._read_state[StateKey.POSITION] += increment
 
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" ######################### GliderParser._increment_state(): Current State Pos is %s, + Increment of %s", oldstatepos, oldinc)
-        log.debug(" #########################")
-        log.debug(" ######################### GliderParser._increment_state(): NEW State Position: %s", self._read_state[StateKey.POSITION])
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
-        log.debug(" #########################")
+        log.trace("GliderParser._increment_state(): Current State Position is %s, + Increment of %s", oldstatepos, oldinc)
+        log.trace("GliderParser._increment_state(): NEW State Position: %s", self._read_state[StateKey.POSITION])
+
 
     def _read_data(self, data_record):
         """
@@ -1138,7 +1090,6 @@ class GliderParser(BufferLoadingParser):
         data = data_record.strip().split()
 
         log.trace("GliderParser._read_data(): Split data: %s", data)
-        log.debug("GliderParser._read_data(): Split data: %s", data)
 
         if num_columns != len(data):
 
@@ -1227,7 +1178,6 @@ class GliderParser(BufferLoadingParser):
             if self._whitespace_regex.match(data_record):
 
                 log.debug("## GliderParser.parse_chunks(): Only whitespace detected in record. Ignoring.")
-                #self._increment_state(end)
 
                 # parse the data record into a data dictionary to pass to the particle class
             else:
@@ -1240,17 +1190,13 @@ class GliderParser(BufferLoadingParser):
                     # ex: data_dict = {'sci_bsipar_temp': {'Data': 10.67, 'Name': 'sci_bsipar_temp'}, n1, n2, nn}
                     data_dict = self._read_data(data_record)
 
-                    log.debug("==================================================================================================================")
-                    log.debug(" ")
-                    log.debug("  ### ## #### ## ####  data_dict = %s", data_dict)
-                    log.debug(" ")
-                    log.debug("==================================================================================================================")
+                    log.debug("  GliderParser.parse_chunks(): ### ## #### ## ####  data_dict = %s", data_dict)
 
                 except SampleException as e:
                     exception_detected = True
                     self._exception_callback(e)
 
-                # from the parsed data, m_present_time is the unix timestamp
+                # from the parsed data, m_present_time is the unix timestamp per IDD
                 try:
                     if not exception_detected:
                         record_time = data_dict['m_present_time']['Data']
@@ -1258,7 +1204,7 @@ class GliderParser(BufferLoadingParser):
                         log.debug("## GliderParser.parse_chunks(): Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
                 except KeyError:
                     exception_detected = True
-                    self._exception_callback(SampleException("## GliderParser.parse_chunks():unable to find timestamp in data"))
+                    self._exception_callback(SampleException("GliderParser.parse_chunks(): unable to find timestamp in data"))
 
                 if exception_detected:
                     # We are done processing this record if we have detected an exception
@@ -1271,13 +1217,9 @@ class GliderParser(BufferLoadingParser):
                     log.debug("===> ## ## ## GliderParser.parse_chunks(): PARTICLE NAMED %s CREATED ", particle._data_particle_type)
                     log.debug("===> ## ## ## Particle Params = %s", particle.generate_dict())
 
-                    #self._increment_state(end)
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
                     log.debug("No science data found in particle. %s", data_dict)
-                    #self._increment_state(end)
-
-                #self._increment_state(end)
 
             # collect the non-data from the file
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -1309,8 +1251,8 @@ class GliderParser(BufferLoadingParser):
         """
         Examine the data_dict to see if it contains particle parameters
         """
-        log.debug("## ## ## GliderParser._has_science_data(): _particle_class is %s", self._particle_class)
-        log.debug("# GliderParser._has_science_data(): Looking for data in science parameters: %s", self._particle_class.science_parameters)
+        log.trace("## ## ## GliderParser._has_science_data(): _particle_class is %s", self._particle_class)
+        log.trace("## ## ## GliderParser._has_science_data(): Looking for data in science parameters: %s", self._particle_class.science_parameters)
         for key in data_dict.keys():
             if key in self._particle_class.science_parameters:
                 value = data_dict[key]['Data']
@@ -1357,7 +1299,7 @@ class GliderParser(BufferLoadingParser):
 
         if latlon_match is None:
             log.error("Failed to parse lat/lon value: '%s'", pos_str)
-            self._exception_callback(SampleException("Failed to parse lat/lon value: '%s'" % pos_str))
+            self._exception_callback(SampleException("GliderParser._string_to_ddegrees(): Failed to parse lat/lon value: '%s'" % pos_str))
             ddegrees = None
         else:
             degrees = float(latlon_match.group(1))
@@ -1388,15 +1330,7 @@ class GliderEngineeringParser(GliderParser):
 
         self.list_of_particles_to_produce = config.get('particle_class')
 
-        log.debug(" ")
-        log.debug(" ######################### GliderEngineeringParser._init_(): MY CONFIG: %s", config)
-        log.debug(" ######################### GliderEngineeringParser._init_(): particle_class value= %s", config.get('particle_class'))
-        log.debug(" ######################### GliderEngineeringParser._init_(): using list, particle01= %s", self.list_of_particles_to_produce[0])
-        log.debug(" ######################### GliderEngineeringParser._init_(): using list, particle02= %s", self.list_of_particles_to_produce[1])
-        log.debug(" ######################### GliderEngineeringParser._init_(): using list, particle03= %s", self.list_of_particles_to_produce[2])
-        log.debug(" ")
-        log.debug(" ######################### GliderEngineeringParser._init_(): list_of_particles_to_produce= %s", self.list_of_particles_to_produce)
-        log.debug(" ")
+        log.trace(" ######################### GliderEngineeringParser._init_(): MY CONFIG: %s", config)
 
         # make sure read state is initialized with sent metadata key, don't overwrite
         # position which is set in reading the header 
@@ -1435,11 +1369,7 @@ class GliderEngineeringParser(GliderParser):
             parsing, plus the state. An empty list is returned if nothing was
             parsed.
         """
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks():         ### ### ### ENTERING ### ### ###")
+        log.trace("GliderEngineeringParser.parse_chunks():         ### ### ### ENTERING ### ### ###")
 
         # set defaults
         result_particles = []
@@ -1455,13 +1385,9 @@ class GliderEngineeringParser(GliderParser):
 
             log.debug("GliderEngineeringParser.parse_chunks(): data record: %s", data_record)
 
-            # THIS IS WHERE INCR STATE WAS BEFORE TELECON CHANGE - all tests worked with the increment here
-            #self._increment_state(end)
-
             if self._whitespace_regex.match(data_record):
 
                 log.debug("GliderEngineeringParser.parse_chunks(): Only whitespace detected in record. Ignoring.")
-                #self._increment_state(end)
 
                 # parse the data record into a data dictionary to pass to the particle class
             else:
@@ -1502,15 +1428,14 @@ class GliderEngineeringParser(GliderParser):
                     # there may be more than one particle in the list, return a particle for each one
                     for list_index, particle in enumerate(self.list_of_particles_to_produce):
 
-                        log.debug("===> ## ## ## ")
-                        log.debug("===> ## ## ## GliderEngineeringParser.parse_chunks(): "
+                        log.trace("===> ## ## ## GliderEngineeringParser.parse_chunks(): "
                                   "list index= %s, num_of_particles= %s, particle= %s",
                                   list_index, number_of_particles, particle)
 
                         if list_index == number_of_particles - 1:
                             self._increment_state(end)
 
-                        log.debug("===> ## ## ## GliderEngineeringParser.parse_chunks(): "
+                        log.trace("===> ## ## ## GliderEngineeringParser.parse_chunks(): "
                                   "working on particle %s", particle)
 
                         # handle this particle if it is an engineering metadata particle
@@ -1527,7 +1452,7 @@ class GliderEngineeringParser(GliderParser):
                                 log.debug("READ STATE: %s", self._read_state)
                                 result_particles.append((particle, copy.copy(self._read_state)))
                             except RecoverableSampleException:
-                                self._exception_callback(RecoverableSampleException(" ## ## ## GliderEngineeringParser.parse_chunks(): "
+                                self._exception_callback(RecoverableSampleException("GliderEngineeringParser.parse_chunks(): "
                                                                                     "Particle class not defined in glider module"))
 
                         else:
@@ -1537,9 +1462,6 @@ class GliderEngineeringParser(GliderParser):
                     self._exception_callback(SampleException(" ## ## ## GliderEngineeringParser.parse_chunks(): "
                                                              "List of Particles to create is empty or None"))
 
-                # THIS IS STATE INCR FROM CODE REVIEW COMMENTS     Done with this raw data row, increment state for the next one...
-                #self._increment_state(end)
-
             # collect the non-data from the file
             (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_non_data_with_index(clean=False)
             # collect the data from the file
@@ -1547,11 +1469,7 @@ class GliderEngineeringParser(GliderParser):
 
             self.handle_non_data(non_data, none_start, none_end, start)
 
-        log.debug("GliderEngineeringParser.parse_chunks():         ### ### ### EXITING ### ### ### ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
-        log.debug("GliderEngineeringParser.parse_chunks(): ")
+        log.trace("GliderEngineeringParser.parse_chunks():         ### ### ### EXITING ### ### ### ")
 
         # publish the results
         return result_particles
@@ -1563,12 +1481,12 @@ class GliderEngineeringParser(GliderParser):
         """
         meta_data_already_sent = self._read_state[StateKey.SENT_METADATA]
 
-        log.debug(" ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): particle: %s, MetaData Sent= %s ",
+        log.trace(" ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): particle: %s, MetaData Sent= %s ",
                   particle._data_particle_type, meta_data_already_sent)
 
         if not meta_data_already_sent:
 
-            log.debug(" ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): is %s %s or %s ?",
+            log.trace(" ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): is %s %s or %s ?",
                       particle._data_particle_type,
                       EngineeringMetadataDataParticle._data_particle_type,
                       EngineeringMetadataRecoveredDataParticle._data_particle_type)
@@ -1582,7 +1500,7 @@ class GliderEngineeringParser(GliderParser):
 
                 try:
                     particle = self._extract_sample(EngineeringMetadataDataParticle, None, header_info_data_dict, timestamp)
-                    log.debug(" META> ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): "
+                    log.trace("GliderENGINEEERINGParser.handle_metadata_particle(): "
                               "PARTICLE NAMED %s CREATED ", particle._data_particle_type)
                     self._read_state[StateKey.SENT_METADATA] = True
                     result_particles.append((particle, copy.copy(self._read_state)))
@@ -1592,14 +1510,14 @@ class GliderEngineeringParser(GliderParser):
 
             if particle._data_particle_type is EngineeringMetadataRecoveredDataParticle._data_particle_type:
 
-                log.debug(" ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): "
+                log.trace(" ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): "
                           "producing a EngineeringMetadataRecoveredDataParticle")
 
                 header_info_data_dict = self.get_header_info_dict()
 
                 try:
                     particle = self._extract_sample(EngineeringMetadataRecoveredDataParticle, None, header_info_data_dict, timestamp)
-                    log.debug(" META> ## ## ## GliderENGINEEERINGParser.handle_metadata_particle(): "
+                    log.debug("GliderENGINEEERINGParser.handle_metadata_particle(): "
                               "PARTICLE NAMED %s CREATED ", particle._data_particle_type)
                     self._read_state[StateKey.SENT_METADATA] = True
                     result_particles.append((particle, copy.copy(self._read_state)))

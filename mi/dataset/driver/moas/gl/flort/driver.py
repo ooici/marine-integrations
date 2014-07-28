@@ -60,7 +60,7 @@ class FLORTDataSetDriver(MultipleHarvesterDataSetDriver):
         elif data_key == DataTypeKey.FLORT_RECOVERED:
             parser = self._build_flort_recovered_parser(parser_state, infile, data_key)
         else:
-            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
+            raise ConfigurationException("Parser Configuration incorrect, invalid key: %s" % data_key)
 
         return parser
 

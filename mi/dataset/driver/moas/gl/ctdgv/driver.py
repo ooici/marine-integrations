@@ -59,7 +59,7 @@ class CTDGVDataSetDriver(MultipleHarvesterDataSetDriver):
         elif data_key == DataTypeKey.CTDGV_RECOVERED:
             parser = self._build_ctdgv_recovered_parser(parser_state, infile, data_key)
         else:
-            raise ConfigurationException("Parser Configuration incorrect: %s" % data_key)
+            raise ConfigurationException("Parser Configuration incorrect, invalid key: %s" % data_key)
 
         return parser
 

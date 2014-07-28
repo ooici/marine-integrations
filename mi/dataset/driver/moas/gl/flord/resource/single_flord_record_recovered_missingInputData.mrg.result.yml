@@ -11,12 +11,12 @@ data:
     m_present_secs_into_mission: 43.2016
     sci_m_present_time: 1397597463.2016
     sci_m_present_secs_into_mission: 43.2016
-    sci_flbbcd_timestamp: !!null
-    sci_flbbcd_bb_ref: !!null
-    sci_flbbcd_bb_sig: !!null
-    sci_flbbcd_bb_units: 0
-    sci_flbbcd_chlor_ref: !!null
-    sci_flbbcd_chlor_sig: !!null
-    sci_flbbcd_chlor_units: 0
-    sci_flbbcd_therm: !!null
+    sci_flbb_timestamp: !!null
+    sci_flbb_bb_ref: !!null
+    sci_flbb_bb_sig: !!null
+    sci_flbb_bb_units: !!null
+    sci_flbb_chlor_ref: !!null
+    sci_flbb_chlor_sig: !!null
+    sci_flbb_chlor_units: !!null
+    sci_flbb_therm: 1000.1
 

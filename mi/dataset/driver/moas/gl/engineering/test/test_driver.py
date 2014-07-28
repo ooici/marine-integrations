@@ -266,10 +266,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.stop_sampling()
 
         self.driver.start_sampling()
-        log.debug(" =#=#=#=#=#=")
-        log.debug(" =#=#=#=#=#= =#=#=#=#=#= =#=#=#=#=#= =#=#=#=#=#= =#=#=#=#=#= =#=#=#=#=#= =#=#=#=#=#= =#=#=#=#=#=")
-        log.debug(" =#=#=#=#=#=                           START SAMPLING")
-        log.debug(" =#=#=#=#=#=")
         self.assert_data((EngineeringMetadataRecoveredDataParticle, EngineeringScienceRecoveredDataParticle,
                           EngineeringRecoveredDataParticle),
                          'multiple_glider_record_recovered-engDataOnly.mrg.result.yml', count=9, timeout=10)
@@ -338,18 +334,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
             }
         }
 
-        log.debug(" =#=#=#=#=#= =#=#=#=#=#= ")
-        log.debug(" =#=#=#=#=#= =#=#=#=#=#= test_bad_sample: state %s", state)
-        log.debug(" =#=#=#=#=#= =#=#=#=#=#= ")
-
         state[DataTypeKey.ENG_RECOVERED]['CopyOf-multiple_glider_record-engDataOnly.mrg']['parser_state']['sent_metadata'] = True
 
         self.driver = self._get_driver_object(memento=state)
 
-        log.debug(" =#=#=#=#=#= =#=#=#=#=#= test_bad_sample: clear_async_data()")
         self.clear_async_data()
 
-        log.debug(" =#=#=#=#=#= =#=#=#=#=#= test_bad_sample: driver.start_sampling()")
         self.driver.start_sampling()
 
         # verify data is produced
@@ -539,7 +529,7 @@ class QualificationTest(DataSetQualificationTestCase):
         result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 100, 240)
         result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 3, 240)
 
-    ##DONE
+
     def test_stop_start_telemetered(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -573,7 +563,6 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("##")
             log.debug("##")
             # Verify values (the multiple input file has the same first row as the single input file)
-            #self.assert_stop_sampling()
             self.assert_data_values(result0, 'single_glider_record-engDataOnly-StartStopQual.mrg.result.yml')
 
             self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
@@ -608,7 +597,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("## QualificationTest.test_stop_start_telemetered(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    ##DONE
+
     def test_stop_start_recovered(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -628,11 +617,6 @@ class QualificationTest(DataSetQualificationTestCase):
                                             RECOVERED_TEST_DIR,
                                             "CopyOf-multiple_glider_record-engDataOnly.mrg")
             self.assert_start_sampling()
-            log.debug("##")
-            log.debug("##")
-            log.debug("##                            START SAMPLING FOR ROW 1                    ")
-            log.debug("##")
-            log.debug("##")
             # Now read the first record (row) of the second file then stop
             result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 1)
             result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 1)
@@ -658,11 +642,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 3 records (rows) of the file
             self.assert_start_sampling()
-            log.debug("##")
-            log.debug("##")
-            log.debug("##                            START SAMPLING FOR ROWS 2 3 and 4                    ")
-            log.debug("##")
-            log.debug("##")
             result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 3)
             result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 3)
             self.assert_stop_sampling()
@@ -838,6 +817,7 @@ class QualificationTest(DataSetQualificationTestCase):
         except SampleTimeout as e:
             log.error("## QualificationTest.test_shutdown_restart_recovered(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
+
 
     ##DONE
     def test_parser_exception(self):
