@@ -1,6 +1,6 @@
 driver_metadata:
   author: cgoodrich
-  constructor: CtdpfCklWfpSioMuleDataSetDriver
+  constructor: CtdpfCklWfpDataSetDriver
   driver_name: ctdpf_ckl_wfp_sio_mule
   driver_path: ctdpf_ckl/wfp_sio_mule
   email: Christopher_A_Goodrich@raytheon.com
