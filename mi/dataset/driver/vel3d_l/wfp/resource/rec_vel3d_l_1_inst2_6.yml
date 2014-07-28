@@ -1,0 +1,80 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2001, 2, 3, 2, 3, 4]
+    internal_timestamp: 3190154584.0
+    vel3d_l_heading: 102.0
+    vel3d_l_tx: 202.0
+    vel3d_l_ty: 302.0
+    vel3d_l_hx: 1002.0
+    vel3d_l_hy: 2002.0
+    vel3d_l_hz: 3002.0
+    vel3d_l_vp1: 10002.0
+    vel3d_l_vp2: 20002.0
+    vel3d_l_vp3: 30002.0
+    vel3d_l_vp4: 40002.0
+  - _index: 2
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2001, 3, 4, 3, 4, 5]
+    internal_timestamp: 3192663845.0
+    vel3d_l_heading: 103.0
+    vel3d_l_tx: 203.0
+    vel3d_l_ty: 303.0
+    vel3d_l_hx: 1003.0
+    vel3d_l_hy: 2003.0
+    vel3d_l_hz: 3003.0
+    vel3d_l_vp1: 10003.0
+    vel3d_l_vp2: 20003.0
+    vel3d_l_vp3: 30003.0
+    vel3d_l_vp4: 40003.0
+  - _index: 3
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2001, 4, 5, 4, 5, 6]
+    internal_timestamp: 3195432306.0
+    vel3d_l_heading: 104.0
+    vel3d_l_tx: 204.0
+    vel3d_l_ty: 304.0
+    vel3d_l_hx: 1004.0
+    vel3d_l_hy: 2004.0
+    vel3d_l_hz: 3004.0
+    vel3d_l_vp1: 10004.0
+    vel3d_l_vp2: 20004.0
+    vel3d_l_vp3: 30004.0
+    vel3d_l_vp4: 40004.0
+  - _index: 4
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2001, 5, 6, 5, 6, 7]
+    internal_timestamp: 3198114367.0
+    vel3d_l_heading: 105.0
+    vel3d_l_tx: 205.0
+    vel3d_l_ty: 305.0
+    vel3d_l_hx: 1005.0
+    vel3d_l_hy: 2005.0
+    vel3d_l_hz: 3005.0
+    vel3d_l_vp1: 10005.0
+    vel3d_l_vp2: 20005.0
+    vel3d_l_vp3: 30005.0
+    vel3d_l_vp4: 40005.0
+  - _index: 5
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2001, 6, 7, 6, 7, 8]
+    internal_timestamp: 3200882828.0
+    vel3d_l_heading: 106.0
+    vel3d_l_tx: 206.0
+    vel3d_l_ty: 306.0
+    vel3d_l_hx: 1006.0
+    vel3d_l_hy: 2006.0
+    vel3d_l_hz: 3006.0
+    vel3d_l_vp1: 10006.0
+    vel3d_l_vp2: 20006.0
+    vel3d_l_vp3: 30006.0
+    vel3d_l_vp4: 40006.0

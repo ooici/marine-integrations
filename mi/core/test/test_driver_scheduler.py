@@ -36,6 +36,9 @@ class TestDriverScheduler(MiUnitTest):
         self._scheduler = DriverScheduler()
         self._triggered = []
 
+    def tearDown(self):
+        self._scheduler._scheduler.shutdown()
+
     def _callback(self):
         """
         event callback for event processing

@@ -4,5 +4,5 @@ driver_metadata:
   driver_name: adcps_jln_stc
   driver_path: adcps_jln/stc
   email: mlutz@bbn.com
-  release_notes: Initial Release
-  version: 0.0.1
+  release_notes: Combinded with ADCPS_JLN as a merged live & recovered data driver
+  version: 0.0.3

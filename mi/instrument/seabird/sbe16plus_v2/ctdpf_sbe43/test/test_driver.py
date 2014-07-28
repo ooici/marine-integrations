@@ -81,7 +81,7 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config = {DriverConfigKey.PARAMETERS:
             {Parameter.PTYPE: 1,
              Parameter.VOLT0: True,
-             Parameter.VOLT1: True,
+             Parameter.VOLT1: False,
              Parameter.VOLT2: False,
              Parameter.VOLT3: False,
              Parameter.VOLT4: False,
@@ -503,12 +503,11 @@ class SBE43Mixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
+        Capability.ACQUIRE_SAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
         Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
 
     }
 
@@ -691,8 +690,7 @@ class SBE43UnitTestCase(SeaBirdUnitTest, SBE43Mixin):
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
-                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                    'PROTOCOL_EVENT_RESET_EC'],
+                                    'PROTOCOL_EVENT_GET_CONFIGURATION'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
@@ -773,7 +771,6 @@ class SBE43UnitTestCase(SeaBirdUnitTest, SBE43Mixin):
 @attr('INT', group='mi')
 class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
 
-    @unittest.skip("pass")
     def test_connection(self):
         self.assert_initialize_driver()
 
@@ -848,7 +845,6 @@ class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
-        self.assert_driver_command(ProtocolEvent.RESET_EC)
 
         # Invalid command/state transition: try to stop autosampling in command mode
         self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
@@ -894,7 +890,7 @@ class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
         get_values = {
             Parameter.PTYPE: 1,
              Parameter.VOLT0: True,
-             Parameter.VOLT1: True,
+             Parameter.VOLT1: False,
              Parameter.VOLT2: False,
              Parameter.VOLT3: False,
              Parameter.VOLT4: False,
@@ -1043,8 +1039,8 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         self.tcp_client.expect("<LoggingState>logging</LoggingState>")
 
         #Assert if stopping DA while autosampling, discover will put driver into Autosample state
-        self.assert_direct_access_stop_telnet()
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
+        self.assert_direct_access_stop_telnet(timeout=2000)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=15)
 
         #now stop autosampling
         self.assert_stop_autosample()
@@ -1111,10 +1107,10 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         # Stop autosample and do run a couple commands.
         self.assert_stop_autosample()
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=30)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=60)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=60)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=60)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=60)
 
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
 
@@ -1178,13 +1174,10 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.GET,
-                ProtocolEvent.SET,
-                ProtocolEvent.RESET_EC,
+                ProtocolEvent.ACQUIRE_SAMPLE,
                 ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.GET_CONFIGURATION,
                 ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -1198,10 +1191,8 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            ProtocolEvent.GET,
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
-            ProtocolEvent.GET_CONFIGURATION,
             ]
 
         self.assert_start_autosample()
@@ -1213,7 +1204,7 @@ class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)

@@ -10,40 +10,40 @@ Release notes:
 New driver started for PARAD_K_STC_IMODEM
 """
 
-__author__ = 'Mike Nicoletti'
+__author__ = 'Mike Nicoletti, Steve Myerson (recovered)'
 __license__ = 'Apache 2.0'
 
 import copy
-import re
 import ntplib
 import struct
-import binascii
 import math
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException
 
-from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, SAMPLE_BYTES
+from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, SAMPLE_BYTES
 
 
 class DataParticleType(BaseEnum):
     
-    PARAD_K_INS = "parad_k__stc_imodem_instrument"
-    
-class Parad_k_stc_imodemParserDataParticleKey(BaseEnum):
+    PARAD_K_INS = 'parad_k__stc_imodem_instrument'
+    PARAD_K_INS_RECOVERED = 'parad_k__stc_imodem_instrument_recovered'
 
-    TIMESTAMP = 'wfp_timestamp' #holds the most recent data sample timestamp
+
+class Parad_k_stc_DataParticleKey(BaseEnum):
+
+    TIMESTAMP = 'wfp_timestamp'  # holds the most recent data sample timestamp
     SENSOR_DATA = 'par_val_v'
-    
-class Parad_k_stc_imodemParserDataParticle(DataParticle):
+
+
+class Parad_k_stc_DataParticle(DataParticle):
     """
-    Class for parsing data from the PARAD_K_STC_IMODEM data set
+    Generic class to generate Parad_k_stc data particles for both recovered
+    and telemetered data.
     """
 
-    _data_particle_type = DataParticleType.PARAD_K_INS
-    
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -51,7 +51,7 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         if len(self.raw_data) < SAMPLE_BYTES:
-            raise SampleException("Parad_k_stc_imodem_statusParserDataParticle: No regex match of parsed sample data: [%s]",
+            raise SampleException("Parad_k_stc_DataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
         try:
             fields_prof = struct.unpack('>I f f f f h h h', self.raw_data)
@@ -59,40 +59,39 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
             par_value = float(fields_prof[4])
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [0x%s]"
-                                  % (ex, binascii.hexlify(match.group(0))))
+                                  % (ex, self.raw_data))
         # confirm we did not get an NaNs
         if math.isnan(par_value) or math.isnan(time_stamp):
             log.error("Found a NaN value in the data")
             raise SampleException("Got a NaN value")
-        
-        result = [{DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: time_stamp},
-                  {DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.SENSOR_DATA,
-                   DataParticleKey.VALUE: par_value}]
+
+        result = [self._encode_value(Parad_k_stc_DataParticleKey.TIMESTAMP,
+                                     time_stamp, int),
+                  self._encode_value(Parad_k_stc_DataParticleKey.SENSOR_DATA,
+                                     par_value, float)]
 
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Parad_k_stc_imodemParserDataParticle: Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Parad_k_stc_imodemParserDataParticle: Timestamp does not match')
-            return False
 
-class Parad_k_stc_imodemParser(WfpEFileParser):
+class Parad_k_stc_imodemDataParticle(Parad_k_stc_DataParticle):
+    """
+    Class for parsing telemetered data from the PARAD_K_STC_IMODEM data set
+    """
 
-    def parse_record(self, record):
+    _data_particle_type = DataParticleType.PARAD_K_INS
+
+
+class Parad_k_stc_imodemRecoveredDataParticle(Parad_k_stc_DataParticle):
+    """
+    Class for parsing recovered data from the PARAD_K_STC_IMODEM data set
+    """
+
+    _data_particle_type = DataParticleType.PARAD_K_INS_RECOVERED
+
+
+class Parad_k_stc_Parser(WfpEFileParser):
+
+    def parse_parad_k_record(self, record, particle_type):
         """
         This is a PARAD_K particle type, and below we pull the proper value from the
         unpacked data
@@ -100,17 +99,37 @@ class Parad_k_stc_imodemParser(WfpEFileParser):
         result_particle = []
         if len(record) >= SAMPLE_BYTES:
             # pull out the timestamp for this record
-            
+
             fields = struct.unpack('>I', record[:4])
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             # PARAD_K Data
-            sample = self._extract_sample(Parad_k_stc_imodemParserDataParticle, None, record, self._timestamp)
+            sample = self._extract_sample(particle_type, None, record, self._timestamp)
             if sample:
                 # create particle
                 self._increment_state(SAMPLE_BYTES)
                 result_particle = (sample, copy.copy(self._read_state))
 
         return result_particle
+
+
+class Parad_k_stc_imodemParser(Parad_k_stc_Parser):
+
+    def parse_record(self, record):
+        """
+        This is a PARAD_K particle type, and below we pull the proper value from the
+        unpacked data
+        """
+        return self.parse_parad_k_record(record, Parad_k_stc_imodemDataParticle)
+
+
+class Parad_k_stc_imodemRecoveredParser(Parad_k_stc_Parser):
+
+    def parse_record(self, record):
+        """
+        This is a PARAD_K particle type, and below we pull the proper value from the
+        unpacked data
+        """
+        return self.parse_parad_k_record(record, Parad_k_stc_imodemRecoveredDataParticle)
 
 

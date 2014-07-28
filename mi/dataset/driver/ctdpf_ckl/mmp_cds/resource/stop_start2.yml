@@ -1,0 +1,59 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243024.3101291656
+    raw_time_microseconds: 310129
+    raw_time_seconds: 1385254224.0000000000
+    conductivity: 22.3865000000
+    pressure: 19.0814
+    temperature: 6.3757
+  - _index: 2
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243033.5143079758
+    raw_time_microseconds: 514308
+    raw_time_seconds: 1385254233.0000000000
+    conductivity: 33.0323000000
+    pressure: 16.9076
+    temperature: 11.6633
+  - _index: 3
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243023.2773990631
+    raw_time_microseconds: 277399
+    raw_time_seconds: 1385254223.0000000000
+    conductivity: 29.4653000000
+    pressure: 18.4811
+    temperature: 9.0707
+  - _index: 4
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243028.4917011261
+    raw_time_microseconds: 491701
+    raw_time_seconds: 1385254228.0000000000
+    conductivity: 32.4704000000
+    pressure: 16.2694
+    temperature: 9.4381
+  - _index: 5
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243035.5517082214
+    raw_time_microseconds: 551708
+    raw_time_seconds: 1385254235.0000000000
+    conductivity: 39.1393000000
+    pressure: 11.8014
+    temperature: 11.2580
+  - _index: 6
+    particle_object: CtdpfCklMmpCdsParserDataParticle
+    particle_type: ctdpf_ckl_mmp_cds_instrument
+    internal_timestamp: 3594243034.5815000534
+    raw_time_microseconds: 581500
+    raw_time_seconds: 1385254234.0000000000
+    conductivity: 41.9510000000
+    pressure: 15.8665
+    temperature: 7.5873

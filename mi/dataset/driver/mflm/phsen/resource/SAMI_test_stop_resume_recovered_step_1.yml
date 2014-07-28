@@ -1,0 +1,61 @@
+# Result data after parsing SAMI_P0080_180713_integration.txt - Step 1 of test_stop_resume_recovered phsen_abcdef integration test
+
+header:
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
+
+data:
+ - _index: 1
+   particle_object: PhsenRecoveredMetadataDataParticle
+   particle_type: phsen_abcdef_metadata
+   internal_timestamp: 3583114176.0
+   record_type: 128
+   record_time: 3456970176
+   voltage_battery: !!null
+   clock_active: 1
+   recording_active: 0
+   record_end_on_time: 0
+   record_memory_full: 0
+   record_end_on_error: 0
+   data_download_ok: 0
+   flash_memory_open: 0
+   battery_low_prestart: 0
+   battery_low_measurement: 0
+   battery_low_blank: 0
+   battery_low_external: 0
+   external_device1_fault: 0
+   external_device2_fault: 0
+   external_device3_fault: 0
+   flash_erased: 0
+   power_on_invalid: 0
+   num_data_records: 1
+   num_error_records: 1
+   num_bytes_stored: 512
+
+ - _index: 2
+   particle_object: PhsenRecoveredMetadataDataParticle
+   particle_type: phsen_abcdef_metadata
+   internal_timestamp: 3583118356.0
+   record_type: 133
+   record_time: 3456974356
+   voltage_battery: !!null
+   clock_active: 1
+   recording_active: 1
+   record_end_on_time: 0
+   record_memory_full: 0
+   record_end_on_error: 0
+   data_download_ok: 0
+   flash_memory_open: 0
+   battery_low_prestart: 0
+   battery_low_measurement: 0
+   battery_low_blank: 0
+   battery_low_external: 0
+   external_device1_fault: 0
+   external_device2_fault: 0
+   external_device3_fault: 0
+   flash_erased: 0
+   power_on_invalid: 0
+   num_data_records: 4294967295
+   num_error_records: 0
+   num_bytes_stored: 530
+
