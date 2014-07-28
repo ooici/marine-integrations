@@ -309,10 +309,6 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         records are used in order to verify this
         """
 
-        # the first nine data records in this file are corrupted and will be ignored
-        # we expect the first 2 particles to be the metadata particle and the
-        # instrument particle from the data record after the corrupted ones
-
         file_path = os.path.join(RESOURCE_PATH, 'BAD.txt')
         stream_handle = open(file_path, 'rb')
 
