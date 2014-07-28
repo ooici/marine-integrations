@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Mike Nicoletti
+  constructor: sioEngSioMuleDataSetDriver
+  driver_name: sio_eng_sio_mule
+  driver_path: sio_eng/sio_mule
+  email: mnicolet@bbn.com
+  release_notes: Starting SIO Engineering Driver
+  version: 0.0.1
