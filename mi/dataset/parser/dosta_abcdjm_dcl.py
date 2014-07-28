@@ -46,7 +46,7 @@ from mi.core.exceptions import \
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
 # Basic patterns
-ANY_CHARS = r'([\x00-\x09\x0B\x0C\x0E-\xFF]*)'  # any characters excluding a newline
+ANY_CHARS =  r'([^\r\n]*)'     # any characters excluding a newline
 FLOAT = r'(\d+\.\d*)'          # unsigned floating point number
 NEW_LINE = r'(?:\r\n|\r|\n)'   # any type of new line
 SPACE = ' '
@@ -64,7 +64,7 @@ END_METADATA = r'\]'
 PRODUCT = '(4831)'                     # the only valid Product Number
 
 # All dosta records are ASCII characters separated by a newline.
-DOSTA_RECORD_PATTERN = ANY_CHARS       # Any number of ASCII characters
+DOSTA_RECORD_PATTERN = ANY_CHARS       # Any number of characters
 DOSTA_RECORD_PATTERN += NEW_LINE       # separated by a new line
 DOSTA_RECORD_MATCHER = re.compile(DOSTA_RECORD_PATTERN)
 
@@ -97,8 +97,9 @@ SENSOR_DATA_PATTERN += FLOAT               # raw temperature voltage from thermi
 SENSOR_DATA_PATTERN += NEW_LINE            # Record ends with a newline
 SENSOR_DATA_MATCHER = re.compile(SENSOR_DATA_PATTERN)
 
-# SENSOR_DATA_MATCHER produces the following groups,
-# but since they are used as indices into raw_data, numbering starts at 0.
+# SENSOR_DATA_MATCHER produces the following groups.
+# The following are indices into groups() produced by SENSOR_DATA_MATCHER.
+# i.e, match.groups()[INDEX]
 SENSOR_GROUP_TIMESTAMP = 0
 SENSOR_GROUP_YEAR = 1
 SENSOR_GROUP_MONTH = 2
@@ -188,8 +189,11 @@ class DostaAbcdjmDclInstrumentDataParticle(DataParticle):
         Build parsed values for Recovered and Telemetered Instrument Data Particle.
         """
 
-        # For each field in the instrument particle,
-        # call encode_value to generate a name,value pair.
+        # Generate a particle by calling encode_value for each entry
+        # in the Instrument Particle Mapping table,
+        # where each entry is a tuple containing the particle field name,
+        # an index into the match groups (which is what has been stored in raw_data),
+        # and a function to use for data conversion.
 
         return [self._encode_value(name, self.raw_data[group], function)
             for name, group, function in INSTRUMENT_PARTICLE_MAP]
@@ -213,6 +217,8 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
 
     """
     Parser for Dosta_abcdjm_dcl data.
+    In addition to the standard constructor parameters,
+    this constructor takes an additional parameter particle_class.
     """
     def __init__(self,
                  config,
@@ -244,7 +250,7 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
         self.input_file = stream_handle
         self.particle_class = particle_class
 
-        # If there's a pre-existing state, update to it.
+        # If there's an existing state, update to it.
 
         if state is not None:
             self.set_state(state)
@@ -254,14 +260,10 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
         Handle any non-data that is found in the file
         """
         # Handle non-data here.
+        # Increment the position within the file.
+        # Use the _exception_callback.
         if non_data is not None and non_end <= start:
-
-            # Increment the position within the file.
-
             self._increment_position(len(non_data))
-
-            # Use the _exception_callback.
-
             self._exception_callback(UnexpectedDataException(
                 "Found %d bytes of un-expected non-data %s" %
                 (len(non_data), non_data)))
@@ -308,9 +310,11 @@ class DostaAbcdjmDclParser(BufferLoadingParser):
 
                 # If it appears to be a metadata record,
                 # look for multiple lines which have been garbled,
-                # i.e., metadata record minus the newline
+                # i.e., a metadata record minus the newline
                 # plus tab-separated values from a following sensor data record.
                 # find returns -1 if not found.
+                # Valid Metadata records produce no particles and
+                # are silently ignored.
 
                 meta_match = METADATA_MATCHER.match(chunk)
                 if meta_match is None or chunk.find(TAB) != -1:

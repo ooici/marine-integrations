@@ -16,44 +16,24 @@ and Garbled consist of 3 records.
 There is 1 group of Sensor Data records for each set of metadata.
 
 Files used for testing:
-20000101.dosta0.log
-  Metadata - 1 set,  Sensor Data - 0 records,  Garbled - 0
 
 20010121.dosta1.log
-  Metadata - 1 set,  Sensor Data - 21 records,  Garbled - 0
+  Metadata - 1 set,  Sensor Data - 21 records,  Garbled - 0,  Newline - \n
 
 20020222.dosta2.log
-  Metadata - 2 sets,  Sensor Data - 22 records,  Garbled - 0
+  Metadata - 2 sets,  Sensor Data - 22 records,  Garbled - 0,  Newline - \r\n
 
 20030314.dosta3.log
-  Metadata - 3 sets,  Sensor Data - 14 records,  Garbled - 0
+  Metadata - 3 sets,  Sensor Data - 14 records,  Garbled - 0,  Newline - \r
 
 20041225.dosta4.log
-  Metadata - 2 sets,  Sensor Data - 250 records,  Garbled - 0
+  Metadata - 2 sets,  Sensor Data - 250 records,  Garbled - 0,  Newline - \n
 
 20050103.dosta5.log
-   Metadata - 1 set,  Sensor Data - 3 records,  Garbled - 1
+   Metadata - 1 set,  Sensor Data - 3 records,  Garbled - 1,  Newline - \r
 
 20060207.dosta6.log
-  Metadata - 2 sets,  Sensor Data - 7 records,  Garbled - 2
-
-20070114.dosta7.log
-  This file contains a boatload of invalid sensor data records.
-   1. invalid year
-   2. invalid month
-   3. invalid day
-   4. invalid hour
-   5. invalid minute
-   6. invalid second
-   7. invalid product
-   8. spaces instead of tabs
-   9. a 2-digit serial number
-  10. floating point number missing the decimal point
-  11. serial number missing
-  12. one of the floating point numbers missing
-  13. Date in form YYYY-MM-DD
-  14. time field missing milliseconds
-  15. extra floating point number in sensor data
+  Metadata - 2 sets,  Sensor Data - 7 records,  Garbled - 2,  Newline \r\n
 """
 
 __author__ = 'Steve Myerson'
@@ -69,6 +49,7 @@ from pyon.core.exception import Timeout    ### remove when done
 from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 from mi.core.log import get_logger; log = get_logger()
+from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
@@ -89,19 +70,18 @@ from mi.dataset.parser.dosta_abcdjm_dcl import \
     DostaAbcdjmDclTelemeteredParser, \
     DostaAbcdjmDclRecoveredInstrumentDataParticle, \
     DostaAbcdjmDclTelemeteredInstrumentDataParticle, \
-    DostaStateKey
+    DostaStateKey, \
+    DataParticleType
 
 REC_DIR = '/tmp/dsatest_rec'
 TEL_DIR = '/tmp/dsatest_tel'
 
-FILE0 = '20000101.dosta0.log'
 FILE1 = '20010121.dosta1.log'
 FILE2 = '20020222.dosta2.log'
 FILE3 = '20030314.dosta3.log'
 FILE4 = '20041225.dosta4.log'
 FILE5 = '20050103.dosta5.log'
 FILE6 = '20060207.dosta6.log'
-FILE7 = '20070114.dosta7.log'
 
 REC_YML1 = 'rec_20010121.dosta1.yml'
 REC_YML2 = 'rec_20020222.dosta2.yml'
@@ -121,6 +101,9 @@ TEL_YML6 = 'tel_20060207.dosta6.yml'
 
 REC_PARTICLE = DostaAbcdjmDclRecoveredInstrumentDataParticle
 TEL_PARTICLE = DostaAbcdjmDclTelemeteredInstrumentDataParticle
+
+REC_STREAM = DataParticleType.REC_INSTRUMENT_PARTICLE
+TEL_STREAM = DataParticleType.TEL_INSTRUMENT_PARTICLE
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -344,37 +327,193 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        log.debug('===== START QUAL TEST HARVESTER EXCEPTION =====')
+        self.create_sample_data_set_dir(FILE1, REC_DIR, mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir(FILE1, REC_DIR)
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+        log.debug('===== END QUAL TEST HARVESTER EXCEPTION =====')
+
+    def test_large_import(self):
+        """
+        Test a large import
+        """
+        log.debug('===== START QUAL TEST LARGE IMPORT =====')
+        self.create_sample_data_set_dir(FILE4, TEL_DIR)
+        self.create_sample_data_set_dir(FILE4, REC_DIR)
+        self.assert_initialize()
+
+        self.data_subscribers.get_samples(REC_STREAM, 500, 200)
+        self.data_subscribers.get_samples(TEL_STREAM, 500, 200)
+
+        log.debug('===== END QUAL TEST LARGE IMPORT =====')
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        log.debug('===== START QUAL TEST PUBLISH PATH =====')
+        self.create_sample_data_set_dir(FILE1, REC_DIR)
+        self.create_sample_data_set_dir(FILE2, REC_DIR)
+        self.create_sample_data_set_dir(FILE3, TEL_DIR)
 
-    def test_large_import(self):
-        """
-        Test importing a large number of samples from the file at once
-        """
-        pass
+        self.assert_initialize()
 
-    def test_stop_start(self):
+        try:
+            # Verify we get samples from first Recovered file.
+            result = self.data_subscribers.get_samples(REC_STREAM, 21)
+            self.assert_data_values(result, REC_YML1)
+
+            # Verify we get samples from first Telemetered file.
+            result = self.data_subscribers.get_samples(TEL_STREAM, 42)
+            self.assert_data_values(result, TEL_YML3)
+
+            # Verify we get samples from second Recovered file.
+            result = self.data_subscribers.get_samples(REC_STREAM, 44)
+            self.assert_data_values(result, REC_YML2)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST PUBLISH PATH =====')
+
+    def test_shutdown_restart(self):
+        """
+        Test a full stop of the dataset agent, then restart the agent and
+        confirm it restarts at the correct spot.
+        """
+        log.debug('===== START QUAL TEST SHUTDOWN RESTART =====')
+
+        self.create_sample_data_set_dir(FILE4, REC_DIR)
+        self.create_sample_data_set_dir(FILE4, TEL_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get the correct samples
+        try:
+            # Read the first 200 particles from the Recovered file.
+            # Read the first 300 particles from the Telemetered file.
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 200, 250)
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 300, 350)
+
+            # stop and re-start the agent
+            self.stop_dataset_agent_client()
+            self.init_dataset_agent_client()
+            # re-initialize
+            self.assert_initialize()
+
+            # Read the last 200 particles from the Telemetered CT file.
+            # Read the last 300 particles from the Recovered file.
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 200, 250)
+            rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 300, 350)
+
+            # Combine the results into a single list.
+            rec_result.extend(rec_result2)
+            tel_result.extend(tel_result2)
+
+            # Verify the results.
+            self.assert_data_values(rec_result, REC_YML4)
+            self.assert_data_values(tel_result, TEL_YML4)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST SHUTDOWN RESTART =====')
+
+    def test_simple(self):
+        """
+        Verify that all records from a single file can be obtained in a single read.
+        """
+        log.debug('===== START QUAL TEST SIMPLE =====')
+
+        self.create_sample_data_set_dir(FILE3, REC_DIR)
+        self.create_sample_data_set_dir(FILE2, TEL_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.assert_start_sampling()
+
+        # Verify we get the correct samples
+        try:
+            # Get the particles.
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 44, 50)
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 42, 50)
+
+            # Verify results
+            self.assert_data_values(tel_result, TEL_YML2)
+            self.assert_data_values(rec_result, REC_YML3)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST SIMPLE =====')
+
+    def test_start_stop_restart(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.debug('===== START QUAL TEST START STOP RESTART REC =====')
 
-    def test_shutdown_restart(self):
-        """
-        Test a full stop of the dataset agent, then restart the agent 
-        and confirm it restarts at the correct spot.
-        """
-        pass
+        self.create_sample_data_set_dir(FILE1, TEL_DIR)
+        self.create_sample_data_set_dir(FILE2, REC_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-    def test_parser_exception(self):
-        """
-        Test an exception is raised after the driver is started during
-        record parsing.
-        """
-        pass
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
+        # Verify we get the correct samples
+        try:
+            # Get the first 7 Telemetered particles.
+            # Get the first 28 Recovered particles.
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 7, 10)
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 28, 30)
+
+            # Stop and then restart sampling.
+            self.assert_stop_sampling()
+            self.assert_start_sampling()
+
+            # Get the next 8 Recovered particles.
+            # Get the last 14 Telemetered particles.
+            # Get the last 8 Recovered particles.
+            rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 8, 10)
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 14, 10)
+            rec_result3 = self.data_subscribers.get_samples(REC_STREAM, 8, 10)
+
+            # Combine results into a single list.
+            rec_result.extend(rec_result2)
+            rec_result.extend(rec_result3)
+            tel_result.extend(tel_result2)
+
+            # Verify results.
+            self.assert_data_values(rec_result, REC_YML2)
+            self.assert_data_values(tel_result, TEL_YML1)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST START STOP RESTART REC =====')

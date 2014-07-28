@@ -6,8 +6,8 @@ data:
   - _index:  1
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:07:20Z'
-    dcl_controller_timestamp: '2002/02/22 01:07:20.113'
+    internal_timestamp: '2002-02-22T05:15:46Z'
+    dcl_controller_timestamp: '2002/02/22 05:15:46.017'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 348.837
@@ -23,8 +23,8 @@ data:
   - _index:  2
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:07:29Z'
-    dcl_controller_timestamp: '2002/02/22 01:07:29.866'
+    internal_timestamp: '2002-02-22T05:15:59Z'
+    dcl_controller_timestamp: '2002/02/22 05:15:59.596'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 360.465
@@ -40,8 +40,8 @@ data:
   - _index:  3
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:07:39Z'
-    dcl_controller_timestamp: '2002/02/22 01:07:39.619'
+    internal_timestamp: '2002-02-22T05:16:13Z'
+    dcl_controller_timestamp: '2002/02/22 05:16:13.175'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 372.093
@@ -57,8 +57,8 @@ data:
   - _index:  4
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:07:49Z'
-    dcl_controller_timestamp: '2002/02/22 01:07:49.372'
+    internal_timestamp: '2002-02-22T05:16:26Z'
+    dcl_controller_timestamp: '2002/02/22 05:16:26.754'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 383.721
@@ -74,8 +74,8 @@ data:
   - _index:  5
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:07:59Z'
-    dcl_controller_timestamp: '2002/02/22 01:07:59.125'
+    internal_timestamp: '2002-02-22T05:16:40Z'
+    dcl_controller_timestamp: '2002/02/22 05:16:40.333'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 395.349
@@ -91,8 +91,8 @@ data:
   - _index:  6
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:00Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:00.878'
+    internal_timestamp: '2002-02-22T05:16:53Z'
+    dcl_controller_timestamp: '2002/02/22 05:16:53.912'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 406.977
@@ -108,8 +108,8 @@ data:
   - _index:  7
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:10Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:10.631'
+    internal_timestamp: '2002-02-22T05:17:07Z'
+    dcl_controller_timestamp: '2002/02/22 05:17:07.491'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 418.605
@@ -125,8 +125,8 @@ data:
   - _index:  8
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:20Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:20.384'
+    internal_timestamp: '2002-02-22T05:17:21Z'
+    dcl_controller_timestamp: '2002/02/22 05:17:21.070'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 430.233
@@ -142,8 +142,8 @@ data:
   - _index:  9
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:30Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:30.137'
+    internal_timestamp: '2002-02-22T05:17:34Z'
+    dcl_controller_timestamp: '2002/02/22 05:17:34.649'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 441.860
@@ -159,8 +159,8 @@ data:
   - _index:  10
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:39Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:39.890'
+    internal_timestamp: '2002-02-22T05:17:48Z'
+    dcl_controller_timestamp: '2002/02/22 05:17:48.228'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 453.488
@@ -176,8 +176,8 @@ data:
   - _index:  11
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:49Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:49.643'
+    internal_timestamp: '2002-02-22T05:18:01Z'
+    dcl_controller_timestamp: '2002/02/22 05:18:01.807'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 465.116
@@ -193,8 +193,8 @@ data:
   - _index:  12
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:08:59Z'
-    dcl_controller_timestamp: '2002/02/22 01:08:59.396'
+    internal_timestamp: '2002-02-22T05:18:15Z'
+    dcl_controller_timestamp: '2002/02/22 05:18:15.386'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 476.744
@@ -210,8 +210,8 @@ data:
   - _index:  13
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:09:00Z'
-    dcl_controller_timestamp: '2002/02/22 01:09:00.149'
+    internal_timestamp: '2002-02-22T05:18:28Z'
+    dcl_controller_timestamp: '2002/02/22 05:18:28.965'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 488.372
@@ -227,8 +227,8 @@ data:
   - _index:  14
     particle_object: DostaAbcdjmDclRecoveredInstrumentDataParticle
     particle_type: dosta_abcdjm_dcl_instrument_recovered
-    internal_timestamp: '2002-02-22T01:09:09Z'
-    dcl_controller_timestamp: '2002/02/22 01:09:09.902'
+    internal_timestamp: '2002-02-22T05:18:42Z'
+    dcl_controller_timestamp: '2002/02/22 05:18:42.544'
     product_number: 4831
     serial_number: 2002
     estimated_oxygen_concentration: 500.000

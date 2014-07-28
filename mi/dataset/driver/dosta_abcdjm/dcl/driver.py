@@ -70,7 +70,10 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
 
     def _build_harvester(self, driver_state):
         """
-        Build the harvesters
+        Build the harvesters.
+        Verify correctness of data keys.
+        Display warnings if error detected in data keys or in the
+        creation of the harvesters.
         @param driver_state The starting driver state
         """
         harvesters = []
@@ -142,8 +145,6 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_CLASS:
                     'DostaAbcdjmDclRecoveredInstrumentDataParticle'
             })
-            log.debug("MYCONFIG Recovered: CONFIG %s, STATE %s",
-                      config, parser_state)
 
             parser = DostaAbcdjmDclRecoveredParser(
                 config,
@@ -167,8 +168,6 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_CLASS:
                     'DostaAbcdjmDclTelemeteredInstrumentDataParticle'
             })
-            log.debug("MYCONFIG Telemetered: CONFIG %s, STATE %s",
-                      config, parser_state)
 
             parser = DostaAbcdjmDclTelemeteredParser(
                 config,
