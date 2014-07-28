@@ -18,7 +18,7 @@ import numpy
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException
+
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
     CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
@@ -34,11 +34,11 @@ TIME_REGEX = r'\d{2}:\d{2}:\d{2}'
 
 # A regular expression that should match a flort_dj data record
 DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FORMATTED_DATE_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' +\
-             TIME_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + \
-             ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + \
-             MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+             '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FORMATTED_DATE_REGEX + ')' + MULTIPLE_TAB_REGEX\
+             + '(' + TIME_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' \
+             + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + \
+             INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX \
+             + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
 
 
 class DataMatchesGroupNumber(BaseEnum):
@@ -132,8 +132,6 @@ class FlortDjCsppMetadataDataParticle(CsppMetadataDataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
 
         return results
 
@@ -186,8 +184,6 @@ class FlortDjCsppInstrumentDataParticle(DataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
 
         log.debug('FlortDjCsppInstrumentDataParticle: particle=%s', results)
         return results
