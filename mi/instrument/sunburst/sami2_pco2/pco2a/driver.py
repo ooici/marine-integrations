@@ -32,7 +32,7 @@ from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wCapability
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wParameter
-from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import Prompt, SamiBatteryVoltageDataParticle, SamiThermistorVoltageDataParticle
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
 from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
@@ -45,7 +45,6 @@ from mi.instrument.sunburst.sami2_pco2.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 
 ###
@@ -123,7 +122,12 @@ class DataParticleType(Pco2wSamiDataParticleType):
     """
     Data particle types produced by this driver
     """
-    CONFIGURATION = 'pco2w_a_configuration'
+    PCO2W_A_CONFIGURATION = 'pco2w_a_configuration'
+    PCO2W_A_DATA_RECORD = 'pco2w_a_data_record'
+    PCO2W_A_REGULAR_STATUS = 'pco2w_a_regular_status'
+    PCO2W_A_CONTROL_RECORD = 'pco2w_a_control_record'
+    PCO2W_A_BATTERY_VOLTAGE = 'pco2w_a_battery_voltage'
+    PCO2W_A_THERMISTOR_VOLTAGE = 'pco2w_a_thermistor_voltage'
 
 
 class Parameter(Pco2wParameter):
@@ -142,6 +146,12 @@ class InstrumentCommand(Pco2wInstrumentCommand):
 ###############################################################################
 # Data Particles
 ###############################################################################
+#Redefine the data particle type so each particle has a unique name
+SamiBatteryVoltageDataParticle._data_particle_type = DataParticleType.PCO2W_A_BATTERY_VOLTAGE
+SamiThermistorVoltageDataParticle._data_particle_type = DataParticleType.PCO2W_A_THERMISTOR_VOLTAGE
+SamiRegularStatusDataParticle._data_particle_type = DataParticleType.PCO2W_A_REGULAR_STATUS
+SamiControlRecordDataParticle._data_particle_type = DataParticleType.PCO2W_A_CONTROL_RECORD
+
 
 class Pco2waConfigurationDataParticleKey(Pco2wSamiConfigurationDataParticleKey):
     """
@@ -156,7 +166,7 @@ class Pco2waConfigurationDataParticle(DataParticle):
     @throw SampleException If there is a problem with sample creation
     """
 
-    _data_particle_type = DataParticleType.CONFIGURATION
+    _data_particle_type = DataParticleType.PCO2W_A_CONFIGURATION
 
     def _build_parsed_values(self):
         """
