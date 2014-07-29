@@ -93,10 +93,10 @@ class FlortDjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
 
         harvesters = []
 
-        instrument_harvester = self.build_single_harvester(
+        telemetered_harvester = self.build_single_harvester(
             driver_state, DataTypeKey.FLORT_DJ_CSPP_TELEMETERED)
-        if instrument_harvester is not None:
-            harvesters.append(instrument_harvester)
+        if telemetered_harvester is not None:
+            harvesters.append(telemetered_harvester)
 
         recovered_harvester = self.build_single_harvester(
             driver_state, DataTypeKey.FLORT_DJ_CSPP_RECOVERED)
