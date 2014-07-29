@@ -65,7 +65,7 @@ CHECKSUM_REGEX = r'[0-9a-fA-F]{2}'  # hex characters
 
 DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
-DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX # Suspect Timestamp
+DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX  # Suspect Timestamp
 DATA_REGEX += '(' + INSTRUMENT_ID_REGEX + ')' + MULTIPLE_TAB_REGEX  # Instrument ID
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Serial Number
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Timer
@@ -91,7 +91,7 @@ DATA_REGEX += '(' + CHECKSUM_REGEX + ')' + END_OF_LINE_REGEX  # Checksum
 
 IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX  # Profiler Timestamp
 IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX  # Depth
-IGNORE_REGEX += Y_OR_N_REGEX  + MULTIPLE_TAB_REGEX # Suspect Timestamp
+IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX  # Suspect Timestamp
 IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX  # any text after the Depth
 
 IGNORE_MATCHER = re.compile(IGNORE_REGEX)
@@ -196,7 +196,7 @@ class SpkirAbjCsppMetadataDataParticle(CsppMetadataDataParticle):
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
             raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
+                                             % (ex, self.raw_data))
 
         return results
 
@@ -296,7 +296,7 @@ class SpkirAbjCsppInstrumentDataParticle(DataParticle):
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
             raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
+                                             % (ex, self.raw_data))
 
         #log.debug('*** instrument particle result %s', results)
         return results

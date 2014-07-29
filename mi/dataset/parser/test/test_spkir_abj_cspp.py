@@ -25,6 +25,8 @@ from mi.idk.config import Config
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
+from mi.core.exceptions import RecoverableSampleException
+
 from mi.dataset.parser.cspp_base import \
     StateKey, \
     METADATA_PARTICLE_CLASS_KEY, \
@@ -399,6 +401,8 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         particles = parser.get_records(2)
 
         self.assertTrue(self.exception_callback_value != None)
+
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
         # expect to see a recoverable sample exception in the log
         log.debug('TEST EXTRA DATA exception call back is %s', self.exception_callback_value)
