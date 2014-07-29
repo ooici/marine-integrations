@@ -5,4 +5,4 @@ driver_metadata:
   driver_name: pco2b 
   email: cwingard@coas.oregonstate.edu
   release_notes: Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor with external pump
-  version: 0.0.0
+  version: 0.0.1
