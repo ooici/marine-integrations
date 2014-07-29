@@ -3,7 +3,7 @@
 """
 @package mi.dataset.parser.test.test_glider Base dataset parser test code
 @file mi/dataset/parser/test/test_glider.py
-@author Chris Wingard & Stuart Pearce
+@author Chris Wingard, Stuart Pearce, Nick Almonte
 @brief Test code for a Glider data parser.
 """
 

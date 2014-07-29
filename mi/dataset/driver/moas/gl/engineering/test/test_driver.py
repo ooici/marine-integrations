@@ -1,7 +1,7 @@
 """
 @package mi.dataset.driver.moas.gl.engineering.test.test_driver
 @file marine-integrations/mi/dataset/driver/moas/gl/engineering/test/test_driver.py
-@author Bill French
+@author Bill French, Nick Almonte
 @brief Test cases for glider ctd data
 
 USAGE:
@@ -93,9 +93,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver sampling
         can be started and stopped.
         """
-        self.clear_sample_data()
-
-        log.debug("cleared sample data")
         # Start sampling and watch for an exception
         self.driver.start_sampling()
         log.debug("started sampling")
@@ -242,7 +239,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          'multiple_glider_record-engDataOnly.mrg.result.yml', count=9, timeout=10)
         self.assert_file_ingested("xCopyOf-multiple_glider_record-engDataOnly.mrg", DataTypeKey.ENG_TELEMETERED)
 
-    ##DONE
+
     def test_stop_start_ingest_recovered(self):
         """
         Test the ability to stop and restart sampling, and ingesting files in the correct order
@@ -529,137 +526,6 @@ class QualificationTest(DataSetQualificationTestCase):
         result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 100, 240)
         result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 3, 240)
 
-
-    def test_stop_start_telemetered(self):
-        """
-        Test the agents ability to start data flowing, stop, then restart
-        at the correct spot.
-        """
-        log.info("## QualificationTest.test_stop_start_telemetered(): CONFIG: %s", self._agent_config())
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-
-        try:
-
-            self.create_sample_data_set_dir('multiple_glider_record-engDataOnly.mrg',
-                                            TELEMETERED_TEST_DIR,
-                                            "CopyOf-multiple_glider_record-engDataOnly.mrg")
-            self.assert_start_sampling()
-            # Now read the first record (row) of the second file then stop
-            result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA, 1)
-            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 1)
-            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 1)
-            # append result2 (the eng sci particle) to result 1 (the eng particle)
-            self.assert_stop_sampling()
-            result0.extend(result1)
-            result0.extend(result2)
-            log.debug("##")
-            log.debug("##")
-            log.debug("## QualificationTest.test_stop_start_telemetered(): "
-                      "got 1st row result %s", result0)
-            log.debug("##")
-            log.debug("##")
-            # Verify values (the multiple input file has the same first row as the single input file)
-            self.assert_data_values(result0, 'single_glider_record-engDataOnly-StartStopQual.mrg.result.yml')
-
-            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
-            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_TELEMETERED)
-            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
-
-            # Restart sampling and ensure we get the particles from the last 3 records (rows) of the file
-            self.assert_start_sampling()
-            result3 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
-            result4 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3)
-            # append result2 (the eng sci particle) to result 1 (the eng particle)
-            self.assert_stop_sampling()
-            log.debug("##")
-            log.debug("##")
-            log.debug("## QualificationTest.test_stop_start_telemetered(): "
-                      "2-4: got result3 containing %s particles: %s", len(result3), result3)
-            result3.extend(result4)
-            log.debug("##")
-            log.debug("##")
-            log.debug("## QualificationTest.test_stop_start_telemetered(): "
-                      "2-4: got result4 containing %s particles: %s", len(result4), result4)
-            log.debug("##")
-            log.debug("##")
-            log.debug("## QualificationTest.test_stop_start_telemetered(): "
-                      "2-4: got remaining combined result containing %s particles: %s", len(result3), result3)
-            log.debug("##")
-            log.debug("##")
-            #self.assert_stop_sampling()
-            self.assert_data_values(result3, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
-
-        except SampleTimeout as e:
-            log.error("## QualificationTest.test_stop_start_telemetered(): Exception trapped: %s", e, exc_info=True)
-            self.fail("Sample timeout.")
-
-
-    def test_stop_start_recovered(self):
-        """
-        Test the agents ability to start data flowing, stop, then restart
-        at the correct spot.
-        """
-        log.info("## QualificationTest.test_stop_start_recovered(): "
-                 "CONFIG: %s", self._agent_config())
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-
-        try:
-
-            self.create_sample_data_set_dir('multiple_glider_record-engDataOnly.mrg',
-                                            RECOVERED_TEST_DIR,
-                                            "CopyOf-multiple_glider_record-engDataOnly.mrg")
-            self.assert_start_sampling()
-            # Now read the first record (row) of the second file then stop
-            result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 1)
-            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 1)
-            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA_RECOVERED, 1)
-            self.assert_stop_sampling()
-            # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result0.extend(result1)
-            result0.extend(result2)
-            log.debug("##")
-            log.debug("##")
-            log.debug("##           Concatenated Results SHOULD BE FROM ROW 1                 ")
-            log.debug("##")
-            log.debug("##")
-            log.debug("## QualificationTest.test_stop_start(): got 1st row result %s", result0)
-            log.debug("##")
-            log.debug("##")
-            # Verify values (the multiple input file has the same first row as the single input file)
-            self.assert_data_values(result0, 'startstop_row1_glider_record_recovered-engDataOnly.mrg.result.yml')
-
-            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_METADATA)
-            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_TELEMETERED)
-            self.data_subscribers.clear_sample_queue(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
-
-            # Restart sampling and ensure we get the last 3 records (rows) of the file
-            self.assert_start_sampling()
-            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_RECOVERED, 3)
-            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_RECOVERED, 3)
-            self.assert_stop_sampling()
-            # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("##")
-            log.debug("##")
-            log.debug("##               Concatenated Results SHOULD BE FROM ROWS 3 - 4                    ")
-            log.debug("##")
-            log.debug("##")
-            log.debug("## QualificationTest.test_stop_start(): got remaining combined result %s", result1)
-            log.debug("##")
-            log.debug("##")
-            self.assert_data_values(result1, 'startstop_rows3-4_glider_record_recovered-engDataOnly.mrg.result.yml')
-
-        except SampleTimeout as e:
-            log.error("## QualificationTest.test_stop_start_recovered(): Exception trapped: %s", e, exc_info=True)
-            self.fail("Sample timeout.")
 
     ##DONE
     def test_shutdown_restart_telemetered(self):

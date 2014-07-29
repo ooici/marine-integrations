@@ -8,7 +8,7 @@ Release notes:
 initial release
 """
 
-__author__ = 'Stuart Pearce & Chris Wingard'
+__author__ = 'Stuart Pearce, Chris Wingard, Nick Almonte'
 __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger
@@ -77,7 +77,7 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         Build and return the specified parser as indicated by the data_key.
         """
-        config = self._parser_config
+        config = self._parser_config.get(data_key)
 
         config.update({
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
@@ -103,16 +103,16 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         Build and return the specified parser as indicated by the data_key.
         """
-        config = self._parser_config
+        config = self._parser_config.get(data_key)
 
         config.update({
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: [EngineeringMetadataRecoveredDataParticle,
-                                                     EngineeringRecoveredDataParticle,
-                                                     EngineeringScienceRecoveredDataParticle],
-            # DataSetDriverConfigKeys.PARTICLE_CLASS: [EngineeringRecoveredDataParticle,
-            #                                          EngineeringScienceRecoveredDataParticle,
-            #                                          EngineeringMetadataRecoveredDataParticle],
+            # DataSetDriverConfigKeys.PARTICLE_CLASS: [EngineeringMetadataRecoveredDataParticle,
+            #                                          EngineeringRecoveredDataParticle,
+            #                                          EngineeringScienceRecoveredDataParticle],
+            DataSetDriverConfigKeys.PARTICLE_CLASS: [EngineeringRecoveredDataParticle,
+                                                     EngineeringScienceRecoveredDataParticle,
+                                                     EngineeringMetadataRecoveredDataParticle],
         })
 
         log.debug("EngineeringDataSetDriver._build_eng_recovered_parser(): "

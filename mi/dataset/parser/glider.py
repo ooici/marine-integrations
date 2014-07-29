@@ -1104,13 +1104,15 @@ class GliderParser(BufferLoadingParser):
 
         # extract record to dictionary
         for ii in range(0, num_columns, 1):
-            log.trace("_read_data: index: %d label: %s, value: %s", ii, data_labels[ii], data[ii])
+            log.trace("GliderParser._read_data(): index: %d label: %s, value: %s", ii, data_labels[ii], data[ii])
 
             valuePreConversion = data[ii]
 
+            # Check if this data value is a NaN...
             if valuePreConversion == "NaN":
                 # data is NaN, convert it to a float
                 value = float(valuePreConversion)
+            # Determine what type of data the value is - int or float, or neither
             else:
 
                 # determine what type of data the value is, based on the number of bytes attribute
@@ -1118,17 +1120,23 @@ class GliderParser(BufferLoadingParser):
                         stringConverter = int
                 elif (num_bytes[ii] == 4) or (num_bytes[ii] == 8):
                         stringConverter = float
+                else:
+                        stringConverter = None
 
                 # check to see if this is a latitude/longitude string
                 if ('_lat' in data_labels[ii]) or ('_lon' in data_labels[ii]):
                     # convert latitude/longitude strings to decimal degrees
                     value = self._string_to_ddegrees(data[ii])
 
-                    log.debug("Converted lat/lon %s from %s to %10.5f", data_labels[ii], data[ii], value)
+                    log.trace("GliderParser._read_data(): converted lat/lon %s from %s to %10.5f", data_labels[ii], data[ii], value)
 
                 else:
-                    # convert the string to and int or float
-                    value = stringConverter(data[ii])
+                    # convert the string to and int or float, or leave it as a string
+                    if stringConverter is not None:
+                        value = stringConverter(data[ii])
+                    else:
+                        log.trace("GliderParser._read_data(): data value %s was not an int or a float", data[ii])
+                        value = data[ii]
 
             data_dict[data_labels[ii]] = {
                 'Name': data_labels[ii],
@@ -1144,13 +1152,13 @@ class GliderParser(BufferLoadingParser):
         Need to overload the base class behavior so we can get the last
         record if it doesn't end with a newline it would be ignored.
         """
-        len = super(GliderParser, self).get_block(size)
-        log.debug("Buffer read bytes: %d", len)
+        length = super(GliderParser, self).get_block(size)
+        log.debug("Buffer read bytes: %d", length)
 
-        if len != size:
+        if length != size:
             self._chunker.add_chunk("\n", ntplib.system_to_ntp_time(time.time()))
 
-        return len
+        return length
 
     def parse_chunks(self):
         """
@@ -1446,11 +1454,11 @@ class GliderEngineeringParser(GliderParser):
 
                             try:
                                 # create the particle
-                                particle = self._extract_sample(particle, None, data_dict, timestamp)
+                                resultant_particle = self._extract_sample(particle, None, data_dict, timestamp)
                                 log.debug("===> ## ## ## GliderEngineeringParser.parse_chunks(): "
                                           "PARTICLE NAMED %s CREATED", particle._data_particle_type)
                                 log.debug("READ STATE: %s", self._read_state)
-                                result_particles.append((particle, copy.copy(self._read_state)))
+                                result_particles.append((resultant_particle, copy.copy(self._read_state)))
                             except RecoverableSampleException:
                                 self._exception_callback(RecoverableSampleException("GliderEngineeringParser.parse_chunks(): "
                                                                                     "Particle class not defined in glider module"))
