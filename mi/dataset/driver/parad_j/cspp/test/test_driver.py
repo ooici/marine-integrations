@@ -85,8 +85,6 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'parad_j_cspp_parsed'
-
 REC_PARTICLES = (ParadJCsppMetadataRecoveredDataParticle,
                  ParadJCsppInstrumentRecoveredDataParticle)
 TEL_PARTICLES = (ParadJCsppMetadataTelemeteredDataParticle,

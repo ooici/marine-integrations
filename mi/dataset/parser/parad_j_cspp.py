@@ -20,7 +20,7 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import RecoverableSampleException
 
 from mi.dataset.parser.cspp_base import \
     CsppParser, \
@@ -54,7 +54,6 @@ DATA_REGEX += '(' + INT_REGEX + ')' + END_OF_LINE_REGEX    # par
 IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX     # Profiler Timestamp
 IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX    # Depth
 IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX     # Suspect Timestamp
-#IGNORE_REGEX += '.*' + END_OF_LINE_REGEX    # any text after the Suspect Timestamp
 IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX    # any text (excluding tabs) after the Suspect Timestamp
 
 IGNORE_MATCHER = re.compile(IGNORE_REGEX)
@@ -124,10 +123,9 @@ class ParadJCsppMetadataDataParticle(CsppMetadataDataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            self._exception_callback(SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                     % (ex, self.raw_data)))
-
-        log.debug('*** metadata particle result %s', results)
+            raise RecoverableSampleException(
+                "Error (%s) while decoding parameters in data: [%s]"
+                % (ex, self.raw_data))
 
         return results
 
@@ -194,10 +192,10 @@ class ParadJCsppInstrumentDataParticle(DataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-            self._exception_callback(SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                     % (ex, self.raw_data)))
+            raise RecoverableSampleException(
+                "Error (%s) while decoding parameters in data: [%s]"
+                % (ex, self.raw_data))
 
-        log.debug('*** instrument particle result %s', results)
         return results
 
 

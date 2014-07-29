@@ -56,6 +56,7 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
     def exception_callback(self, exception):
         """ Callback method to watch what comes in via the exception callback """
         self.exception_callback_value = exception
+        self.count += 1
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
@@ -84,6 +85,7 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = None
+        self.count = 0
 
     def particle_to_yml(self, particles, filename, mode='w'):
         """
@@ -221,7 +223,7 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
 
         log.debug("*** test_simple Num particles %s", len(particles))
 
-        # check the first particle, which should be the metadata particle (recovered)
+        # load a dictionary from the yml file
         test_data = self.get_dict_from_yml('11079364_PPB_PARS_recov.yml')
 
         # check all the values against expected results.
@@ -341,7 +343,7 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_bad_data(self):
         """
-        Ensure that bad data is skipped when it exists.
+        Ensure that bad data is skipped when it exists and a RecoverableSampleException is thrown.
         """
 
         file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_PPB_PARS.txt')
@@ -359,7 +361,8 @@ class ParadJCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("Exception callback value: %s", self.exception_callback_value)
 
         self.assertTrue(self.exception_callback_value is not None)
-
+        # 14 bad records
+        self.assertEqual(self.count, 14)
         stream_handle.close()
 
     def test_additional_column(self):

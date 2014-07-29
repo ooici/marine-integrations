@@ -84,7 +84,7 @@ class ParadJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         # If the key is one that we're not expecting, don't build any parser.
         #
         else:
-            raise ConfigurationException("Invalid data_key supplied to build parser")
+            raise ConfigurationException("Invalid data_key (%s) supplied to build parser" % data_key)
 
         parser = ParadJCsppParser(
             config,
@@ -115,7 +115,7 @@ class ParadJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         else:
             log.warn('No configuration for parad_j_cspp telemetered harvester, not building')
 
-        if DataTypeKey.PARAD_J_CSPP_TELEMETERED in self._harvester_config:
+        if DataTypeKey.PARAD_J_CSPP_RECOVERED in self._harvester_config:
             recovered_harvester = self.build_single_harvester(
                 driver_state,
                 DataTypeKey.PARAD_J_CSPP_RECOVERED)
