@@ -1,0 +1,27 @@
+header:
+  particle_object: DostaRecoveredDataParticle
+  particle_type: dosta_abcdjm_glider_recovered
+
+data:
+  - _index: 1
+    _new_sequence: False
+#    internal_timestamp: '2013-09-05T02:47:18.77789'
+    internal_timestamp: 3587337926.653870106
+    m_present_time: 1378349126.65387
+    m_present_secs_into_mission: 121032
+    sci_m_present_time: 1378349126.65387
+    sci_m_present_secs_into_mission: 121032
+    sci_oxy4_oxygen: 2000.1
+    sci_oxy4_saturation: 2000.2
+    sci_oxy4_temp: 1000.1
+    sci_oxy4_tcphase: 1000.2
+    sci_oxy4_rawtemp: 1000.3
+    sci_oxy4_calphase: 1000.4
+    sci_oxy4_c2rph: 1000.5
+    sci_oxy4_c2amp: 1000.6
+    sci_oxy4_c1rph: 1000.7
+    sci_oxy4_c1amp: 1000.8
+    sci_oxy4_timestamp: 1000.9
+    sci_water_cond: 1001.1
+    sci_water_pressure: 1001.2
+    sci_water_temp: 1001.3
