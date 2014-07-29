@@ -39,8 +39,8 @@ class FlortDjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         data_keys = DataTypeKey.list()
 
         super(FlortDjCsppDataSetDriver, self).__init__(config, memento, data_callback,
-                                                        state_callback, event_callback,
-                                                        exception_callback, data_keys)
+                                                       state_callback, event_callback,
+                                                       exception_callback, data_keys)
 
     @classmethod
     def stream_config(cls):

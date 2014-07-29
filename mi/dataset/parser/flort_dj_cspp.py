@@ -18,10 +18,11 @@ import numpy
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
+import re
 
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
-    CARRIAGE_RETURN_LINE_FEED_OR_BOTH, \
+    END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, MetadataRawDataKey, PARTICLE_KEY_INDEX, \
     DATA_MATCHES_GROUP_NUMBER_INDEX, TYPE_ENCODING_INDEX, \
     Y_OR_N_REGEX, encode_y_or_n
@@ -38,8 +39,14 @@ DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX +
              + '(' + TIME_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' \
              + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + \
              INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX \
-             + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + CARRIAGE_RETURN_LINE_FEED_OR_BOTH
+             + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + END_OF_LINE_REGEX
 
+IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX # Profiler Timestamp
+IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX # Depth
+IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX # Suspect Timestamp
+IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX # any text after the Depth
+
+IGNORE_MATCHER = re.compile(IGNORE_REGEX)
 
 class DataMatchesGroupNumber(BaseEnum):
     """
@@ -233,4 +240,5 @@ class FlortDjCsppParser(CsppParser):
                                                 publish_callback,
                                                 exception_callback,
                                                 DATA_REGEX,
+                                                ignore_matcher=IGNORE_MATCHER,
                                                 *args, **kwargs)
