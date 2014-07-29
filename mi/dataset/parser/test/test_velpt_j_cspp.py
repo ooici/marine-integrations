@@ -5,6 +5,12 @@
 @file marine-integrations/mi/dataset/parser/test/test_velpt_j_cspp.py
 @author Jeremy Amundson
 @brief Test code for a velpt_j_cspp data parser
+
+Notes on test data
+
+11079364_PPB_ADCP.txt and 11079364_PPD_ADCP.txt are taken from the IDD
+as examples of recovered and telemeterd data respectively. BAD_PPB_ADCP.txt
+is a modified version of 11079364_PPB_ADCP.
 """
 
 import os
@@ -296,7 +302,7 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
-        # position 1806 is the byte at the start of the 19th data record
+        # position 1453 is the byte at the start of the 14th data record
         new_state = {StateKey.POSITION: 1453, StateKey.METADATA_EXTRACTED: True}
 
         parser.set_state(new_state)
