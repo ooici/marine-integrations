@@ -1,0 +1,116 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.423000
+    profiler_timestamp: 1397774254.4230000972747803
+    pressure_depth: 19.2890000000000015
+    suspect_timestamp: 0
+    timer: 5.0400000000000000
+    sample_delay: -133
+    channel_array: [2147989760, 2147705856, 2148798848, 2148835904, 2150851328, 2147353664, 2147461696]
+    vin_sense: 278
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 7
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.578000
+    profiler_timestamp: 1397774254.5780000686645508
+    pressure_depth: 19.2789999999999999
+    suspect_timestamp: 0
+    timer: 5.1699999999999999
+    sample_delay: -133
+    channel_array: [2147992128, 2147710976, 2148801088, 2148845952, 2150860992, 2147357568, 2147463488]
+    vin_sense: 285
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 8
+  - _index: 3
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.696000
+    profiler_timestamp: 1397774254.6960000991821289
+    pressure_depth: 19.2659999999999982
+    suspect_timestamp: 0
+    timer: 5.3099999999999996
+    sample_delay: -133
+    channel_array: [2147996800, 2147708032, 2148800832, 2148849792, 2150869568, 2147360320, 2147465728]
+    vin_sense: 277
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 9
+  - _index: 4
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.832000
+    profiler_timestamp: 1397774254.8320000171661377
+    pressure_depth: 19.2519999999999989
+    suspect_timestamp: 0
+    timer: 5.4500000000000002
+    sample_delay: -133
+    channel_array: [2147998464, 2147704256, 2148807296, 2148845056, 2150868928, 2147358080, 2147464000]
+    vin_sense: 282
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 10
+  - _index: 5
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.968000
+    profiler_timestamp: 1397774254.9679999351501465
+    pressure_depth: 19.2480000000000011
+    suspect_timestamp: 0
+    timer: 5.5800000000000001
+    sample_delay: -133
+    channel_array: [2147995840, 2147707136, 2148806784, 2148846784, 2150868672, 2147359232, 2147467712]
+    vin_sense: 274
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 11
+  - _index: 6
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.104000
+    profiler_timestamp: 1397774255.1040000915527344
+    pressure_depth: 19.2409999999999997
+    suspect_timestamp: 0
+    timer: 5.7199999999999998
+    sample_delay: -133
+    channel_array: [2147996480, 2147705152, 2148810176, 2148846272, 2150876800, 2147362304, 2147465472]
+    vin_sense: 271
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 12
+  - _index: 7
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.242000
+    profiler_timestamp: 1397774255.2420001029968262
+    pressure_depth: 19.2379999999999995
+    suspect_timestamp: 0
+    timer: 5.8600000000000003
+    sample_delay: -133
+    channel_array: [2148000448, 2147707584, 2148806912, 2148846464, 2150882688, 2147361792, 2147466176]
+    vin_sense: 277
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 13
+  - _index: 8
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.391000
+    profiler_timestamp: 1397774255.3910000324249268
+    pressure_depth: 19.2349999999999994
+    suspect_timestamp: 0
+    timer: 5.9900000000000002
+    sample_delay: -133
+    channel_array: [2147995712, 2147706304, 2148801280, 2148850752, 2150883328, 2147358016, 2147465216]
+    vin_sense: 284
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 14
