@@ -45,12 +45,6 @@ DATA_REGEX += r'(' + INT_REGEX + r')' + MULTIPLE_TAB_REGEX
 DATA_REGEX += r'(' + INT_REGEX + r')' + MULTIPLE_TAB_REGEX
 DATA_REGEX += r'(' + INT_REGEX + r')' + END_OF_LINE_REGEX
 
-# IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX # Profiler Timestamp
-# IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX # Depth
-# IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX # Suspect Timestamp
-# IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX # any text after the Depth
-
-# IGNORE_MATCHER = re.compile(IGNORE_REGEX)
 
 class DataMatchesGroupNumber(BaseEnum):
     """
@@ -253,5 +247,4 @@ class VelptJCsppParser(CsppParser):
                                                 publish_callback,
                                                 exception_callback,
                                                 DATA_REGEX,
-                                               # ignore_matcher=IGNORE_MATCHER,
                                                 *args, **kwargs)
