@@ -35,7 +35,7 @@ from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import Prompt, SamiBatteryVoltageDataParticle, SamiThermistorVoltageDataParticle
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiParameter
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
@@ -44,7 +44,6 @@ from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
 from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
@@ -187,8 +186,12 @@ class DataParticleType(SamiDataParticleType):
     """
     Data particle types produced by this driver
     """
-    CONFIGURATION = 'phsen_configuration'
-    SAMI_SAMPLE = 'phsen_sami_data_record'
+    PHSEN_CONFIGURATION = 'phsen_configuration'
+    PHSEN_DATA_RECORD = 'phsen_data_record'
+    PHSEN_REGULAR_STATUS = 'phsen_regular_status'
+    PHSEN_CONTROL_RECORD = 'phsen_control_record'
+    PHSEN_BATTERY_VOLTAGE = 'phsen_battery_voltage'
+    PHSEN_THERMISTOR_VOLTAGE = 'phsen_thermistor_voltage'
 
 
 class Parameter(SamiParameter):
@@ -223,9 +226,16 @@ class InstrumentCommand(SamiInstrumentCommand):
     PHSEN_PUMP_REAGENT = 'P' + PHSEN_PUMP_REAGENT_PARAM
     PSHEN_PUMP_50ML_STAGE2 = 'P' + PHSEN_PUMP_50ML_STAGE2_PARAM
 
+
 ###############################################################################
 # Data Particles
 ###############################################################################
+
+#Redefine the data particle type so each particle has a unique name
+SamiBatteryVoltageDataParticle._data_particle_type = DataParticleType.PHSEN_BATTERY_VOLTAGE
+SamiThermistorVoltageDataParticle._data_particle_type = DataParticleType.PHSEN_THERMISTOR_VOLTAGE
+SamiRegularStatusDataParticle._data_particle_type = DataParticleType.PHSEN_REGULAR_STATUS
+SamiControlRecordDataParticle._data_particle_type = DataParticleType.PHSEN_CONTROL_RECORD
 
 
 class PhsenSamiSampleDataParticleKey(BaseEnum):
@@ -252,7 +262,7 @@ class PhsenSamiSampleDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.SAMI_SAMPLE
+    _data_particle_type = DataParticleType.PHSEN_DATA_RECORD
 
     def _build_parsed_values(self):
         """
@@ -345,7 +355,7 @@ class PhsenConfigDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.CONFIGURATION
+    _data_particle_type = DataParticleType.PHSEN_CONFIGURATION
 
     def _build_parsed_values(self):
         """
@@ -606,7 +616,7 @@ class Protocol(SamiProtocol):
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_reagent_flush_50ml(self):
         """
@@ -617,7 +627,7 @@ class Protocol(SamiProtocol):
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_seawater_flush(self):
         """
@@ -628,7 +638,7 @@ class Protocol(SamiProtocol):
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Seawater flush 2750 ml handlers.
