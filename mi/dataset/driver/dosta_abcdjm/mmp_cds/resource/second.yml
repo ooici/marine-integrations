@@ -1,0 +1,13 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: DostaAbcdjmMmpCdsParserDataParticle
+    particle_type: dosta_abcdjm_mmp_cds_instrument
+    internal_timestamp: 3594243017.500730038
+    raw_time_microseconds: 500730
+    raw_time_seconds: 1385254217
+    calibrated_phase: 37.667
+    optode_temperature: 8.793

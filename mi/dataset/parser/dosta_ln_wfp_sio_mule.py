@@ -172,10 +172,6 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 			       ":".join("{:02x}".format(ord(c)) for c in chunk))
 		    self._exception_callback(UnexpectedDataException("Found unexpected data."))
 		
-            else: #no sio_header_match
-                # throw exception
-                self._exception_callback(UnexpectedDataException("Found unexpected data."))
-
             self._chunk_sample_count.append(sample_count)
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()

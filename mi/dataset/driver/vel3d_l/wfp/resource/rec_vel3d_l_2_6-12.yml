@@ -1,0 +1,103 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2002, 5, 6, 5, 6, 7]
+    internal_timestamp: 3229650367.0
+    vel3d_l_heading: 105.0
+    vel3d_l_tx: 205.0
+    vel3d_l_ty: 305.0
+    vel3d_l_hx: 1005.0
+    vel3d_l_hy: 2005.0
+    vel3d_l_hz: 3005.0
+    vel3d_l_vp1: 10005.0
+    vel3d_l_vp2: 20005.0
+    vel3d_l_vp3: 30005.0
+    vel3d_l_vp4: 40005.0
+  - _index: 2
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2002, 6, 7, 6, 7, 8]
+    internal_timestamp: 3232418828.0
+    vel3d_l_heading: 106.0
+    vel3d_l_tx: 206.0
+    vel3d_l_ty: 306.0
+    vel3d_l_hx: 1006.0
+    vel3d_l_hy: 2006.0
+    vel3d_l_hz: 3006.0
+    vel3d_l_vp1: 10006.0
+    vel3d_l_vp2: 20006.0
+    vel3d_l_vp3: 30006.0
+    vel3d_l_vp4: 40006.0
+  - _index: 3
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2002, 7, 8, 7, 8, 9]
+    internal_timestamp: 3235100889.0
+    vel3d_l_heading: 107.0
+    vel3d_l_tx: 207.0
+    vel3d_l_ty: 307.0
+    vel3d_l_hx: 1007.0
+    vel3d_l_hy: 2007.0
+    vel3d_l_hz: 3007.0
+    vel3d_l_vp1: 10007.0
+    vel3d_l_vp2: 20007.0
+    vel3d_l_vp3: 30007.0
+    vel3d_l_vp4: 40007.0
+  - _index: 4
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2002, 8, 9, 8, 9, 10]
+    internal_timestamp: 3237869350.0
+    vel3d_l_heading: 108.0
+    vel3d_l_tx: 208.0
+    vel3d_l_ty: 308.0
+    vel3d_l_hx: 1008.0
+    vel3d_l_hy: 2008.0
+    vel3d_l_hz: 3008.0
+    vel3d_l_vp1: 10008.0
+    vel3d_l_vp2: 20008.0
+    vel3d_l_vp3: 30008.0
+    vel3d_l_vp4: 40008.0
+  - _index: 5
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2002, 9, 10, 9, 10, 11]
+    internal_timestamp: 3240637811.0
+    vel3d_l_heading: 109.0
+    vel3d_l_tx: 209.0
+    vel3d_l_ty: 309.0
+    vel3d_l_hx: 1009.0
+    vel3d_l_hy: 2009.0
+    vel3d_l_hz: 3009.0
+    vel3d_l_vp1: 10009.0
+    vel3d_l_vp2: 20009.0
+    vel3d_l_vp3: 30009.0
+    vel3d_l_vp4: 40009.0
+  - _index: 6
+    particle_object: Vel3dLWfpInstrumentRecoveredParticle
+    particle_type: vel3d_l_wfp_instrument_recovered
+    vel3d_l_date_time_array: [2002, 10, 11, 10, 11, 12]
+    internal_timestamp: 3243319872.0
+    vel3d_l_heading: 110.0
+    vel3d_l_tx: 210.0
+    vel3d_l_ty: 310.0
+    vel3d_l_hx: 1010.0
+    vel3d_l_hy: 2010.0
+    vel3d_l_hz: 3010.0
+    vel3d_l_vp1: 10010.0
+    vel3d_l_vp2: 20010.0
+    vel3d_l_vp3: 30010.0
+    vel3d_l_vp4: 40010.0
+  - _index: 7
+    particle_object: Vel3dLWfpMetadataRecoveredParticle
+    particle_type: vel3d_l_wfp_metadata_recovered
+    internal_timestamp: 3599815520.0
+    vel3d_l_time_on: 1390820403
+    vel3d_l_time_off: 1390826720
+    vel3d_l_serial_number: 65535
+    vel3d_l_number_of_records: 6
