@@ -1,0 +1,73 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppMetadataTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_metadata
+    internal_timestamp: 3606762505.603000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 12:23:16'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.PPD'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+    instrument_id: 'SATDI7'
+    serial_number: '0237'
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762505.603000
+    profiler_timestamp: 1397773705.6029999256134033
+    pressure_depth: 19.1920000000000002
+    suspect_timestamp: 0
+    timer: 13.5099999999999998
+    sample_delay: -133
+    channel_array: [2147963456, 2147659392, 2148573632, 2148452544, 2150082880, 2147344256, 2147463360]
+    vin_sense: 279
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 69
+  - _index: 3
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762515.885000
+    profiler_timestamp: 1397773715.8849999904632568
+    pressure_depth: 18.7280000000000015
+    suspect_timestamp: 0
+    timer: 23.7899999999999991
+    sample_delay: -133
+    channel_array: [2147965824, 2147665920, 2148562176, 2148448576, 2150130240, 2147352512, 2147461824]
+    vin_sense: 276
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 144
+  - _index: 4
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762526.157000
+    profiler_timestamp: 1397773726.1570000648498535
+    pressure_depth: 17.7109999999999985
+    suspect_timestamp: 0
+    timer: 34.0700000000000003
+    sample_delay: -133
+    channel_array: [2147983744, 2147677312, 2148627840, 2148582848, 2150414976, 2147356480, 2147467072]
+    vin_sense: 282
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 219
+  - _index: 5
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762536.439000
+    profiler_timestamp: 1397773736.4389998912811279
+    pressure_depth: 16.3610000000000007
+    suspect_timestamp: 0
+    timer: 44.3400000000000034
+    sample_delay: -133
+    channel_array: [2148040512, 2147735040, 2148831680, 2148873984, 2150955008, 2147383680, 2147465152]
+    vin_sense: 285
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 38

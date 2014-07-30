@@ -1,0 +1,64 @@
+File created: Thursday, July 18, 2013  09:17:10
+SAMI Client Version: 1.2.0
+:SAMIinfoHex
+00362020202020202020202020503030383030323230304550304688FA00450B500042CA0000471666003DF5C28F3F800000AA
+:SAMIinfo
+Firmware: 55
+Name:            P0080
+Serial Number: 0220
+Board version: 0E
+Board Configuration: P0
+Cal1: 17533
+Cal2: 2229
+Cal3: 101
+Cal4: 38502
+Cal5: 0.12
+Cal6: 1
+:ConfigHex
+CE0D2DC00000152F00001C200200012C0A020000000011000000001100000000110000000011070137042001080810040810081700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+:ConfigText
+Set:    7/18/2013  05:29 GMT(7/18/2013  05:29 Local Time(0))
+Wait:  1 Hr. 30 Min. 23 Sec.
+Start: 7/18/2013  06:59 GMT(7/18/2013  06:59 Local Time(0))
+Run:  2 Hr. 0 Min.
+Stop:  7/18/2013  08:59 GMT(7/18/2013  08:59 Local Time(0))
+Global
+---
+Default communications at 57.6K.
+
+While waiting to start
+Off
+
+SAMI
+SAMI pH (Vb+)
+Run every 5 Min.
+  Cycles Between Stds=0
+  #Samples Averaged=1
+  #Flushes=55
+  Pump On-Flush=4
+  Pump Off-Flush=32
+  #Reagent pumps=1
+  Valve delay=8
+  Pump On ind=8
+  P/V Off ind=16
+  #Blanks=4
+  t_pump_m=8
+  Pump off to Meas=16
+  Meas to pump on=8
+  #Measurements=23
+  Salinity Delay=0
+
+Device 1
+Off
+
+Device 2
+Off
+
+Device 3
+Off
+
+:UserText
+
+:Data
+128	3456970176	1	1	1	512
+133	3456974356	3	4294967295	0	530

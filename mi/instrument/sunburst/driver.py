@@ -992,7 +992,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         expected_prompt = kwargs.get('expected_prompt', None)
         response_regex = kwargs.get('response_regex', None)
         write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
-        retval = None
 
         if response_regex and not isinstance(response_regex, RE_PATTERN):
             raise InstrumentProtocolException('Response regex is not a compiled pattern!')
@@ -1235,11 +1234,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Discover current state; can be UNKNOWN, COMMAND or REGULAR_SAMPLE
         @retval (next_state, result)
         """
-
-        next_state = None
-        result = None
-
-        (next_state, next_agent_state) = self._discover()
+        next_state, next_agent_state = self._discover()
 
         return next_state, next_agent_state
 
@@ -1271,8 +1266,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         # Exit states can be either COMMAND or back to UNKNOWN.
-        next_state = None
-        next_agent_state = None
         result = None
 
         # try to discover our state
@@ -1471,11 +1464,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_stop_direct(self):
         """
         """
-
-        next_state = None
         result = None
 
-        (next_state, next_agent_state) = self._discover()
+        next_state, next_agent_state = self._discover()
 
         return next_state, (next_agent_state, result)
 
@@ -1746,9 +1737,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Discover current state; can be UNKNOWN, COMMAND or DISCOVER
         @retval (next_state, result)
         """
-
-        next_state = None
-        next_agent_state = None
 
         ## Clear command queue
         self._queued_commands.reset()
