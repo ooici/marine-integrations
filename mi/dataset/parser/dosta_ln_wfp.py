@@ -30,7 +30,7 @@ from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, HEADER_BYTES, ST
 
 
 class DataParticleType(BaseEnum):
-    INSTRUMENT = 'dosta_ln_wfp_instrument'
+    INSTRUMENT = 'dosta_ln_wfp_instrument_recovered'
 
 
 class DostaLnWfpInstrumentParserDataParticleKey(BaseEnum):
