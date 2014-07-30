@@ -35,17 +35,23 @@ FORMATTED_DATE_REGEX = r'\d{2}/\d{2}/\d{2}'
 TIME_REGEX = r'\d{2}:\d{2}:\d{2}'
 
 # A regular expression that should match a flort_dj data record
-DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX + \
-             '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + FORMATTED_DATE_REGEX + ')' + MULTIPLE_TAB_REGEX\
-             + '(' + TIME_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' \
-             + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + \
-             INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX \
-             + ')' + MULTIPLE_TAB_REGEX + '(' + INT_REGEX + ')' + END_OF_LINE_REGEX
+DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
+DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX  # suspect timestamp
+DATA_REGEX += '(' + FORMATTED_DATE_REGEX + ')' + MULTIPLE_TAB_REGEX  # date string
+DATA_REGEX += '(' + TIME_REGEX + ')' + MULTIPLE_TAB_REGEX  # time string
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # measurement_wavelength_beta
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # raw_signal_beta
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # measurement_wavelength_chl
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # raw_signal_chl
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # measurement_wavelength_cdom
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX  # raw_signal_cdom
+DATA_REGEX += '(' + INT_REGEX + ')' + END_OF_LINE_REGEX  # raw_internal_temp
 
 IGNORE_REGEX = FLOAT_REGEX + MULTIPLE_TAB_REGEX # Profiler Timestamp
 IGNORE_REGEX += FLOAT_REGEX + MULTIPLE_TAB_REGEX # Depth
 IGNORE_REGEX += Y_OR_N_REGEX + MULTIPLE_TAB_REGEX # Suspect Timestamp
-IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX # any text after the Depth
+IGNORE_REGEX += r'[^\t]*' + END_OF_LINE_REGEX # any text after the Suspect
 
 IGNORE_MATCHER = re.compile(IGNORE_REGEX)
 
