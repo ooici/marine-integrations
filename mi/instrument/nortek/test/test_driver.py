@@ -11,6 +11,7 @@ __license__ = 'Apache 2.0'
 import base64
 import json
 import time
+import sys
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -48,11 +49,17 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticle
 from mi.instrument.nortek.driver import NortekEngClockDataParticle
 from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
 from mi.instrument.nortek.driver import NortekEngIdDataParticle
-from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.core.exceptions import InstrumentCommandException, InstrumentParameterException
+
+if 'mi.instrument.nortek.aquadopp' in sys.modules.keys():
+    from mi.instrument.nortek.aquadopp.ooicore.driver import NortekDataParticleType
+    print '\n FOUND AQUADOPP'
+elif 'mi.instrument.nortek.vector' in sys.modules.keys():
+    from mi.instrument.nortek.vector.ooicore.driver import NortekDataParticleType
+    print '\n FOUND VECTOR'
 
 from interface.objects import AgentCommand
 
@@ -80,12 +87,6 @@ hw_config_particle = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticl
                       {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_SIZE, DataParticleKey.VALUE: 144},
                       {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.VELOCITY_RANGE, DataParticleKey.VALUE: 0},
                       {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.FW_VERSION, DataParticleKey.VALUE: "3.36"}]
-
-
-def assert_particle_hw_config(self, data_particle, verify_value=False):
-    self.assert_data_particle_keys(NortekHardwareConfigDataParticleKey, self.hw_config_particle)
-    self.assert_data_particle_header(data_particle, NortekDataParticleType.HARDWARE_CONFIG)
-    self.assert_data_particle_parameters(self.hw_config_particle, verify_value)
 
 
 def hw_config_sample():
@@ -573,8 +574,8 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_head(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle [FlortDSample]_ParticleKey data particle
+        Verify [nortek]_sample particle
+        @param data_particle [nortek]_ParticleKey data particle
         @param verify_values bool, should we verify parameter values
         """
 
@@ -584,8 +585,8 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_user(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle  [FlortDSample]_ParticleKey data particle
+        Verify [nortek]_sample particle
+        @param data_particle  [nortek]_ParticleKey data particle
         @param verify_values  bool, should we verify parameter values
         """
 
@@ -595,8 +596,8 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_id(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle  [FlortDSample]_ParticleKey data particle
+        Verify [nortek]_sample particle
+        @param data_particle  [nortek]_ParticleKey data particle
         @param verify_values  bool, should we verify parameter values
         """
         self.assert_data_particle_keys(NortekEngIdDataParticleKey, self._id_parameter)
