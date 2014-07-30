@@ -18,6 +18,7 @@ import numpy
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
+from mi.core.exceptions import RecoverableSampleException
 import re
 
 from mi.core.instrument.data_particle import DataParticle
@@ -139,6 +140,7 @@ class FlortDjCsppMetadataDataParticle(CsppMetadataDataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: %s" % (ex, self.raw_data))
 
         return results
 
@@ -191,6 +193,7 @@ class FlortDjCsppInstrumentDataParticle(DataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: %s" % (ex, self.raw_data))
 
         log.debug('FlortDjCsppInstrumentDataParticle: particle=%s', results)
         return results

@@ -79,7 +79,7 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         self.publish_callback_value = None
         self.exception_callback_value = None
         #creates the yaml file, commented out to save time when the file already exists
-        self.create_yml()
+        #self.create_yml()
 
     def particle_to_yml(self, particles, filename, mode='w'):
         """
@@ -131,15 +131,15 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        fid = open(os.path.join(RESOURCE_PATH, 'second_data.txt'), 'r')
+        fid = open(os.path.join(RESOURCE_PATH, 'BAD.txt'), 'r')
 
         self.stream_handle = fid
         self.parser = FlortDjCsppParser(self.config.get(DataTypeKey.FLORT_DJ_CSPP_RECOVERED), None, self.stream_handle,
                                         self.state_callback, self.pub_callback, self.exception_callback)
 
-        particles = self.parser.get_records(150)
+        particles = self.parser.get_records(4)
 
-        self.particle_to_yml(particles, 'second_data_recovered.yml')
+        self.particle_to_yml(particles, 'BAD_telemetered.yml')
         fid.close()
 
     def test_simple(self):
@@ -361,9 +361,9 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
                 particle_data = particle_values.get(key)
                 #others are all part of the parsed values part of the particle
 
-            log.debug('*** assert result: test data key = %s', key)
-            log.debug('*** assert result: test data val = %s', test_data)
-            log.debug('*** assert result: part data val = %s', particle_data)
+            # log.debug('*** assert result: test data key = %s', key)
+            # log.debug('*** assert result: test data val = %s', test_data)
+            # log.debug('*** assert result: part data val = %s', particle_data)
 
             if particle_data is None:
                 #generally OK to ignore index keys in the test data, verify others

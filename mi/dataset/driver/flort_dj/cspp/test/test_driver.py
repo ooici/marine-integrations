@@ -128,8 +128,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         sampling can be started and stopped
         """
 
-        self.clear_sample_data()
-
         self.driver.start_sampling()
 
         self.create_sample_data_set_dir(TEST_FILE_ONE, TELEMETERED_DIR, TEST_FILE_ONE)
@@ -147,7 +145,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(TELEMETERED_PARTICLES, 'second_data_telemetered.yml', count=150)
         self.assert_data(RECOVERED_PARTICLES, 'second_data_recovered.yml', count=150)
 
-    def test_stop_resume(self):
+    def test_mid_state_start(self):
         """
         Test the ability to stop and restart the process
         """

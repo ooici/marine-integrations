@@ -17,7 +17,7 @@ log = get_logger()
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.cspp_base import METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
-from mi.dataset.parser.flort_dj_cspp import FlortDjCsppParser, DataParticleType, \
+from mi.dataset.parser.flort_dj_cspp import FlortDjCsppParser,\
     FlortDjCsppInstrumentTelemeteredDataParticle, FlortDjCsppInstrumentRecoveredDataParticle,\
     FlortDjCsppMetadataRecoveredDataParticle, FlortDjCsppMetadataTelemeteredDataParticle
 from mi.core.common import BaseEnum
@@ -27,8 +27,8 @@ from mi.core.exceptions import ConfigurationException
 
 class DataTypeKey(BaseEnum):
 
-    FLORT_DJ_CSPP_RECOVERED = 'flort_dj_cspp_instrument_recovered'
-    FLORT_DJ_CSPP_TELEMETERED = 'flort_dj_cspp_instrument'
+    FLORT_DJ_CSPP_RECOVERED = 'flort_dj_cspp_recovered'
+    FLORT_DJ_CSPP_TELEMETERED = 'flort_dj_cspp_telemetered'
 
 
 class FlortDjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
@@ -52,7 +52,7 @@ class FlortDjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the parser
         """
 
-        if data_key == DataParticleType.INSTRUMENT_RECOVERED:
+        if data_key == DataTypeKey.FLORT_DJ_CSPP_RECOVERED:
             config = self._parser_config.get(DataTypeKey.FLORT_DJ_CSPP_RECOVERED)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flort_dj_cspp.py',
@@ -62,7 +62,7 @@ class FlortDjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
                     DATA_PARTICLE_CLASS_KEY: FlortDjCsppInstrumentRecoveredDataParticle
                 }
             })
-        elif data_key == DataParticleType.INSTRUMENT_TELEMETERED:
+        elif data_key == DataTypeKey.FLORT_DJ_CSPP_TELEMETERED:
 
             config = self._parser_config.get(DataTypeKey.FLORT_DJ_CSPP_TELEMETERED)
             config.update(
@@ -111,12 +111,12 @@ class FlortDjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the harvester
         """
         if key in self._harvester_config:
-                harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(key),
-                driver_state[key],
-                lambda filename: self._new_file_callback(filename, key),
-                lambda modified: self._modified_file_callback(modified, key),
-                self._exception_callback)
+            harvester = SingleDirectoryHarvester(
+            self._harvester_config.get(key),
+            driver_state[key],
+            lambda filename: self._new_file_callback(filename, key),
+            lambda modified: self._modified_file_callback(modified, key),
+            self._exception_callback)
         else:
             harvester = None
             log.warn('build_single_harvester did not receive a particle type, harvester instantiation failed')
