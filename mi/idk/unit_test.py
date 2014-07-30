@@ -911,6 +911,22 @@ class InstrumentDriverTestCase(MiIntTestCase):
         }
         return config
 
+    @staticmethod
+    def create_rsn_comm_config(comm_config):
+        config = {
+            'instrument_type': ConfigTypes.RSN,
+            'port_agent_addr': comm_config.host,
+            'device_addr': comm_config.device_addr,
+            'device_port': comm_config.device_port,
+            'command_port': comm_config.command_port,
+            'instrument_command_port': comm_config.instrument_command_port,
+            'data_port': comm_config.data_port,
+            'telnet_sniffer_port': comm_config.sniffer_port,
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 8,
+        }
+        return config
+
     def create_botpt_comm_config(self, comm_config):
         config = {
             'instrument_type': ConfigTypes.BOTPT,
@@ -975,6 +991,8 @@ class InstrumentDriverTestCase(MiIntTestCase):
             config = self.create_serial_comm_config(comm_config)
         elif method == ConfigTypes.ETHERNET:
             config = self.create_ethernet_comm_config(comm_config)
+        elif method == ConfigTypes.RSN:
+            config = self.create_rsn_comm_config(comm_config)
         elif method == ConfigTypes.BOTPT:
             config = self.create_botpt_comm_config(comm_config)
         elif method == ConfigTypes.MULTI:
