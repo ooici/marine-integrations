@@ -135,17 +135,17 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        fid = open(os.path.join(RESOURCE_PATH, '11079364_PPB_CTD.txt'), 'r')
+        fid = open(os.path.join(RESOURCE_PATH, '11079364_PPD_CTD.txt'), 'r')
 
         stream_handle = fid
-        parser = CtdpfJCsppParser(self.config.get(DataTypeKey.CTDPF_J_CSPP_RECOVERED),
+        parser = CtdpfJCsppParser(self.config.get(DataTypeKey.CTDPF_J_CSPP_TELEMETERED),
                                   None, stream_handle,
                                   self.state_callback, self.pub_callback,
                                   self.exception_callback)
 
         particles = parser.get_records(20)
 
-        self.particle_to_yml(particles, '11079364_PPB_CTD_recov.yml')
+        self.particle_to_yml(particles, '11079364_PPD_CTD_telem.yml')
         fid.close()
 
     def assert_result(self, test, particle):
