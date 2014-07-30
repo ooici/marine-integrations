@@ -73,7 +73,7 @@ HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.
 HARDWARE_CONFIG_DATA_REGEX = re.compile(HARDWARE_CONFIG_DATA_PATTERN, re.DOTALL)
 HEAD_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{12})(.{176})(.{22})(.{2})(.{2})' % HEAD_CONFIG_SYNC_BYTES
 HEAD_CONFIG_DATA_REGEX = re.compile(HEAD_CONFIG_DATA_PATTERN, re.DOTALL)
-USER_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
+USER_CONFIG_DATA_PATTERN = r'(%s)(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{6})(.{2})(.{6})(.{4})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{180})(.{180})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})' % USER_CONFIG_SYNC_BYTES
@@ -128,17 +128,17 @@ class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
 
 
-# class NortekDataParticleType(BaseEnum):
-#     """
-#     List of particles
-#     """
-#     RAW = CommonDataParticleType.RAW
-#     HARDWARE_CONFIG = 'vel3d_cd_hardware_configuration'
-#     HEAD_CONFIG = 'vel3d_cd_head_configuration'
-#     USER_CONFIG = 'vel3d_cd_user_configuration'
-#     CLOCK = 'vel3d_clock_data'
-#     BATTERY = 'vel3d_cd_battery_voltage'
-#     ID_STRING = 'vel3d_cd_identification_string'
+class NortekDataParticleType(BaseEnum):
+    """
+    List of particles
+    """
+    RAW = CommonDataParticleType.RAW
+    HARDWARE_CONFIG = 'vel3d_cd_hardware_configuration'
+    HEAD_CONFIG = 'vel3d_cd_head_configuration'
+    USER_CONFIG = 'vel3d_cd_user_configuration'
+    CLOCK = 'vel3d_clock_data'
+    BATTERY = 'vel3d_cd_battery_voltage'
+    ID_STRING = 'vel3d_cd_identification_string'
 
 
 class InstrumentPrompts(BaseEnum):
@@ -292,7 +292,7 @@ class NortekHardwareConfigDataParticle(DataParticle):
     Routine for parsing hardware config data into a data particle structure for the Nortek sensor.
     """
 
-    # _data_particle_type = NortekDataParticleType.HARDWARE_CONFIG
+    _data_particle_type = NortekDataParticleType.HARDWARE_CONFIG
 
     def _build_parsed_values(self):
         """
@@ -379,7 +379,7 @@ class NortekHeadConfigDataParticle(DataParticle):
     """
     Routine for parsing head config data into a data particle structure for the Nortek sensor.
     """
-    # _data_particle_type = NortekDataParticleType.HEAD_CONFIG
+    _data_particle_type = NortekDataParticleType.HEAD_CONFIG
 
     def _build_parsed_values(self):
         """
@@ -620,7 +620,7 @@ class NortekUserConfigDataParticle(DataParticle):
     """
     Routine for parsing user config data into a data particle structure for the Nortek sensor.
     """
-    # _data_particle_type = NortekDataParticleType.USER_CONFIG
+    _data_particle_type = NortekDataParticleType.USER_CONFIG
 
     def _build_parsed_values(self):
         """
@@ -743,7 +743,7 @@ class NortekEngClockDataParticle(DataParticle):
     Routine for parsing clock engineering data into a data particle structure
     for the Nortek sensor.
     """
-    # _data_particle_type = NortekDataParticleType.CLOCK
+    _data_particle_type = NortekDataParticleType.CLOCK
 
     def _build_parsed_values(self):
         """
@@ -787,8 +787,7 @@ class NortekEngBatteryDataParticle(DataParticle):
     Routine for parsing battery engineering data into a data particle
     structure for the Nortek sensor.
     """
-
-    # _data_particle_type = NortekDataParticleType.BATTERY
+    _data_particle_type = NortekDataParticleType.BATTERY
 
     def _build_parsed_values(self):
         """
@@ -824,7 +823,7 @@ class NortekEngIdDataParticle(DataParticle):
     Routine for parsing id engineering data into a data particle
     structure for the Nortek sensor.
     """
-    # _data_particle_type = NortekDataParticleType.ID_STRING
+    _data_particle_type = NortekDataParticleType.ID_STRING
 
     def _build_parsed_values(self):
         """
@@ -1137,7 +1136,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         Parameter.USER_4_SPARE,
         Parameter.QUAL_CONSTANTS]
 
-    def __init__(self, prompts, newline, driver_event, particle_types):
+    def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
         @param prompts A BaseEnum class containing instrument prompts.
@@ -1151,14 +1150,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                            ProtocolEvent,
                                            ProtocolEvent.ENTER,
                                            ProtocolEvent.EXIT)
-
-        # self.NortekDataParticleType = particle_types
-        NortekEngBatteryDataParticle._data_particle_type = particle_types.BATTERY
-        NortekEngClockDataParticle._data_particle_type = particle_types.CLOCK
-        NortekEngIdDataParticle._data_particle_type = particle_types.ID_STRING
-        NortekHardwareConfigDataParticle._data_particle_type = particle_types.HARDWARE_CONFIG
-        NortekHeadConfigDataParticle._data_particle_type = particle_types.HEAD_CONFIG
-        NortekUserConfigDataParticle._data_particle_type = particle_types.USER_CONFIG
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
@@ -1195,7 +1186,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # Add build handlers for device commands.
-        #self._add_build_handler(InstrumentCmds.CONFIGURE_INSTRUMENT, self._build_set_configuration_command)
         self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK, self._build_set_real_time_clock_command)
 
         # Add response handlers for device commands.
@@ -1601,15 +1591,15 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         return None, (None, result)
 
     def _handler_command_get_hw_config(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION)
+        result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION) #, response_regex=HARDWARE_CONFIG_DATA_REGEX)
         return None, (None, result)
 
     def _handler_command_get_head_config(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION)
+        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION) #, response_regex=HEAD_CONFIG_DATA_REGEX)
         return None, (None, result)
 
     def _handler_command_get_user_config(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
+        result = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION, response_regex=USER_CONFIG_DATA_REGEX)
         return None, (None, result)
 
     def _clock_sync(self, *args, **kwargs):
@@ -1978,10 +1968,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         # get user_configuration params from the instrument
         log.debug('Sending get_user_configuration command to the instrument.')
-        ret_config = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
+        ret_config = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION, response_regex=USER_CONFIG_DATA_REGEX)
 
-        if self._check_configuration(ret_config, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
-            self._param_dict.update(ret_config)
+        self._param_dict.update(ret_config)
 
     def _create_set_output(self, parameters):
         """
@@ -1991,7 +1980,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         output = ['\xa5\x00\x00\x01']
 
         for param in self.order_of_user_config:
-            log.debug('_create_set_output: adding %s to list, value: %r', param, parameters.get(param))
+            log.trace('_create_set_output: adding %s to list', param)
             if param == Parameter.COMMENTS:
                 output.append(parameters.format(param).ljust(180, "\x00"))
             elif param == Parameter.DEPLOYMENT_NAME:
@@ -2002,7 +1991,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                 output.append(base64.b64decode(parameters.format(param)))
             else:
                 output.append(parameters.format(param))
-            log.debug('_create_set_output: ADDED %s output size = %s', param, len(output))
+            log.trace('_create_set_output: ADDED %s output size = %s', param, len(output))
 
         log.debug("Created set output: %r with length: %s", output, len(output))
 
