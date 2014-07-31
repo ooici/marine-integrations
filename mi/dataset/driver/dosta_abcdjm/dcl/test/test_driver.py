@@ -43,7 +43,9 @@ import unittest
 
 from nose.plugins.attrib import attr
 from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 from mi.core.log import get_logger; log = get_logger()
+from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
@@ -183,6 +185,26 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         log.info("============ END INTEG TEST GET =================")
 
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.  Should call the exception callback.
+        """
+        log.info("=== START INTEG TEST HARVESTER NEW FILE EXCEPTION ===")
+
+        # Create the file so that it is unreadable.
+        self.create_sample_data_set_dir(FILE1, REC_DIR, mode=000)
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.assert_exception(IOError)
+
+        # At this point the harvester thread is dead.  The agent
+        # exception handle should handle this case.
+
+        log.info("=== END INTEG TEST HARVESTER NEW FILE EXCEPTION ===")
+
     def test_mal_formed_records(self):
         """
         This test verifies that files containing mal-formed records are correctly parsed.
@@ -296,6 +318,30 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        log.debug('===== START QUAL TEST HARVESTER EXCEPTION =====')
+        self.create_sample_data_set_dir(FILE1, REC_DIR, mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir(FILE1, REC_DIR)
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+        log.debug('===== END QUAL TEST HARVESTER EXCEPTION =====')
 
     def test_large_import(self):
         """
