@@ -216,9 +216,6 @@ class FlortDjCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 193)
 
-        for particle in particles:
-            print particle.generate_dict()
-
         test_data = self.get_dict_from_yml(TEST_RECOVERED)
 
         for n in range(193):
