@@ -5,7 +5,7 @@
 @file marine-integrations/mi/dataset/parser/cspp_eng_cspp.py
 @author Jeff Roy
 @brief Parser for the cspp_eng_cspp dataset driver
-Release notes:
+Release notes: This is one of 4 parsers that make up that driver
 
 initial release
 """
