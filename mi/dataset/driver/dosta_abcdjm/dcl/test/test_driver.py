@@ -24,13 +24,13 @@ Files used for testing:
   Metadata - 2 sets,  Sensor Data - 22 records,  Garbled - 0,  Newline - \r\n
 
 20030314.dosta3.log
-  Metadata - 3 sets,  Sensor Data - 14 records,  Garbled - 0,  Newline - \r
+  Metadata - 3 sets,  Sensor Data - 14 records,  Garbled - 0,  Newline - \n
 
 20041225.dosta4.log
   Metadata - 2 sets,  Sensor Data - 250 records,  Garbled - 0,  Newline - \n
 
 20050103.dosta5.log
-   Metadata - 1 set,  Sensor Data - 3 records,  Garbled - 1,  Newline - \r
+   Metadata - 1 set,  Sensor Data - 3 records,  Garbled - 1,  Newline - \n
 
 20060207.dosta6.log
   Metadata - 2 sets,  Sensor Data - 7 records,  Garbled - 2,  Newline \r\n
@@ -40,37 +40,31 @@ __author__ = 'Steve Myerson'
 __license__ = 'Apache 2.0'
 
 import unittest
-import os
+#import os
 
 from nose.plugins.attrib import attr
-from mock import Mock
 from pyon.agent.agent import ResourceAgentState
-from pyon.core.exception import Timeout    ### remove when done
-from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
+#from interface.objects import ResourceAgentErrorEvent
+#from interface.objects import ResourceAgentConnectionLostErrorEvent
 from mi.core.log import get_logger; log = get_logger()
-from mi.core.instrument.instrument_driver import DriverEvent
+#from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.idk.exceptions import SampleTimeout
-from mi.idk import result_set
-from mi.idk.result_set import ResultSet     ### remove when done
+from mi.idk.result_set import ResultSet
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
+from mi.dataset.dataset_driver import DriverParameter
 
 from mi.dataset.driver.dosta_abcdjm.dcl.driver import \
     DostaAbcdjmDclDataSetDriver, \
     DataTypeKey
 
 from mi.dataset.parser.dosta_abcdjm_dcl import \
-    DostaAbcdjmDclRecoveredParser, \
-    DostaAbcdjmDclTelemeteredParser, \
     DostaAbcdjmDclRecoveredInstrumentDataParticle, \
     DostaAbcdjmDclTelemeteredInstrumentDataParticle, \
-    DostaStateKey, \
     DataParticleType
 
 REC_DIR = '/tmp/dsatest_rec'
@@ -193,26 +187,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         log.info("============ END INTEG TEST GET =================")
 
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.  Should call the exception callback.
-        """
-        log.info("=== START INTEG TEST HARVESTER NEW FILE EXCEPTION ===")
-
-        # Create the file so that it is unreadable.
-        self.create_sample_data_set_dir(FILE1, REC_DIR, mode=000)
-
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-
-        self.assert_exception(IOError)
-
-        # At this point the harvester thread is dead.  The agent
-        # exception handle should handle this case.
-
-        log.info("=== END INTEG TEST HARVESTER NEW FILE EXCEPTION ===")
-
     def test_mal_formed_records(self):
         """
         This test verifies that files containing mal-formed records are correctly parsed.
@@ -327,30 +301,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.
-
-        exception callback called.
-        """
-        log.debug('===== START QUAL TEST HARVESTER EXCEPTION =====')
-        self.create_sample_data_set_dir(FILE1, REC_DIR, mode=000)
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.clear_sample_data()
-        self.create_sample_data_set_dir(FILE1, REC_DIR)
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
-        log.debug('===== END QUAL TEST HARVESTER EXCEPTION =====')
-
     def test_large_import(self):
         """
         Test a large import
@@ -445,14 +395,13 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_simple(self):
         """
-        Verify that all records from a single file can be obtained in a single read.
+        Verify that all records from a file can be obtained in a single read.
         """
         log.debug('===== START QUAL TEST SIMPLE =====')
 
         self.create_sample_data_set_dir(FILE3, REC_DIR)
         self.create_sample_data_set_dir(FILE2, TEL_DIR)
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-        self.assert_start_sampling()
+        self.assert_initialize()
 
         # Verify we get the correct samples
         try:
@@ -500,7 +449,7 @@ class QualificationTest(DataSetQualificationTestCase):
             # Get the last 14 Telemetered particles.
             # Get the last 8 Recovered particles.
             rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 8, 10)
-            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 14, 10)
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 14, 20)
             rec_result3 = self.data_subscribers.get_samples(REC_STREAM, 8, 10)
 
             # Combine results into a single list.

@@ -13,7 +13,7 @@ There is 1 group of Sensor Data records for each set of metadata.
 Files used for testing:
 
 20000101.dosta0.log
-  Metadata - 1 set,  Sensor Data - 0 records,  Garbled - 0,  Newline - \r
+  Metadata - 1 set,  Sensor Data - 0 records,  Garbled - 0,  Newline - \n
 
 20010121.dosta1.log
   Metadata - 1 set,  Sensor Data - 21 records,  Garbled - 0,  Newline - \n
@@ -22,13 +22,13 @@ Files used for testing:
   Metadata - 2 sets,  Sensor Data - 22 records,  Garbled - 0,  Newline - \r\n
 
 20030314.dosta3.log
-  Metadata - 3 sets,  Sensor Data - 14 records,  Garbled - 0,  Newline - \r
+  Metadata - 3 sets,  Sensor Data - 14 records,  Garbled - 0,  Newline - \n
 
 20041225.dosta4.log
   Metadata - 2 sets,  Sensor Data - 250 records,  Garbled - 0,  Newline - \n
 
 20050103.dosta5.log
-   Metadata - 1 set,  Sensor Data - 3 records,  Garbled - 1,  Newline - \r
+   Metadata - 1 set,  Sensor Data - 3 records,  Garbled - 1,  Newline - \n
 
 20060207.dosta6.log
   Metadata - 2 sets,  Sensor Data - 7 records,  Garbled - 2,  Newline \r\n
@@ -302,14 +302,14 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.dosta_abcdjm_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
-                'DostaAbcdjmDclRecoveredInstrumentDataParticle'
+                None
         }
 
         self.tel_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.dosta_abcdjm_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
-                'DostaAbcdjmDclTelemeteredParser'
+                None
         }
 
         self.rec_state_callback_value = None
@@ -363,7 +363,6 @@ class DostaAbcdjmDclParserUnitTestCase(ParserUnitTestCase):
         """
         Read a file and pull out multiple data particles at one time.
         Verify that the results are those we expected.
-        File used for this test has 2 CO SIO blocks.
         """
         log.debug('===== START TEST GET MANY RECOVERED =====')
         in_file = self.open_file(FILE3)

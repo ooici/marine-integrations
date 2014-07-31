@@ -93,10 +93,7 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                                                 DataTypeKey.DOSTA_ABCDJM_RECOVERED),
                self._exception_callback)
 
-            if rec_harvester is not None:
-                harvesters.append(rec_harvester)
-            else:
-                log.warn('Could not build dosta_abcdjm_dcl recovered harvester')
+            harvesters.append(rec_harvester)
 
         else:
             log.warn('No configuration for dosta_abcdjm_dcl recovered harvester, not building')
@@ -116,10 +113,7 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                                                 DataTypeKey.DOSTA_ABCDJM_TELEMETERED),
                self._exception_callback)
 
-            if tel_harvester is not None:
-                harvesters.append(tel_harvester)
-            else:
-                log.warn('Could not build dosta_abcdjm_dcl telemetered harvester')
+            harvesters.append(tel_harvester)
 
         else:
             log.warn('No configuration for dosta_abcdjm_dcl telemetered harvester, not building')
@@ -143,7 +137,7 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_MODULE:
                     'mi.dataset.parser.dosta_abcdjm_dcl',
                 DataSetDriverConfigKeys.PARTICLE_CLASS:
-                    'DostaAbcdjmDclRecoveredInstrumentDataParticle'
+                    None
             })
 
             parser = DostaAbcdjmDclRecoveredParser(
@@ -155,9 +149,6 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                 self._data_callback,
                 self._sample_exception_callback)
 
-            if parser is None:
-                raise ConfigurationException('Unable to build Dosta_abcdjm Recovered Parser')
-
         # Build the telemetered parser if requested.
 
         elif data_key == DataTypeKey.DOSTA_ABCDJM_TELEMETERED:
@@ -166,7 +157,7 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_MODULE:
                     'mi.dataset.parser.dosta_abcdjm_dcl',
                 DataSetDriverConfigKeys.PARTICLE_CLASS:
-                    'DostaAbcdjmDclTelemeteredInstrumentDataParticle'
+                    None
             })
 
             parser = DostaAbcdjmDclTelemeteredParser(
@@ -177,9 +168,6 @@ class DostaAbcdjmDclDataSetDriver(MultipleHarvesterDataSetDriver):
                     self._save_parser_state(state, data_key, ingested),
                 self._data_callback,
                 self._sample_exception_callback)
-
-            if parser is None:
-                raise ConfigurationException('Unable to build Dosta_abcdjm Telemetered Parser')
 
         # Not one of the keys we recognize?
         # No parser for you!

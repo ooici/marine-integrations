@@ -46,16 +46,16 @@ from mi.core.exceptions import \
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
 # Basic patterns
-ANY_CHARS =  r'([^\r\n]*)'     # any characters excluding a newline
+ANY_CHARS = r'.*'              # any characters excluding a newline
 FLOAT = r'(\d+\.\d*)'          # unsigned floating point number
-NEW_LINE = r'(?:\r\n|\r|\n)'   # any type of new line
+NEW_LINE = r'(?:\r\n|\n)'      # any type of new line
 SPACE = ' '
 TAB = '\t'
 
 # Timestamp at the start of each record: YYYY/MM/DD HH:MM:SS.mmm
 # Metadata fields:  [text] more text
 # Sensor data has tab-delimited fields (integers, floats)
-# All records end with one of the plethora of newlines.
+# All records end with one of the newlines.
 DATE = r'(\d{4})/(\d{2})/(\d{2})'           # Date: YYYY/MM/DD
 TIME = r'(\d{2}):(\d{2}):(\d{2})\.(\d{3})'  # Time: HH:MM:SS.mmm
 TIMESTAMP = '(' + DATE + SPACE + TIME + ')'
@@ -64,38 +64,38 @@ END_METADATA = r'\]'
 PRODUCT = '(4831)'                     # the only valid Product Number
 
 # All dosta records are ASCII characters separated by a newline.
-DOSTA_RECORD_PATTERN = ANY_CHARS       # Any number of characters
-DOSTA_RECORD_PATTERN += NEW_LINE       # separated by a new line
-DOSTA_RECORD_MATCHER = re.compile(DOSTA_RECORD_PATTERN)
+DOSTA_RECORD_REGEX = ANY_CHARS       # Any number of characters
+DOSTA_RECORD_REGEX += NEW_LINE       # separated by a new line
+DOSTA_RECORD_MATCHER = re.compile(DOSTA_RECORD_REGEX)
 
 # Metadata record:
 #   Timestamp [Text]MoreText newline
-METADATA_PATTERN = TIMESTAMP + SPACE   # date and time
-METADATA_PATTERN += START_METADATA     # Metadata record starts with '['
-METADATA_PATTERN += ANY_CHARS          #   followed by text
-METADATA_PATTERN += END_METADATA       #   followed by ']'
-METADATA_PATTERN += ANY_CHARS          #   followed by more text
-METADATA_PATTERN += NEW_LINE           # Record ends with a newline
-METADATA_MATCHER = re.compile(METADATA_PATTERN)
+METADATA_REGEX = TIMESTAMP + SPACE   # date and time
+METADATA_REGEX += START_METADATA     # Metadata record starts with '['
+METADATA_REGEX += ANY_CHARS          #   followed by text
+METADATA_REGEX += END_METADATA       #   followed by ']'
+METADATA_REGEX += ANY_CHARS          #   followed by more text
+METADATA_REGEX += NEW_LINE           # Record ends with a newline
+METADATA_MATCHER = re.compile(METADATA_REGEX)
 
 # Sensor data record:
 #   Timestamp ProductNumber<tab>SerialNumber<tab>SensorData
 #   where SensorData are tab-separated unsigned floating point numbers
-SENSOR_DATA_PATTERN = TIMESTAMP + SPACE    # date and time
-SENSOR_DATA_PATTERN += PRODUCT + TAB       # Product number must be valid
-SENSOR_DATA_PATTERN += r'(\d{3,4})' + TAB  # 3 or 4 digit serial number
-SENSOR_DATA_PATTERN += FLOAT + TAB         # oxygen content
-SENSOR_DATA_PATTERN += FLOAT + TAB         # relative air saturation
-SENSOR_DATA_PATTERN += FLOAT + TAB         # ambient temperature
-SENSOR_DATA_PATTERN += FLOAT + TAB         # calibrated phase
-SENSOR_DATA_PATTERN += FLOAT + TAB         # temperature compensated phase
-SENSOR_DATA_PATTERN += FLOAT + TAB         # phase measurement with blue excitation
-SENSOR_DATA_PATTERN += FLOAT + TAB         # phase measurement with red excitation
-SENSOR_DATA_PATTERN += FLOAT + TAB         # amplitude measurement with blue excitation
-SENSOR_DATA_PATTERN += FLOAT + TAB         # amplitude measurement with red excitation
-SENSOR_DATA_PATTERN += FLOAT               # raw temperature voltage from thermistor
-SENSOR_DATA_PATTERN += NEW_LINE            # Record ends with a newline
-SENSOR_DATA_MATCHER = re.compile(SENSOR_DATA_PATTERN)
+SENSOR_DATA_REGEX = TIMESTAMP + SPACE    # date and time
+SENSOR_DATA_REGEX += PRODUCT + TAB       # Product number must be valid
+SENSOR_DATA_REGEX += r'(\d{3,4})' + TAB  # 3 or 4 digit serial number
+SENSOR_DATA_REGEX += FLOAT + TAB         # oxygen content
+SENSOR_DATA_REGEX += FLOAT + TAB         # relative air saturation
+SENSOR_DATA_REGEX += FLOAT + TAB         # ambient temperature
+SENSOR_DATA_REGEX += FLOAT + TAB         # calibrated phase
+SENSOR_DATA_REGEX += FLOAT + TAB         # temperature compensated phase
+SENSOR_DATA_REGEX += FLOAT + TAB         # phase measurement with blue excitation
+SENSOR_DATA_REGEX += FLOAT + TAB         # phase measurement with red excitation
+SENSOR_DATA_REGEX += FLOAT + TAB         # amplitude measurement with blue excitation
+SENSOR_DATA_REGEX += FLOAT + TAB         # amplitude measurement with red excitation
+SENSOR_DATA_REGEX += FLOAT               # raw temperature voltage from thermistor
+SENSOR_DATA_REGEX += NEW_LINE            # Record ends with a newline
+SENSOR_DATA_MATCHER = re.compile(SENSOR_DATA_REGEX)
 
 # SENSOR_DATA_MATCHER produces the following groups.
 # The following are indices into groups() produced by SENSOR_DATA_MATCHER.
