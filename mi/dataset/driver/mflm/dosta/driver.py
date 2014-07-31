@@ -16,10 +16,10 @@ import string
 from mi.core.common import BaseEnum
 from mi.core.exceptions import ConfigurationException
 from mi.core.log import get_logger ; log = get_logger()
-from mi.dataset.harvester import SingleFileHarvester
+from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
-from mi.dataset.parser.dostad import DostadParser, DostadParserDataParticle
+from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered, DostadParserDataParticle
 from mi.dataset.parser.dostad import DostadMetadataDataParticle, StateKey
 
 class DataSourceKey(BaseEnum):
@@ -90,8 +90,22 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
         @param parser_state starting parser state to pass to parser
         @param stream_in Handle of open file to pass to parser
         """
-        # no recovered parser defined yet
-        parser = None
+        config = self._parser_config[DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED]
+        # Fill in blanks with particle info
+        config.update({
+            'particle_module': 'mi.dataset.parser.dostad',
+            'particle_class': ['DostadParserDataParticle',
+                               'DostadMetadataDataParticle']
+        })
+        log.debug("My Config: %s", config)
+        parser = DostadParserRecovered(
+            config,
+            parser_state,
+            stream_in,
+            lambda state: self._save_parser_state(state, DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
+            self._data_callback,
+            self._sample_exception_callback
+        )
         return parser
 
     def _build_harvester(self, driver_state):
@@ -111,16 +125,16 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
         else:
             log.warn('No configuration for telemetered harvester, not building')
 
-        #if DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED in self._harvester_config:
-            #recovered_harvester = SingleDirectoryHarvester(
-            #    self._harvester_config.get(DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
-            #    driver_state[DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED],
-            #    lambda filename: self._new_file_callback(filename, DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
-            #    lambda modified: self._modified_file_callback(modified, DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
-            #    self._exception_callback
-            #)
-        #    self._harvester.append(recovered_harvester)
-        #else:
-        #    log.warn('No configuration for recovered harvester, not building')
+        if DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED in self._harvester_config:
+            recovered_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
+                driver_state[DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED),
+                self._exception_callback
+            )
+            self._harvester.append(recovered_harvester)
+        else:
+            log.warn('No configuration for recovered harvester, not building')
         return self._harvester
 
