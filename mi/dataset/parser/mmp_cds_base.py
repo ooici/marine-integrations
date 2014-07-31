@@ -185,16 +185,16 @@ class MmpCdsParser(BufferLoadingParser):
         """
         particles_returned = 0
 
-        log.info("_yank_particles Here")
-
         if self._state is not None and StateKey.PARTICLES_RETURNED in self._state and \
                 self._state[StateKey.PARTICLES_RETURNED] > 0:
             particles_returned = self._state[StateKey.PARTICLES_RETURNED]
 
         total_num_records = len(self._record_buffer)
 
-        if total_num_records < num_records:
-            num_to_fetch = total_num_records
+        num_records_remaining = total_num_records - particles_returned
+
+        if num_records_remaining < num_records:
+            num_to_fetch = num_records_remaining
         else:
             num_to_fetch = num_records
 

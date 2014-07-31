@@ -1,7 +1,7 @@
 # Expected Results
 
 header:
-  particle_object: FlordDataParticle
+  particle_object: FlordTelemeteredDataParticle
   particle_type: flord_m_glider_instrument
 
 data:

@@ -1,0 +1,30 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.603000
+    profiler_timestamp: 1397774253.6029999256134033
+    pressure_depth: 19.3820000000000014
+    timer: 4.2199999999999998
+    sample_delay: -133
+    channel_array: [2147991936, 2147699840, 2148777792, 2148791680, 2150791744, 2147353216, 2147460032]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 1
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.738000
+    profiler_timestamp: 1397774253.7379999160766602
+    pressure_depth: 19.3659999999999997
+    timer: 4.3499999999999996
+    sample_delay: -133
+    channel_array: [2147992384, 2147696000, 2148777472, 2148799872, 2150797120, 2147347072, 2147457664]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 2
