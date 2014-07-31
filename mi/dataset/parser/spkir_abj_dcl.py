@@ -55,11 +55,13 @@ from mi.core.instrument.data_particle import \
     DataParticleValue
 
 # Basic patterns
-ANY_CHARS = r'.*'                 # Any characters excluding a newline
-BIN_BYTE = b'([\x00-\xFF])'       # Binary 8-bit field (1 bytes)
-BIN_SHORT = b'([\x00-\xFF]{2})'   # Binary 16-bit field (2 bytes)
-BIN_LONG = b'([\x00-\xFF]{4})'    # Binary 32-bit field (4 bytes)
+ANY_CHARS = r'.*'                   # Any characters excluding a newline
+BINARY_BYTE = b'([\x00-\xFF])'      # Binary 8-bit field (1 bytes)
+BINARY_SHORT = b'([\x00-\xFF]{2})'  # Binary 16-bit field (2 bytes)
+BINARY_LONG = b'([\x00-\xFF]{4})'   # Binary 32-bit field (4 bytes)
 SPACE = ' '
+START_GROUP = '('
+END_GROUP = ')'
 
 # Timestamp at the start of each record: YYYY/MM/DD HH:MM:SS.mmm
 DATE = r'(\d\d\d\d)/(\d\d)/(\d\d)'        # Date: YYYY/MM/DD
@@ -79,26 +81,26 @@ METADATA_MATCHER = re.compile(METADATA_REGEX)
 # Sensor data record:
 #   Timestamp SATDI<id><ascii data><binary data> newline
 SENSOR_DATA_REGEX = TIMESTAMP + SPACE   # date and time
-SENSOR_DATA_REGEX += '('                # Group data fields (for checksum calc)
+SENSOR_DATA_REGEX += START_GROUP        # Group data fields (for checksum calc)
 SENSOR_DATA_REGEX += r'(SATDI\d)'       #   ASCII SATDI id
 SENSOR_DATA_REGEX += r'(\d{4})'         #   ASCII serial number
 SENSOR_DATA_REGEX += r'(\d{7}\.\d{2})'  #   ASCII timer
-SENSOR_DATA_REGEX += BIN_SHORT          #   2-byte signed sample delay
-SENSOR_DATA_REGEX += '('                #   Group all the channel ADC counts
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 1 ADC count
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 2 ADC count
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 3 ADC count
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 4 ADC count
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 5 ADC count
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 6 ADC count
-SENSOR_DATA_REGEX += BIN_LONG           #     4-byte unsigned Channel 7 ADC count
-SENSOR_DATA_REGEX += ')'                #   End of channel ADC counts group
-SENSOR_DATA_REGEX += BIN_SHORT          #   2-byte unsigned Supply Voltage
-SENSOR_DATA_REGEX += BIN_SHORT          #   2-byte unsigned Analog Voltage
-SENSOR_DATA_REGEX += BIN_SHORT          #   2-byte unsigned Internal Temperature
-SENSOR_DATA_REGEX += BIN_BYTE           #   1-byte unsigned Frame Count
-SENSOR_DATA_REGEX += BIN_BYTE           #   1-byte unsigned Checksum
-SENSOR_DATA_REGEX += ')'                # End of all the data group
+SENSOR_DATA_REGEX += BINARY_SHORT       #   2-byte signed sample delay
+SENSOR_DATA_REGEX += START_GROUP        #   Group all the channel ADC counts
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 1 ADC count
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 2 ADC count
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 3 ADC count
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 4 ADC count
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 5 ADC count
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 6 ADC count
+SENSOR_DATA_REGEX += BINARY_LONG        #     4-byte unsigned Channel 7 ADC count
+SENSOR_DATA_REGEX += END_GROUP          #   End of channel ADC counts group
+SENSOR_DATA_REGEX += BINARY_SHORT       #   2-byte unsigned Supply Voltage
+SENSOR_DATA_REGEX += BINARY_SHORT       #   2-byte unsigned Analog Voltage
+SENSOR_DATA_REGEX += BINARY_SHORT       #   2-byte unsigned Internal Temperature
+SENSOR_DATA_REGEX += BINARY_BYTE        #   1-byte unsigned Frame Count
+SENSOR_DATA_REGEX += BINARY_BYTE        #   1-byte unsigned Checksum
+SENSOR_DATA_REGEX += END_GROUP          # End of all the data group
 SENSOR_DATA_REGEX += r'\r\n'            # Sensor data record ends with CR-LF
 SENSOR_DATA_MATCHER = re.compile(SENSOR_DATA_REGEX)
 

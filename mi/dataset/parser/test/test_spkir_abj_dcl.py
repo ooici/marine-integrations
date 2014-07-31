@@ -35,7 +35,6 @@ Files used for testing:
 20080401.spkir8.log
   This file contains a boatload of invalid sensor data records.
   See metadata in file for a list of the errors.
-
 """
 
 import unittest
@@ -43,8 +42,6 @@ import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException
-from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -300,9 +297,8 @@ EXPECTED_20050403_spkir5 = [
         65527, 65527, 65527, 253, 1),
 ]
 
-
 # Expected tuples for data in file 20061220.spkir6.log
-# Expected tuples for data in file 20061220.spkir6.log
+# Expected tuples for data in file 20071225.spkir7.log
 # These files produces a large number particles.
 # They will be used for the large import test only.
 # No verification of particles from these files are done in unit test.
@@ -383,14 +379,14 @@ class SpkirAbjDclParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.spkir_abj_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
-                'SpkirAbjDclRecoveredInstrumentDataParticle'
+                None
         }
 
         self.tel_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.spkir_abj_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
-                'SpkirAbjDclTelemeteredInstrumentDataParticle'
+                None
         }
 
         self.rec_state_callback_value = None

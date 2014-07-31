@@ -10,6 +10,26 @@ USAGE:
        $ bin/dsa/test_driver
        $ bin/dsa/test_driver -i [-t testname]
        $ bin/dsa/test_driver -q [-t testname]
+
+Files used for testing:
+
+20020113.spkir2.log
+  Metadata - 1 set,  Sensor Data - 13 records
+
+20030208.spkir3.log
+  Metadata - 2 sets,  Sensor Data - 8 records
+
+20040305.spkir4.log
+  Metadata - 3 sets,  Sensor Data - 5 records
+
+20050403.spkir5.log
+  Metadata - 4 sets,  Sensor Data - 3 records
+
+20061220.spkir6.log
+  Metadata - 1 set,  Sensor Data - 400 records
+
+20071225.spkir7.log
+  Metadata - 2 sets,  Sensor Data - 250 records
 """
 
 __author__ = 'Steve Myerson'
@@ -18,10 +38,8 @@ __license__ = 'Apache 2.0'
 import unittest
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
