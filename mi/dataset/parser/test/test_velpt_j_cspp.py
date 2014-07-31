@@ -336,6 +336,8 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 2)
 
+        self.assertTrue(self.exception_callback_value)
+
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
