@@ -40,14 +40,10 @@ __author__ = 'Steve Myerson'
 __license__ = 'Apache 2.0'
 
 import unittest
-#import os
 
 from nose.plugins.attrib import attr
 from pyon.agent.agent import ResourceAgentState
-#from interface.objects import ResourceAgentErrorEvent
-#from interface.objects import ResourceAgentConnectionLostErrorEvent
 from mi.core.log import get_logger; log = get_logger()
-#from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
