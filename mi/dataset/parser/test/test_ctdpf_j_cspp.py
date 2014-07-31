@@ -37,6 +37,8 @@ from mi.dataset.driver.ctdpf_j.cspp.driver import DataTypeKey
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'ctdpf_j', 'cspp', 'resource')
 
+RECOVERED_SAMPLE_DATA = '11079364_PPB_CTD.txt'
+TELEMETERED_SAMPLE_DATA = '11079364_PPD_CTD.txt'
 
 @attr('UNIT', group='mi')
 class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
@@ -135,7 +137,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        fid = open(os.path.join(RESOURCE_PATH, '11079364_PPD_CTD.txt'), 'r')
+        fid = open(os.path.join(RESOURCE_PATH, TELEMETERED_SAMPLE_DATA), 'r')
 
         stream_handle = fid
         parser = CtdpfJCsppParser(self.config.get(DataTypeKey.CTDPF_J_CSPP_TELEMETERED),
@@ -206,7 +208,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out data particles one at a time.
         Assert that the results are those we expected.
         """
-        file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_CTD.txt')
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
         stream_handle = open(file_path, 'r')
 
         # Note: since the recovered and telemetered parser and particles are common
@@ -238,7 +240,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_CTD.txt')
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
         stream_handle = open(file_path, 'r')
 
         # Note: since the recovered and telemetered parser and particles are common
@@ -263,7 +265,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         This test makes sure that we retrieve the correct particles upon starting with an offset state.
         """
 
-        file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_CTD.txt')
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
         stream_handle = open(file_path, 'rb')
 
         # position 309 is the beginning of the second data record, which would have produced the
@@ -301,7 +303,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        file_path = os.path.join(RESOURCE_PATH, '11079364_PPB_CTD.txt')
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
         stream_handle = open(file_path, 'r')
 
         # The yml file has the metadata and the first 19
