@@ -27,7 +27,6 @@ from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 from mi.core.log import get_logger
 log = get_logger()
-from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
@@ -55,6 +54,9 @@ DIR_CTDPF_RECOVERED = '/tmp/ctdpf/recov/test'
 
 CTDPF_REC_PATTERN = '*PPB_CTD.txt'
 CTDPF_TEL_PATTERN = '*PPD_CTD.txt'
+
+RECOVERED_SAMPLE_DATA = '11079364_PPB_CTD.txt'
+TELEMETERED_SAMPLE_DATA = '11079364_PPD_CTD.txt'
 
 # Driver details
 DataSetTestCase.initialize(
@@ -137,7 +139,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
 
         # test that everything works for the telemetered harvester
-        self.create_sample_data_set_dir('11079364_PPD_CTD.txt', DIR_CTDPF_TELEMETERED)
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_CTDPF_TELEMETERED)
 
         log.debug('### Sample file created in dir = %s ', DIR_CTDPF_TELEMETERED)
 
@@ -147,7 +149,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=20, timeout=10)
 
         # test that everything works for the recovered harvester
-        self.create_sample_data_set_dir('11079364_PPB_CTD.txt', DIR_CTDPF_RECOVERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_CTDPF_RECOVERED)
 
         log.debug('### Sample file created in dir = %s ', DIR_CTDPF_RECOVERED)
 
@@ -162,8 +164,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         log.info("================ START INTEG TEST MID STATE START =====================")
 
-        recovered_file_one = '11079364_PPB_CTD.txt'
-        telemetered_file_one = '11079364_PPD_CTD.txt'
+        recovered_file_one = RECOVERED_SAMPLE_DATA
+        telemetered_file_one = TELEMETERED_SAMPLE_DATA
 
         recovered_path_1 = self.create_sample_data_set_dir(recovered_file_one, DIR_CTDPF_RECOVERED)
         telemetered_path_1 = self.create_sample_data_set_dir(telemetered_file_one, DIR_CTDPF_TELEMETERED)
@@ -202,8 +204,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart sampling, ingesting files in the
         correct order
         """
-        recovered_file_one = '11079364_PPB_CTD.txt'
-        telemetered_file_one = '11079364_PPD_CTD.txt'
+        recovered_file_one = RECOVERED_SAMPLE_DATA
+        telemetered_file_one = TELEMETERED_SAMPLE_DATA
 
         self.create_sample_data_set_dir(recovered_file_one, DIR_CTDPF_RECOVERED)
         self.create_sample_data_set_dir(telemetered_file_one, DIR_CTDPF_TELEMETERED)
@@ -260,32 +262,174 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        log.info("=========== START QUAL TEST PUBLISH PATH =================")
+
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_CTDPF_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_CTDPF_RECOVERED)
+
+        self.assert_initialize()
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        #get the telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 19, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, '11079364_PPD_CTD_telem.yml')
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 19, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, '11079364_PPB_CTD_recov.yml')
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
         """
-        pass
+        log.info("=========== START QUAL TEST LARGE IMPORT =================")
+
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_CTDPF_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_CTDPF_RECOVERED)
+
+        self.assert_initialize()
+
+        # # get the telemetered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get ALL of the telemetered instrument particles
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 200, 120)
+
+        # get the recovered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the recovered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 200, 120)
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_CTDPF_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_CTDPF_RECOVERED)
+
+        # Put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get the first 4 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_telemetered_stop_start_one.yml')
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the first 7 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 7, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        # restart sampling
+        self.assert_start_sampling()
+
+        # get the next 12 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 12, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
+
+        # get the next 8 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 8, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        pass
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_CTDPF_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_CTDPF_RECOVERED)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        #get the first 4 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_telemetered_stop_start_one.yml')
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the first 7 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 7, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        # Re-initialize
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        #restart sampling
+        self.assert_start_sampling()
+
+        # get the next 12 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 12, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
+
+        # get the next 8 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 8, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        log.info("=========== START QUAL TEST PARSER EXCEPTION =================")
+
+        self.create_sample_data_set_dir('11079364_BAD_PPB_CTD.txt', DIR_CTDPF_RECOVERED)
+
+        self.assert_initialize()
+
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
 
