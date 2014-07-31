@@ -16,9 +16,10 @@ __license__ = 'Apache 2.0'
 import numpy
 
 from mi.core.log import get_logger
+from mi.core.exceptions import RecoverableSampleException
 log = get_logger()
 from mi.core.common import BaseEnum
-import re
+
 
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULTIPLE_TAB_REGEX, \
@@ -29,21 +30,21 @@ from mi.dataset.parser.cspp_base import CsppParser, FLOAT_REGEX, INT_REGEX, MULT
 
 
 # A regular expression that should match a velpt_j data record
-DATA_REGEX = r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + Y_OR_N_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + FLOAT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + INT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + INT_REGEX + r')' + MULTIPLE_TAB_REGEX
-DATA_REGEX += r'(' + INT_REGEX + r')' + END_OF_LINE_REGEX
+DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX    # profiler timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # pressure depth
+DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX  # suspect timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # speed of sound
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # heading
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # pitch
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # roll
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # pressure
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # temperature
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # velocity beam 1
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # velocity beam 2
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # velocity beam 3
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # amplitude beam 1
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # amplitude beam 2
+DATA_REGEX += '(' + INT_REGEX + ')' + END_OF_LINE_REGEX      # amplitude beam 3
 
 
 class DataMatchesGroupNumber(BaseEnum):
@@ -146,7 +147,7 @@ class VelptJCsppMetadataDataParticle(CsppMetadataDataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
-
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: %s" % (ex, self.raw_data))
         return results
 
 
@@ -198,6 +199,7 @@ class VelptJCsppInstrumentDataParticle(DataParticle):
 
         except (ValueError, TypeError, IndexError) as ex:
             log.warn("Exception when building parsed values")
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: %s" % (ex, self.raw_data))
 
         log.debug('VelptJCsppInstrumentDataParticle: particle=%s', results)
         return results

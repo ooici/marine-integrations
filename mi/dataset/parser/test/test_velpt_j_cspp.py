@@ -42,7 +42,7 @@ BAD_RECOVERED_TEXT = 'BAD_PPB_ADCP.txt'
 
 RECOVERED_RESULTS = '11079364_PPB_ADCP.yml'
 TELEMETERED_RESULTS = '11079364_PPD_ADCP.yml'
-BAD_RECOVERED_RESULTS = 'BAD_ADCP.yml'
+BAD_RECOVERED_RESULTS = 'rec_BAD_ADCP.yml'
 
 @attr('UNIT', group='mi')
 class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
@@ -80,9 +80,9 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: VelptJCsppMetadataTelemeteredDataParticle,
                     DATA_PARTICLE_CLASS_KEY: VelptJCsppInstrumentTelemeteredDataParticle,
-                    }
+                }
             },
-            }
+        }
         # Define test data particles and their associated timestamps which will be
         # compared with returned results
 
@@ -91,7 +91,7 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
         self.publish_callback_value = None
         self.exception_callback_value = None
         #creates the yaml file, commented out to save time when the file already exists
-        #self.create_yml()
+        self.create_yml()
 
     def particle_to_yml(self, particles, filename, mode='w'):
         """
@@ -146,12 +146,12 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
         fid = open(os.path.join(RESOURCE_PATH, BAD_RECOVERED_TEXT), 'r')
 
         self.stream_handle = fid
-        self.parser = VelptJCsppParser(self.config.get(DataTypeKey.VELPT_J_CSPP_RECOVERED), None, self.stream_handle,
+        self.parser = VelptJCsppParser(self.config.get(DataTypeKey.VELPT_J_CSPP_TELEMETERED), None, self.stream_handle,
                                         self.state_callback, self.pub_callback, self.exception_callback)
 
-        particles = self.parser.get_records(1000)
+        particles = self.parser.get_records(4)
 
-        self.particle_to_yml(particles, BAD_RECOVERED_RESULTS)
+        self.particle_to_yml(particles, 'tel_BAD_ADCP.yml')
         fid.close()
 
     def test_simple(self):

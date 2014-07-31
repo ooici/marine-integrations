@@ -1,0 +1,72 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: VelptJCsppMetadataTelemeteredDataParticle
+    particle_type: velpt_j_cspp_metadata
+    internal_timestamp: 3606762485.111000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 12:23:16'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.PPD'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+  - _index: 2
+    particle_object: VelptJCsppInstrumentTelemeteredDataParticle
+    particle_type: velpt_j_cspp_instrument
+    internal_timestamp: 3606762485.111000
+    profiler_timestamp: 1397773685.1110000610351562
+    pressure_depth: 19.3870000000000005
+    suspect_timestamp: 1
+    speed_of_sound: 1492.4000000000000909
+    heading: 102.0000000000000000
+    pitch: -0.6000000000000000
+    roll: -2.2999999999999998
+    velpt_pressure: 18.4729999999999990
+    temperature: 10.7300000000000004
+    velocity_beam1_m_s: -0.0790000000000000
+    velocity_beam2_m_s: 0.1090000000000000
+    velocity_beam3_m_s: -0.0990000000000000
+    amplitude_beam1: 102
+    amplitude_beam2: 104
+    amplitude_beam3: 101
+  - _index: 3
+    particle_object: VelptJCsppInstrumentTelemeteredDataParticle
+    particle_type: velpt_j_cspp_instrument
+    internal_timestamp: 3606762495.112000
+    profiler_timestamp: 1397773695.1119999885559082
+    pressure_depth: 19.2429999999999986
+    suspect_timestamp: 0
+    speed_of_sound: 1492.2999999999999545
+    heading: 101.7000000000000028
+    pitch: -1.2000000000000000
+    roll: -2.5000000000000000
+    velpt_pressure: 18.5859999999999985
+    temperature: 10.6999999999999993
+    velocity_beam1_m_s: -0.0130000000000000
+    velocity_beam2_m_s: 0.1570000000000000
+    velocity_beam3_m_s: -0.1110000000000000
+    amplitude_beam1: 104
+    amplitude_beam2: 103
+    amplitude_beam3: 103
+  - _index: 4
+    particle_object: VelptJCsppInstrumentTelemeteredDataParticle
+    particle_type: velpt_j_cspp_instrument
+    internal_timestamp: 3606762505.112000
+    profiler_timestamp: 1397773705.1119999885559082
+    pressure_depth: 19.4480000000000004
+    suspect_timestamp: 0
+    speed_of_sound: 1492.0999999999999091
+    heading: 106.5999999999999943
+    pitch: -1.3999999999999999
+    roll: -2.3999999999999999
+    velpt_pressure: 18.8049999999999997
+    temperature: 10.6699999999999999
+    velocity_beam1_m_s: -0.0740000000000000
+    velocity_beam2_m_s: 0.1380000000000000
+    velocity_beam3_m_s: -0.0670000000000000
+    amplitude_beam1: 103
+    amplitude_beam2: 100
+    amplitude_beam3: 100

@@ -17,7 +17,7 @@ log = get_logger()
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
 from mi.dataset.parser.cspp_base import METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
-from mi.dataset.parser.velpt_j_cspp import VelptJCsppParser, DataParticleType, \
+from mi.dataset.parser.velpt_j_cspp import VelptJCsppParser, \
     VelptJCsppInstrumentTelemeteredDataParticle, VelptJCsppInstrumentRecoveredDataParticle,\
     VelptJCsppMetadataRecoveredDataParticle, VelptJCsppMetadataTelemeteredDataParticle
 from mi.core.common import BaseEnum
@@ -27,8 +27,8 @@ from mi.core.exceptions import ConfigurationException
 
 class DataTypeKey(BaseEnum):
 
-    VELPT_J_CSPP_RECOVERED = 'velpt_j_cspp_instrument_recovered'
-    VELPT_J_CSPP_TELEMETERED = 'velpt_j_cspp_instrument'
+    VELPT_J_CSPP_RECOVERED = 'velpt_j_cspp_recovered'
+    VELPT_J_CSPP_TELEMETERED = 'velpt_j_cspp_telemetered'
 
 
 class VelptJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
@@ -52,7 +52,7 @@ class VelptJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the parser
         """
 
-        if data_key == DataParticleType.INSTRUMENT_RECOVERED:
+        if data_key == DataTypeKey.VELPT_J_CSPP_RECOVERED:
             config = self._parser_config.get(DataTypeKey.VELPT_J_CSPP_RECOVERED)
             config.update({
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp.py',
@@ -62,7 +62,7 @@ class VelptJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
                     DATA_PARTICLE_CLASS_KEY: VelptJCsppInstrumentRecoveredDataParticle
                 }
             })
-        elif data_key == DataParticleType.INSTRUMENT_TELEMETERED:
+        elif data_key == DataTypeKey.VELPT_J_CSPP_TELEMETERED:
 
             config = self._parser_config.get(DataTypeKey.VELPT_J_CSPP_TELEMETERED)
             config.update(
@@ -111,12 +111,12 @@ class VelptJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the harvester
         """
         if key in self._harvester_config:
-                harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(key),
-                driver_state[key],
-                lambda filename: self._new_file_callback(filename, key),
-                lambda modified: self._modified_file_callback(modified, key),
-                self._exception_callback)
+            harvester = SingleDirectoryHarvester(
+            self._harvester_config.get(key),
+            driver_state[key],
+            lambda filename: self._new_file_callback(filename, key),
+            lambda modified: self._modified_file_callback(modified, key),
+            self._exception_callback)
         else:
             harvester = None
             log.warn('build_single_harvester did not receive a particle type, harvester instantiation failed')
