@@ -315,7 +315,6 @@ class SpkirAbjDclParser(BufferLoadingParser):
 
         while chunk is not None:
             self._increment_position(len(chunk))
-            log.debug('CHUNK %d %s', len(chunk), chunk)
 
             # If this is a valid sensor data record,
             # use the extracted fields to generate a particle.
@@ -327,7 +326,6 @@ class SpkirAbjDclParser(BufferLoadingParser):
                 # The separated fields will go into the particle data.
 
                 groups = sensor_match.groups()
-                log.debug('GROUPS %s', groups)
 
                 # See if the checksum is correct.
                 # Checksum is the modulo 256 sum of all data bytes.
@@ -366,8 +364,6 @@ class SpkirAbjDclParser(BufferLoadingParser):
                     checksum_status
                 )
 
-                log.debug('PARTICLE %s', particle_data)
-
                 particle = self._extract_sample(self.particle_class,
                                                 None,
                                                 particle_data,
@@ -385,8 +381,6 @@ class SpkirAbjDclParser(BufferLoadingParser):
                     error_message = 'Unknown data found in chunk %s' % chunk
                     log.warn(error_message)
                     self._exception_callback(UnexpectedDataException(error_message))
-                else:
-                    log.debug('GOT VALID METADATA - REMOVE BEFORE DELIVERY')
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
