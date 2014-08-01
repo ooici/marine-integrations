@@ -68,15 +68,15 @@ HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 
 CHECK_SUM_SEED = 0xb58c
 
-HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' \
+HARDWARE_CONFIG_DATA_PATTERN = r'(%s)(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})(\x06\x06)' \
                                % HW_CONFIG_SYNC_BYTES
 HARDWARE_CONFIG_DATA_REGEX = re.compile(HARDWARE_CONFIG_DATA_PATTERN, re.DOTALL)
-HEAD_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{12})(.{176})(.{22})(.{2})(.{2})' % HEAD_CONFIG_SYNC_BYTES
+HEAD_CONFIG_DATA_PATTERN = r'(%s)(.{2})(.{2})(.{2})(.{12})(.{176})(.{22})(.{2})(.{2})(\x06\x06)' % HEAD_CONFIG_SYNC_BYTES
 HEAD_CONFIG_DATA_REGEX = re.compile(HEAD_CONFIG_DATA_PATTERN, re.DOTALL)
 USER_CONFIG_DATA_PATTERN = r'(%s)(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{6})(.{2})(.{6})(.{4})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{180})(.{180})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
-                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})' % USER_CONFIG_SYNC_BYTES
+                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})(\x06\x06)' % USER_CONFIG_SYNC_BYTES
 USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
 # min, sec, day, hour, year, month
@@ -320,7 +320,7 @@ class NortekHardwareConfigDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.VELOCITY_RANGE, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.VELOCITY_RANGE]},
                   {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.FW_VERSION, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.FW_VERSION]}]
 
-        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
+        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data, HW_CONFIG_LEN)
         if working_value[NortekHardwareConfigDataParticleKey.CHECKSUM] != calculated_checksum:
             log.warn("Calculated checksum: %s did not match packet checksum: %s",
                      calculated_checksum, working_value[NortekHardwareConfigDataParticleKey.CHECKSUM])
@@ -410,7 +410,7 @@ class NortekHeadConfigDataParticle(DataParticle):
                    DataParticleKey.BINARY: True},
                   {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.NUM_BEAMS, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.NUM_BEAMS]}]
 
-        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
+        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data, HEAD_CONFIG_LEN)
         if working_value[NortekHeadConfigDataParticleKey.CHECKSUM] != calculated_checksum:
             log.warn("Calculated checksum: %s did not match packet checksum: %s",
                      calculated_checksum, working_value[NortekHeadConfigDataParticleKey.CHECKSUM])
@@ -720,7 +720,7 @@ class NortekUserConfigDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND]},
                   {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_CONSTANTS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILTER_CONSTANTS]}]
 
-        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
+        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data, USER_CONFIG_LEN)
         if working_value[NortekUserConfigDataParticleKey.CHECKSUM] != calculated_checksum:
             log.warn("Calculated checksum: %s did not match packet checksum: %s",
                      calculated_checksum, working_value[NortekUserConfigDataParticleKey.CHECKSUM])
@@ -1079,7 +1079,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     Subclasses CommandResponseInstrumentProtocol
     """
     #logging level
-    __metaclass__ = get_logging_metaclass(log_level='debug')    # TODO: trace!
+    __metaclass__ = get_logging_metaclass(log_level='debug')
 
     velocity_data_regex = []
     velocity_sync_bytes = ''
@@ -1496,19 +1496,21 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
 
         #ID + BV    Call these commands at the same time, so their responses are combined (non-unique regex workaround)
-        self._handler_command_read_id_battery_voltage()
+        # Issue read id, battery voltage, & clock commands all at the same time (non-unique REGEX workaround).
+        self._do_cmd_resp(InstrumentCmds.READ_ID + InstrumentCmds.READ_BATTERY_VOLTAGE,
+                          response_regex=ID_BATTERY_DATA_REGEX, timeout=30)
 
         #RC
-        self._handler_command_read_clock()
+        self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, response_regex=CLOCK_DATA_REGEX)
 
         #GP
-        self._handler_command_get_hw_config()
+        self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION, response_regex=HARDWARE_CONFIG_DATA_REGEX)
 
         #GH
-        self._handler_command_get_head_config()
+        self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, response_regex=HEAD_CONFIG_DATA_REGEX)
 
         #GC
-        self._handler_command_get_user_config()
+        self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION, response_regex=USER_CONFIG_DATA_REGEX)
 
         return None, (None, None)
 
@@ -1569,38 +1571,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
 
         return next_state, (next_agent_state, result)
-
-    def _handler_command_read_id_battery_voltage(self):
-        """
-        Issue read id, battery voltage, & clock commands all at the same time (non-unique REGEX workaround).
-        """
-        result = self._do_cmd_resp(InstrumentCmds.READ_ID + InstrumentCmds.READ_BATTERY_VOLTAGE,
-                                   response_regex=ID_BATTERY_DATA_REGEX, timeout=30)
-        return None, (None, result)
-
-    def _handler_command_read_id(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_ID,response_regex=ID_DATA_REGEX)
-        return None, (None, result)
-
-    def _handler_command_read_battery_voltage(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE, response_regex=BATTERY_DATA_REGEX)
-        return None, (None, result)
-
-    def _handler_command_read_clock(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, response_regex=CLOCK_DATA_REGEX)
-        return None, (None, result)
-
-    def _handler_command_get_hw_config(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION) #, response_regex=HARDWARE_CONFIG_DATA_REGEX)
-        return None, (None, result)
-
-    def _handler_command_get_head_config(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION) #, response_regex=HEAD_CONFIG_DATA_REGEX)
-        return None, (None, result)
-
-    def _handler_command_get_user_config(self):
-        result = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION, response_regex=USER_CONFIG_DATA_REGEX)
-        return None, (None, result)
 
     def _clock_sync(self, *args, **kwargs):
         """
@@ -2162,9 +2132,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The user configuration parsed into a dict. Names include:
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
+        log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
+
+        if not self._check_configuration(response, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
             log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
 
         return response
