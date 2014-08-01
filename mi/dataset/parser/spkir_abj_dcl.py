@@ -15,7 +15,8 @@ Only the names of the output particle streams are different.
 
 The input file is ASCII and binary and contains 2 types of records.
 All records start with a timestamp.
-Records are separated by a newline.
+Records are separated by one of the newlines.
+Binary data is big endian.
 
 Metadata records: timestamp [text] more text line-feed.
 Sensor Data records: timestamp ASCII-data Binary-data carriage-return line-feed.
@@ -64,16 +65,18 @@ START_GROUP = '('
 END_GROUP = ')'
 
 # Timestamp at the start of each record: YYYY/MM/DD HH:MM:SS.mmm
-DATE = r'(\d\d\d\d)/(\d\d)/(\d\d)'        # Date: YYYY/MM/DD
-TIME = r'(\d\d):(\d\d):(\d\d)\.(\d\d\d)'  # Time: HH:MM:SS.mmm
-TIMESTAMP = '(' + DATE + SPACE + TIME + ')'
+DATE = r'(\d{4})/(\d{2})/(\d{2})'           # Date: YYYY/MM/DD
+TIME = r'(\d{2}):(\d{2}):(\d{2})\.(\d{3})'  # Time: HH:MM:SS.mmm
+TIMESTAMP = START_GROUP + DATE + SPACE + TIME + END_GROUP
+START_METADATA = r'\['
+END_METADATA = r'\]'
 
 # Metadata record:
 #   Timestamp [Text]MoreText newline
 METADATA_REGEX = TIMESTAMP + SPACE  # date and time
-METADATA_REGEX += r'\['             # Metadata record starts with '['
+METADATA_REGEX += START_METADATA    # Metadata record starts with '['
 METADATA_REGEX += ANY_CHARS         # followed by text
-METADATA_REGEX += r'\]'             # followed by ']'
+METADATA_REGEX += END_METADATA      # followed by ']'
 METADATA_REGEX += ANY_CHARS         # followed by more text
 METADATA_REGEX += r'\n'             # Metadata record ends with a line-feed
 METADATA_MATCHER = re.compile(METADATA_REGEX)
@@ -217,7 +220,7 @@ class SpkirAbjDclInstrumentDataParticle(DataParticle):
         # Generate a particle by calling encode_value for each entry
         # in the Instrument Particle Mapping table,
         # where each entry is a tuple containing the particle field name,
-        # an index into raw_data), and a function to use for data conversion.
+        # an index into raw_data, and a function to use for data conversion.
 
         return [self._encode_value(name, self.raw_data[group], function)
             for name, group, function in INSTRUMENT_PARTICLE_MAP]
@@ -328,7 +331,7 @@ class SpkirAbjDclParser(BufferLoadingParser):
 
                 # See if the checksum is correct.
                 # Checksum is the modulo 256 sum of all data bytes.
-                # If checksum is zero, the checksum is valid.
+                # If calculated checksum is zero, the record checksum is valid.
 
                 buffer_to_be_checksummed = groups[SENSOR_GROUP_CHECKSUM_SECTION]
                 checksum = reduce(lambda x, y: x + y,
@@ -354,12 +357,12 @@ class SpkirAbjDclParser(BufferLoadingParser):
                     groups[SENSOR_GROUP_ID],
                     groups[SENSOR_GROUP_SERIAL],
                     groups[SENSOR_GROUP_TIMER],
-                    struct.unpack('<h', groups[SENSOR_GROUP_DELAY])[0],
-                    list(struct.unpack('<7I', groups[SENSOR_GROUP_ADC_COUNTS])),
-                    struct.unpack('<H', groups[SENSOR_GROUP_SUPPLY_VOLTAGE])[0],
-                    struct.unpack('<H', groups[SENSOR_GROUP_ANALOG_VOLTAGE])[0],
-                    struct.unpack('<H', groups[SENSOR_GROUP_TEMPERATURE])[0],
-                    struct.unpack('<B', groups[SENSOR_GROUP_FRAME_COUNT])[0],
+                    struct.unpack('>h', groups[SENSOR_GROUP_DELAY])[0],
+                    list(struct.unpack('>7I', groups[SENSOR_GROUP_ADC_COUNTS])),
+                    struct.unpack('>H', groups[SENSOR_GROUP_SUPPLY_VOLTAGE])[0],
+                    struct.unpack('>H', groups[SENSOR_GROUP_ANALOG_VOLTAGE])[0],
+                    struct.unpack('>H', groups[SENSOR_GROUP_TEMPERATURE])[0],
+                    struct.unpack('>B', groups[SENSOR_GROUP_FRAME_COUNT])[0],
                     checksum_status
                 )
 

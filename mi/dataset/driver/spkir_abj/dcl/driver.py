@@ -30,6 +30,7 @@ from mi.dataset.parser.spkir_abj_dcl import \
     SpkirAbjDclRecoveredInstrumentDataParticle, \
     SpkirAbjDclTelemeteredInstrumentDataParticle
 
+MODULE_NAME = 'mi.dataset.parser.spkir_abj_dcl'
 
 class DataTypeKey(BaseEnum):
     """
@@ -134,40 +135,38 @@ class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):
         if data_key == DataTypeKey.SPKIR_ABJ_RECOVERED:
             config = self._parser_config[data_key]
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE:
-                    'mi.dataset.parser.spkir_abj_dcl',
-                DataSetDriverConfigKeys.PARTICLE_CLASS:
-                    None
+                DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE_NAME,
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None
             })
+            parser_class = SpkirAbjDclRecoveredParser
 
-            parser = SpkirAbjDclRecoveredParser(
-                config,
-                stream_in,
-                parser_state,
-                lambda state, ingested:
-                    self._save_parser_state(state, data_key, ingested),
-                self._data_callback,
-                self._sample_exception_callback)
+            # parser = SpkirAbjDclRecoveredParser(
+            #     config,
+            #     stream_in,
+            #     parser_state,
+            #     lambda state, ingested:
+            #         self._save_parser_state(state, data_key, ingested),
+            #     self._data_callback,
+            #     self._sample_exception_callback)
 
         # Build the telemetered parser if requested.
 
         elif data_key == DataTypeKey.SPKIR_ABJ_TELEMETERED:
             config = self._parser_config[data_key]
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE:
-                    'mi.dataset.parser.spkir_abj_dcl',
-                DataSetDriverConfigKeys.PARTICLE_CLASS:
-                    None
+                DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE_NAME,
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None
             })
+            parser_class = SpkirAbjDclTelemeteredParser
 
-            parser = SpkirAbjDclTelemeteredParser(
-                config,
-                stream_in,
-                parser_state,
-                lambda state, ingested:
-                    self._save_parser_state(state, data_key, ingested),
-                self._data_callback,
-                self._sample_exception_callback)
+            # parser = SpkirAbjDclTelemeteredParser(
+            #     config,
+            #     stream_in,
+            #     parser_state,
+            #     lambda state, ingested:
+            #         self._save_parser_state(state, data_key, ingested),
+            #     self._data_callback,
+            #     self._sample_exception_callback)
 
         # Not one of the keys we recognize?
         # No parser for you!
@@ -175,5 +174,14 @@ class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):
         else:
             raise ConfigurationException('Spkir_abj Parser configuration incorrect %s',
                                          data_key)
+
+        parser = parser_class(
+            config,
+            stream_in,
+            parser_state,
+            lambda state, ingested:
+                self._save_parser_state(state, data_key, ingested),
+            self._data_callback,
+            self._sample_exception_callback)
 
         return parser
