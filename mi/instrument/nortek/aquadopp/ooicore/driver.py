@@ -22,7 +22,7 @@ from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict
-from mi.instrument.nortek.driver import Parameter, NortekInstrumentDriver, NEWLINE, ParameterUnits #, NortekDataParticleType
+from mi.instrument.nortek.driver import Parameter, NortekInstrumentDriver, NEWLINE, ParameterUnits
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle, NortekHeadConfigDataParticle, NortekUserConfigDataParticle\
     , NortekEngBatteryDataParticle, NortekEngIdDataParticle, NortekEngClockDataParticle
 
@@ -35,8 +35,6 @@ VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
 VELOCITY_DATA_PATTERN = r'%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})' \
                         r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
-
-#AQUADOPP_SAMPLE_REGEX = [VELOCITY_DATA_REGEX]
 
 
 class NortekDataParticleType(BaseEnum):
@@ -52,22 +50,12 @@ class NortekDataParticleType(BaseEnum):
     ID_STRING = 'velpt_identification_string'
 
 
-
-# NortekDataParticleType.VELOCITY         = 'velpt_velocity_data'
-# NortekDataParticleType.HARDWARE_CONFIG  = 'velpt_hardware_configuration'
-# NortekDataParticleType.HEAD_CONFIG      = 'velpt_head_configuration'
-# NortekDataParticleType.USER_CONFIG      = 'velpt_user_configuration'
-# NortekDataParticleType.CLOCK            = 'velpt_clock_data'
-# NortekDataParticleType.BATTERY          = 'velpt_battery_voltage'
-# NortekDataParticleType.ID_STRING        = 'velpt_identification_string'
-
 NortekHardwareConfigDataParticle._data_particle_type = NortekDataParticleType.HARDWARE_CONFIG
 NortekHeadConfigDataParticle._data_particle_type = NortekDataParticleType.HEAD_CONFIG
 NortekUserConfigDataParticle._data_particle_type = NortekDataParticleType.USER_CONFIG
 NortekEngBatteryDataParticle._data_particle_type = NortekDataParticleType.BATTERY
 NortekEngIdDataParticle._data_particle_type = NortekDataParticleType.ID_STRING
 NortekEngClockDataParticle._data_particle_type = NortekDataParticleType.CLOCK
-
 
 
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
