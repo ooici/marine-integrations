@@ -30,6 +30,10 @@ Files used for testing:
 
 20071225.spkir7.log
   Metadata - 2 sets,  Sensor Data - 250 records
+
+20131121.spkir_real.log
+  Actual data as referenced in the IDD
+  File contains 108 records.
 """
 
 __author__ = 'Steve Myerson'
@@ -70,6 +74,7 @@ FILE4 = '20040305.spkir4.log'
 FILE5 = '20050403.spkir5.log'
 FILE6 = '20061220.spkir6.log'
 FILE7 = '20071225.spkir7.log'
+FILE_REAL = '20131121.spkir_real.log'
 
 REC_YML2 = 'rec_20020113.spkir2.yml'
 REC_YML3 = 'rec_20030208.spkir3.yml'
@@ -78,6 +83,7 @@ REC_YML4_LAST4 = 'rec_20040305.spkir4_last4.yml'
 REC_YML5 = 'rec_20050403.spkir5.yml'
 REC_YML6 = 'rec_20061220.spkir6.yml'
 REC_YML7 = 'rec_20071225.spkir7.yml'
+REC_YML_REAL = 'rec_20131121.spkir_real.yml'
 
 TEL_YML2 = 'tel_20020113.spkir2.yml'
 TEL_YML3 = 'tel_20030208.spkir3.yml'
@@ -86,6 +92,7 @@ TEL_YML5 = 'tel_20050403.spkir5.yml'
 TEL_YML5_LAST6 = 'tel_20050403.spkir5_last6.yml'
 TEL_YML6 = 'tel_20061220.spkir6.yml'
 TEL_YML7 = 'tel_20071225.spkir7.yml'
+TEL_YML_REAL = 'tel_20131121.spkir_real.yml'
 
 REC_PARTICLE = SpkirAbjDclRecoveredInstrumentDataParticle
 TEL_PARTICLE = SpkirAbjDclTelemeteredInstrumentDataParticle
@@ -415,6 +422,45 @@ class QualificationTest(DataSetQualificationTestCase):
             self.fail("Sample timeout.")
 
         log.debug('===== END QUAL TEST PUBLISH PATH =====')
+
+    def test_real_file(self):
+        """
+        Verify that records from a real file can be obtained.
+        The first 3 and last 3 records will be verified.
+        The file contains 108 records.
+        """
+        log.debug('===== START QUAL TEST REAL FILE =====')
+
+        self.create_sample_data_set_dir(FILE_REAL, REC_DIR)
+        self.create_sample_data_set_dir(FILE_REAL, TEL_DIR)
+        self.assert_initialize()
+
+        # Verify we get the correct samples
+        try:
+            # Get the first 3 particles.
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 3, 10)
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 3, 10)
+
+            # Ignore the next 102 particles.
+            self.data_subscribers.get_samples(REC_STREAM, 102, 150)
+            self.data_subscribers.get_samples(TEL_STREAM, 102, 150)
+
+            # Get the last 3 particles and combine with the first 3.
+            rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 3, 10)
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 3, 10)
+
+            rec_result.extend(rec_result2)
+            tel_result.extend(tel_result2)
+
+            # Verify results
+            self.assert_data_values(rec_result, REC_YML_REAL)
+            self.assert_data_values(tel_result, TEL_YML_REAL)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST REAL FILE =====')
 
     def test_shutdown_restart(self):
         """
