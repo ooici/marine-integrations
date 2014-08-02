@@ -36,8 +36,8 @@ class DataTypeKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    SPKIR_ABJ_RECOVERED = 'spkir_abcdjm_dcl_recovered'
-    SPKIR_ABJ_TELEMETERED = 'spkir_abcdjm_dcl_telemetered'
+    SPKIR_ABJ_RECOVERED = 'spkir_abj_dcl_recovered'
+    SPKIR_ABJ_TELEMETERED = 'spkir_abj_dcl_telemetered'
 
 
 class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):

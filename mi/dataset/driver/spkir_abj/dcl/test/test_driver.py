@@ -197,6 +197,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         log.info("============ END INTEG TEST GET =================")
 
+    def test_harvester_new_file_exception(self):
+        """
+        Must override the default test_harvester_new_file_exception because
+        it won't handle file patterns that are anything other than '*.'
+        """
+        pass
+
     def test_harvester_new_file_exception_rec(self):
         """
         Test an exception raised after the driver is started during
@@ -323,6 +330,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
+
+    def test_harvester_new_file_exception(self):
+        """
+        Must override the default test_harvester_new_file_exception because
+        it won't handle file patterns that are anything other than '*.'
+        """
+        pass
 
     def test_harvester_new_file_exception_rec(self):
         """
