@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.wc_sbe_cspp
-@file marine-integrations/mi/dataset/parser/wc_sbe_cspp.py
+@package mi.dataset.parser.wc_wm_cspp
+@file marine-integrations/mi/dataset/parser/wc_wm_cspp.py
 @author Jeff Roy
-@brief wc_sbe Parser for the cspp_eng_cspp dataset driver
+@brief wc_wm Parser for the cspp_eng_cspp dataset driver
 Release notes: This is one of 4 parsers that make up that driver
 
 initial release
@@ -25,6 +25,7 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.parser.cspp_base import \
     CsppParser, \
     FLOAT_REGEX, \
+    INT_REGEX, \
     Y_OR_N_REGEX, \
     MULTIPLE_TAB_REGEX, \
     END_OF_LINE_REGEX, \
@@ -39,20 +40,37 @@ from mi.dataset.parser.cspp_base import \
 # FORMAT    DATA Type       Field               Units       Notes
 #
 # string 	float64 	Profiler Timestamp 	    seconds 	Seconds since 1/1/70 with millisecond resolution
-# string 	float32 	Pressure 	                decibars
+# string 	float32 	Depth 	                decibars
 # string 	string 	    Suspect Timestamp 	    1 	        "y" or "n"
-# string 	float32 	Velocity 	            m/s
+# string 	int32 	    Encoder Counts 	        counts 	    Keeps track of the net rotation done by the winch axle
+# string 	float32 	Winch Current 	        A 	        Current drawn by the winch motor. Sign reflects direction
+# string 	string 	    Winch Status 	        1
+# string 	float32 	Velocity 	            counts/s 	How fast the winch is spooling rope
+# string 	float32 	Temperature 	        deg_C 	    Temperature of winch assembly
+# string 	float32 	Winch Voltage 	        volts 	    Voltage at the motor control module
+# string 	int32 	    Time Counts 	        counts 	    Related to estimating battery energy
+# string 	int32 	    Discharge Counts 	    counts 	    Related to estimating battery energy
+# string 	float32 	Rope on Drum 	        meters 	    Amount of rope on the winch drum
 
-DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
+STRING_REGEX = r'\S*'  # any non white space
+
+DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX    # Profiler Timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Depth
 DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX  # Suspect Timestamp
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Pressure
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + END_OF_LINE_REGEX  # Velocity
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Encoder Counts
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Winch Current
+DATA_REGEX += '(' + STRING_REGEX + ')' + MULTIPLE_TAB_REGEX  # Winch Status
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Velocity
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Temperature
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Winch Voltage
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Time Counts
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Discharge Counts
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + END_OF_LINE_REGEX    # Rope on Drum
 
 
-class WcSbeDataTypeKey(BaseEnum):
-    WC_SBE_CSPP_TELEMETERED = 'wc_sbe_cspp_telemetered'
-    WC_SBE_CSPP_RECOVERED = 'wc_sbe_cspp_recovered'
-
+class WcWmDataTypeKey(BaseEnum):
+    WC_WM_CSPP_TELEMETERED = 'wc_wm_cspp_telemetered'
+    WC_WM_CSPP_RECOVERED = 'wc_wm_cspp_recovered'
 
 class DataMatchesGroupNumber(BaseEnum):
     """
@@ -60,39 +78,45 @@ class DataMatchesGroupNumber(BaseEnum):
     Used to access the match groups in the particle raw data
     """
     PROFILER_TIMESTAMP = 1
-    SUSPECT_TIMESTAMP = 2
-    PRESSURE = 3
-    VELOCITY = 4
+    PRESSURE = 2
+    SUSPECT_TIMESTAMP = 3
+    HEADING = 4
+    PITCH = 5
+    ROLL = 6
 
 
 class DataParticleType(BaseEnum):
-    ENGINEERING_TELEMETERED = 'cspp_eng_cspp_wc_sbe_eng'
-    ENGINEERING_RECOVERED = 'cspp_eng_cspp_wc_sbe_eng_recovered'
-    METADATA_TELEMETERED = 'cspp_eng_cspp_wc_sbe_metadata'
-    METADATA_RECOVERED = 'cspp_eng_cspp_wc_sbe_metadata_recovered'
+    ENGINEERING_TELEMETERED = 'cspp_eng_cspp_wc_wm_eng'
+    ENGINEERING_RECOVERED = 'cspp_eng_cspp_wc_wm_eng_recovered'
+    METADATA_TELEMETERED = 'cspp_eng_cspp_wc_wm_metadata'
+    METADATA_RECOVERED = 'cspp_eng_cspp_wc_wm_metadata_recovered'
 
 
-class WcSbeEngDataParticleKey(BaseEnum):
+class WcWmEngDataParticleKey(BaseEnum):
     """
-    The data particle keys associated with wc_sbe engineering data particle parameters
+    The data particle keys associated with wc_wm engineering data particle parameters
     """
     INSTRUMENT_ID = 'instrument_id'
     SERIAL_NUMBER = 'serial_number'
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure_depth'
     SUSPECT_TIMESTAMP = 'suspect_timestamp'
-    VELOCITY = 'velocity_flt32'
+    HEADING = 'heading'
+    PITCH = 'pitch'
+    ROLL = 'roll'
 
 # A group of instrument data particle encoding rules used to simplify encoding using a loop
 ENGINEERING_PARTICLE_ENCODING_RULES = [
-    (WcSbeEngDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
-    (WcSbeEngDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
-    (WcSbeEngDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
-    (WcSbeEngDataParticleKey.VELOCITY, DataMatchesGroupNumber.VELOCITY, float),
+    (WcWmEngDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
+    (WcWmEngDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
+    (WcWmEngDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
+    (WcWmEngDataParticleKey.HEADING, DataMatchesGroupNumber.HEADING, float),
+    (WcWmEngDataParticleKey.PITCH, DataMatchesGroupNumber.PITCH, float),
+    (WcWmEngDataParticleKey.ROLL, DataMatchesGroupNumber.ROLL, float),
 ]
 
 
-class WcSbeMetadataDataParticle(CsppMetadataDataParticle):
+class WcWmMetadataDataParticle(CsppMetadataDataParticle):
     """
     Class for building a wc hmr metadata particle
     """
@@ -127,7 +151,7 @@ class WcSbeMetadataDataParticle(CsppMetadataDataParticle):
         return results
 
 
-class WcSbeMetadataRecoveredDataParticle(WcSbeMetadataDataParticle):
+class WcWmMetadataRecoveredDataParticle(WcWmMetadataDataParticle):
     """
     Class for building a wc hmr recovered metadata particle
     """
@@ -135,7 +159,7 @@ class WcSbeMetadataRecoveredDataParticle(WcSbeMetadataDataParticle):
     _data_particle_type = DataParticleType.METADATA_RECOVERED
 
 
-class WcSbeMetadataTelemeteredDataParticle(WcSbeMetadataDataParticle):
+class WcWmMetadataTelemeteredDataParticle(WcWmMetadataDataParticle):
     """
     Class for building a wc hmr telemetered metadata particle
     """
@@ -143,7 +167,7 @@ class WcSbeMetadataTelemeteredDataParticle(WcSbeMetadataDataParticle):
     _data_particle_type = DataParticleType.METADATA_TELEMETERED
 
 
-class WcSbeEngDataParticle(DataParticle):
+class WcWmEngDataParticle(DataParticle):
     """
     Class for parsing data from the wc hmr engineering data set
     """
@@ -182,7 +206,7 @@ class WcSbeEngDataParticle(DataParticle):
         return results
 
 
-class WcSbeEngRecoveredDataParticle(WcSbeEngDataParticle):
+class WcWmEngRecoveredDataParticle(WcWmEngDataParticle):
     """
     Class for building a wc hmr recovered engineering data particle
     """
@@ -190,7 +214,7 @@ class WcSbeEngRecoveredDataParticle(WcSbeEngDataParticle):
     _data_particle_type = DataParticleType.ENGINEERING_RECOVERED
 
 
-class WcSbeEngTelemeteredDataParticle(WcSbeEngDataParticle):
+class WcWmEngTelemeteredDataParticle(WcWmEngDataParticle):
     """
     Class for building a wc hmr telemetered engineering data particle
     """
@@ -198,7 +222,7 @@ class WcSbeEngTelemeteredDataParticle(WcSbeEngDataParticle):
     _data_particle_type = DataParticleType.ENGINEERING_TELEMETERED
 
 
-class WcSbeCsppParser(CsppParser):
+class WcWmCsppParser(CsppParser):
 
     def __init__(self,
                  config,
@@ -219,7 +243,7 @@ class WcSbeCsppParser(CsppParser):
         """
 
         # Call the superclass constructor
-        super(WcSbeCsppParser, self).__init__(config,
+        super(WcWmCsppParser, self).__init__(config,
                                               state,
                                               stream_handle,
                                               state_callback,
