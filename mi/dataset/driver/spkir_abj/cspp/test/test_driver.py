@@ -310,14 +310,14 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         # get the telemetered metadata particle
-        self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 60)
         #get ALL of the telemetered instrument particles
-        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 1623, 60)
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 1623, 120)
 
         # get the recovered metadata particle
-        self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 60)
         # get the recovered metadata particle
-        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 1623, 40)
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 1623, 120)
 
     def test_stop_start(self):
         """
