@@ -45,7 +45,7 @@ class NortekDataParticleType(BaseEnum):
     HARDWARE_CONFIG = 'velpt_hardware_configuration'
     HEAD_CONFIG = 'velpt_head_configuration'
     USER_CONFIG = 'velpt_user_configuration'
-    CLOCK = 'vept_clock_data'
+    CLOCK = 'velpt_clock_data'
     BATTERY = 'velpt_battery_voltage'
     ID_STRING = 'velpt_identification_string'
 
