@@ -1,8 +1,0 @@
-Source File: D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11345408.PPB
-Processed: 07/18/2014 12:28:18
-Using Version: 1.11
-Device: PARS
-Start Date: 05/14/2014
-Timestamp (s)	Depth (dbar)	Suspect Timestamp	Data
-1400072316.168	20.011	y	mvs 1
-1400072317.751	20.040	y	05/14/14	05:52:03	3341
