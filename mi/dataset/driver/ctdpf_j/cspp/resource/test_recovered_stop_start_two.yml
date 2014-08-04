@@ -1,0 +1,84 @@
+header:
+ particle_object: 'MULTIPLE'
+ particle_type: 'MULTIPLE'
+data:
+ - _index: 1
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.123000
+   profiler_timestamp: 1397773694.1229999065399170
+   suspect_timestamp: 0
+   temperature: 9.8138000000000005
+   conductivity: 3.6077599999999999
+   pressure: 19.3460000000000001
+   salinity: 33.1096999999999966
+ - _index: 2
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.188000
+   profiler_timestamp: 1397773694.1879999637603760
+   suspect_timestamp: 0
+   temperature: 9.8137000000000008
+   conductivity: 3.6077300000000001
+   pressure: 19.3320000000000007
+   salinity: 33.1094000000000008
+ - _index: 3
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.247000
+   profiler_timestamp: 1397773694.2469999790191650
+   suspect_timestamp: 0
+   temperature: 9.8135999999999992
+   conductivity: 3.6076999999999999
+   pressure: 19.3200000000000003
+   salinity: 33.1092000000000013
+ - _index: 4
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.310000
+   profiler_timestamp: 1397773694.3099999427795410
+   suspect_timestamp: 0
+   temperature: 9.8134999999999994
+   conductivity: 3.6076800000000002
+   pressure: 19.3090000000000011
+   salinity: 33.1092000000000013
+ - _index: 5
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.373000
+   profiler_timestamp: 1397773694.3729999065399170
+   suspect_timestamp: 0
+   temperature: 9.8132999999999999
+   conductivity: 3.6076600000000001
+   pressure: 19.2959999999999994
+   salinity: 33.1092000000000013
+ - _index: 6
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.435000
+   profiler_timestamp: 1397773694.4349999427795410
+   suspect_timestamp: 0
+   temperature: 9.8130000000000006
+   conductivity: 3.6076400000000000
+   pressure: 19.2830000000000013
+   salinity: 33.1090999999999980
+ - _index: 7
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.499000
+   profiler_timestamp: 1397773694.4990000724792480
+   suspect_timestamp: 0
+   temperature: 9.8127999999999993
+   conductivity: 3.6076100000000002
+   pressure: 19.2680000000000007
+   salinity: 33.1090999999999980
+ - _index: 8
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.560000
+   profiler_timestamp: 1397773694.5599999427795410
+   suspect_timestamp: 0
+   temperature: 9.8125999999999998
+   conductivity: 3.6075800000000000
+   pressure: 19.2630000000000017
+   salinity: 33.1090000000000018

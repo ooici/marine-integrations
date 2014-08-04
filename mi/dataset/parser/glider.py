@@ -1389,6 +1389,10 @@ class GliderEngineeringParser(GliderParser):
 
         self.handle_non_data(non_data, none_start, none_end, start)
 
+        if data_record is None:
+            log.trace("GliderEngineeringParser.parse_chunks():         data_record from Chunker at index start= %s and end= %s is NONE", start, end)
+
+
         while data_record is not None:
 
             log.debug("GliderEngineeringParser.parse_chunks(): data record: %s", data_record)
