@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.cspp_eng_cspp
-@file marine-integrations/mi/dataset/parser/cspp_eng_cspp.py
+@package mi.dataset.parser.wc_hmr_cspp
+@file marine-integrations/mi/dataset/parser/wc_hmr_cspp.py
 @author Jeff Roy
-@brief Parser for the cspp_eng_cspp dataset driver
+@brief wc_hmr Parser for the cspp_eng_cspp dataset driver
 Release notes: This is one of 4 parsers that make up that driver
 
 initial release
@@ -13,21 +13,18 @@ initial release
 __author__ = 'Jeff Roy'
 __license__ = 'Apache 2.0'
 
-import copy
-import re
-import ntplib
+import numpy
 
 from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
+from mi.core.exceptions import RecoverableSampleException
+from mi.core.instrument.data_particle import DataParticle
 
 from mi.dataset.parser.cspp_base import \
     CsppParser, \
     FLOAT_REGEX, \
-    INT_REGEX, \
     Y_OR_N_REGEX, \
     MULTIPLE_TAB_REGEX, \
     END_OF_LINE_REGEX, \
@@ -38,25 +35,77 @@ from mi.dataset.parser.cspp_base import \
     TYPE_ENCODING_INDEX, \
     encode_y_or_n
 
-# *** Need to define data regex for this parser ***
-DATA_REGEX = ''
-DATA_MATCHER = re.compile(DATA_REGEX)
+# Input Records are formatted as follows
+# FORMAT    DATA Type       Field               Units       Notes
+#
+# string 	float64 	Profiler Timestamp 	    seconds 	Seconds since 1/1/70 with millisecond resolution
+# string 	float32 	Depth 	                decibars
+# string 	string 	    Suspect Timestamp 	    1 	        "y" or "n"
+# string 	float32 	Heading 	            deg 	    Heading in degrees
+# string 	float32 	Pitch 	                deg 	    Pitch in degrees
+# string 	float32 	Roll 	                deg 	    Roll in degrees
+
+DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
+DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX  # Suspect Timestamp
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Heading
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Pitch
+DATA_REGEX += '(' + FLOAT_REGEX + ')' + END_OF_LINE_REGEX  # Roll
+
+
+class WcHmrDataTypeKey(BaseEnum):
+    WC_HMR_CSPP_TELEMETERED = 'wc_hmr_cspp_telemetered'
+    WC_HMR_CSPP_RECOVERED = 'wc_hmr_cspp_recovered'
+
+class DataMatchesGroupNumber(BaseEnum):
+    """
+    An enum for group match indices for a data record chunk.
+    Used to access the match groups in the particle raw data
+    """
+    PROFILER_TIMESTAMP = 1
+    PRESSURE = 2
+    SUSPECT_TIMESTAMP = 3
+    HEADING = 4
+    PITCH = 5
+    ROLL = 6
+
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'cspp_eng_cspp_parsed'
+    ENGINEERING_TELEMETERED = 'cspp_eng_cspp_wc_hmr_eng'
+    ENGINEERING_RECOVERED = 'cspp_eng_cspp_wc_hmr_eng_recovered'
+    METADATA_TELEMETERED = 'cspp_eng_cspp_wc_hmr_metadata'
+    METADATA_RECOVERED = 'cspp_eng_cspp_wc_hmr_metadata_recovered'
 
-class CsppEngCsppParserDataParticleKey(BaseEnum):
 
-class StateKey(BaseEnum):
-    POSITION='position' # holds the file position
-
-class CsppEngCsppParserDataParticle(DataParticle):
+class WcHmrEngDataParticleKey(BaseEnum):
     """
-    Class for parsing data from the cspp_eng_cspp data set
+    The data particle keys associated with wc_hmr engineering data particle parameters
+    """
+    INSTRUMENT_ID = 'instrument_id'
+    SERIAL_NUMBER = 'serial_number'
+    PROFILER_TIMESTAMP = 'profiler_timestamp'
+    PRESSURE = 'pressure_depth'
+    SUSPECT_TIMESTAMP = 'suspect_timestamp'
+    HEADING = 'heading'
+    PITCH = 'pitch'
+    ROLL = 'roll'
+
+# A group of instrument data particle encoding rules used to simplify encoding using a loop
+ENGINEERING_PARTICLE_ENCODING_RULES = [
+    (WcHmrEngDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
+    (WcHmrEngDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
+    (WcHmrEngDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
+    (WcHmrEngDataParticleKey.HEADING, DataMatchesGroupNumber.HEADING, float),
+    (WcHmrEngDataParticleKey.PITCH, DataMatchesGroupNumber.PITCH, float),
+    (WcHmrEngDataParticleKey.ROLL, DataMatchesGroupNumber.ROLL, float),
+]
+
+
+class WcHmrMetadataDataParticle(CsppMetadataDataParticle):
+    """
+    Class for building a wc hmr metadata particle
     """
 
-    _data_particle_type = DataParticleType.SAMPLE
-    
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -64,9 +113,101 @@ class CsppEngCsppParserDataParticle(DataParticle):
         with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        pass
 
-class CsppEngCsppParser(CsppParser):
+        results = []
+
+        try:
+
+            # Append the base metadata parsed values to the results to return
+            results += self._build_metadata_parsed_values()
+
+            data_match = self.raw_data[MetadataRawDataKey.DATA_MATCH]
+
+            # Set the internal timestamp
+            internal_timestamp_unix = numpy.float(data_match.group(
+                DataMatchesGroupNumber.PROFILER_TIMESTAMP))
+            self.set_internal_timestamp(unix_time=internal_timestamp_unix)
+
+        except (ValueError, TypeError, IndexError) as ex:
+            log.warn("Exception when building parsed values")
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
+                                             % (ex, self.raw_data))
+
+        return results
+
+
+class WcHmrMetadataRecoveredDataParticle(WcHmrMetadataDataParticle):
+    """
+    Class for building a wc hmr recovered metadata particle
+    """
+
+    _data_particle_type = DataParticleType.METADATA_RECOVERED
+
+
+class WcHmrMetadataTelemeteredDataParticle(WcHmrMetadataDataParticle):
+    """
+    Class for building a wc hmr telemetered metadata particle
+    """
+
+    _data_particle_type = DataParticleType.METADATA_TELEMETERED
+
+
+class WcHmrEngDataParticle(DataParticle):
+    """
+    Class for parsing data from the wc hmr engineering data set
+    """
+
+    def _build_parsed_values(self):
+        """
+        Take something in the data format and turn it into
+        an array of dictionaries defining the data in the particle
+        with the appropriate tag.
+        @throws SampleException If there is a problem with sample creation
+        """
+        results = []
+
+        try:
+
+            # Process each of the instrument particle parameters
+            for rule in ENGINEERING_PARTICLE_ENCODING_RULES:
+
+                results.append(self._encode_value(
+                    rule[PARTICLE_KEY_INDEX],
+                    self.raw_data.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
+                    rule[TYPE_ENCODING_INDEX]))
+
+            # # Set the internal timestamp
+            internal_timestamp_unix = numpy.float(self.raw_data.group(
+                DataMatchesGroupNumber.PROFILER_TIMESTAMP))
+            self.set_internal_timestamp(unix_time=internal_timestamp_unix)
+
+        # We shouldn't end up with an exception due to the strongly specified regex, but we
+        # will ensure we catch any potential errors just in case
+        except (ValueError, TypeError, IndexError) as ex:
+            log.warn("Exception when building parsed values")
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
+                                             % (ex, self.raw_data))
+
+        return results
+
+
+class WcHmrEngRecoveredDataParticle(WcHmrEngDataParticle):
+    """
+    Class for building a wc hmr recovered engineering data particle
+    """
+
+    _data_particle_type = DataParticleType.ENGINEERING_RECOVERED
+
+
+class WcHmrEngTelemeteredDataParticle(WcHmrEngDataParticle):
+    """
+    Class for building a wc hmr telemetered engineering data particle
+    """
+
+    _data_particle_type = DataParticleType.ENGINEERING_TELEMETERED
+
+
+class WcHmrCsppParser(CsppParser):
 
     def __init__(self,
                  config,
@@ -87,12 +228,12 @@ class CsppEngCsppParser(CsppParser):
         """
 
         # Call the superclass constructor
-        super(SpkirAbjCsppParser, self).__init__(config,
-                                                 state,
-                                                 stream_handle,
-                                                 state_callback,
-                                                 publish_callback,
-                                                 exception_callback,
-                                                 DATA_REGEX,
-                                                 ignore_matcher=IGNORE_MATCHER,
-                                                 *args, **kwargs)
+        super(WcHmrCsppParser, self).__init__(config,
+                                              state,
+                                              stream_handle,
+                                              state_callback,
+                                              publish_callback,
+                                              exception_callback,
+                                              DATA_REGEX,
+                                              ignore_matcher=None,
+                                              *args, **kwargs)
