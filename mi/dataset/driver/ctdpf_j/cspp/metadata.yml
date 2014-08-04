@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Joe Padula
+  constructor: CtdpfJCsppDataSetDriver
+  driver_name: ctdpf_j_cspp
+  driver_path: ctdpf_j/cspp
+  email: Joseph_J_Padula@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1
