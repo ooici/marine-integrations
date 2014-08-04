@@ -11,6 +11,7 @@ __license__ = 'Apache 2.0'
 import base64
 import json
 import time
+import sys
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -48,11 +49,15 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticle
 from mi.instrument.nortek.driver import NortekEngClockDataParticle
 from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
 from mi.instrument.nortek.driver import NortekEngIdDataParticle
-from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.core.exceptions import InstrumentCommandException, InstrumentParameterException
+
+if 'mi.instrument.nortek.aquadopp' in sys.modules.keys():
+    from mi.instrument.nortek.aquadopp.ooicore.driver import NortekDataParticleType
+elif 'mi.instrument.nortek.vector' in sys.modules.keys():
+    from mi.instrument.nortek.vector.ooicore.driver import NortekDataParticleType
 
 from interface.objects import AgentCommand
 
@@ -82,14 +87,8 @@ hw_config_particle = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticl
                       {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.FW_VERSION, DataParticleKey.VALUE: "3.36"}]
 
 
-def assert_particle_hw_config(self, data_particle, verify_value=False):
-    self.assert_data_particle_keys(NortekHardwareConfigDataParticleKey, self.hw_config_particle)
-    self.assert_data_particle_header(data_particle, NortekDataParticleType.HARDWARE_CONFIG)
-    self.assert_data_particle_parameters(self.hw_config_particle, verify_value)
-
-
 def hw_config_sample():
-    sample_as_hex = "a505180056454320383138312020202020200400ffff00000400900004000000ffff0000ffffffff0000332e3336b048"
+    sample_as_hex = "a505180056454320383138312020202020200400ffff00000400900004000000ffff0000ffffffff0000332e3336b0480606"
     return sample_as_hex.decode('hex')
 
 
@@ -99,7 +98,7 @@ def head_config_sample():
 00000ffff0000ffff0000ffff0000000000000000ffff0000010000000100000000000000fffff\
 fff00000000ffff0100000000001900a2f65914c9050301d81b5a2a9d9ffefc35325d007b9e4ff\
 f92324c00987e0afd48ff0afd547d2b01cffe3602ff7ffafff7fffaff000000000000000000000\
-000000000009f14100e100e10275b0000000000000000000000000000000000000000000300065b"
+000000000009f14100e100e10275b0000000000000000000000000000000000000000000300065b0606"
     return sample_as_hex.decode('hex')
 
 
@@ -149,7 +148,7 @@ def user_config_sample():
         \
         0712 0080 0040 0000 0000 0000 8200 0000 0a00 0800 b12b 0000 0000 0200 0600 \
         0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0aff \
-        cdff 8b00 e500 ee00 0b00 84ff 3dff a7ff"
+        cdff 8b00 e500 ee00 0b00 84ff 3dff a7ff 0606"
     
     return sample_as_hex.translate(None, ' ').decode('hex')
 
@@ -573,8 +572,8 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_head(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle [FlortDSample]_ParticleKey data particle
+        Verify [nortek]_sample particle
+        @param data_particle [nortek]_ParticleKey data particle
         @param verify_values bool, should we verify parameter values
         """
 
@@ -584,8 +583,8 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_user(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle  [FlortDSample]_ParticleKey data particle
+        Verify [nortek]_sample particle
+        @param data_particle  [nortek]_ParticleKey data particle
         @param verify_values  bool, should we verify parameter values
         """
 
@@ -595,8 +594,8 @@ class DriverTestMixinSub(DriverTestMixin):
 
     def assert_particle_id(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle  [FlortDSample]_ParticleKey data particle
+        Verify [nortek]_sample particle
+        @param data_particle  [nortek]_ParticleKey data particle
         @param verify_values  bool, should we verify parameter values
         """
         self.assert_data_particle_keys(NortekEngIdDataParticleKey, self._id_parameter)
@@ -909,7 +908,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 ###############################################################################
 @attr('INT', group='mi')
 class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
-    
+
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -1160,12 +1159,9 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
         capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.ACQUIRE_SAMPLE,
-                                                              ProtocolEvent.GET,
-                                                              ProtocolEvent.SET,
                                                               ProtocolEvent.ACQUIRE_STATUS,
                                                               ProtocolEvent.CLOCK_SYNC,
-                                                              ProtocolEvent.START_AUTOSAMPLE,
-                                                              ProtocolEvent.START_DIRECT]
+                                                              ProtocolEvent.START_AUTOSAMPLE]
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
@@ -1188,7 +1184,7 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         # #  DA Mode
         # ##################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
         self.assert_direct_access_start_telnet()
         self.assert_capabilities(capabilities)

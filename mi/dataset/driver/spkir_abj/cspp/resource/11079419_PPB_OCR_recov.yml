@@ -1,0 +1,283 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppMetadataRecoveredDataParticle
+    particle_type: spkir_abj_cspp_metadata_recovered
+    internal_timestamp: 3606763053.467000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9419
+    processing_time: '07/18/2014 12:23:17'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079419.PPB'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+    instrument_id: 'SATDI7'
+    serial_number: '0237'
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.467000
+    profiler_timestamp: 1397774253.4670000076293945
+    pressure_depth: 19.3939999999999984
+    suspect_timestamp: 0
+    timer: 4.0800000000000001
+    sample_delay: -133
+    channel_array: [2147989504, 2147700352, 2148766208, 2148786560, 2150781248, 2147358272, 2147465792]
+    vin_sense: 297
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 0
+  - _index: 3
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.603000
+    profiler_timestamp: 1397774253.6029999256134033
+    pressure_depth: 19.3820000000000014
+    suspect_timestamp: 0
+    timer: 4.2199999999999998
+    sample_delay: -133
+    channel_array: [2147991936, 2147699840, 2148777792, 2148791680, 2150791744, 2147353216, 2147460032]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 1
+  - _index: 4
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.738000
+    profiler_timestamp: 1397774253.7379999160766602
+    pressure_depth: 19.3659999999999997
+    suspect_timestamp: 0
+    timer: 4.3499999999999996
+    sample_delay: -133
+    channel_array: [2147992384, 2147696000, 2148777472, 2148799872, 2150797120, 2147347072, 2147457664]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 2
+  - _index: 5
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.876000
+    profiler_timestamp: 1397774253.8759999275207520
+    pressure_depth: 19.3509999999999991
+    suspect_timestamp: 0
+    timer: 4.4900000000000002
+    sample_delay: -133
+    channel_array: [2147990656, 2147698048, 2148788928, 2148813248, 2150810816, 2147354944, 2147463680]
+    vin_sense: 280
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 3
+  - _index: 6
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.012000
+    profiler_timestamp: 1397774254.0120000839233398
+    pressure_depth: 19.3329999999999984
+    suspect_timestamp: 0
+    timer: 4.6299999999999999
+    sample_delay: -133
+    channel_array: [2147993024, 2147707264, 2148789632, 2148816704, 2150827328, 2147351296, 2147467392]
+    vin_sense: 283
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 4
+  - _index: 7
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.148000
+    profiler_timestamp: 1397774254.1480000019073486
+    pressure_depth: 19.3150000000000013
+    suspect_timestamp: 0
+    timer: 4.7599999999999998
+    sample_delay: -133
+    channel_array: [2147998144, 2147699968, 2148787328, 2148821824, 2150833216, 2147351488, 2147459456]
+    vin_sense: 281
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 5
+  - _index: 8
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.285000
+    profiler_timestamp: 1397774254.2850000858306885
+    pressure_depth: 19.3009999999999984
+    suspect_timestamp: 0
+    timer: 4.9000000000000004
+    sample_delay: -133
+    channel_array: [2147993152, 2147703488, 2148795328, 2148830528, 2150841856, 2147356224, 2147462912]
+    vin_sense: 281
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 6
+  - _index: 9
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.423000
+    profiler_timestamp: 1397774254.4230000972747803
+    pressure_depth: 19.2890000000000015
+    suspect_timestamp: 0
+    timer: 5.0400000000000000
+    sample_delay: -133
+    channel_array: [2147989760, 2147705856, 2148798848, 2148835904, 2150851328, 2147353664, 2147461696]
+    vin_sense: 278
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 7
+  - _index: 10
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.578000
+    profiler_timestamp: 1397774254.5780000686645508
+    pressure_depth: 19.2789999999999999
+    suspect_timestamp: 0
+    timer: 5.1699999999999999
+    sample_delay: -133
+    channel_array: [2147992128, 2147710976, 2148801088, 2148845952, 2150860992, 2147357568, 2147463488]
+    vin_sense: 285
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 8
+  - _index: 11
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.696000
+    profiler_timestamp: 1397774254.6960000991821289
+    pressure_depth: 19.2659999999999982
+    suspect_timestamp: 0
+    timer: 5.3099999999999996
+    sample_delay: -133
+    channel_array: [2147996800, 2147708032, 2148800832, 2148849792, 2150869568, 2147360320, 2147465728]
+    vin_sense: 277
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 9
+  - _index: 12
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.832000
+    profiler_timestamp: 1397774254.8320000171661377
+    pressure_depth: 19.2519999999999989
+    suspect_timestamp: 0
+    timer: 5.4500000000000002
+    sample_delay: -133
+    channel_array: [2147998464, 2147704256, 2148807296, 2148845056, 2150868928, 2147358080, 2147464000]
+    vin_sense: 282
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 10
+  - _index: 13
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763054.968000
+    profiler_timestamp: 1397774254.9679999351501465
+    pressure_depth: 19.2480000000000011
+    suspect_timestamp: 0
+    timer: 5.5800000000000001
+    sample_delay: -133
+    channel_array: [2147995840, 2147707136, 2148806784, 2148846784, 2150868672, 2147359232, 2147467712]
+    vin_sense: 274
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 11
+  - _index: 14
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.104000
+    profiler_timestamp: 1397774255.1040000915527344
+    pressure_depth: 19.2409999999999997
+    suspect_timestamp: 0
+    timer: 5.7199999999999998
+    sample_delay: -133
+    channel_array: [2147996480, 2147705152, 2148810176, 2148846272, 2150876800, 2147362304, 2147465472]
+    vin_sense: 271
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 12
+  - _index: 15
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.242000
+    profiler_timestamp: 1397774255.2420001029968262
+    pressure_depth: 19.2379999999999995
+    suspect_timestamp: 0
+    timer: 5.8600000000000003
+    sample_delay: -133
+    channel_array: [2148000448, 2147707584, 2148806912, 2148846464, 2150882688, 2147361792, 2147466176]
+    vin_sense: 277
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 13
+  - _index: 16
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.391000
+    profiler_timestamp: 1397774255.3910000324249268
+    pressure_depth: 19.2349999999999994
+    suspect_timestamp: 0
+    timer: 5.9900000000000002
+    sample_delay: -133
+    channel_array: [2147995712, 2147706304, 2148801280, 2148850752, 2150883328, 2147358016, 2147465216]
+    vin_sense: 284
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 14
+  - _index: 17
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.513000
+    profiler_timestamp: 1397774255.5130000114440918
+    pressure_depth: 19.2330000000000005
+    suspect_timestamp: 0
+    timer: 6.1299999999999999
+    sample_delay: -133
+    channel_array: [2148000000, 2147707840, 2148799872, 2148851584, 2150881088, 2147361216, 2147463424]
+    vin_sense: 284
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 15
+  - _index: 18
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.651000
+    profiler_timestamp: 1397774255.6510000228881836
+    pressure_depth: 19.2330000000000005
+    suspect_timestamp: 0
+    timer: 6.2599999999999998
+    sample_delay: -133
+    channel_array: [2147992384, 2147703616, 2148803712, 2148847360, 2150879168, 2147356992, 2147464768]
+    vin_sense: 276
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 16
+  - _index: 19
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.786000
+    profiler_timestamp: 1397774255.7860000133514404
+    pressure_depth: 19.2390000000000008
+    suspect_timestamp: 0
+    timer: 6.4000000000000004
+    sample_delay: -133
+    channel_array: [2147994112, 2147704256, 2148804800, 2148848128, 2150872384, 2147355392, 2147464064]
+    vin_sense: 279
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 17
+  - _index: 20
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763055.923000
+    profiler_timestamp: 1397774255.9230000972747803
+    pressure_depth: 19.2399999999999984
+    suspect_timestamp: 0
+    timer: 6.5400000000000000
+    sample_delay: -133
+    channel_array: [2147995776, 2147704000, 2148797056, 2148846080, 2150871104, 2147360192, 2147462848]
+    vin_sense: 278
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 18

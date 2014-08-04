@@ -1,0 +1,31 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppMetadataTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_metadata
+    internal_timestamp: 3606762526.157000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 12:23:16'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.PPD'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+    instrument_id: 'SATDI7'
+    serial_number: '0237'
+  - _index: 4
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762526.157000
+    profiler_timestamp: 1397773726.1570000648498535
+    pressure_depth: 17.7109999999999985
+    suspect_timestamp: 0
+    timer: 34.0700000000000003
+    sample_delay: -133
+    channel_array: [2147983744, 2147677312, 2148627840, 2148582848, 2150414976, 2147356480, 2147467072]
+    vin_sense: 282
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 219

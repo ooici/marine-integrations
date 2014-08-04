@@ -40,9 +40,11 @@ DEFAULT_HOST = 'localhost'
 DEFAULT_DATA_PORT = 6001
 DEFAULT_CMD_PORT = 6002
 DEFAULT_SNIFFER_PORT = 6003
+DEFAULT_INSTRUMENT_CMD_PORT = 6004
 
 
 class ConfigTypes(BaseEnum):
+    RSN = 'rsn'
     ETHERNET = 'ethernet'
     SERIAL = 'serial'
     BOTPT = 'botpt'
@@ -253,6 +255,8 @@ class CommConfig(object):
         if type in valid_types:
             if ConfigTypes.ETHERNET == type:
                 config = CommConfigEthernet(filename)
+            elif ConfigTypes.RSN == type:
+                config = CommConfigRSN(filename)
             elif ConfigTypes.BOTPT == type:
                 config = CommConfigBOTPT(filename)
             elif ConfigTypes.SERIAL == type:
@@ -329,6 +333,53 @@ class CommConfigEthernet(CommConfig):
         config = CommConfig._config_dictionary(self)
         config['device_addr'] = self.device_addr
         config['device_port'] = int(self.device_port)
+
+        return config
+
+
+class CommConfigRSN(CommConfig):
+    """
+    RSN CommConfig object.  Defines data store for RSN ethernet based loggers connections
+    """
+
+    @staticmethod
+    def method(): return ConfigTypes.RSN
+
+    def __init__(self, filename):
+        self.device_addr = None
+        self.device_port = None
+        self.instrument_command_port = None
+
+        CommConfig.__init__(self, filename)
+
+    def _init_from_yaml(self, yaml_input):
+        CommConfig._init_from_yaml(self, yaml_input)
+
+        if yaml_input:
+            self.device_addr = yaml_input['comm'].get('device_addr')
+            self.device_port = yaml_input['comm'].get('device_port')
+            self.instrument_command_port = yaml_input['comm'].get('instrument_command_port')
+
+    def get_from_console(self):
+
+        if not self.instrument_command_port: self.instrument_command_port = DEFAULT_INSTRUMENT_CMD_PORT
+
+        self.device_addr = prompt.text('Device Address', self.device_addr)
+        self.device_port = prompt.text('Device Port', self.device_port)
+        self.instrument_command_port = prompt.text('Instrument Command Port', self.instrument_command_port)
+        CommConfig.get_from_console(self)
+
+    def display_config(self):
+        CommConfig.display_config(self)
+        print( "Device Address: " + self.device_addr )
+        print( "Device Port: " + str(self.device_port))
+        print( "Instrument Command Port: " + str(self.instrument_command_port))
+
+    def _config_dictionary(self):
+        config = CommConfig._config_dictionary(self)
+        config['device_addr'] = self.device_addr
+        config['device_port'] = int(self.device_port)
+        config['instrument_command_port'] = int(self.instrument_command_port)
 
         return config
 
@@ -495,6 +546,8 @@ class CommConfigMulti(CommConfig):
                 self.configs[key] = CommConfigSerial(None)
             elif method == ConfigTypes.ETHERNET:
                 self.configs[key] = CommConfigEthernet(None)
+            elif method == ConfigTypes.RSN:
+                self.configs[key] = CommConfigRSN(None)
             else:
                 raise InvalidCommType('%s' % method)
             self.configs[key]._init_from_yaml(yaml_input['comm']['configs'][key])
@@ -517,7 +570,7 @@ class CommConfigMulti(CommConfig):
         return result
 
 # List of all known CommConfig objects
-_CONFIG_OBJECTS = [CommConfigEthernet, CommConfigBOTPT, CommConfigSerial, CommConfigMulti]
+_CONFIG_OBJECTS = [CommConfigEthernet, CommConfigRSN, CommConfigBOTPT, CommConfigSerial, CommConfigMulti]
 
 if __name__ == '__main__':
     pass

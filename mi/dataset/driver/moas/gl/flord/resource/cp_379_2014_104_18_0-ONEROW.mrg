@@ -1,0 +1,18 @@
+dbd_label: DBD_ASC(dinkum_binary_data_ascii)file
+encoding_ver: 2
+num_ascii_tags: 14
+all_sensors: 0
+filename: cp_379-2014-104-18-0
+the8x3_filename: 00540000
+filename_extension: sbd
+filename_label: cp_379-2014-104-18-0-sbd(00540000)
+mission_name: CPDEEP.MI
+fileopen_time: Tue_Apr_15_21:31:51_2014
+sensors_per_cycle: 52
+num_label_lines: 3
+num_segments: 1
+segment_filename_0: cp_379-2014-104-18-0
+c_ballast_pumped c_battpos c_de_oil_vol c_dvl_on c_heading c_pitch c_wpt_lat c_wpt_lon m_air_pump m_altitude m_ballast_pumped m_battery m_battpos m_coulomb_amphr_total m_coulomb_current m_depth m_de_oil_vol m_fin m_gps_lat m_gps_lon m_heading m_lat m_lithium_battery_relative_charge m_lon m_pitch m_present_secs_into_mission m_present_time m_pressure m_raw_altitude m_roll m_speed m_vacuum m_water_depth m_water_vx m_water_vy x_low_power_status sci_bsipar_par sci_flbbcd_bb_units sci_flbbcd_cdom_units sci_flbbcd_chlor_units sci_m_disk_free sci_m_disk_usage sci_m_present_secs_into_mission sci_m_present_time sci_oxy4_oxygen sci_oxy4_saturation sci_water_cond sci_water_pressure sci_water_temp sci_x_disk_files_removed sci_x_sent_data_files sci_flbb_therm
+cc in cc sec rad rad lat lon bool m cc volts in amp-hrs amp m cc rad lat lon rad lat % lon rad sec timestamp bar m rad m/s inHg m m/s m/s nodim ue/m^2sec nodim ppb ug/l mbytes mbytes sec timestamp um % s/m bar degc nodim nodim 1
+4 4 4 4 4 4 8 8 1 4 4 4 4 4 4 4 4 4 8 8 4 8 4 8 4 4 8 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 8 4 4 4 4 4 4 4 4 
+NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN 43.2016 1397597463.2016 NaN NaN NaN NaN NaN NaN NaN NaN NaN 0 0 0 0 1991.12 8.34375 43.2016 1397597463.2016 0 0 0 0 0 0 0 1000.1 
