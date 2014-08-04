@@ -165,9 +165,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         recovered_file_one = '11079364_PPB_PARS.txt'
         telemetered_file_one = '11079364_PPD_PARS.txt'
 
-        # Clear any existing sampling
-        self.clear_sample_data()
-
         recovered_path_1 = self.create_sample_data_set_dir(recovered_file_one, DIR_PARAD_RECOVERED)
         telemetered_path_1 = self.create_sample_data_set_dir(telemetered_file_one, DIR_PARAD_TELEMETERED)
 
@@ -207,9 +204,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         recovered_file_one = '11079364_PPB_PARS.txt'
         telemetered_file_one = '11079364_PPD_PARS.txt'
-
-        # Clear any existing sampling
-        self.clear_sample_data()
 
         self.create_sample_data_set_dir(recovered_file_one, DIR_PARAD_RECOVERED)
         self.create_sample_data_set_dir(telemetered_file_one, DIR_PARAD_TELEMETERED)
@@ -251,42 +245,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.  Should call the exception callback.
-        """
-
-        # create the file so that it is unreadable
-        self.create_sample_data_set_dir("11079364_PPD_PARS.txt", DIR_PARAD_TELEMETERED,
-                                        mode=000)
-
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-
-        self.assert_exception(IOError)
-
-        # At this point the harvester thread is dead.  The agent
-        # exception handle should handle this case.
-
-    def test_harvester_new_file_exception_recovered(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.  Should call the exception callback.
-        """
-
-        # create the file so that it is unreadable
-        self.create_sample_data_set_dir("11079364_PPB_PARS.txt", DIR_PARAD_RECOVERED,
-                                        mode=000)
-
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-
-        self.assert_exception(IOError)
-
-        # At this point the harvester thread is dead.  The agent
-        # exception handle should handle this case.
 
 
 ###############################################################################
@@ -478,52 +436,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_event_received(ResourceAgentErrorEvent, 10)
 
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.
-
-        exception callback called.
-        """
-        # need to put data in the file, not just make an empty file for this to work
-        self.create_sample_data_set_dir('11079364_PPD_PARS.txt', DIR_PARAD_TELEMETERED,
-                                        mode=000)
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.clear_sample_data()
-        self.create_sample_data_set_dir('11079364_PPD_PARS.txt', DIR_PARAD_TELEMETERED)
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
-
-    def test_harvester_new_recov_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.
-
-        exception callback called.
-        """
-        # need to put data in the file, not just make an empty file for this to work
-        self.create_sample_data_set_dir('11079364_PPB_PARS.txt', DIR_PARAD_RECOVERED, mode=000)
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.clear_sample_data()
-        self.create_sample_data_set_dir('11079364_PPB_PARS.txt', DIR_PARAD_RECOVERED)
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
 
 
