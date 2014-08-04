@@ -270,32 +270,35 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         This test makes sure that we retrieve the correct particles upon starting with an offset state.
         """
 
-        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
-        stream_handle = open(file_path, 'rb')
+        file_path = os.path.join(RESOURCE_PATH, '11079364_WC_HMR.txt')
+        stream_handle = open(file_path, 'r')
 
-        # position 1410 is the end of the frist data record, which would have produced the
-        # metadata particle and the first engineering particle
-        initial_state = {StateKey.POSITION: 1410, StateKey.METADATA_EXTRACTED: True}
+        # position 547 is the end of the 7th data record, which would have produced the
+        # metadata particle and the first 7 engineering particles
+        initial_state = {StateKey.POSITION: 549, StateKey.METADATA_EXTRACTED: True}
 
         parser = WcHmrCsppParser(self.config.get(WcHmrDataTypeKey.WC_HMR_CSPP_RECOVERED),
                                  initial_state, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
 
-        #expect to get the 2nd and 3rd engineering particles next
+        #expect to get the 8th and 9th engineering particles next
         particles = parser.get_records(2)
 
         log.debug("Num particles: %s", len(particles))
 
         self.assertTrue(len(particles) == 2)
 
-        expected_results = self.get_dict_from_yml('mid_state_start.yml')
+        expected_results = self.get_dict_from_yml('11079364_WC_HMR_recov.yml')
+
+        # skip the first 8 particles in the yml file due to mid state start
+        offset = 8
 
         for i in range(len(particles)):
-            self.assert_result(expected_results['data'][i], particles[i])
+            self.assert_result(expected_results['data'][i + offset], particles[i])
 
-        # now expect the state to be the end of the 4 data record and metadata sent
-        the_new_state = {StateKey.POSITION: 1704, StateKey.METADATA_EXTRACTED: True}
+        # now expect the state to be the end of the 9th data record and metadata sent
+        the_new_state = {StateKey.POSITION: 627, StateKey.METADATA_EXTRACTED: True}
         log.debug("********** expected state: %s", the_new_state)
         log.debug("******** new parser state: %s", parser._state)
         self.assertTrue(parser._state == the_new_state)
@@ -309,12 +312,12 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         changed
         """
 
-        file_path = os.path.join(RESOURCE_PATH, '11079419_PPB_OCR.txt')
+        file_path = os.path.join(RESOURCE_PATH, '11079364_WC_HMR.txt')
         stream_handle = open(file_path, 'r')
 
         # 11079419_PPB_OCR_20.yml has the metadata and the first 19
         # engineering particles in it
-        expected_results = self.get_dict_from_yml('11079419_PPB_OCR_recov.yml')
+        expected_results = self.get_dict_from_yml('11079364_WC_HMR_recov.yml')
 
         parser = WcHmrCsppParser(self.config.get(WcHmrDataTypeKey.WC_HMR_CSPP_RECOVERED),
                                  None, stream_handle,
@@ -330,8 +333,8 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
-        # position 3656 is the byte at the start of the 18th data record
-        new_state = {StateKey.POSITION: 3769, StateKey.METADATA_EXTRACTED: True}
+        # position 945 is the byte at the start of the 18th data record
+        new_state = {StateKey.POSITION: 945, StateKey.METADATA_EXTRACTED: True}
 
         parser.set_state(new_state)
 
@@ -351,12 +354,13 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
 
-        # the first data record in this file is corrupted and will be ignored
-        # we expect the first 2 particles to be the metadata particle and the
-        # engineering particle from the data record after the corrupted one
+        # the first and 7th data record in this file are corrupted and will be ignored
+        # we expect to get the metadata particle with the
+        # timestamp from the 2nd data record and all of the valid engineering
+        # data records
 
-        file_path = os.path.join(RESOURCE_PATH, '11079419_BAD_PPB_OCR.txt')
-        stream_handle = open(file_path, 'rb')
+        file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_WC_HMR.txt')
+        stream_handle = open(file_path, 'r')
 
         log.info(self.exception_callback_value)
 
@@ -365,11 +369,12 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
 
-        particles = parser.get_records(2)
+        # 18 particles
+        particles = parser.get_records(18)
 
-        expected_results = self.get_dict_from_yml('bad_data_record.yml')
+        expected_results = self.get_dict_from_yml('WC_HMR_bad_data_records.yml')
 
-        self.assertTrue(len(particles) == 2)
+        self.assertTrue(len(particles) == 18)
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
@@ -382,14 +387,14 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
 
-        # the first 2 data record in this file are corrupted by adding additional
+        # the first 2nd and 8th data record in this file are corrupted by adding additional
         # data values separated by tabs and will be ignored
-        # we expect the first 2 particles to be the metadata particle and the
-        # engineering  particle from the data record after the corrupted one
+        # we expect to get the metadata particle and only the valid
+        # engineering data particles
 
-        file_path = os.path.join(RESOURCE_PATH, '11079364_EXTRA_DATA_PPD_OCR.txt')
+        file_path = os.path.join(RESOURCE_PATH, '11079364_EXTRA_DATA_WC_HMR.txt')
 
-        stream_handle = open(file_path, 'rb')
+        stream_handle = open(file_path, 'r')
 
         log.info(self.exception_callback_value)
 
@@ -398,7 +403,7 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
 
-        particles = parser.get_records(2)
+        particles = parser.get_records(18)
 
         self.assertTrue(self.exception_callback_value is not None)
 
@@ -407,9 +412,9 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         # expect to see a recoverable sample exception in the log
         log.debug('TEST EXTRA DATA exception call back is %s', self.exception_callback_value)
 
-        expected_results = self.get_dict_from_yml('extra_data_values.yml')
+        expected_results = self.get_dict_from_yml('WC_HMR_extra_data_values.yml')
 
-        self.assertTrue(len(particles) == 2)
+        self.assertTrue(len(particles) == 18)
 
         # since the first two records were corrupted the first records received
         # should be metadata particle with the timestamp of the 3rd data row
