@@ -26,15 +26,15 @@ from mi.core.exceptions import SampleException, DatasetParserException, \
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.dataset.parser.cspp_base import CsppParser, CsppMetadataDataParticle, \
                                         MetadataRawDataKey, \
-                                        FLOAT_REGEX, Y_OR_N_REGEX, \
+                                        FLOAT_REGEX, INT_REGEX, \
+                                        Y_OR_N_REGEX, \
                                         END_OF_LINE_REGEX, \
-                                        CHECKSUM_REGEX, \
                                         encode_y_or_n
 
 FLOAT_TAB_REGEX = FLOAT_REGEX + '\t'
 
 # a regex to match the profiler timestamp, depth, and suspect timestamp
-LINE_START_REGEX = FLOAT_TAB_REGEX + FLOAT_TAB_REGEX + Y_OR_N_REGEX + \t'
+LINE_START_REGEX = FLOAT_TAB_REGEX + FLOAT_TAB_REGEX + Y_OR_N_REGEX + '\t'
 
 NUMBER_CHANNELS = 256
 NUM_FIELDS = 33 + NUMBER_CHANNELS
@@ -51,7 +51,7 @@ DATA_REGEX += '(' + INT_REGEX + ')\t' # lamp time
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){10}' # match 10 floats separated by tabs
 DATA_REGEX += '(\d+)\t' # ctd time
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){3}' # match 3 floats separated by tabs
-DATA_REGEX += CHECKSUM_REGEX + END_OF_LINE_REGEX # checksum and line end
+DATA_REGEX += '[0-9a-fA-F]{2}' + END_OF_LINE_REGEX # checksum and line end
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 # index into split string parameter values
@@ -71,27 +71,29 @@ GRP_SPEC_AVG = 12
 GRP_DARK_FIT = 13
 GRP_INTEG_TIME = 14
 GRP_SPECTRAL_START = 15
-GRP_TEMP_INTERIOR = GRP_SPECTRAL_START + NUM_CHANNELS
-GRP_TEMP_SPECTRO = GRP_SPECTRAL_START + NUM_CHANNELS + 1
-GRP_TEMP_LAMP = GRP_SPECTRAL_START + NUM_CHANNELS + 2
-GRP_LAMP_TIME = GRP_SPECTRAL_START + NUM_CHANNELS + 3
-GRP_HUMID = GRP_SPECTRAL_START + NUM_CHANNELS + 4
-GRP_VOLT_MAIN = GRP_SPECTRAL_START + NUM_CHANNELS + 5
-GRP_VOLT_LAMP = GRP_SPECTRAL_START + NUM_CHANNELS + 6
-GRP_VOLT_INT = GRP_SPECTRAL_START + NUM_CHANNELS + 7
-GRP_CURRRENT = GRP_SPECTRAL_START + NUM_CHANNELS + 8
-GRP_AUX_FIT_1 = GRP_SPECTRAL_START + NUM_CHANNELS + 9
-GRP_AUT_FIT_2 = GRP_SPECTRAL_START + NUM_CHANNELS + 10
-GRP_FIT_BASE_1 = GRP_SPECTRAL_START + NUM_CHANNELS + 11
-GRP_FIT_BASE_2 = GRP_SPECTRAL_START + NUM_CHANNELS + 12
-GRP_FIT_RMSE = GRP_SPECTRAL_START + NUM_CHANNELS + 13
-GRP_CTD_TIME = GRP_SPECTRAL_START + NUM_CHANNELS + 14
-GRP_CTD_PSU = GRP_SPECTRAL_START + NUM_CHANNELS + 15
-GRP_CTD_TEMP = GRP_SPECTRAL_START + NUM_CHANNELS + 16
-GRP_CTD_DBAR = GRP_SPECTRAL_START + NUM_CHANNELS + 17
+GRP_SPECTRAL_END = GRP_SPECTRAL_START + NUMBER_CHANNELS
+GRP_TEMP_INTERIOR = GRP_SPECTRAL_END
+GRP_TEMP_SPECTRO = GRP_SPECTRAL_END + 1
+GRP_TEMP_LAMP = GRP_SPECTRAL_END + 2
+GRP_LAMP_TIME = GRP_SPECTRAL_END + 3
+GRP_HUMID = GRP_SPECTRAL_END + 4
+GRP_VOLT_MAIN = GRP_SPECTRAL_END + 5
+GRP_VOLT_LAMP = GRP_SPECTRAL_END + 6
+GRP_VOLT_INT = GRP_SPECTRAL_END + 7
+GRP_CURRRENT = GRP_SPECTRAL_END + 8
+GRP_AUX_FIT_1 = GRP_SPECTRAL_END + 9
+GRP_AUT_FIT_2 = GRP_SPECTRAL_END + 10
+GRP_FIT_BASE_1 = GRP_SPECTRAL_END + 11
+GRP_FIT_BASE_2 = GRP_SPECTRAL_END + 12
+GRP_FIT_RMSE = GRP_SPECTRAL_END + 13
+GRP_CTD_TIME = GRP_SPECTRAL_END + 14
+GRP_CTD_PSU = GRP_SPECTRAL_END + 15
+GRP_CTD_TEMP = GRP_SPECTRAL_END + 16
+GRP_CTD_DBAR = GRP_SPECTRAL_END + 17
 
-
-IGNORE_LINE_REGEX = LINE_START_REGEX + '.*' + END_OF_LINE_REGEX
+# ignore lines matching the start (timestamp, depth, suspect timestamp),
+# then any text not containing tabs
+IGNORE_LINE_REGEX = LINE_START_REGEX + '[^\t]*' + END_OF_LINE_REGEX
 IGNORE_MATCHER = re.compile(IGNORE_LINE_REGEX)
 
 class DataParticleType(BaseEnum):
@@ -228,7 +230,7 @@ class NutnrJCsppDataParticle(DataParticle):
                                           params(GRP_INTEG_TIME), int),
                        # transform the array of strings into an array of ints
                        self._encode_value(NutnrJCsppDataParticleKey.SPECTRAL_CHANNELS,
-                                          map(int, params(GRP_SPECTRAL_START:GRP_SPECTRAL_START + NUM_CHANNELS)),
+                                          map(int, params[GRP_SPECTRAL_START:GRP_SPECTRAL_START + NUM_CHANNELS]),
                                           list),
                        self._encode_value(NutnrJCsppDataParticleKey.TEMP_INTERIOR,
                                           params(GRP_TEMP_INTERIOR), float),
@@ -297,19 +299,19 @@ class NutnrJCsppParser(CsppParser):
                  state_callback,
                  publish_callback,
                  exception_callback,
-                 *args, **kwargs)
-    """
-    This the contstructor which instantiates the NutnrJCsppParser
-    """
-
-    # call the superclass constructor
-    super(NutnrJCsppParser, self).__init__(config,
-                                           state,
-                                           stream_handle,
-                                           state_callback,
-                                           publish_callback,
-                                           exception_callback,
-                                           DATA_REGEX,
-                                           ignore_matcher=IGNORE_MATCHER,
-                                           *args, **kwargs)
+                 *args, **kwargs):
+        """
+        This the contstructor which instantiates the NutnrJCsppParser
+        """
+    
+        # call the superclass constructor
+        super(NutnrJCsppParser, self).__init__(config,
+                                               state,
+                                               stream_handle,
+                                               state_callback,
+                                               publish_callback,
+                                               exception_callback,
+                                               DATA_REGEX,
+                                               ignore_matcher=IGNORE_MATCHER,
+                                               *args, **kwargs)
 

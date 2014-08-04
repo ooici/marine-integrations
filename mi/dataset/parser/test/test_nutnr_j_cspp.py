@@ -6,6 +6,7 @@
 @author Emily Hahn
 @brief Test code for a nutnr_j_cspp data parser
 """
+import os
 
 from nose.plugins.attrib import attr
 
@@ -17,7 +18,9 @@ from mi.idk.config import Config
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.dataset.parser.cspp_base import StateKey
+from mi.dataset.parser.cspp_base import StateKey, DefaultHeaderKey, \
+                                        METADATA_PARTICLE_CLASS_KEY, \
+                                        DATA_PARTICLE_CLASS_KEY
 from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppParser, \
                                            NutnrJCsppMetadataTelemeteredDataParticle, \
                                            NutnrJCsppTelemeteredDataParticle, \
@@ -42,31 +45,40 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_value = pub
 
+    def exception_callback(self, exception_val)
+        """ Call back method to watch what comes in via the exception callback """
+        self.exception_callback_value = exception_val
+
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.telem_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: None
+            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
             DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                 METADATA_PARTICLE_CLASS_KEY: NutnrJCsppMetadataTelemeteredDataParticle,
                 DATA_PARTICLE_CLASS_KEY: NutnrJCsppTelemeteredDataParticle
             }
         }
-        
+
         self.recov_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: None
+            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
             DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                 METADATA_PARTICLE_CLASS_KEY: NutnrJCsppMetadataRecoveredDataParticle,
                 DATA_PARTICLE_CLASS_KEY: NutnrJCsppRecoveredDataParticle
             }
         }
-        # Define test data particles and their associated timestamps which will be 
-        # compared with returned results
-        
-        self.meta_telem_particle = NutnrJCsppMetadataTelemeteredDataParticle()
+
+        # metadata header dictionary
+        self.header_dict = {
+            DefaultHeaderKey.SOURCE_FILE: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.SNA',
+            DefaultHeaderKey.PROCESSED: '07/18/2014 13:49:01',
+            DefaultHeaderKey.USING_VERSION: '1.11',
+            DefaultHeaderKey.DEVICE: 'SNA',
+            DefaultHeaderKey.START_DATE: '04/17/2014'}
+
         # from 3222:4444
-        self.telem_particle_a = NutnrJCsppTelemeteredDataParticle('1397774268.772\t0.000\ty\tSDB' \
+        self.particle_a_str = '1397774268.772\t0.000\ty\tSDB' \
             '\t2014\t107\t22.627037\t0.000\t0.000\t0.000\t0.000\t0.000\t484\t0\t1\t497\t490\t484\t' \
             '494\t481\t490\t486\t473\t495\t496\t503\t493\t494\t486\t480\t503\t482\t484\t494\t488\t' \
             '493\t503\t485\t493\t492\t484\t483\t486\t491\t481\t485\t485\t493\t481\t483\t490\t490\t' \
@@ -84,7 +96,12 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
             '481\t485\t489\t480\t482\t465\t467\t474\t475\t485\t488\t487\t477\t477\t483\t480\t479\t' \
             '483\t474\t486\t482\t475\t483\t485\t492\t484\t483\t490\t478\t468\t475\t408\t0.000\t0.000' \
             '\t0.000\t246604\t35.657\t11.969\t0.092\t5.039\t57.381\t0.000\t0.000\t0.000\t0.000\t0.000' \
-            '\t0\t-1.000\t-1.000\t-1.000\t36\n')
+            '\t0\t-1.000\t-1.000\t-1.000\t36\n'
+        # metadata arguments is a tuple, 1st item header dictionary, 2nd item 1st particle data match
+        self.meta_telem_particle = NutnrJCsppMetadataTelemeteredDataParticle((self.header_dict, self.particle_a_str))
+
+        # from 3222:4444
+        self.telem_particle_a = NutnrJCsppTelemeteredDataParticle(self.particle_a_str)
         # from 4444:6136
         self.telem_particle_b = NutnrJCsppTelemeteredDataParticle('1397774270.706\t0.000\ty\tSLB\t2014' \
             '\t107\t22.627543\t11.962\t0.168\t-0.029\t-0.027\t0.000\t24886\t484\t1\t516\t515\t511\t515' \
@@ -133,13 +150,24 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
 	    '\t11836\t11693\t11606\t11555\t11470\t11341\t11216\t11159\t11064\t10839\t10361\t9578\t8554\t' \
 	    '11.438\t11.063\t12.563\t246607\t35.873\t11.739\t11.970\t5.032\t517.250\t24.266\t3.037\t-2.909' \
 	    '\t0.118\t0.000\t0\t-1.000\t-1.000\t-1.000\tD9\n')
-        
-        self.meta_recov_particle = NutnrJCsppMetadataRecoveredDataParticle()
-        self.recov_particle_a = NutnrJCsppRecoveredDataParticle()
+
+        self.meta_recov_particle = NutnrJCsppMetadataRecoveredDataParticle((self.header_dict, self.particle_a_str))
+        self.recov_particle_a = NutnrJCsppRecoveredDataParticle(self.particle_a_str)
 
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
+	self.exception_callback_value = None
+
+    def assert_result(self, result, position, particle, ingested):
+        self.assertEqual(result, [particle])
+        self.assertEqual(self.file_ingested_value, ingested)
+
+        self.assertEqual(self.parser._state[StateKey.POSITION], position)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], position)
+
+        self.assert_(isinstance(self.publish_callback_value, list))
+        self.assertEqual(self.publish_callback_value[0], particle)
 
     def test_simple(self):
         """
@@ -147,13 +175,14 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         stream_handle = open(os.path.join(RESOURCE_PATH,
-                                          '11079894_PPB_OPT.txt'), 'rb')
-        
-        parser = NutnrJCsppParser(self.telem_config, None, stream_handle, 
+                                          'short_SNA_SNA.txt'), 'rb')
+
+        self.parser = NutnrJCsppParser(self.telem_config, None, stream_handle, 
                                   self.state_callback, self.pub_callback,
                                   self.exception_callback)
-        
-        parser.get_records(1)
+
+        result = self.parser.get_records(1)
+	self.assert_result(result, 4444, self.meta_telem_particle, False)
 
     def test_get_many(self):
         """
