@@ -108,10 +108,8 @@ class CtdpfJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
                 driver_state,
                 DataTypeKey.CTDPF_J_CSPP_TELEMETERED)
 
-            if telemetered_harvester is not None:
-                harvesters.append(telemetered_harvester)
-            else:
-                log.warn('Creation of ctdpf_j_cspp telemetered harvester failed')
+            harvesters.append(telemetered_harvester)
+
         else:
             log.warn('No configuration for ctdpf_j_cspp telemetered harvester, not building')
 
@@ -120,10 +118,8 @@ class CtdpfJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
                 driver_state,
                 DataTypeKey.CTDPF_J_CSPP_RECOVERED)
 
-            if recovered_harvester is not None:
-                harvesters.append(recovered_harvester)
-            else:
-                log.warn('Creation of ctdpf_j_cspp recovered harvester failed')
+            harvesters.append(recovered_harvester)
+
         else:
             log.warn('No configuration for ctdpf_j_cspp recovered harvester, not building')
 

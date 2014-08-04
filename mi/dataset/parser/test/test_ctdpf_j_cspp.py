@@ -16,6 +16,8 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
+from mi.core.exceptions import RecoverableSampleException
+
 from mi.idk.config import Config
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
@@ -40,6 +42,7 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'ct
 RECOVERED_SAMPLE_DATA = '11079364_PPB_CTD.txt'
 TELEMETERED_SAMPLE_DATA = '11079364_PPD_CTD.txt'
 
+
 @attr('UNIT', group='mi')
 class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
     """
@@ -55,15 +58,15 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         self.publish_callback_value = pub
 
     def exception_callback(self, exception):
-        """ Callback method to watch what comes in via the exception callback """
-        self.exception_callback_value = exception
+        """ Call back method to watch what comes in via the exception callback """
+        self.exception_callback_value.append(exception)
         self.count += 1
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataTypeKey.CTDPF_J_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_j_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_j_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: CtdpfJCsppMetadataTelemeteredDataParticle,
@@ -71,7 +74,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
                 }
             },
             DataTypeKey.CTDPF_J_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_j_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_j_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: CtdpfJCsppMetadataRecoveredDataParticle,
@@ -85,7 +88,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
-        self.exception_callback_value = None
+        self.exception_callback_value = []
         self.count = 0
 
     def particle_to_yml(self, particles, filename, mode='w'):
@@ -205,7 +208,7 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_simple(self):
         """
-        Read test data and pull out data particles one at a time.
+        Read test data and pull out 20 data particles.
         Assert that the results are those we expected.
         """
         file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
@@ -237,8 +240,8 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_get_many(self):
         """
-        Read test data and pull out multiple data particles at one time.
-        Assert that the results are those we expected.
+        Read test data and pull out multiple data particles
+        Assert that we have the correct number of particles
         """
         file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
         stream_handle = open(file_path, 'r')
@@ -361,6 +364,10 @@ class CtdpfJCsppParserUnitTestCase(ParserUnitTestCase):
         log.info("Exception callback value: %s", self.exception_callback_value)
 
         self.assertTrue(self.exception_callback_value is not None)
+
+        for i in range(len(self.exception_callback_value)):
+            self.assert_(isinstance(self.exception_callback_value[i], RecoverableSampleException))
+
         # 14 bad records
         self.assertEqual(self.count, 12)
         stream_handle.close()

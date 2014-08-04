@@ -85,7 +85,7 @@ class CtdpfJCsppMetadataDataParticle(CsppMetadataDataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
 
         results = []
@@ -137,7 +137,7 @@ class CtdpfJCsppInstrumentDataParticle(DataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
         results = []
 

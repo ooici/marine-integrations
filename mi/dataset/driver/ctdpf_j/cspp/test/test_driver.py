@@ -22,8 +22,6 @@ from nose.plugins.attrib import attr
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
-
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -129,8 +127,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_get(self):
         """
-        Test that we can get data from files.  Verify that the driver
-        sampling can be started and stopped
+        Test that we can get data from files.
+        Assert that the particles are correct.
         """
         log.info("================ START INTEG TEST GET =====================")
 
@@ -292,6 +290,7 @@ class QualificationTest(DataSetQualificationTestCase):
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
+        Assert that we get the correct number of particles
         """
         log.info("=========== START QUAL TEST LARGE IMPORT =================")
 
@@ -402,11 +401,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.stop_dataset_agent_client()
         # Re-start the agent
         self.init_dataset_agent_client()
-        # Re-initialize
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        #restart sampling
-        self.assert_start_sampling()
+        # Re-initialize and enter streaming state
+        self.assert_initialize()
 
         # get the next 12 telemetered instrument particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 12, 40)
