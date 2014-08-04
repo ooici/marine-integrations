@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Joe Padula
+  constructor: ParadJCsppDataSetDriver
+  driver_name: parad_j_cspp
+  driver_path: parad_j/cspp
+  email: Joseph_J_Padula@raytheon.com
+  release_notes: initial release
+  version: 0.0.1
