@@ -19,10 +19,14 @@ import ntplib
 
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
-from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, SAMPLE_BYTES, STATUS_BYTES, STATUS_START_MATCHER
+from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, SAMPLE_BYTES, STATUS_BYTES, \
+                                                STATUS_BYTES_AUGMENTED, STATUS_START_MATCHER, \
+                                                WFP_E_GLOBAL_FLAGS_HEADER_MATCHER, \
+                                                WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES as E_GLOBAL_SAMPLE_BYTES, \
+                                                WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_MATCHER as WFP_E_SAMPLE_MATCHER
 
 
 class DataParticleType(BaseEnum):
@@ -33,19 +37,8 @@ class DostaLnWfpSioMuleDataParticleKey(BaseEnum):
     OPTODE_OXYGEN='estimated_oxygen_concentration'
     OPTODE_TEMPERATURE='optode_temperature'
     WFP_TIMESTAMP = 'wfp_timestamp'
- 
-
-
-E_HEADER_REGEX = b'(\x00\x01\x00{5,5}\x01\x00{7,7}\x01)([\x00-\xff]{8,8})' # E header regex for global sites
-E_HEADER_MATCHER = re.compile(E_HEADER_REGEX)
-
-WFP_E_SAMPLE_REGEX = b'([\x00-\xff]{4})([\x00-\xff]{26})'
-WFP_E_SAMPLE_MATCHER = re.compile(WFP_E_SAMPLE_REGEX)
-
 
 SIO_HEADER_BYTES = 32
-E_GLOBAL_SAMPLE_BYTES = 30
-STATUS_BYTES_AUGMENTED = 18
 
 
 class DostaLnWfpSioMuleParserDataParticle(DataParticle):
@@ -135,7 +128,7 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
                 log.trace("********************************matched chunk header %s", chunk[0:SIO_HEADER_BYTES])
 	    
                 # Parse/match the E file header
-                e_header_match = E_HEADER_MATCHER.search(chunk[SIO_HEADER_BYTES:SIO_HEADER_BYTES+HEADER_BYTES+1])
+                e_header_match = WFP_E_GLOBAL_FLAGS_HEADER_MATCHER.search(chunk[SIO_HEADER_BYTES:SIO_HEADER_BYTES+HEADER_BYTES+1])
 		
                 if e_header_match:
 		    
@@ -168,7 +161,7 @@ class DostaLnWfpSioMuleParser(SioMuleParser):
 		                		
 		                
 		else: # no e header match
-		    log.debug("*****************************************************BAD E HEADER 0x%s",
+		    log.warn("*****************************************************BAD E HEADER 0x%s",
 			       ":".join("{:02x}".format(ord(c)) for c in chunk))
 		    self._exception_callback(UnexpectedDataException("Found unexpected data."))
 		
