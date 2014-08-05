@@ -72,6 +72,7 @@ class WcWmDataTypeKey(BaseEnum):
     WC_WM_CSPP_TELEMETERED = 'wc_wm_cspp_telemetered'
     WC_WM_CSPP_RECOVERED = 'wc_wm_cspp_recovered'
 
+
 class DataMatchesGroupNumber(BaseEnum):
     """
     An enum for group match indices for a data record chunk.
@@ -80,9 +81,15 @@ class DataMatchesGroupNumber(BaseEnum):
     PROFILER_TIMESTAMP = 1
     PRESSURE = 2
     SUSPECT_TIMESTAMP = 3
-    HEADING = 4
-    PITCH = 5
-    ROLL = 6
+    ENCODER_COUNTS = 4
+    WINCH_CURRENT = 5
+    WINCH_STATUS = 6
+    VELOCITY = 7
+    TEMPERATURE = 8
+    WINCH_VOLTAGE = 9
+    TIME_COUNTS = 10
+    DISCHARGE_COUNTS = 11
+    ROPE_ON_DRUM = 12
 
 
 class DataParticleType(BaseEnum):
@@ -96,23 +103,33 @@ class WcWmEngDataParticleKey(BaseEnum):
     """
     The data particle keys associated with wc_wm engineering data particle parameters
     """
-    INSTRUMENT_ID = 'instrument_id'
-    SERIAL_NUMBER = 'serial_number'
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure_depth'
     SUSPECT_TIMESTAMP = 'suspect_timestamp'
-    HEADING = 'heading'
-    PITCH = 'pitch'
-    ROLL = 'roll'
+    ENCODER_COUNTS = 'encoder_counts'
+    WINCH_CURRENT = 'current_flt32'
+    WINCH_STATUS = 'device_status'
+    VELOCITY = 'winch_velocity'
+    TEMPERATURE = 'temperature'
+    WINCH_VOLTAGE = 'voltage_flt32'
+    TIME_COUNTS = 'time_counts'
+    DISCHARGE_COUNTS = 'discharge_counts'
+    ROPE_ON_DRUM = 'rope_on_drum'
 
 # A group of instrument data particle encoding rules used to simplify encoding using a loop
 ENGINEERING_PARTICLE_ENCODING_RULES = [
     (WcWmEngDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
     (WcWmEngDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
     (WcWmEngDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
-    (WcWmEngDataParticleKey.HEADING, DataMatchesGroupNumber.HEADING, float),
-    (WcWmEngDataParticleKey.PITCH, DataMatchesGroupNumber.PITCH, float),
-    (WcWmEngDataParticleKey.ROLL, DataMatchesGroupNumber.ROLL, float),
+    (WcWmEngDataParticleKey.ENCODER_COUNTS, DataMatchesGroupNumber.ENCODER_COUNTS, int),
+    (WcWmEngDataParticleKey.WINCH_CURRENT, DataMatchesGroupNumber.WINCH_CURRENT, float),
+    (WcWmEngDataParticleKey.WINCH_STATUS, DataMatchesGroupNumber.WINCH_STATUS, str),
+    (WcWmEngDataParticleKey.VELOCITY, DataMatchesGroupNumber.VELOCITY, float),
+    (WcWmEngDataParticleKey.TEMPERATURE, DataMatchesGroupNumber.TEMPERATURE, float),
+    (WcWmEngDataParticleKey.WINCH_VOLTAGE, DataMatchesGroupNumber.WINCH_VOLTAGE, float),
+    (WcWmEngDataParticleKey.TIME_COUNTS, DataMatchesGroupNumber.TIME_COUNTS, int),
+    (WcWmEngDataParticleKey.DISCHARGE_COUNTS, DataMatchesGroupNumber.DISCHARGE_COUNTS, int),
+    (WcWmEngDataParticleKey.ROPE_ON_DRUM, DataMatchesGroupNumber.ROPE_ON_DRUM, float),
 ]
 
 
@@ -244,11 +261,11 @@ class WcWmCsppParser(CsppParser):
 
         # Call the superclass constructor
         super(WcWmCsppParser, self).__init__(config,
-                                              state,
-                                              stream_handle,
-                                              state_callback,
-                                              publish_callback,
-                                              exception_callback,
-                                              DATA_REGEX,
-                                              ignore_matcher=None,
-                                              *args, **kwargs)
+                                             state,
+                                             stream_handle,
+                                             state_callback,
+                                             publish_callback,
+                                             exception_callback,
+                                             DATA_REGEX,
+                                             ignore_matcher=None,
+                                             *args, **kwargs)

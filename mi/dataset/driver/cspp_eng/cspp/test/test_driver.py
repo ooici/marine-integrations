@@ -29,7 +29,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.cspp_eng.cspp.driver import CsppEngCsppDataSetDriver
-from mi.dataset.parser.cspp_eng_cspp import CsppEngCsppParserDataParticle
+from mi.dataset.parser.dbg_pdbg_cspp import CsppEngCsppParserDataParticle
 
 # Fill in driver details
 DataSetTestCase.initialize(

@@ -16,7 +16,7 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.cspp_eng_cspp import CsppEngCsppParser, CsppEngCsppParserDataParticle
+from mi.dataset.parser.dbg_pdbg_cspp import CsppEngCsppParser, CsppEngCsppParserDataParticle
 
 class CsppEngCsppDataSetDriver(SimpleDataSetDriver):
     

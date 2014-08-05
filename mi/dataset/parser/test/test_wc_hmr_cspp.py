@@ -140,7 +140,6 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         Be sure to verify the results by eye before trusting!
         """
 
-        #ADCP_data_20130702.PD0 has one record in it
         fid = open(os.path.join(RESOURCE_PATH, '11079364_WC_HMR.txt'), 'r')
 
         stream_handle = fid

@@ -81,8 +81,6 @@ class WcHmrEngDataParticleKey(BaseEnum):
     """
     The data particle keys associated with wc_hmr engineering data particle parameters
     """
-    INSTRUMENT_ID = 'instrument_id'
-    SERIAL_NUMBER = 'serial_number'
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure_depth'
     SUSPECT_TIMESTAMP = 'suspect_timestamp'
