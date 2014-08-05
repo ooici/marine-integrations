@@ -58,7 +58,7 @@ DATA_MATCHER = re.compile(DATA_REGEX)
 GRP_PROFILER_TIMESTAMP = 0
 GRP_DEPTH = 1
 GRP_SUSPECT_TIMESTAMP = 2
-GRP_FRAME_TIME = 3
+GRP_FRAME_TYPE = 3
 GRP_YEAR = 4
 GRP_DAY_OF_YEAR = 5
 GRP_TIME_OF_SAMPLE = 6
@@ -67,7 +67,7 @@ GRP_NITROGEN_IN_NITRATE = 8
 GRP_ABSORB_254 = 9
 GRP_ABSORB_350 = 10
 GRP_BROMIDE = 11
-GRP_SPEC_AVG = 12
+GRP_SPECTRUM_AVG = 12
 GRP_DARK_FIT = 13
 GRP_INTEG_TIME = 14
 GRP_SPECTRAL_START = 15
@@ -80,9 +80,9 @@ GRP_HUMID = GRP_SPECTRAL_END + 4
 GRP_VOLT_MAIN = GRP_SPECTRAL_END + 5
 GRP_VOLT_LAMP = GRP_SPECTRAL_END + 6
 GRP_VOLT_INT = GRP_SPECTRAL_END + 7
-GRP_CURRRENT = GRP_SPECTRAL_END + 8
+GRP_CURRENT = GRP_SPECTRAL_END + 8
 GRP_AUX_FIT_1 = GRP_SPECTRAL_END + 9
-GRP_AUT_FIT_2 = GRP_SPECTRAL_END + 10
+GRP_AUX_FIT_2 = GRP_SPECTRAL_END + 10
 GRP_FIT_BASE_1 = GRP_SPECTRAL_END + 11
 GRP_FIT_BASE_2 = GRP_SPECTRAL_END + 12
 GRP_FIT_RMSE = GRP_SPECTRAL_END + 13
@@ -155,8 +155,11 @@ class NutnrJCsppMetadataDataParticle(CsppMetadataDataParticle):
             results = self._build_metadata_parsed_values()
             
             data_match = self.raw_data[MetadataRawDataKey.DATA_MATCH]
-            
-            internal_timestamp_unix = float(data_match.group(GRP_PROFILER_TIMESTAMP))
+
+            # split raw data match by tabs to be able to isolate profiler timestamp
+            params = data_match.group(0).split('\t')
+
+            internal_timestamp_unix = float(params[GRP_PROFILER_TIMESTAMP])
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
 
         except (ValueError, TypeError, IndexError) as ex:
@@ -193,83 +196,83 @@ class NutnrJCsppDataParticle(DataParticle):
             # split the entire matched line by tabs, which will return each parameters
             # value as an array of string
             params = self.raw_data.group(0).split('\t')
-            if len(params < NUM_FIELDS):
+            if len(params) < NUM_FIELDS:
                 log.warn('Not enough fields could be parsed from the data %s', 
                          self.raw_data.group(0))
                 raise RecoverableSampleException('Not enough fields could be parsed from the data %s' %
                                                  self.raw_data.group(0))
             results = [self._encode_value(NutnrJCsppDataParticleKey.PROFILER_TIMESTAMP,
-                                          params(GRP_PROFILER_TIMESTAMP), float),
+                                          params[GRP_PROFILER_TIMESTAMP], float),
                        self._encode_value(NutnrJCsppDataParticleKey.PRESSURE_DEPTH,
-                                          params(GRP_DEPTH), float),
+                                          params[GRP_DEPTH], float),
                        self._encode_value(NutnrJCsppDataParticleKey.SUSPECT_TIMESTAMP,
-                                          params(GRP_SUSPECT_TIMESTAMP), encode_y_or_n),
+                                          params[GRP_SUSPECT_TIMESTAMP], encode_y_or_n),
                        self._encode_value(NutnrJCsppDataParticleKey.FRAME_TYPE,
-                                          params(GRP_FRAME_TYPE), str),
+                                          params[GRP_FRAME_TYPE], str),
                        self._encode_value(NutnrJCsppDataParticleKey.YEAR,
-                                          params(GRP_YEAR), int),
+                                          params[GRP_YEAR], int),
                        self._encode_value(NutnrJCsppDataParticleKey.DAY_OF_YEAR,
-                                          params(GRP_DAY_OF_YEAR), int),
+                                          params[GRP_DAY_OF_YEAR], int),
                        self._encode_value(NutnrJCsppDataParticleKey.TIME_OF_SAMPLE,
-                                          params(GRP_TIME_OF_SAMPLE), float),
+                                          params[GRP_TIME_OF_SAMPLE], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NITRATE_CONCENTRATION,
-                                          params(GRP_NITRATE_CONCENTRATION), float),
+                                          params[GRP_NITRATE_CONCENTRATION], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_NITROGEN_IN_NITRATE,
-                                          params(GRP_NITROGEN_IN_NITRATE), float),
+                                          params[GRP_NITROGEN_IN_NITRATE], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_ABSORBANCE_AT_254_NM,
-                                          params(GRP_ABSORB_254), float),
+                                          params[GRP_ABSORB_254], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_ABSORBANCE_AT_350_NM,
-                                          params(GRP_ABSORB_350), float),
+                                          params[GRP_ABSORB_350], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_BROMIDE_TRACE,
-                                          params(GRP_BROMIDE), float),
+                                          params[GRP_BROMIDE], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_SPECTRUM_AVERAGE,
-                                          params(GRP_SPECTRUM_AVG), int),
+                                          params[GRP_SPECTRUM_AVG], int),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_DARK_VALUE_USED_FOR_FIT,
-                                          params(GRP_DARK_FIT), int),
+                                          params[GRP_DARK_FIT], int),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_INTEGRATION_TIME_FACTOR,
-                                          params(GRP_INTEG_TIME), int),
+                                          params[GRP_INTEG_TIME], int),
                        # transform the array of strings into an array of ints
                        self._encode_value(NutnrJCsppDataParticleKey.SPECTRAL_CHANNELS,
-                                          map(int, params[GRP_SPECTRAL_START:GRP_SPECTRAL_START + NUM_CHANNELS]),
+                                          map(int, params[GRP_SPECTRAL_START:GRP_SPECTRAL_START + NUMBER_CHANNELS]),
                                           list),
                        self._encode_value(NutnrJCsppDataParticleKey.TEMP_INTERIOR,
-                                          params(GRP_TEMP_INTERIOR), float),
+                                          params[GRP_TEMP_INTERIOR], float),
                        self._encode_value(NutnrJCsppDataParticleKey.TEMP_SPECTROMETER,
-                                          params(GRP_TEMP_SPEC), float),
+                                          params[GRP_TEMP_SPECTRO], float),
                        self._encode_value(NutnrJCsppDataParticleKey.TEMP_LAMP,
-                                          params(GRP_TEMP_LAMP), float),
-                       self._encode_value(NutnrJCsppDataParticleKey.TEMP_TIME,
-                                          params(GRP_TEMP_TIME), float),
+                                          params[GRP_TEMP_LAMP], float),
+                       self._encode_value(NutnrJCsppDataParticleKey.LAMP_TIME,
+                                          params[GRP_LAMP_TIME], float),
                        self._encode_value(NutnrJCsppDataParticleKey.HUMIDITY,
-                                          params(GRP_HUMID), float),
+                                          params[GRP_HUMID], float),
                        self._encode_value(NutnrJCsppDataParticleKey.VOLTAGE_MAIN,
-                                          params(GRP_VOLT_MAIN), float),
+                                          params[GRP_VOLT_MAIN], float),
                        self._encode_value(NutnrJCsppDataParticleKey.VOLTAGE_LAMP,
-                                          params(GRP_VOLT_LAMP), float),
+                                          params[GRP_VOLT_LAMP], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_VOLTAGE_INT,
-                                          params(GRP_VOLT_INT), float),
+                                          params[GRP_VOLT_INT], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_CURRENT_MAIN,
-                                          params(GRP_CURRENT), float),
+                                          params[GRP_CURRENT], float),
                        self._encode_value(NutnrJCsppDataParticleKey.AUX_FITTING_1,
-                                          params(GRP_AUX_FIT_1), float),
+                                          params[GRP_AUX_FIT_1], float),
                        self._encode_value(NutnrJCsppDataParticleKey.AUX_FITTING_2,
-                                          params(GRP_AUX_FIT_2), float),
+                                          params[GRP_AUX_FIT_2], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_FIT_BASE_1,
-                                          params(GRP_FIT_BASE_1), float),
+                                          params[GRP_FIT_BASE_1], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_FIT_BASE_2,
-                                          params(GRP_FIT_BASE_2), float),
+                                          params[GRP_FIT_BASE_2], float),
                        self._encode_value(NutnrJCsppDataParticleKey.NUTNR_FIT_RMSE,
-                                          params(GRP_FIT_RMSE), float),
+                                          params[GRP_FIT_RMSE], float),
                        self._encode_value(NutnrJCsppDataParticleKey.CTD_TIME_UINT32,
-                                          params(GRP_CTD_TIME), int),
+                                          params[GRP_CTD_TIME], int),
                        self._encode_value(NutnrJCsppDataParticleKey.CTD_PSU,
-                                          params(GRP_CTD_PSU), float),
+                                          params[GRP_CTD_PSU], float),
                        self._encode_value(NutnrJCsppDataParticleKey.CTD_TEMP,
-                                          params(GRP_CTD_TEMP), float),
+                                          params[GRP_CTD_TEMP], float),
                        self._encode_value(NutnrJCsppDataParticleKey.CTD_DBAR,
-                                          params(GRP_CTD_DBAR), float)]
+                                          params[GRP_CTD_DBAR], float)]
 
-            internal_timestamp_unix = float(params(GRP_PROFILER_TIMESTAMP))
+            internal_timestamp_unix = float(params[GRP_PROFILER_TIMESTAMP])
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
             
         except (ValueError, TypeError, IndexError) as ex:

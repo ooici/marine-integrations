@@ -45,7 +45,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_value = pub
 
-    def exception_callback(self, exception_val)
+    def exception_callback(self, exception_val):
         """ Call back method to watch what comes in via the exception callback """
         self.exception_callback_value = exception_val
 
@@ -157,10 +157,22 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
-	self.exception_callback_value = None
-
-    def assert_result(self, result, position, particle, ingested):
-        self.assertEqual(result, [particle])
+        self.exception_callback_value = None
+        
+    def assert_metadata(self, result, particle):
+        log.debug('result data %s', result[0].raw_data[1].group(0))
+        log.debug('particle data %s', particle.raw_data[1])
+        self.assertEqual(result[0].raw_data[0], particle.raw_data[0])
+        self.assertEqual(result[0].raw_data[1].group(0), particle.raw_data[1])
+        
+    def assert_result(self, result, position, particle, ingested, is_metadata=False):
+        if is_metadata:
+            log.debug('result data %s', result[0].raw_data[0])
+            log.debug('particle data %s', particle.raw_data[0])
+            self.assertEqual(result[0].raw_data[0], particle.raw_data[0])
+            self.assertEqual(result[0].raw_data[1].group(0), particle.raw_data[1])
+        else:
+            self.assertEqual(result, [particle])
         self.assertEqual(self.file_ingested_value, ingested)
 
         self.assertEqual(self.parser._state[StateKey.POSITION], position)
@@ -182,7 +194,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
                                   self.exception_callback)
 
         result = self.parser.get_records(1)
-	self.assert_result(result, 4444, self.meta_telem_particle, False)
+	self.assert_result(result, 4444, self.meta_telem_particle, False, is_metadata=True)
 
     def test_get_many(self):
         """
