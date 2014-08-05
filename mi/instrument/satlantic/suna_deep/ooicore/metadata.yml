@@ -4,5 +4,5 @@ driver_metadata:
   driver_model: suna_deep
   driver_name: ooicore
   email: Rachel.E.Manoni@Raytheon.com
-  release_notes: initial_rev
-  version: 0.0.3
+  release_notes: jira_fixes
+  version: 0.0.5
