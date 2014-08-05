@@ -65,7 +65,6 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wc_wm_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: WcWmMetadataTelemeteredDataParticle,
@@ -73,7 +72,6 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
                 }
             },
             WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wc_wm_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: WcWmMetadataRecoveredDataParticle,

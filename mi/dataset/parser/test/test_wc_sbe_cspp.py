@@ -64,16 +64,14 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-            WcSbeDataTypeKey.wc_sbe_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wc_sbe_cspp',
+            WcSbeDataTypeKey.WC_SBE_CSPP_TELEMETERED: {
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: WcSbeMetadataTelemeteredDataParticle,
                     DATA_PARTICLE_CLASS_KEY: WcSbeEngTelemeteredDataParticle,
                 }
             },
-            WcSbeDataTypeKey.wc_sbe_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.wc_sbe_cspp',
+            WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED: {
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: WcSbeMetadataRecoveredDataParticle,

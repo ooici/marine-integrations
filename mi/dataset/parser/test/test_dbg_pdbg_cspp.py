@@ -68,7 +68,6 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DbgPdbgDataTypeKey.DBG_PDBG_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dbg_pdbg_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: DbgPdbgMetadataTelemeteredDataParticle,
@@ -77,7 +76,6 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
                 }
             },
             DbgPdbgDataTypeKey.DBG_PDBG_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dbg_pdbg_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: DbgPdbgMetadataRecoveredDataParticle,
@@ -294,29 +292,28 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
         changed
         """
 
-        file_path = os.path.join(RESOURCE_PATH, '11079364_DBG_PDBG.txt')
+        file_path = os.path.join(RESOURCE_PATH, '01554008_DBG_PDBG.txt')
         stream_handle = open(file_path, 'r')
 
-        # 11079419_PPB_OCR_20.yml has the metadata and the first 19
-        # engineering particles in it
-        expected_results = self.get_dict_from_yml('11079364_DBG_PDBG_recov.yml')
+        expected_results = self.get_dict_from_yml('01554008_DBG_PDBG_recov.yml')
 
         parser = DbgPdbgCsppParser(self.config.get(DbgPdbgDataTypeKey.DBG_PDBG_CSPP_RECOVERED),
                                  None, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
 
-        particles = parser.get_records(2)
+        # read all 8 particles from the file
+        particles = parser.get_records(8)
 
         log.debug("Num particles: %s", len(particles))
 
-        self.assertTrue(len(particles) == 2)
+        self.assertTrue(len(particles) == 8)
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
-        # position 945 is the byte at the start of the 18th data record
-        new_state = {StateKey.POSITION: 945, StateKey.METADATA_EXTRACTED: True}
+        # position 1528 is the byte at the start of the 2nd data record
+        new_state = {StateKey.POSITION: 1528, StateKey.METADATA_EXTRACTED: True}
 
         parser.set_state(new_state)
 
@@ -325,7 +322,8 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 2)
 
         # offset in the expected results
-        offset = 18
+        # should not get the first 2 status particles or the metadata particle
+        offset = 3
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i + offset], particles[i])
 
@@ -336,12 +334,12 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
 
-        # the first and 7th data record in this file are corrupted and will be ignored
+        # the first useful record in this file is corrupted and will be ignored
         # we expect to get the metadata particle with the
         # timestamp from the 2nd data record and all of the valid engineering
         # data records
 
-        file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_DBG_PDBG.txt')
+        file_path = os.path.join(RESOURCE_PATH, '01554008_BAD_DBG_PDBG.txt')
         stream_handle = open(file_path, 'r')
 
         log.info(self.exception_callback_value)
@@ -352,11 +350,11 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
                                  self.exception_callback)
 
         # 18 particles
-        particles = parser.get_records(18)
+        particles = parser.get_records(7)
 
         expected_results = self.get_dict_from_yml('DBG_PDBG_bad_data_records.yml')
 
-        self.assertTrue(len(particles) == 18)
+        self.assertTrue(len(particles) == 7)
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
