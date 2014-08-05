@@ -139,7 +139,7 @@ COMMON_PARTICLE_ENCODING_RULES = [
 
 class DbgPdbgMetadataDataParticle(CsppMetadataDataParticle):
     """
-    Class for building a wc hmr metadata particle
+    Class for building a dbg pdbg metadata particle
     """
 
     def _build_parsed_values(self):
@@ -174,7 +174,7 @@ class DbgPdbgMetadataDataParticle(CsppMetadataDataParticle):
 
 class DbgPdbgMetadataRecoveredDataParticle(DbgPdbgMetadataDataParticle):
     """
-    Class for building a wc hmr recovered metadata particle
+    Class for building a dbg pdbg recovered metadata particle
     """
 
     _data_particle_type = DataParticleType.METADATA_RECOVERED
@@ -182,7 +182,7 @@ class DbgPdbgMetadataRecoveredDataParticle(DbgPdbgMetadataDataParticle):
 
 class DbgPdbgMetadataTelemeteredDataParticle(DbgPdbgMetadataDataParticle):
     """
-    Class for building a wc hmr telemetered metadata particle
+    Class for building a dbg pdbg telemetered metadata particle
     """
 
     _data_particle_type = DataParticleType.METADATA_TELEMETERED
@@ -190,7 +190,7 @@ class DbgPdbgMetadataTelemeteredDataParticle(DbgPdbgMetadataDataParticle):
 
 class DbgPdbgBatteryParticle(DataParticle):
     """
-    Class for parsing data from the wc hmr engineering data set
+    Class for parsing data from the dbg pdbg engineering data set
     """
 
     def _build_parsed_values(self):
@@ -218,7 +218,7 @@ class DbgPdbgBatteryParticle(DataParticle):
 
             results.append(self._encode_value(DbgPdbgBatteryParticleKey.BATTERY_VOLTAGE,
                                               self.raw_data.group(DataMatchesGroupNumber.BATTERY_VOLTAGE),
-                                              int))
+                                              float))
 
             # Set the internal timestamp
             internal_timestamp_unix = numpy.float(self.raw_data.group(
@@ -235,17 +235,17 @@ class DbgPdbgBatteryParticle(DataParticle):
         return results
 
 
-class DbgPdbgEngRecoveredBatteryParticle(DbgPdbgBatteryParticle):
+class DbgPdbgRecoveredBatteryParticle(DbgPdbgBatteryParticle):
     """
-    Class for building a wc hmr recovered engineering data particle
+    Class for building a dbg pdbg recovered engineering data particle
     """
 
     _data_particle_type = DataParticleType.BATTERY_RECOVERED
 
 
-class DbgPdbgEngTelemeteredBatteryParticle(DbgPdbgBatteryParticle):
+class DbgPdbgTelemeteredBatteryParticle(DbgPdbgBatteryParticle):
     """
-    Class for building a wc hmr telemetered engineering data particle
+    Class for building a dbg pdbg telemetered engineering data particle
     """
 
     _data_particle_type = DataParticleType.BATTERY_TELEMETERED
@@ -253,7 +253,7 @@ class DbgPdbgEngTelemeteredBatteryParticle(DbgPdbgBatteryParticle):
 
 class DbgPdbgGpsParticle(DataParticle):
     """
-    Class for parsing data from the wc hmr engineering data set
+    Class for parsing data from the dbg pdbg engineering data set
     """
 
     def _build_parsed_values(self):
@@ -294,23 +294,23 @@ class DbgPdbgGpsParticle(DataParticle):
         return results
 
 
-class DbgPdbgEngRecoveredGpsParticle(DbgPdbgGpsParticle):
+class DbgPdbgRecoveredGpsParticle(DbgPdbgGpsParticle):
     """
-    Class for building a wc hmr recovered engineering data particle
+    Class for building a dbg pdbg recovered engineering data particle
     """
 
     _data_particle_type = DataParticleType.GPS_RECOVERED
 
 
-class DbgPdbgEngTelemeteredGpsParticle(DbgPdbgGpsParticle):
+class DbgPdbgTelemeteredGpsParticle(DbgPdbgGpsParticle):
     """
-    Class for building a wc hmr telemetered engineering data particle
+    Class for building a dbg pdbg telemetered engineering data particle
     """
 
     _data_particle_type = DataParticleType.GPS_TELEMETERED
 
 
-class DbgPdbgParser(BufferLoadingParser):
+class DbgPdbgCsppParser(BufferLoadingParser):
     """
     Parser for the dbg_pdbg engineering data part of the cspp_eng_cspp driver
     This Parser is based on the cspp_base parser, modified to handle
@@ -354,16 +354,15 @@ class DbgPdbgParser(BufferLoadingParser):
         # Initialize the record buffer to an empty list
         self._record_buffer = []
 
-
         # Call the superclass constructor
-        super(DbgPdbgParser, self).__init__(config,
-                                            stream_handle,
-                                            state,
-                                            partial(StringChunker.regex_sieve_function,
-                                                    regex_list=[SIEVE_MATCHER]),
-                                            state_callback,
-                                            publish_callback,
-                                            exception_callback)
+        super(DbgPdbgCsppParser, self).__init__(config,
+                                                stream_handle,
+                                                state,
+                                                partial(StringChunker.regex_sieve_function,
+                                                        regex_list=[SIEVE_MATCHER]),
+                                                state_callback,
+                                                publish_callback,
+                                                exception_callback)
 
         # If provided a state, set it.  Otherwise initialize it
         # This needs to be done post superclass __init__
@@ -372,7 +371,6 @@ class DbgPdbgParser(BufferLoadingParser):
         else:
             # Initialize the read state
             self._read_state = {StateKey.POSITION: 0, StateKey.METADATA_EXTRACTED: False}
-
 
     def set_state(self, state_obj):
         """
