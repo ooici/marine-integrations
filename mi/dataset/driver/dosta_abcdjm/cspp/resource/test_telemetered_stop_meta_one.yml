@@ -1,0 +1,17 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: DostaAbcdjmCsppMetadataTelemeteredDataParticle
+    particle_type: dosta_abcdjm_cspp_metadata
+    internal_timestamp: 3607761387.107000
+    last_character_controller_id: '1'
+    day_of_year_number: 119
+    fraction_of_day: 4982
+    processing_time: '07/18/2014 12:23:32'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11194982.PPD'
+    preprocessing_software_version: '1.11'
+    start_date: '04/29/2014'
+    product_number: 4831
+    serial_number: 209

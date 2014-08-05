@@ -60,10 +60,10 @@ class VectorVelocityDataParticleKey(BaseEnum):
     """
     Velocity Data Paticles
     """
-    ANALOG_INPUT2 = "analog_input2"
+    ANALOG_INPUT2 = "analog_input_2"
     COUNT = "ensemble_counter"
     PRESSURE = "seawater_pressure"
-    ANALOG_INPUT1 = "analog_input1"
+    ANALOG_INPUT1 = "analog_input_1"
     VELOCITY_BEAM1 = "turbulent_velocity_east"
     VELOCITY_BEAM2 = "turbulent_velocity_north"
     VELOCITY_BEAM3 = "turbulent_velocity_vertical"

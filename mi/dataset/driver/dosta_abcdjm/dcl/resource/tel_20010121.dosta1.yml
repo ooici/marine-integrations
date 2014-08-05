@@ -1,0 +1,362 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:06:02Z'
+    dcl_controller_timestamp: '2001/01/21 03:06:02.329'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 0.000
+    estimated_oxygen_saturation: 0.000
+    optode_temperature: 0.000
+    calibrated_phase: 0.000
+    temp_compensated_phase: 0.000
+    blue_phase: 0.000
+    red_phase: 0.000
+    blue_amplitude: 0.000
+    red_amplitude: 0.000
+    raw_temperature: 0.000
+  - _index:  2
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:06:15Z'
+    dcl_controller_timestamp: '2001/01/21 03:06:15.908'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 25.000
+    estimated_oxygen_saturation: 6.000
+    optode_temperature: 5.000
+    calibrated_phase: 4.500
+    temp_compensated_phase: 4.500
+    blue_phase: 4.500
+    red_phase: 4.500
+    blue_amplitude: 75.000
+    red_amplitude: 75.000
+    raw_temperature: 12.500
+  - _index:  3
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:06:29Z'
+    dcl_controller_timestamp: '2001/01/21 03:06:29.487'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 50.000
+    estimated_oxygen_saturation: 12.000
+    optode_temperature: 10.000
+    calibrated_phase: 9.000
+    temp_compensated_phase: 9.000
+    blue_phase: 9.000
+    red_phase: 9.000
+    blue_amplitude: 150.000
+    red_amplitude: 150.000
+    raw_temperature: 25.000
+  - _index:  4
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:06:43Z'
+    dcl_controller_timestamp: '2001/01/21 03:06:43.066'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 75.000
+    estimated_oxygen_saturation: 18.000
+    optode_temperature: 15.000
+    calibrated_phase: 13.500
+    temp_compensated_phase: 13.500
+    blue_phase: 13.500
+    red_phase: 13.500
+    blue_amplitude: 225.000
+    red_amplitude: 225.000
+    raw_temperature: 37.500
+  - _index:  5
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:06:56Z'
+    dcl_controller_timestamp: '2001/01/21 03:06:56.645'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 100.000
+    estimated_oxygen_saturation: 24.000
+    optode_temperature: 20.000
+    calibrated_phase: 18.000
+    temp_compensated_phase: 18.000
+    blue_phase: 18.000
+    red_phase: 18.000
+    blue_amplitude: 300.000
+    red_amplitude: 300.000
+    raw_temperature: 50.000
+  - _index:  6
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:07:10Z'
+    dcl_controller_timestamp: '2001/01/21 03:07:10.224'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 125.000
+    estimated_oxygen_saturation: 30.000
+    optode_temperature: 25.000
+    calibrated_phase: 22.500
+    temp_compensated_phase: 22.500
+    blue_phase: 22.500
+    red_phase: 22.500
+    blue_amplitude: 375.000
+    red_amplitude: 375.000
+    raw_temperature: 62.500
+  - _index:  7
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:07:23Z'
+    dcl_controller_timestamp: '2001/01/21 03:07:23.803'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 150.000
+    estimated_oxygen_saturation: 36.000
+    optode_temperature: 30.000
+    calibrated_phase: 27.000
+    temp_compensated_phase: 27.000
+    blue_phase: 27.000
+    red_phase: 27.000
+    blue_amplitude: 450.000
+    red_amplitude: 450.000
+    raw_temperature: 75.000
+  - _index:  8
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:07:37Z'
+    dcl_controller_timestamp: '2001/01/21 03:07:37.382'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 175.000
+    estimated_oxygen_saturation: 42.000
+    optode_temperature: 35.000
+    calibrated_phase: 31.500
+    temp_compensated_phase: 31.500
+    blue_phase: 31.500
+    red_phase: 31.500
+    blue_amplitude: 525.000
+    red_amplitude: 525.000
+    raw_temperature: 87.500
+  - _index:  9
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:07:50Z'
+    dcl_controller_timestamp: '2001/01/21 03:07:50.961'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 200.000
+    estimated_oxygen_saturation: 48.000
+    optode_temperature: 40.000
+    calibrated_phase: 36.000
+    temp_compensated_phase: 36.000
+    blue_phase: 36.000
+    red_phase: 36.000
+    blue_amplitude: 600.000
+    red_amplitude: 600.000
+    raw_temperature: 100.000
+  - _index:  10
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:08:04Z'
+    dcl_controller_timestamp: '2001/01/21 03:08:04.540'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 225.000
+    estimated_oxygen_saturation: 54.000
+    optode_temperature: 45.000
+    calibrated_phase: 40.500
+    temp_compensated_phase: 40.500
+    blue_phase: 40.500
+    red_phase: 40.500
+    blue_amplitude: 675.000
+    red_amplitude: 675.000
+    raw_temperature: 112.500
+  - _index:  11
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:08:18Z'
+    dcl_controller_timestamp: '2001/01/21 03:08:18.119'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 250.000
+    estimated_oxygen_saturation: 60.000
+    optode_temperature: 50.000
+    calibrated_phase: 45.000
+    temp_compensated_phase: 45.000
+    blue_phase: 45.000
+    red_phase: 45.000
+    blue_amplitude: 750.000
+    red_amplitude: 750.000
+    raw_temperature: 125.000
+  - _index:  12
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:08:31Z'
+    dcl_controller_timestamp: '2001/01/21 03:08:31.698'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 275.000
+    estimated_oxygen_saturation: 66.000
+    optode_temperature: 55.000
+    calibrated_phase: 49.500
+    temp_compensated_phase: 49.500
+    blue_phase: 49.500
+    red_phase: 49.500
+    blue_amplitude: 825.000
+    red_amplitude: 825.000
+    raw_temperature: 137.500
+  - _index:  13
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:08:45Z'
+    dcl_controller_timestamp: '2001/01/21 03:08:45.277'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 300.000
+    estimated_oxygen_saturation: 72.000
+    optode_temperature: 60.000
+    calibrated_phase: 54.000
+    temp_compensated_phase: 54.000
+    blue_phase: 54.000
+    red_phase: 54.000
+    blue_amplitude: 900.000
+    red_amplitude: 900.000
+    raw_temperature: 150.000
+  - _index:  14
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:08:58Z'
+    dcl_controller_timestamp: '2001/01/21 03:08:58.856'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 325.000
+    estimated_oxygen_saturation: 78.000
+    optode_temperature: 65.000
+    calibrated_phase: 58.500
+    temp_compensated_phase: 58.500
+    blue_phase: 58.500
+    red_phase: 58.500
+    blue_amplitude: 975.000
+    red_amplitude: 975.000
+    raw_temperature: 162.500
+  - _index:  15
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:09:12Z'
+    dcl_controller_timestamp: '2001/01/21 03:09:12.435'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 350.000
+    estimated_oxygen_saturation: 84.000
+    optode_temperature: 70.000
+    calibrated_phase: 63.000
+    temp_compensated_phase: 63.000
+    blue_phase: 63.000
+    red_phase: 63.000
+    blue_amplitude: 1050.000
+    red_amplitude: 1050.000
+    raw_temperature: 175.000
+  - _index:  16
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:09:26Z'
+    dcl_controller_timestamp: '2001/01/21 03:09:26.014'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 375.000
+    estimated_oxygen_saturation: 90.000
+    optode_temperature: 75.000
+    calibrated_phase: 67.500
+    temp_compensated_phase: 67.500
+    blue_phase: 67.500
+    red_phase: 67.500
+    blue_amplitude: 1125.000
+    red_amplitude: 1125.000
+    raw_temperature: 187.500
+  - _index:  17
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:09:39Z'
+    dcl_controller_timestamp: '2001/01/21 03:09:39.593'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 400.000
+    estimated_oxygen_saturation: 96.000
+    optode_temperature: 80.000
+    calibrated_phase: 72.000
+    temp_compensated_phase: 72.000
+    blue_phase: 72.000
+    red_phase: 72.000
+    blue_amplitude: 1200.000
+    red_amplitude: 1200.000
+    raw_temperature: 200.000
+  - _index:  18
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:09:53Z'
+    dcl_controller_timestamp: '2001/01/21 03:09:53.172'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 425.000
+    estimated_oxygen_saturation: 102.000
+    optode_temperature: 85.000
+    calibrated_phase: 76.500
+    temp_compensated_phase: 76.500
+    blue_phase: 76.500
+    red_phase: 76.500
+    blue_amplitude: 1275.000
+    red_amplitude: 1275.000
+    raw_temperature: 212.500
+  - _index:  19
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:10:06Z'
+    dcl_controller_timestamp: '2001/01/21 03:10:06.751'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 450.000
+    estimated_oxygen_saturation: 108.000
+    optode_temperature: 90.000
+    calibrated_phase: 81.000
+    temp_compensated_phase: 81.000
+    blue_phase: 81.000
+    red_phase: 81.000
+    blue_amplitude: 1350.000
+    red_amplitude: 1350.000
+    raw_temperature: 225.000
+  - _index:  20
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:10:20Z'
+    dcl_controller_timestamp: '2001/01/21 03:10:20.330'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 475.000
+    estimated_oxygen_saturation: 114.000
+    optode_temperature: 95.000
+    calibrated_phase: 85.500
+    temp_compensated_phase: 85.500
+    blue_phase: 85.500
+    red_phase: 85.500
+    blue_amplitude: 1425.000
+    red_amplitude: 1425.000
+    raw_temperature: 237.500
+  - _index:  21
+    particle_object: DostaAbcdjmDclTelemeteredInstrumentDataParticle
+    particle_type: dosta_abcdjm_dcl_instrument
+    internal_timestamp: '2001-01-21T03:10:33Z'
+    dcl_controller_timestamp: '2001/01/21 03:10:33.909'
+    product_number: 4831
+    serial_number: 2001
+    estimated_oxygen_concentration: 500.000
+    estimated_oxygen_saturation: 120.000
+    optode_temperature: 100.000
+    calibrated_phase: 90.000
+    temp_compensated_phase: 90.000
+    blue_phase: 90.000
+    red_phase: 90.000
+    blue_amplitude: 1500.000
+    red_amplitude: 1500.000
+    raw_temperature: 250.000

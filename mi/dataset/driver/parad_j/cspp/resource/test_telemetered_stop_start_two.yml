@@ -1,0 +1,125 @@
+header:
+ particle_object: 'MULTIPLE'
+ particle_type: 'MULTIPLE'
+data:
+ - _index: 1
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762550.501000
+   profiler_timestamp: 1397773750.5009999275207520
+   pressure_depth: 14.9290000000000003
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:23:27'
+   par: 6054
+ - _index: 2
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762561.803000
+   profiler_timestamp: 1397773761.8029999732971191
+   pressure_depth: 13.9000000000000004
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:23:39'
+   par: 6294
+ - _index: 3
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762573.189000
+   profiler_timestamp: 1397773773.1889998912811279
+   pressure_depth: 13.0000000000000000
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:23:50'
+   par: 6478
+ - _index: 4
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762584.563000
+   profiler_timestamp: 1397773784.5629999637603760
+   pressure_depth: 11.8940000000000001
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:24:01'
+   par: 6736
+ - _index: 5
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762595.934000
+   profiler_timestamp: 1397773795.9340000152587891
+   pressure_depth: 10.7739999999999991
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:24:13'
+   par: 7242
+ - _index: 6
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762607.316000
+   profiler_timestamp: 1397773807.3159999847412109
+   pressure_depth: 9.8640000000000008
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:24:24'
+   par: 7596
+ - _index: 7
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762618.689000
+   profiler_timestamp: 1397773818.6889998912811279
+   pressure_depth: 9.1180000000000003
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:24:35'
+   par: 8008
+ - _index: 8
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762630.063000
+   profiler_timestamp: 1397773830.0629999637603760
+   pressure_depth: 8.3149999999999995
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:24:47'
+   par: 8214
+ - _index: 9
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762641.448000
+   profiler_timestamp: 1397773841.4479999542236328
+   pressure_depth: 7.3159999999999998
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:24:58'
+   par: 8629
+ - _index: 10
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762652.818000
+   profiler_timestamp: 1397773852.8180000782012939
+   pressure_depth: 6.1600000000000001
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:25:10'
+   par: 9236
+ - _index: 11
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762664.193000
+   profiler_timestamp: 1397773864.1930000782012939
+   pressure_depth: 5.0730000000000004
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:25:21'
+   par: 9535
+ - _index: 12
+   particle_object: ParadJCsppInstrumentTelemeteredDataParticle
+   particle_type: parad_j_cspp_instrument
+   internal_timestamp: 3606762675.575000
+   profiler_timestamp: 1397773875.5750000476837158
+   pressure_depth: 4.0629999999999997
+   suspect_timestamp: 1
+   date_string: '04/17/14'
+   time_string: '15:25:32'
+   par: 9986
+
