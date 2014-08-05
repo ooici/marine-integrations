@@ -59,14 +59,14 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         parser = None
 
-        log.debug("DRIVER._build_parser(): data_key= %s", data_key)
+        log.trace("DRIVER._build_parser(): data_key= %s", data_key)
 
         if data_key == DataTypeKey.ENG_TELEMETERED:
-            log.debug("EngineeringDataSetDriver._build_parser(): using a TELEMETERED Parser")
+            log.trace("EngineeringDataSetDriver._build_parser(): using a TELEMETERED Parser")
             parser = self._build_eng_telemetered_parser(parser_state, infile, data_key)
 
         elif data_key == DataTypeKey.ENG_RECOVERED:
-            log.debug("EngineeringDataSetDriver._build_parser(): using a RECOVERED Parser")
+            log.trace("EngineeringDataSetDriver._build_parser(): using a RECOVERED Parser")
             parser = self._build_eng_recovered_parser(parser_state, infile, data_key)
         else:
             raise ConfigurationException("Parser Configuration incorrect, key invalid: %s" % data_key)
@@ -86,7 +86,7 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
                                                      EngineeringScienceTelemeteredDataParticle]
         })
 
-        log.debug("EngineeringDataSetDriver._build_eng_telemetered_parser(): "
+        log.trace("EngineeringDataSetDriver._build_eng_telemetered_parser(): "
                   "parser_state= %s, input file= %s, data_key= %s", parser_state, infile, data_key)
 
         parser = GliderEngineeringParser(config,
@@ -107,15 +107,12 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
 
         config.update({
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-            # DataSetDriverConfigKeys.PARTICLE_CLASS: [EngineeringMetadataRecoveredDataParticle,
-            #                                          EngineeringRecoveredDataParticle,
-            #                                          EngineeringScienceRecoveredDataParticle],
             DataSetDriverConfigKeys.PARTICLE_CLASS: [EngineeringRecoveredDataParticle,
                                                      EngineeringScienceRecoveredDataParticle,
                                                      EngineeringMetadataRecoveredDataParticle],
         })
 
-        log.debug("EngineeringDataSetDriver._build_eng_recovered_parser(): "
+        log.trace("EngineeringDataSetDriver._build_eng_recovered_parser(): "
                   "parser_state= %s, input file= %s, data_key= %s", parser_state, infile, data_key)
 
         parser = GliderEngineeringParser(config,
@@ -133,19 +130,19 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         harvesters = []
 
-        log.debug("EngineeringDataSetDriver._build_harvester(): driver_state= %s", driver_state)
+        log.trace("EngineeringDataSetDriver._build_harvester(): driver_state= %s", driver_state)
 
         harvester_telem = self._build_single_dir_harvester(driver_state, DataTypeKey.ENG_TELEMETERED)
         if harvester_telem is not None:
-            log.debug("EngineeringDataSetDriver._build_harvester(): adding a telem harvester to list")
+            log.trace("EngineeringDataSetDriver._build_harvester(): adding a telem harvester to list")
             harvesters.append(harvester_telem)
 
         harvester_recov = self._build_single_dir_harvester(driver_state, DataTypeKey.ENG_RECOVERED)
         if harvester_recov is not None:
-            log.debug("EngineeringDataSetDriver._build_harvester(): adding a recovered harvester to list")
+            log.trace("EngineeringDataSetDriver._build_harvester(): adding a recovered harvester to list")
             harvesters.append(harvester_recov)
         else:
-            log.debug("EngineeringDataSetDriver._build_harvester(): !!!recovered harvester WAS NONE")
+            log.trace("EngineeringDataSetDriver._build_harvester(): !!!recovered harvester WAS NONE")
 
         return harvesters
 
@@ -156,7 +153,7 @@ class EngineeringDataSetDriver(MultipleHarvesterDataSetDriver):
         harvester = None
         if data_key in self._harvester_config:
 
-            log.debug("EngineeringDataSetDriver._build_single_dir_harvester(): driver_state= %s, data_key= %s",
+            log.trace("EngineeringDataSetDriver._build_single_dir_harvester(): driver_state= %s, data_key= %s",
                       driver_state, data_key)
 
             harvester = SingleDirectoryHarvester(self._harvester_config.get(data_key),

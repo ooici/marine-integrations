@@ -66,7 +66,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataTelemeteredDataParticle,
@@ -74,7 +74,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
                 }
             },
             DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataRecoveredDataParticle,

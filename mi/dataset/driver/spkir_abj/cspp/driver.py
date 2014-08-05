@@ -73,7 +73,7 @@ class SpkirAbjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         if data_key == DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED:
 
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataTelemeteredDataParticle,
@@ -83,7 +83,7 @@ class SpkirAbjCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         elif data_key == DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED:
 
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataRecoveredDataParticle,
