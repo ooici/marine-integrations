@@ -224,9 +224,9 @@ class DataParticleType(BaseEnum):
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
-    SUNA_SAMPLE = "suna_sample"
-    SUNA_STATUS = "suna_status"
-    SUNA_TEST = "suna_test"
+    SUNA_SAMPLE = "nutnr_a_sample"
+    SUNA_STATUS = "nutnr_a_status"
+    SUNA_TEST = "nutnr_a_test"
 
 
 class ProtocolState(BaseEnum):
