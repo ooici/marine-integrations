@@ -1,7 +1,7 @@
 # Expected Results
 
 header:
-  particle_object: CtdgvDataParticle
+  particle_object: CtdgvTelemeteredDataParticle
   particle_type: ctdgv_m_glider_instrument
 
 data:

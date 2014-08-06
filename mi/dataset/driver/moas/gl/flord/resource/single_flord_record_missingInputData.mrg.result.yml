@@ -1,0 +1,22 @@
+# Expected Results
+
+header:
+  particle_object: FlordTelemeteredDataParticle
+  particle_type: flord_m_glider_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: 3606586263.201600075
+    m_present_time: 1397597463.2016
+    m_present_secs_into_mission: 43.2016
+    sci_m_present_time: 1397597463.2016
+    sci_m_present_secs_into_mission: 43.2016
+    sci_flbb_timestamp: !!null
+    sci_flbb_bb_ref: !!null
+    sci_flbb_bb_sig: !!null
+    sci_flbb_bb_units: !!null
+    sci_flbb_chlor_ref: !!null
+    sci_flbb_chlor_sig: !!null
+    sci_flbb_chlor_units: !!null
+    sci_flbb_therm: 1000.1
+
