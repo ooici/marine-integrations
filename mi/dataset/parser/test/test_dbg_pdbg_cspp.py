@@ -234,7 +234,7 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
 
         log.debug("*** test_simple Num particles %s", len(particles))
 
-        # check the first particle, which should be the metadata particle (recovered)
+
         test_data = self.get_dict_from_yml('01554008_DBG_PDBG_recov.yml')
 
         # check all the values against expected results.
@@ -262,7 +262,7 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
 
-        #expect to get the 8th and 9th engineering particles next
+        #expect to get the 4th and 5th engineering particles next
         particles = parser.get_records(2)
 
         log.debug("Num particles: %s", len(particles))
@@ -271,7 +271,7 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
 
         expected_results = self.get_dict_from_yml('01554008_DBG_PDBG_recov.yml')
 
-        # skip the first 8 particles in the yml file due to mid state start
+        # skip the first 4 particles in the yml file due to mid state start
         offset = 4
 
         for i in range(len(particles)):
@@ -360,4 +360,7 @@ class DbgPdbgCsppParserUnitTestCase(ParserUnitTestCase):
             self.assert_result(expected_results['data'][i], particles[i])
 
         stream_handle.close()
+
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
+
 

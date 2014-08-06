@@ -53,7 +53,6 @@ from mi.dataset.parser.cspp_base import \
     TYPE_ENCODING_INDEX, \
     encode_y_or_n
 
-# *** Need to define data regex for this parser ***
 STRING_REGEX = r'.*'  # any characters except new line
 
 COMMON_DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX    # Profiler Timestamp
@@ -334,7 +333,7 @@ class DbgPdbgCsppParser(BufferLoadingParser):
         @param exception_callback The function to call to report exceptions
         """
 
-        # Build up the header state dictionary using the default her key list ot one that was provided
+        # Build up the header state dictionary using the default header key list
         self._header_state = {}
 
         header_key_list = DEFAULT_HEADER_KEY_LIST

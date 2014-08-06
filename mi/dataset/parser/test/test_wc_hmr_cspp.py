@@ -376,6 +376,8 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
+
         stream_handle.close()
 
     def test_extra_data(self):
@@ -419,5 +421,7 @@ class WcHmrCsppParserUnitTestCase(ParserUnitTestCase):
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
+
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
         stream_handle.close()

@@ -66,7 +66,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataTypeKey.SPKIR_ABJ_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataTelemeteredDataParticle,
@@ -74,7 +74,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
                 }
             },
             DataTypeKey.SPKIR_ABJ_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.spkir_abj_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: SpkirAbjCsppMetadataRecoveredDataParticle,
@@ -353,7 +353,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         # the first data record in this file is corrupted and will be ignored
         # we expect the first 2 particles to be the metadata particle and the
-        # intrument particle from the data record after the corrupted one
+        # instrument particle from the data record after the corrupted one
 
         file_path = os.path.join(RESOURCE_PATH, '11079419_BAD_PPB_OCR.txt')
         stream_handle = open(file_path, 'rb')
@@ -373,6 +373,8 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
+
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
         stream_handle.close()
 

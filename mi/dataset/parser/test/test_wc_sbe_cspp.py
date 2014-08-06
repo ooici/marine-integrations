@@ -138,11 +138,10 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
         Be sure to verify the results by eye before trusting!
         """
 
-        #ADCP_data_20130702.PD0 has one record in it
         fid = open(os.path.join(RESOURCE_PATH, '11079364_WC_SBE.txt'), 'r')
 
         stream_handle = fid
-        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.wc_sbe_CSPP_RECOVERED),
+        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED),
                                  None, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
@@ -217,7 +216,7 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
         # to each other, testing one is sufficient, will be completely tested
         # in driver tests
 
-        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.wc_sbe_CSPP_RECOVERED),
+        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED),
                                  None, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
@@ -249,7 +248,7 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
         # to each other, testing one is sufficient, will be completely tested
         # in driver tests
 
-        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.wc_sbe_CSPP_TELEMETERED),
+        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.WC_SBE_CSPP_TELEMETERED),
                                  None, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
@@ -275,7 +274,7 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
         # metadata particle and the first 12 engineering particles
         initial_state = {StateKey.POSITION: 618, StateKey.METADATA_EXTRACTED: True}
 
-        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.wc_sbe_CSPP_RECOVERED),
+        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED),
                                  initial_state, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
@@ -315,7 +314,7 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
 
         expected_results = self.get_dict_from_yml('11079364_WC_SBE_recov.yml')
 
-        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.wc_sbe_CSPP_RECOVERED),
+        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED),
                                  None, stream_handle,
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
