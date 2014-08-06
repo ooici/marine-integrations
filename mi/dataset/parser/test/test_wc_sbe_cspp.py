@@ -279,7 +279,7 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
                                  self.state_callback, self.pub_callback,
                                  self.exception_callback)
 
-        #expect to get the 8th and 9th engineering particles next
+        #expect to get the 14th and 15th engineering particles next
         particles = parser.get_records(2)
 
         log.debug("Num particles: %s", len(particles))

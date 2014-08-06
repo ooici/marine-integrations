@@ -92,7 +92,7 @@ ENGINEERING_PARTICLE_ENCODING_RULES = [
 
 class WcSbeMetadataDataParticle(CsppMetadataDataParticle):
     """
-    Class for building a wc hmr metadata particle
+    Class for building a wc sbe metadata particle
     """
 
     def _build_parsed_values(self):
@@ -100,7 +100,7 @@ class WcSbeMetadataDataParticle(CsppMetadataDataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
 
         results = []
@@ -127,7 +127,7 @@ class WcSbeMetadataDataParticle(CsppMetadataDataParticle):
 
 class WcSbeMetadataRecoveredDataParticle(WcSbeMetadataDataParticle):
     """
-    Class for building a wc hmr recovered metadata particle
+    Class for building a wc sbe recovered metadata particle
     """
 
     _data_particle_type = DataParticleType.METADATA_RECOVERED
@@ -135,7 +135,7 @@ class WcSbeMetadataRecoveredDataParticle(WcSbeMetadataDataParticle):
 
 class WcSbeMetadataTelemeteredDataParticle(WcSbeMetadataDataParticle):
     """
-    Class for building a wc hmr telemetered metadata particle
+    Class for building a wc sbe telemetered metadata particle
     """
 
     _data_particle_type = DataParticleType.METADATA_TELEMETERED
@@ -143,7 +143,7 @@ class WcSbeMetadataTelemeteredDataParticle(WcSbeMetadataDataParticle):
 
 class WcSbeEngDataParticle(DataParticle):
     """
-    Class for parsing data from the wc hmr engineering data set
+    Class for parsing data from the wc sbe engineering data set
     """
 
     def _build_parsed_values(self):
@@ -151,7 +151,7 @@ class WcSbeEngDataParticle(DataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
         results = []
 
@@ -178,7 +178,7 @@ class WcSbeEngDataParticle(DataParticle):
 
 class WcSbeEngRecoveredDataParticle(WcSbeEngDataParticle):
     """
-    Class for building a wc hmr recovered engineering data particle
+    Class for building a wc sbe recovered engineering data particle
     """
 
     _data_particle_type = DataParticleType.ENGINEERING_RECOVERED
@@ -186,7 +186,7 @@ class WcSbeEngRecoveredDataParticle(WcSbeEngDataParticle):
 
 class WcSbeEngTelemeteredDataParticle(WcSbeEngDataParticle):
     """
-    Class for building a wc hmr telemetered engineering data particle
+    Class for building a wc sbe telemetered engineering data particle
     """
 
     _data_particle_type = DataParticleType.ENGINEERING_TELEMETERED
