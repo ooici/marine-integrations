@@ -11,7 +11,8 @@ import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, UnexpectedDataException, \
+                               RecoverableSampleException
 from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.idk.config import Config
@@ -55,13 +56,13 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
 
     def exception_callback(self, exception_val):
         """ Call back method to watch what comes in via the exception callback """
-        self.exception_callback_value = exception_val
+        self.exception_callback_value.append(exception_val)
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
 
         # metadata header dictionary
-        self.header_dict = {
+        header_dict = {
             DefaultHeaderKey.SOURCE_FILE: 'D:\\Storage\\Programs\\OOI\\Group 5\\Correspondence\\07_18_14 sample files\\files\\11079419.SNA',
             DefaultHeaderKey.PROCESSED: '07/18/2014 13:49:01',
             DefaultHeaderKey.USING_VERSION: '1.11',
@@ -89,7 +90,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
             '\t0.000\t246604\t35.657\t11.969\t0.092\t5.039\t57.381\t0.000\t0.000\t0.000\t0.000\t0.000' \
             '\t0\t-1.000\t-1.000\t-1.000\t36\n')
         # metadata arguments is a tuple, 1st item header dictionary, 2nd item 1st particle data match
-        self.meta_telem_particle = NutnrJCsppMetadataTelemeteredDataParticle((self.header_dict, particle_a_match))
+        self.meta_telem_particle = NutnrJCsppMetadataTelemeteredDataParticle((header_dict, particle_a_match))
         # generate the dictionary so the timestamp is set
         self.meta_telem_particle.generate_dict()
 
@@ -197,6 +198,10 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         # generate the dictionary so the timestamp is set
         self.telem_particle_e.generate_dict()
 
+        self.meta_telem_e = NutnrJCsppMetadataTelemeteredDataParticle((header_dict, particle_e_match))
+        # generate the dictionary so the timestamp is set
+        self.meta_telem_e.generate_dict()
+
         # the particle at the end of the long file 224798:226490
         particle_long_end_match = DATA_MATCHER.match('1397774471.010\t0.000\tn\tSLB\t2014\t107' \
             '\t22.683184\t0.717\t0.010\t-0.022\t-0.022\t0.000\t24747\t482\t1\t517\t517\t508\t506\t500\t515\t522\t' \
@@ -224,7 +229,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.telem_particle_long.generate_dict()
 
         # recovered particles using the same data as telemetered particles
-        self.meta_recov_particle = NutnrJCsppMetadataRecoveredDataParticle((self.header_dict, particle_a_match))
+        self.meta_recov_particle = NutnrJCsppMetadataRecoveredDataParticle((header_dict, particle_a_match))
         self.meta_recov_particle.generate_dict()
         self.recov_particle_a = NutnrJCsppRecoveredDataParticle(particle_a_match)
         self.recov_particle_a.generate_dict()
@@ -240,7 +245,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
-        self.exception_callback_value = None
+        self.exception_callback_value = []
 
     def assert_equal_regex(self, match1, match2):
         """
@@ -296,6 +301,17 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(abs(result[result_index].contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
                  particle.contents[DataParticleKey.INTERNAL_TIMESTAMP]) <= allowed_diff)
 
+    def assert_data_and_timestamp(self, result, particle, result_index=0):
+        """
+        Combine asserting data and timestamp
+        """
+        self.assert_data(result, particle, result_index)
+        self.assert_timestamp(result, particle, result_index)
+
+    def assert_metadata_and_timestamp(self, result, particle, result_index=0):
+        self.assert_metadata(result, particle, result_index)
+        self.assert_timestamp(result, particle, result_index)
+
     def assert_position(self, position):
         """
         Assert that the position in the parser state and state callback match
@@ -304,7 +320,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.parser._state[StateKey.POSITION], position)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], position)
 
-    def create_parser(self, stream_handle, telem_flag=True):
+    def create_parser(self, stream_handle, telem_flag=True, state=None):
         """
         Initialize the parser with the given stream handle, using the
         telemetered config if the flag is set, recovered if it is not
@@ -330,7 +346,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
                 }
             }
 
-        self.parser = NutnrJCsppParser(config, None, stream_handle, 
+        self.parser = NutnrJCsppParser(config, state, stream_handle, 
                                   self.state_callback, self.pub_callback,
                                   self.exception_callback)
 
@@ -360,7 +376,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, PARTICLE_E_POS, self.telem_particle_e, True)
 
         # confirm no exceptions occurred
-        self.assertEqual(self.exception_callback_value, None)
+        self.assertEqual(self.exception_callback_value, [])
 
         stream_handle.close()
 
@@ -408,26 +424,18 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assert_(isinstance(self.publish_callback_value, list))
         # compare particle raw data values
-        self.assert_metadata(result, self.meta_telem_particle)
-        self.assert_data(result, self.telem_particle_a, result_index=1)
-        self.assert_data(result, self.telem_particle_b, result_index=2)
-        self.assert_data(result, self.telem_particle_c, result_index=3)
-        self.assert_data(result, self.telem_particle_d, result_index=4)
-        self.assert_data(result, self.telem_particle_e, result_index=5)
-
-        # compare particle timestamps
-        self.assert_timestamp(result, self.meta_telem_particle)
-        self.assert_timestamp(result, self.telem_particle_a, result_index=1)
-        self.assert_timestamp(result, self.telem_particle_b, result_index=2)
-        self.assert_timestamp(result, self.telem_particle_c, result_index=3)
-        self.assert_timestamp(result, self.telem_particle_d, result_index=4)
-        self.assert_timestamp(result, self.telem_particle_e, result_index=5)
+        self.assert_metadata_and_timestamp(result, self.meta_telem_particle)
+        self.assert_data_and_timestamp(result, self.telem_particle_a, result_index=1)
+        self.assert_data_and_timestamp(result, self.telem_particle_b, result_index=2)
+        self.assert_data_and_timestamp(result, self.telem_particle_c, result_index=3)
+        self.assert_data_and_timestamp(result, self.telem_particle_d, result_index=4)
+        self.assert_data_and_timestamp(result, self.telem_particle_e, result_index=5)
         
         # compare position and file ingested from the state
         self.assert_position(PARTICLE_E_POS)
         self.assertEqual(self.file_ingested_value, True)
         # confirm no exceptions occurred
-        self.assertEqual(self.exception_callback_value, None)
+        self.assertEqual(self.exception_callback_value, [])
 
 	stream_handle.close()
 
@@ -446,29 +454,19 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.publish_callback_value, list))
         # compare particle raw data values, check the particles we know from
         # the beginning, then the last particle in the file
-        self.assert_metadata(result, self.meta_telem_particle)
-        self.assert_data(result, self.telem_particle_a, result_index=1)
-        self.assert_data(result, self.telem_particle_b, result_index=2)
-        self.assert_data(result, self.telem_particle_c, result_index=3)
-        self.assert_data(result, self.telem_particle_d, result_index=4)
-        self.assert_data(result, self.telem_particle_e, result_index=5)
-        self.assert_data(result, self.telem_particle_long, result_index=-1)
-
-        # compare particle timestamps, check the particles we know from the beginning,
-        # then the last particle in the file
-        self.assert_timestamp(result, self.meta_telem_particle)
-        self.assert_timestamp(result, self.telem_particle_a, result_index=1)
-        self.assert_timestamp(result, self.telem_particle_b, result_index=2)
-        self.assert_timestamp(result, self.telem_particle_c, result_index=3)
-        self.assert_timestamp(result, self.telem_particle_d, result_index=4)
-        self.assert_timestamp(result, self.telem_particle_e, result_index=5)
-        self.assert_timestamp(result, self.telem_particle_long, result_index=-1)
+        self.assert_metadata_and_timestamp(result, self.meta_telem_particle)
+        self.assert_data_and_timestamp(result, self.telem_particle_a, result_index=1)
+        self.assert_data_and_timestamp(result, self.telem_particle_b, result_index=2)
+        self.assert_data_and_timestamp(result, self.telem_particle_c, result_index=3)
+        self.assert_data_and_timestamp(result, self.telem_particle_d, result_index=4)
+        self.assert_data_and_timestamp(result, self.telem_particle_e, result_index=5)
+        self.assert_data_and_timestamp(result, self.telem_particle_long, result_index=-1)
 
         # compare position and file ingested from the state
         self.assert_position(END_LONG_POS)
         self.assertEqual(self.file_ingested_value, True)
         # confirm no exceptions occurred
-        self.assertEqual(self.exception_callback_value, None)
+        self.assertEqual(self.exception_callback_value, [])
 
 	stream_handle.close()
 
@@ -476,7 +474,32 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         """
         Test starting the parser in a state in the middle of processing
         """
-        pass
+        # set the state so that the metadata, particle A and B have been read
+        new_state = {StateKey.POSITION: PARTICLE_B_POS,
+                     StateKey.METADATA_EXTRACTED: True}
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'short_SNA_SNA.txt'), 'rb')
+
+        self.create_parser(stream_handle, state=new_state)
+
+        # ask for more records but should only get 3 back: c, d, and e
+        result = self.parser.get_records(6)
+        self.assertEqual(len(result), 3)
+
+        self.assert_(isinstance(self.publish_callback_value, list))
+        # compare particle raw data values
+        self.assert_data_and_timestamp(result, self.telem_particle_c, result_index=0)
+        self.assert_data_and_timestamp(result, self.telem_particle_d, result_index=1)
+        self.assert_data_and_timestamp(result, self.telem_particle_e, result_index=2)
+
+        # compare position and file ingested from the state
+        self.assert_position(PARTICLE_E_POS)
+        self.assertEqual(self.file_ingested_value, True)
+        # confirm no exceptions occurred
+        self.assertEqual(self.exception_callback_value, None)
+
+	stream_handle.close()
 
     def test_set_state(self):
         """
@@ -484,10 +507,68 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        pass
+        # set the state so that the metadata, particle A, B, and C have been read
+        new_state = {StateKey.POSITION: PARTICLE_C_POS,
+                     StateKey.METADATA_EXTRACTED: True}
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'short_SNA_SNA.txt'), 'rb')
+
+        self.create_parser(stream_handle)
+
+        # get metadata and A
+        result = self.parser.get_records(2)
+
+        # compare particle raw data values and timestamp
+        self.assert_metadata_and_timestamp(result, self.meta_telem_particle)
+        self.assert_data_and_timestamp(result, self.telem_particle_a, result_index=1)
+
+        # compare position and file ingested from the state
+        self.assert_position(PARTICLE_A_POS)
+        self.assertEqual(self.file_ingested_value, False)
+
+        # now change the state to skip over B and C
+        self.parser.set_state(new_state)
+
+        # confirm we get D and E now
+        result = self.parser.get_records(2)
+        # compare particle raw data values and timestamp
+        self.assert_data_and_timestamp(result, self.telem_particle_d, result_index=0)
+        self.assert_data_and_timestamp(result, self.telem_particle_e, result_index=1)
+
+        # compare position and file ingested from the state
+        self.assert_position(PARTICLE_E_POS)
+        self.assertEqual(self.file_ingested_value, True)
+
+        # confirm no exceptions occurred
+        self.assertEqual(self.exception_callback_value, [])
+
+        stream_handle.close()
 
     def test_bad_data(self):
         """
         Ensure that bad data is skipped when it exists.
         """
-        pass
+        # bad data file has:
+        # 1 bad status
+        # particle A has bad timestamp
+        # particle B has bad dark fit
+        # particle C has bad frame type
+        # particle D has bad year
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'bad_SNA_SNA.txt'), 'rb')
+
+        self.create_parser(stream_handle)
+
+        # get E, since it is first it will generate a metadata
+        result = self.parser.get_records(1)
+        self.assert_result(result, 0, self.meta_telem_e, False, is_metadata=True)
+        result = self.parser.get_records(1)
+        # bytes in file changed due to making file 'bad'
+        self.assert_result(result, 10257, self.telem_particle_e, True)
+
+        # should have had 5 exceptions by now
+        self.assertEqual(len(self.exception_callback_value), 5)
+
+	for exception in self.exception_callback_value:
+	    self.assert_(isinstance(exception, RecoverableSampleException))
