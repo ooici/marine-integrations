@@ -18,11 +18,11 @@ __license__ = 'Apache 2.0'
 
 import gevent
 
-from nose.plugins.attrib import attr
-from mock import Mock, call
+from mock import Mock
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -37,8 +37,7 @@ from mi.core.time import get_timestamp_delayed
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver, FlortDMNU_Particle, FlortDMET_Particle, \
-    FlortDSample_Particle
+from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver, FlortDMNU_Particle, FlortDSample_Particle
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import DataParticleType
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentCommand
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import ProtocolState
@@ -48,11 +47,9 @@ from mi.instrument.wetlabs.fluorometer.flort_d.driver import Parameter
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import Protocol
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import Prompt
 
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import FlortDMET_ParticleKey
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import FlortDMNU_ParticleKey
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import FlortDSample_ParticleKey
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import MNU_REGEX
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import MET_REGEX
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import RUN_REGEX
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import NEWLINE
 
@@ -77,10 +74,9 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={
-        DriverConfigKey.PARAMETERS:
-            {Parameter.RUN_WIPER_INTERVAL: '00:10:00',
-             Parameter.RUN_CLOCK_SYNC_INTERVAL: '00:10:00',
-             Parameter.RUN_ACQUIRE_STATUS_INTERVAL: '00:10:00'}}
+        DriverConfigKey.PARAMETERS: {Parameter.RUN_WIPER_INTERVAL: '00:10:00',
+                                     Parameter.RUN_CLOCK_SYNC_INTERVAL: '00:10:00',
+                                     Parameter.RUN_ACQUIRE_STATUS_INTERVAL: '00:10:00'}}
 )
 
 #################################### RULES ####################################
@@ -115,15 +111,14 @@ class DriverTestMixinSub(DriverTestMixin):
     Mixin class used for storing data particle constance and common data assertion methods.
     """
     #Create some short names for the parameter test config
-    TYPE        = ParameterTestConfigKey.TYPE
-    READONLY    = ParameterTestConfigKey.READONLY
-    STARTUP     = ParameterTestConfigKey.STARTUP
-    DA          = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE       = ParameterTestConfigKey.VALUE
-    REQUIRED    = ParameterTestConfigKey.REQUIRED
-    DEFAULT     = ParameterTestConfigKey.DEFAULT
-    STATES      = ParameterTestConfigKey.STATES
-
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
 
     _Driver = InstrumentDriver
 
@@ -160,12 +155,9 @@ class DriverTestMixinSub(DriverTestMixin):
     _driver_capabilities = {
         Capability.RUN_WIPER: {STATES: [ProtocolState.COMMAND]},
         Capability.CLOCK_SYNC: {STATES: [ProtocolState.COMMAND]},
-        Capability.DISCOVER: {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_SAMPLE: {STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
-        Capability.START_DIRECT: {STATES: [ProtocolState.COMMAND]},
-        Capability.STOP_DIRECT: {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND]}
     }
 
@@ -201,16 +193,13 @@ class DriverTestMixinSub(DriverTestMixin):
         FlortDSample_ParticleKey.raw_sig_chl: {TYPE: int, VALUE: 1018, REQUIRED: True},
         FlortDSample_ParticleKey.wave_cdom: {TYPE: int, VALUE: 460, REQUIRED: True},
         FlortDSample_ParticleKey.raw_sig_cdom: {TYPE: int, VALUE: 4130, REQUIRED: True},
-        FlortDSample_ParticleKey.raw_temp: {TYPE: int, VALUE: 525, REQUIRED: True}
-    }
-
-    _flortD_met_parameters = {
-        FlortDMET_ParticleKey.SIG_1_OFFSET: {TYPE: float, VALUE: 3.00, REQUIRED: True},
-        FlortDMET_ParticleKey.SIG_2_OFFSET: {TYPE: float, VALUE: 2.00, REQUIRED: True},
-        FlortDMET_ParticleKey.SIG_3_OFFSET: {TYPE: float, VALUE: 1.00, REQUIRED: True},
-        FlortDMET_ParticleKey.SIG_1_SCALE_FACTOR: {TYPE: int, VALUE: 3, REQUIRED: True},
-        FlortDMET_ParticleKey.SIG_2_SCALE_FACTOR: {TYPE: int, VALUE: 2, REQUIRED: True},
-        FlortDMET_ParticleKey.SIG_3_SCALE_FACTOR: {TYPE: int, VALUE: 1, REQUIRED: True}
+        FlortDSample_ParticleKey.raw_temp: {TYPE: int, VALUE: 525, REQUIRED: True},
+        FlortDSample_ParticleKey.SIG_1_OFFSET: {TYPE: float, VALUE: 0, REQUIRED: True},
+        FlortDSample_ParticleKey.SIG_2_OFFSET: {TYPE: float, VALUE: 0, REQUIRED: True},
+        FlortDSample_ParticleKey.SIG_3_OFFSET: {TYPE: float, VALUE: 0, REQUIRED: True},
+        FlortDSample_ParticleKey.SIG_1_SCALE_FACTOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        FlortDSample_ParticleKey.SIG_2_SCALE_FACTOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        FlortDSample_ParticleKey.SIG_3_SCALE_FACTOR: {TYPE: int, VALUE: 0, REQUIRED: True}
     }
 
     # #
@@ -225,16 +214,6 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_keys(FlortDMNU_ParticleKey, self._flortD_mnu_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.FLORTD_MNU)
         self.assert_data_particle_parameters(data_particle, self._flortD_mnu_parameters, verify_values)
-
-    def assert_particle_met(self, data_particle, verify_values=False):
-        """
-        Verify flortd_met particle
-        @param data_particle:  FlortDMET_ParticleKey data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-        self.assert_data_particle_keys(FlortDMET_ParticleKey, self._flortD_met_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.FLORTD_MET)
-        self.assert_data_particle_parameters(data_particle, self._flortD_met_parameters, verify_values)
 
     def assert_particle_sample(self, data_particle, verify_values=False):
         """
@@ -313,10 +292,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         with self.assertRaises(SampleException):
             particle.generate()
 
-        particle = FlortDMET_Particle(SAMPLE_MET_RESPONSE.replace('Sig_1', 'Sig_8'))
-        with self.assertRaises(SampleException):
-            particle.generate()
-
         particle = FlortDSample_Particle(SAMPLE_SAMPLE_RESPONSE.replace('700', 'foo'))
         with self.assertRaises(SampleException):
             particle.generate()
@@ -333,7 +308,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 
         # Start validating data particles
         self.assert_particle_published(driver, SAMPLE_MNU_RESPONSE, self.assert_particle_mnu, True)
-        self.assert_particle_published(driver, SAMPLE_MET_RESPONSE, self.assert_particle_met, True)
         self.assert_particle_published(driver, SAMPLE_SAMPLE_RESPONSE, self.assert_particle_sample, True)
 
     def test_protocol_filter_capabilities(self):
@@ -367,7 +341,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                                          ProtocolEvent.START_DIRECT,
                                          ProtocolEvent.START_AUTOSAMPLE,
                                          ProtocolEvent.ACQUIRE_STATUS,
-                                         ProtocolEvent.GET_METADATA,
                                          ProtocolEvent.RUN_WIPER,
                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                          ProtocolEvent.CLOCK_SYNC],
@@ -525,8 +498,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         #test commands, now that we are in command mode
         #$mnu
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=MNU_REGEX)
-        #$met
-        self.assert_driver_command(ProtocolEvent.GET_METADATA, regex=MET_REGEX)
 
         #$run - testing putting instrument into autosample
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
@@ -726,13 +697,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
 
-        ##
-        #Test direct access disconnect
-        ##
-        self.assert_direct_access_start_telnet()
-        self.tcp_client.disconnect()
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
-
     def test_direct_access_telnet_mode_autosample(self):
         """
         Verify Direct Access can start autosampling for the instrument, and if stopping DA, the
@@ -800,9 +764,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
-        # ##################
-        # #  Command Mode
-        # ##################
+        ##################
+        #  Command Mode
+        ##################
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
@@ -822,10 +786,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         ##################
         #  Streaming Mode
         ##################
-        capabilities = {}
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [ProtocolEvent.STOP_AUTOSAMPLE]
-        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.STREAMING),
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.STOP_AUTOSAMPLE],
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()}
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
@@ -841,9 +805,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_capabilities(capabilities)
         self.assert_direct_access_stop_telnet()
 
-        # #######################
-        # #  Uninitialized Mode
-        # #######################
+        #######################
+        #  Uninitialized Mode
+        #######################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
