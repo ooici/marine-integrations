@@ -201,12 +201,8 @@ class WcWmEngDataParticle(DataParticle):
         try:
 
             # Process each of the instrument particle parameters
-            for rule in ENGINEERING_PARTICLE_ENCODING_RULES:
-
-                results.append(self._encode_value(
-                    rule[PARTICLE_KEY_INDEX],
-                    self.raw_data.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
-                    rule[TYPE_ENCODING_INDEX]))
+            for name, group, function in ENGINEERING_PARTICLE_ENCODING_RULES:
+                results.append(self._encode_value(name, self.raw_data.group(group), function))
 
             # # Set the internal timestamp
             internal_timestamp_unix = numpy.float(self.raw_data.group(

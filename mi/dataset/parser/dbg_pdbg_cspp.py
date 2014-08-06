@@ -48,9 +48,6 @@ from mi.dataset.parser.cspp_base import \
     END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
-    PARTICLE_KEY_INDEX, \
-    DATA_MATCHES_GROUP_NUMBER_INDEX, \
-    TYPE_ENCODING_INDEX, \
     encode_y_or_n
 
 STRING_REGEX = r'.*'  # any characters except new line
@@ -204,12 +201,8 @@ class DbgPdbgBatteryParticle(DataParticle):
         try:
 
             # Process each of the common particle parameters
-            for rule in COMMON_PARTICLE_ENCODING_RULES:
-
-                results.append(self._encode_value(
-                    rule[PARTICLE_KEY_INDEX],
-                    self.raw_data.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
-                    rule[TYPE_ENCODING_INDEX]))
+            for name, group, function in COMMON_PARTICLE_ENCODING_RULES:
+                results.append(self._encode_value(name, self.raw_data.group(group), function))
 
             results.append(self._encode_value(DbgPdbgBatteryParticleKey.BATTERY_NUMBER,
                                               self.raw_data.group(DataMatchesGroupNumber.BATTERY_NUMBER),
@@ -267,12 +260,8 @@ class DbgPdbgGpsParticle(DataParticle):
         try:
 
             # Process each of the common particle parameters
-            for rule in COMMON_PARTICLE_ENCODING_RULES:
-
-                results.append(self._encode_value(
-                    rule[PARTICLE_KEY_INDEX],
-                    self.raw_data.group(rule[DATA_MATCHES_GROUP_NUMBER_INDEX]),
-                    rule[TYPE_ENCODING_INDEX]))
+            for name, group, function in COMMON_PARTICLE_ENCODING_RULES:
+                results.append(self._encode_value(name, self.raw_data.group(group), function))
 
             results.append(self._encode_value(DbgPdbgGpsParticleKey.GPS_ADJUSTMENT,
                                               self.raw_data.group(DataMatchesGroupNumber.GPS_ADJUSTMENT),
