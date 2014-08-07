@@ -297,13 +297,6 @@ EXPECTED_20050403_spkir5 = [
         65527, 65527, 65527, 253, 1),
 ]
 
-# Expected tuples for data in file 20061220.spkir6.log
-# Expected tuples for data in file 20071225.spkir7.log
-# These files produces a large number particles.
-# They will be used for the large import test only.
-# No verification of particles from these files are done in unit test.
-# Particle results will be verified in integration and qualification tests.
-
 FILE1 = '20010101.spkir1.log'
 FILE2 = '20020113.spkir2.log'
 FILE3 = '20030208.spkir3.log'
@@ -317,6 +310,10 @@ EXPECTED_FILE2 = EXPECTED_20020113_spkir2
 EXPECTED_FILE3 = EXPECTED_20030208_spkir3
 EXPECTED_FILE4 = EXPECTED_20040305_spkir4
 EXPECTED_FILE5 = EXPECTED_20050403_spkir5
+EXPECTED_FILE6 = 400
+EXPECTED_FILE7 = 500
+
+MODULE_NAME = 'mi.dataset.parser.spkir_abj_dcl'
 
 
 @attr('UNIT', group='mi')
@@ -376,17 +373,13 @@ class SpkirAbjDclParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
 
         self.rec_config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE:
-                'mi.dataset.parser.spkir_abj_dcl',
-            DataSetDriverConfigKeys.PARTICLE_CLASS:
-                None
+            DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE_NAME,
+            DataSetDriverConfigKeys.PARTICLE_CLASS: None
         }
 
         self.tel_config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE:
-                'mi.dataset.parser.spkir_abj_dcl',
-            DataSetDriverConfigKeys.PARTICLE_CLASS:
-                None
+            DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE_NAME,
+            DataSetDriverConfigKeys.PARTICLE_CLASS: None
         }
 
         self.rec_state_callback_value = None
@@ -414,7 +407,7 @@ class SpkirAbjDclParserUnitTestCase(ParserUnitTestCase):
         parser = self.create_rec_parser(in_file)
 
         # In a single read, get all particles in this file.
-        number_expected_results = 400
+        number_expected_results = EXPECTED_FILE6
         result = parser.get_records(number_expected_results)
         self.assertEqual(len(result), number_expected_results)
 
@@ -426,7 +419,7 @@ class SpkirAbjDclParserUnitTestCase(ParserUnitTestCase):
         parser = self.create_tel_parser(in_file)
 
         # In a single read, get all particles in this file.
-        number_expected_results = 500
+        number_expected_results = EXPECTED_FILE7
         result = parser.get_records(number_expected_results)
         self.assertEqual(len(result), number_expected_results)
 

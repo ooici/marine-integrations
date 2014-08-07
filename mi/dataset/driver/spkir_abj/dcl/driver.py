@@ -83,19 +83,8 @@ class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):
         # If so, build the harvester and add it to the list of harvesters.
 
         if DataTypeKey.SPKIR_ABJ_RECOVERED in self._harvester_config:
-            rec_harvester = SingleDirectoryHarvester(
-               self._harvester_config.get(DataTypeKey.SPKIR_ABJ_RECOVERED),
-               driver_state[DataTypeKey.SPKIR_ABJ_RECOVERED],
-               lambda filename:
-                   self._new_file_callback(filename,
-                                           DataTypeKey.SPKIR_ABJ_RECOVERED),
-               lambda modified:
-                   self._modified_file_callback(modified,
-                                                DataTypeKey.SPKIR_ABJ_RECOVERED),
-               self._exception_callback)
-
-            harvesters.append(rec_harvester)
-
+            harvesters.append(self.build_single_harvester(DataTypeKey.SPKIR_ABJ_RECOVERED,
+                                                        driver_state))
         else:
             log.warn('No configuration for spkir_abj_dcl recovered harvester, not building')
 
@@ -103,23 +92,23 @@ class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):
         # If so, build the harvester and add it to the list of harvesters.
 
         if DataTypeKey.SPKIR_ABJ_TELEMETERED in self._harvester_config:
-            tel_harvester = SingleDirectoryHarvester(
-               self._harvester_config.get(DataTypeKey.SPKIR_ABJ_TELEMETERED),
-               driver_state[DataTypeKey.SPKIR_ABJ_TELEMETERED],
-               lambda filename:
-                   self._new_file_callback(filename,
-                                           DataTypeKey.SPKIR_ABJ_TELEMETERED),
-               lambda modified:
-                   self._modified_file_callback(modified,
-                                                DataTypeKey.SPKIR_ABJ_TELEMETERED),
-               self._exception_callback)
-
-            harvesters.append(tel_harvester)
-
+            harvesters.append(self.build_single_harvester(DataTypeKey.SPKIR_ABJ_TELEMETERED,
+                                                          driver_state))
         else:
             log.warn('No configuration for spkir_abj_dcl telemetered harvester, not building')
 
         return harvesters
+
+    def build_single_harvester(self, key, driver_state):
+
+        harvester = SingleDirectoryHarvester(
+            self._harvester_config.get(key),
+            driver_state[key],
+            lambda filename: self._new_file_callback(filename, key),
+            lambda modified: self._modified_file_callback(modified, key),
+            self._exception_callback)
+
+        return harvester
     
     def _build_parser(self, parser_state, stream_in, data_key):
         """
@@ -140,15 +129,6 @@ class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):
             })
             parser_class = SpkirAbjDclRecoveredParser
 
-            # parser = SpkirAbjDclRecoveredParser(
-            #     config,
-            #     stream_in,
-            #     parser_state,
-            #     lambda state, ingested:
-            #         self._save_parser_state(state, data_key, ingested),
-            #     self._data_callback,
-            #     self._sample_exception_callback)
-
         # Build the telemetered parser if requested.
 
         elif data_key == DataTypeKey.SPKIR_ABJ_TELEMETERED:
@@ -158,15 +138,6 @@ class SpkirAbjDclDataSetDriver(MultipleHarvesterDataSetDriver):
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None
             })
             parser_class = SpkirAbjDclTelemeteredParser
-
-            # parser = SpkirAbjDclTelemeteredParser(
-            #     config,
-            #     stream_in,
-            #     parser_state,
-            #     lambda state, ingested:
-            #         self._save_parser_state(state, data_key, ingested),
-            #     self._data_callback,
-            #     self._sample_exception_callback)
 
         # Not one of the keys we recognize?
         # No parser for you!

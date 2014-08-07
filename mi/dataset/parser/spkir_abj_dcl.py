@@ -201,12 +201,12 @@ class SpkirAbjDclInstrumentDataParticle(DataParticle):
         # The individual fields have already been extracted by the parser.
 
         timestamp = (
-            int(self.raw_data[SENSOR_GROUP_YEAR]),
-            int(self.raw_data[SENSOR_GROUP_MONTH]),
-            int(self.raw_data[SENSOR_GROUP_DAY]),
-            int(self.raw_data[SENSOR_GROUP_HOUR]),
-            int(self.raw_data[SENSOR_GROUP_MINUTE]),
-            int(self.raw_data[SENSOR_GROUP_SECOND]),
+            int(self.raw_data[PARTICLE_GROUP_YEAR]),
+            int(self.raw_data[PARTICLE_GROUP_MONTH]),
+            int(self.raw_data[PARTICLE_GROUP_DAY]),
+            int(self.raw_data[PARTICLE_GROUP_HOUR]),
+            int(self.raw_data[PARTICLE_GROUP_MINUTE]),
+            int(self.raw_data[PARTICLE_GROUP_SECOND]),
             0, 0, 0)
 
         elapsed_seconds = calendar.timegm(timestamp)
