@@ -15,20 +15,37 @@ import re
 import base64
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException
-from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-
-from mi.instrument.nortek.driver import NortekDataParticleType, Parameter, ParameterUnits
-from mi.instrument.nortek.driver import NortekInstrumentDriver
-from mi.instrument.nortek.driver import NortekInstrumentProtocol
-from mi.instrument.nortek.driver import NortekProtocolParameterDict
-from mi.instrument.nortek.driver import InstrumentPrompts
-from mi.instrument.nortek.driver import NEWLINE
 
 from mi.core.log import get_logger
 log = get_logger()
+
+from mi.core.exceptions import SampleException
+
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+
+
+# Note: This must be defined prior to nortek/driver import to prevent circular importing
+class NortekDataParticleType(BaseEnum):
+    """
+    List of data particles to collect
+    """
+    RAW = CommonDataParticleType.RAW
+    VELOCITY = 'vel3d_cd_velocity_data'
+    VELOCITY_HEADER = 'vel3d_cd_data_header'
+    SYSTEM = 'vel3d_cd_system_data'
+    HARDWARE_CONFIG = 'vel3d_cd_hardware_configuration'
+    HEAD_CONFIG = 'vel3d_cd_head_configuration'
+    USER_CONFIG = 'vel3d_cd_user_configuration'
+    CLOCK = 'vel3d_clock_data'
+    BATTERY = 'vel3d_cd_battery_voltage'
+    ID_STRING = 'vel3d_cd_identification_string'
+
+
+from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict
+from mi.instrument.nortek.driver import Parameter, NortekInstrumentDriver, NEWLINE, ParameterUnits
+
 
 VELOCITY_DATA_LEN = 24
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x10'
@@ -45,15 +62,6 @@ VELOCITY_HEADER_DATA_PATTERN = r'%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1}
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
 VECTOR_SAMPLE_REGEX = [VELOCITY_DATA_REGEX, SYSTEM_DATA_REGEX, VELOCITY_HEADER_DATA_REGEX]
-
-
-class DataParticleType(NortekDataParticleType):
-    """
-    List of data particles to collect
-    """
-    VELOCITY = 'vel3d_cd_velocity_data'
-    VELOCITY_HEADER = 'vel3d_cd_data_header'
-    SYSTEM = 'vel3d_cd_system_data'
 
 
 class VectorVelocityDataParticleKey(BaseEnum):
@@ -79,7 +87,7 @@ class VectorVelocityDataParticle(DataParticle):
     """
     Routine for parsing velocity data into a data particle structure for the Vector sensor. 
     """
-    _data_particle_type = DataParticleType.VELOCITY
+    _data_particle_type = NortekDataParticleType.VELOCITY
 
     def _build_parsed_values(self):
         """
@@ -145,7 +153,7 @@ class VectorVelocityHeaderDataParticle(DataParticle):
     """
     Routine for parsing velocity header data into a data particle structure for the Vector sensor. 
     """
-    _data_particle_type = DataParticleType.VELOCITY_HEADER
+    _data_particle_type = NortekDataParticleType.VELOCITY_HEADER
 
     def _build_parsed_values(self):
         """
@@ -207,7 +215,7 @@ class VectorSystemDataParticle(DataParticle):
     """
     Routine for parsing system data into a data particle structure for the Vector sensor. 
     """
-    _data_particle_type = DataParticleType.SYSTEM
+    _data_particle_type = NortekDataParticleType.SYSTEM
 
     def _build_parsed_values(self):
         """
