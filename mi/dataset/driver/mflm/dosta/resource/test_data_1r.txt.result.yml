@@ -7,14 +7,14 @@ header:
 data:
   - _index: 1
     internal_timestamp: 3583440001.000000000
-    particle_object: DostadMetadataDataParticle
-    particle_type: dosta_abcdjm_sio_metadata
+    particle_object: DostadParserRecoveredMetadataDataParticle
+    particle_type: dosta_abcdjm_sio_metadata_recovered
     product_number: 4831
     serial_number: 128
   - _index: 2
     internal_timestamp: 3583440001.000000000
-    particle_object: DostadParserDataParticle
-    particle_type: dosta_abcdjm_sio_instrument
+    particle_object: DostadParserRecoveredDataParticle
+    particle_type: dosta_abcdjm_sio_instrument_recovered
     sio_controller_timestamp: 1374451201
     estimated_oxygen_concentration: 302.576
     estimated_oxygen_saturation: 97.289
