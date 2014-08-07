@@ -35,6 +35,7 @@ Files used for testing:
 20060401.flort6.log
   This file contains a boatload of invalid sensor data records.
   See metadata in file for a list of the errors.
+  20 metadata records, 47 sensor data records
 """
 
 import unittest
@@ -59,7 +60,7 @@ from mi.idk.config import Config
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver',
                  'flort_dj', 'dcl', 'resource')
 
-MODULE = 'mi.dataset.parser.flort_dj_dcl'
+MODULE_NAME = 'mi.dataset.parser.flort_dj_dcl'
 
 
 # Expected tuples for data in file 20010101.flort1.log
@@ -356,8 +357,9 @@ EXPECTED_FILE2 = EXPECTED_20020215_flort2
 EXPECTED_FILE3 = EXPECTED_20030413_flort3
 EXPECTED_FILE4 = EXPECTED_20040505_flort4
 EXPECTED_FILE5 = EXPECTED_20050406_flort5
-EXPECTED_FILE6 = 300
-EXPECTED_FILE7 = 400
+EXPECTED_FILE6 = 300    # number of records expected
+EXPECTED_FILE7 = 400    # number of records expected
+EXPECTED_FILE8 = 47     # number of exceptions expected
 
 
 @attr('UNIT', group='mi')
@@ -419,12 +421,12 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
 
         self.rec_config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE,
+            DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE_NAME,
             DataSetDriverConfigKeys.PARTICLE_CLASS: None
         }
 
         self.tel_config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE,
+            DataSetDriverConfigKeys.PARTICLE_MODULE: MODULE_NAME,
             DataSetDriverConfigKeys.PARTICLE_CLASS: None
         }
 
@@ -518,7 +520,8 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
     def test_invalid_sensor_data_records(self):
         """
         Read data from a file containing invalid sensor data records.
-        Verify that no instrument particles are produced.
+        Verify that no instrument particles are produced
+        and the correct number of exceptions are detected.
         """
         log.debug('===== START TEST INVALID SENSOR DATA RECOVERED =====')
         in_file = self.open_file(FILE8)
@@ -527,6 +530,7 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         # Try to get records and verify that none are returned.
         result = parser.get_records(1)
         self.assertEqual(result, [])
+        self.assertEqual(self.rec_exceptions_detected, EXPECTED_FILE8)
 
         in_file.close()
 
@@ -537,10 +541,168 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         # Try to get records and verify that none are returned.
         result = parser.get_records(1)
         self.assertEqual(result, [])
+        self.assertEqual(self.tel_exceptions_detected, EXPECTED_FILE8)
 
         in_file.close()
 
         log.debug('===== END TEST INVALID SENSOR DATA =====')
+        
+    def test_mid_state_start(self):
+        """
+        Test starting a parser with a state in the middle of processing.
+        """
+        log.debug('===== START TEST MID-STATE START RECOVERED =====')
+
+        in_file = self.open_file(FILE3)
+
+        # Start at the beginning of record 27 (of 52 total)
+        initial_state = {
+            FlortStateKey.POSITION: 2579
+        }
+
+        parser = self.create_rec_parser(in_file, new_state=initial_state)
+
+        # Generate a list of expected result particles.
+        expected_particle = []
+        for expected in EXPECTED_FILE3[-26: ]:
+            particle = FlortDjDclRecoveredInstrumentDataParticle(expected)
+            expected_particle.append(particle)
+
+        # In a single read, get all particles for this file.
+        result = parser.get_records(len(expected_particle))
+        self.assertEqual(result, expected_particle)
+
+        self.assertEqual(self.rec_exception_callback_value, None)
+        in_file.close()
+        
+        log.debug('===== START TEST MID-STATE START TELEMETERED =====')
+
+        in_file = self.open_file(FILE2)
+
+        # Start at the beginning of record 11 (of 30 total).
+        initial_state = {
+            FlortStateKey.POSITION: 1017
+        }
+
+        parser = self.create_tel_parser(in_file, new_state=initial_state)
+
+        # Generate a list of expected result particles.
+        expected_particle = []
+        for expected in EXPECTED_FILE2[-20: ]:
+            particle = FlortDjDclTelemeteredInstrumentDataParticle(expected)
+            expected_particle.append(particle)
+
+        # In a single read, get all particles for this file.
+        result = parser.get_records(len(expected_particle))
+        self.assertEqual(result, expected_particle)
+
+        self.assertEqual(self.tel_exception_callback_value, None)
+        in_file.close()
+
+        log.debug('===== END TEST MID-STATE START =====')
+
+    def test_no_sensor_data(self):
+        """
+        Read a file containing no sensor data records
+        and verify that no particles are produced.
+        """
+        log.debug('===== START TEST NO SENSOR DATA RECOVERED =====')
+        in_file = self.open_file(FILE1)
+        parser = self.create_rec_parser(in_file)
+
+        # Try to get a record and verify that none are produced.
+        result = parser.get_records(1)
+        self.assertEqual(result, [])
+
+        self.assertEqual(self.rec_exception_callback_value, None)
+        in_file.close()
+
+        log.debug('===== START TEST NO SENSOR DATA TELEMETERED =====')
+        in_file = self.open_file(FILE1)
+        parser = self.create_tel_parser(in_file)
+
+        # Try to get a record and verify that none are produced.
+        result = parser.get_records(1)
+        self.assertEqual(result, [])
+
+        self.assertEqual(self.tel_exception_callback_value, None)
+        in_file.close()
+
+        log.debug('===== END TEST NO SENSOR DATA =====')
+        
+    def test_set_state(self):
+        """
+        This test verifies that the state can be changed after starting.
+        Some particles are read and then the parser state is modified to
+        skip ahead or back.
+        """
+        log.debug('===== START TEST SET STATE RECOVERED =====')
+
+        in_file = self.open_file(FILE4)
+        parser = self.create_rec_parser(in_file)
+
+        # Read and verify 5 particles (of the 25).
+        for expected in EXPECTED_FILE4[ : 5]:
+
+            # Generate expected particle
+            expected_particle = FlortDjDclRecoveredInstrumentDataParticle(expected)
+
+            # Get record and verify.
+            result = parser.get_records(1)
+            self.assertEqual(result, [expected_particle])
+
+        # Skip ahead in the file so that we get the last 10 particles.
+        new_state = {
+            FlortStateKey.POSITION: 2118
+        }
+
+        # Set the state.
+        parser.set_state(new_state)
+
+        # Read and verify the last 10 particles.
+        for expected in EXPECTED_FILE4[-10: ]:
+
+            # Generate expected particle
+            expected_particle = FlortDjDclRecoveredInstrumentDataParticle(expected)
+
+            # Get record and verify.
+            result = parser.get_records(1)
+            self.assertEqual(result, [expected_particle])
+
+        log.debug('===== START TEST SET STATE TELEMETERED =====')
+
+        in_file = self.open_file(FILE5)
+        parser = self.create_tel_parser(in_file)
+
+        # Read and verify 20 particles (of the 24).
+        for expected in EXPECTED_FILE5[ : 20]:
+
+            # Generate expected particle
+            expected_particle = FlortDjDclTelemeteredInstrumentDataParticle(expected)
+
+            # Get record and verify.
+            result = parser.get_records(1)
+            self.assertEqual(result, [expected_particle])
+
+        # Skip back in the file so that we get the last 17 particles.
+        new_state = {
+            FlortStateKey.POSITION: 992,
+        }
+
+        # Set the state.
+        parser.set_state(new_state)
+
+        # Read and verify the last 17 particles.
+        for expected in EXPECTED_FILE5[-17: ]:
+
+            # Generate expected particle
+            expected_particle = FlortDjDclTelemeteredInstrumentDataParticle(expected)
+
+            # Get record and verify.
+            result = parser.get_records(1)
+            self.assertEqual(result, [expected_particle])
+
+        log.debug('===== END TEST SET STATE =====')
 
     def test_simple(self):
         """
