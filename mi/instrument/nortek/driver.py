@@ -12,6 +12,7 @@ __author__ = 'Rachel Manoni, Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 import re
+import sys
 import time
 import base64
 
@@ -21,7 +22,6 @@ log = get_logger()
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, DEFAULT_WRITE_DELAY
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -38,6 +38,13 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+
+if 'mi.instrument.nortek.aquadopp' in sys.modules.keys():
+    print "FOUND VELPT"
+    from mi.instrument.nortek.aquadopp.ooicore.driver import NortekDataParticleType
+elif 'mi.instrument.nortek.vector' in sys.modules.keys():
+    print "FOUND VEL3D"
+    from mi.instrument.nortek.vector.ooicore.driver import NortekDataParticleType
 
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import InstrumentStateException
@@ -126,19 +133,6 @@ class ScheduledJob(BaseEnum):
     """
     CLOCK_SYNC = 'clock_sync'
     ACQUIRE_STATUS = 'acquire_status'
-
-
-class NortekDataParticleType(BaseEnum):
-    """
-    List of particles
-    """
-    RAW = CommonDataParticleType.RAW
-    HARDWARE_CONFIG = 'vel3d_cd_hardware_configuration'
-    HEAD_CONFIG = 'vel3d_cd_head_configuration'
-    USER_CONFIG = 'vel3d_cd_user_configuration'
-    CLOCK = 'vel3d_clock_data'
-    BATTERY = 'vel3d_cd_battery_voltage'
-    ID_STRING = 'vel3d_cd_identification_string'
 
 
 class InstrumentPrompts(BaseEnum):
