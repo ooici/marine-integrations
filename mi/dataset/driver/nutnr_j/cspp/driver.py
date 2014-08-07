@@ -18,21 +18,32 @@ from mi.core.exceptions import ConfigurationException
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, \
                                       DataSetDriverConfigKeys
 from mi.dataset.harvester import SingleDirectoryHarvester
-from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppParser, NutnrJCsppParserDataParticle
+from mi.dataset.parser.cspp_base import METADATA_PARTICLE_CLASS_KEY, \
+                                        DATA_PARTICLE_CLASS_KEY
+from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppParser, \
+                                           NutnrJCsppTelemeteredDataParticle, \
+                                           NutnrJCsppRecoveredDataParticle, \
+                                           NutnrJCsppMetadataTelemeteredDataParticle, \
+                                           NutnrJCsppMetadataRecoveredDataParticle
+                                           
+                                           
 
 class DataSourceKey(BaseEnum):
     """
     Define the parser / harvester combinations for this driver
     """
     # Replace keys below with parser harvester named keys
-    KEY_1 = "key_1"
-    KEY_2 = "key_2"
+    NUTNR_J_CSPP_TELEMETERED = "nutnr_j_cspp_telemetered"
+    NUTNR_J_CSPP_RECOVERED = "nutnr_j_cspp_recovered"
 
-class NutnrJCsppDataSetDriver(MultipleHarvesterSetDriver):
+class NutnrJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [NutnrJCsppParserDataParticle.type()]
+        return [NutnrJCsppTelemeteredDataParticle.type(),
+                NutnrJCsppRecoveredDataParticle.type(),
+                NutnrJCsppMetadataTelemeteredDataParticle.type(),
+                NutnrJCsppMetadataRecoveredDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback,
                  event_callback, exception_callback):
@@ -49,39 +60,37 @@ class NutnrJCsppDataSetDriver(MultipleHarvesterSetDriver):
         @param data_key Key to determine which parser type is built
         """
         # build the parser based on which key is passed in 
-        if data_key == DataSourceKey.KEY_1:
-            config = self._parser_config.get(DataSourceKey.KEY_1)
+        if data_key == DataSourceKey.NUTNR_J_CSPP_TELEMETERED:
+            config = self._parser_config.get(DataSourceKey.NUTNR_J_CSPP_TELEMETERED)
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
-                DataSetDriverConfigKeys.PARTICLE_CLASS: 'NutnrJCsppParserDataParticle'
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    METADATA_PARTICLE_CLASS_KEY: NutnrJCsppMetadataTelemeteredDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: NutnrJCsppTelemeteredDataParticle
+                }
             })
 
-            parser = NutnrJCsppParser(
-                config,
-                parser_state,
-                stream_in,
-                lambda state,ingested: self._save_parser_state(state, DataSourceKey.KEY_1, ingested),
-                self._data_callback,
-                self._sample_exception_callback 
-            )
-
-        elif data_key == DataSourceKey.KEY_2:
-            config = self._parser_config.get(DataSourceKey.KEY_2)
+        elif data_key == DataSourceKey.NUTNR_J_CSPP_RECOVERED:
+            config = self._parser_config.get(DataSourceKey.NUTNR_J_CSPP_RECOVERED)
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
-                DataSetDriverConfigKeys.PARTICLE_CLASS: 'NutnrJCsppParserDataParticle'
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    METADATA_PARTICLE_CLASS_KEY: NutnrJCsppMetadataRecoveredDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: NutnrJCsppRecoveredDataParticle
+                }
             })
 
-            parser = NutnrJCsppParser(
-                config,
-                parser_state,
-                stream_in,
-                lambda state, ingested: self._save_parser_state(state, DataSourceKey.KEY_2, ingested),
-                self._data_callback,
-                self._sample_exception_callback
-            )
         else:
-            raise ConfigurationException("Cannot build parser for unknown data source key %s" % data_key)
+            raise ConfigurationException("Cannot build parser for unknown data source key %s" % \
+                                         data_key)
+        
+        parser = NutnrJCsppParser(
+            config,
+            parser_state,
+            stream_in,
+            lambda state, ingested: self._save_parser_state(state, data_key,
+                                                            ingested),
+            self._data_callback,
+            self._sample_exception_callback
+        )
 
         return parser
 
@@ -91,28 +100,32 @@ class NutnrJCsppDataSetDriver(MultipleHarvesterSetDriver):
         @param driver_state The starting driver state
         """
         harvesters = []
-        if DataSourceKey.KEY_1 in self._harvester_config:
-            harvester_1 = SingleDirectoryHarvester(
-                self._harvester_config.get(DataSourceKey.KEY_1),
-                driver_state[DataSourceKey.KEY_1],
-                lambda filename: self._new_file_callback(filename, DataSourceKey.KEY_1),
-                lambda modified: self._modified_file_callback(modified, DataSourceKey.KEY_1),
-                self._exception_callback
-            )
-            harvesters.append(harvester_1)
+        if DataSourceKey.NUTNR_J_CSPP_TELEMETERED in self._harvester_config:
+            harvesters.append(self.build_single_dir_harvester(driver_state,
+                                                              DataSourceKey.NUTNR_J_CSPP_TELEMETERED))
         else:
-            log.warn('No configuration for %s harvester, not building', DataSourceKey.KEY_1)
+            log.warn('No configuration for %s harvester, not building',
+                     DataSourceKey.NUTNR_J_CSPP_TELEMETERED)
 
-        if DataSourceKey.KEY_2 in self._harvester_config:
-            harvester_2 = SingleDirectoryHarvester(
-                self._harvester_config.get(DataSourceKey.KEY_2),
-                driver_state[DataSourceKey.KEY_2],
-                lambda filename: self._new_file_callback(filename, DataSourceKey.KEY_2),
-                lambda modified: self._modified_file_callback(modified, DataSourceKey.KEY_2),
-                self._exception_callback
-            )
-            harvesters.append(harvester_2)
+        if DataSourceKey.NUTNR_J_CSPP_RECOVERED in self._harvester_config:
+            harvesters.append(self.build_single_dir_harvester(driver_state,
+                                                              DataSourceKey.NUTNR_J_CSPP_RECOVERED))
         else:
-            log.warn('No configuration for %s harvester, not building', DataSourceKey.KEY_2)
+            log.warn('No configuration for %s harvester, not building',
+                     DataSourceKey.NUTNR_J_CSPP_RECOVERED)
 
         return harvesters
+    
+    def build_single_dir_harvester(self, driver_state, data_key):
+        """
+        Build a single directory harvester for the given data source key
+        @param driver_state - the starting driver state
+        @param data_key - the data source key to build the harvester for
+        """
+        return SingleDirectoryHarvester(
+            self._harvester_config.get(data_key),
+            driver_state[data_key],
+            lambda filename: self._new_file_callback(filename, data_key),
+            lambda modified: self._modified_file_callback(modified, data_key),
+            self._exception_callback
+        )

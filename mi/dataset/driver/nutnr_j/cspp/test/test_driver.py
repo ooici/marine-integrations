@@ -27,12 +27,19 @@ from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DataSourceConfigKey, \
+                                      DataSetDriverConfigKeys, \
+                                      DriverStateKey
 from mi.dataset.driver.nutnr_j.cspp.driver import NutnrJCsppDataSetDriver, DataSourceKey
-from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppParserDataParticle
+from mi.dataset.parser.cspp_base import StateKey
+from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppMetadataTelemeteredDataParticle, \
+                                           NutnrJCsppTelemeteredDataParticle, \
+                                           NutnrJCsppMetadataRecoveredDataParticle, \
+                                           NutnrJCsppRecoveredDataParticle, \
+                                           DataParticleType
 
-TEST_DIR_1 = '/tmp/dsatest1'
-TEST_DIR_2 = '/tmp/dsatest2'
+TELEM_DIR = '/tmp/dsatest1'
+RECOV_DIR = '/tmp/dsatest2'
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -45,27 +52,28 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'nutnr_j_cspp',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSourceKey.KEY_1: {
-                DataSetDriverConfigKeys.DIRECTORY: TEST_DIR_1,
-                DataSetDriverConfigKeys.PATTERN: '',
+            DataSourceKey.NUTNR_J_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: TELEM_DIR,
+                DataSetDriverConfigKeys.PATTERN: '*SNA_SNA.txt',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             },
-            DataSourceKey.KEY_2: {
-                DataSetDriverConfigKeys.DIRECTORY: TEST_DIR_2,
-                DataSetDriverConfigKeys.PATTERN: '',
+            DataSourceKey.NUTNR_J_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.DIRECTORY: RECOV_DIR,
+                DataSetDriverConfigKeys.PATTERN: '*SNA_SNA.txt',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
             }
         },
         DataSourceConfigKey.PARSER: {
-            DataSourceKey.KEY_1: {}
-            DataSourceKey.KEY_2: {}
+            DataSourceKey.NUTNR_J_CSPP_TELEMETERED: {},
+            DataSourceKey.NUTNR_J_CSPP_RECOVERED: {}
         }
     }
 )
 
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
+TELEM_PARTICLES = (NutnrJCsppMetadataTelemeteredDataParticle,
+                   NutnrJCsppTelemeteredDataParticle)
+RECOV_PARTICLES = (NutnrJCsppMetadataRecoveredDataParticle,
+                   NutnrJCsppRecoveredDataParticle)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -80,21 +88,60 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-        pass
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', TELEM_DIR)
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', RECOV_DIR)
 
-    def test_stop_resume(self):
+        self.driver.start_sampling()
+
+        self.assert_data(TELEM_PARTICLES, 'short_SNA_telem.yml', count=6)
+        self.assert_data(RECOV_PARTICLES, 'short_SNA_recov.yml', count=6)
+
+    def test_resume(self):
         """
         Start the driver in a state that it could have previously stopped at,
         and confirm the driver starts outputting particles where it left off
         """
-        pass
+        filename = 'short_SNA_SNA.txt'
+        path_1 = self.create_sample_data_set_dir(filename, TELEM_DIR)
+        path_2 = self.create_sample_data_set_dir(filename, RECOV_DIR)
+        
+        PARTICLE_2_POS = 6136
+        PARTICLE_4_POS = 9055
+        
+        state = {DataSourceKey.NUTNR_J_CSPP_TELEMETERED:
+                    # telemetered starting after 2nd particle
+                    {filename: self.get_file_state(path_1, False, PARTICLE_2_POS)},
+                 DataSourceKey.NUTNR_J_CSPP_RECOVERED:
+                    # recovered starting after 4th particle
+                    {filename: self.get_file_state(path_2, False, PARTICLE_4_POS)}
+                 }
+        state[DataSourceKey.NUTNR_J_CSPP_TELEMETERED][filename] \
+        [DriverStateKey.PARSER_STATE][StateKey.METADATA_EXTRACTED] = True
+        state[DataSourceKey.NUTNR_J_CSPP_RECOVERED][filename] \
+        [DriverStateKey.PARSER_STATE][StateKey.METADATA_EXTRACTED] = True
+
+        # set the driver to the predetermined state and start sampling
+        self.driver = self._get_driver_object(memento=state)
+        self.driver.start_sampling()
+        
+        self.assert_data(TELEM_PARTICLES, 'last_3_SNA_telem.yml', count=3)
+        self.assert_data(RECOV_PARTICLES, 'last_SNA_recov.yml', count=1)
 
     def test_sample_exception(self):
         """
         Test a case that should produce a sample exception and confirm the
         sample exception occurs
         """
-        pass
+
+        self.driver.start_sampling()
+        self.clear_async_data()
+        
+        self.create_sample_data_set_dir('bad_SNA_SNA.txt', RECOV_DIR)
+
+        self.assert_data(RECOV_PARTICLES, 'last_and_meta_SNA_recov.yml', count=2)
+        
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -109,14 +156,42 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        self.assert_initialize()
+        
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', TELEM_DIR)
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', RECOV_DIR)
+        
+        # get telemetered particles
+        result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
+        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 5)
+        result_t.extend(result_t2)
+        # compare telemetered particles
+        self.assert_data_values(result_t, 'short_SNA_telem.yml')
+
+        # get recovered particles
+        result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1)
+        result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 5)
+        result_r.extend(result_r2)
+        # compare recovered particles
+        self.assert_data_values(result_r, 'short_SNA_recov.yml')
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
         """
-        pass
+        self.assert_initialize()
+        
+        self.create_sample_data_set_dir('11079419_SNA_SNA.txt', TELEM_DIR)
+        self.create_sample_data_set_dir('11079364_SNA_SNA.txt', RECOV_DIR)
+        
+        # for long test just confirm we get the right number of particles, get_samples won't
+        # return successfully unless the requested number are found
+        result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1, 60)
+        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 171, 60)
 
+        #result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 60)
+        #result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 175, 60)
+        
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
