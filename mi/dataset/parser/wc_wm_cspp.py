@@ -63,8 +63,8 @@ DATA_REGEX += '(' + STRING_REGEX + ')' + MULTIPLE_TAB_REGEX  # Winch Status
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Velocity
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Temperature
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Winch Voltage
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Time Counts
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Discharge Counts
+DATA_REGEX += INT_REGEX +  MULTIPLE_TAB_REGEX                # Time Counts (ignored)
+DATA_REGEX += INT_REGEX + MULTIPLE_TAB_REGEX                 # Discharge Counts (ignored)
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + END_OF_LINE_REGEX    # Rope on Drum
 
 
@@ -87,9 +87,7 @@ class DataMatchesGroupNumber(BaseEnum):
     VELOCITY = 7
     TEMPERATURE = 8
     WINCH_VOLTAGE = 9
-    TIME_COUNTS = 10
-    DISCHARGE_COUNTS = 11
-    ROPE_ON_DRUM = 12
+    ROPE_ON_DRUM = 10
 
 
 class DataParticleType(BaseEnum):
@@ -112,8 +110,6 @@ class WcWmEngDataParticleKey(BaseEnum):
     VELOCITY = 'winch_velocity'
     TEMPERATURE = 'temperature'
     WINCH_VOLTAGE = 'voltage_flt32'
-    TIME_COUNTS = 'time_counts'
-    DISCHARGE_COUNTS = 'discharge_counts'
     ROPE_ON_DRUM = 'rope_on_drum'
 
 # A group of instrument data particle encoding rules used to simplify encoding using a loop
@@ -127,8 +123,6 @@ ENGINEERING_PARTICLE_ENCODING_RULES = [
     (WcWmEngDataParticleKey.VELOCITY, DataMatchesGroupNumber.VELOCITY, float),
     (WcWmEngDataParticleKey.TEMPERATURE, DataMatchesGroupNumber.TEMPERATURE, float),
     (WcWmEngDataParticleKey.WINCH_VOLTAGE, DataMatchesGroupNumber.WINCH_VOLTAGE, float),
-    (WcWmEngDataParticleKey.TIME_COUNTS, DataMatchesGroupNumber.TIME_COUNTS, int),
-    (WcWmEngDataParticleKey.DISCHARGE_COUNTS, DataMatchesGroupNumber.DISCHARGE_COUNTS, int),
     (WcWmEngDataParticleKey.ROPE_ON_DRUM, DataMatchesGroupNumber.ROPE_ON_DRUM, float),
 ]
 

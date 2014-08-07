@@ -18,9 +18,10 @@ __license__ = 'Apache 2.0'
 import unittest
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
@@ -29,7 +30,49 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.cspp_eng.cspp.driver import CsppEngCsppDataSetDriver
-from mi.dataset.parser.dbg_pdbg_cspp import CsppEngCsppParserDataParticle
+
+from mi.dataset.parser.cspp_base import StateKey
+
+from mi.dataset.parser.dbg_pdbg_cspp import \
+    DbgPdbgRecoveredGpsParticle, \
+    DbgPdbgTelemeteredGpsParticle, \
+    DbgPdbgRecoveredBatteryParticle, \
+    DbgPdbgTelemeteredBatteryParticle, \
+    DbgPdbgMetadataTelemeteredDataParticle, \
+    DbgPdbgMetadataRecoveredDataParticle, \
+    DbgPdbgDataTypeKey, \
+    GPS_ADJUSTMENT_CLASS_KEY, \
+    BATTERY_STATUS_CLASS_KEY
+
+from mi.dataset.parser.wc_hmr_cspp import \
+    WcHmrEngRecoveredDataParticle, \
+    WcHmrEngTelemeteredDataParticle, \
+    WcHmrMetadataRecoveredDataParticle, \
+    WcHmrMetadataTelemeteredDataParticle, \
+    WcHmrDataTypeKey
+
+from mi.dataset.parser.wc_sbe_cspp import \
+    WcSbeEngRecoveredDataParticle, \
+    WcSbeEngTelemeteredDataParticle, \
+    WcSbeMetadataRecoveredDataParticle, \
+    WcSbeMetadataTelemeteredDataParticle, \
+    WcSbeDataTypeKey
+
+from mi.dataset.parser.wc_wm_cspp import \
+    WcWmEngRecoveredDataParticle, \
+    WcWmEngTelemeteredDataParticle, \
+    WcWmMetadataRecoveredDataParticle, \
+    WcWmMetadataTelemeteredDataParticle, \
+    WcWmDataTypeKey
+
+DIR_CSPP_TELEMETERED = '/tmp/cspp/telem/test'
+DIR_CSPP_RECOVERED = '/tmp/cspp/recov/test'
+
+DBG_PDBG_PATTERN = '*_DBG_PDBG.txt'
+WC_HMR_PATTERN = '*_WC_HMR.txt'
+WC_SBE_PATTERN = '*_WC_SBE.txt'
+WC_WM_PATTERN = '*_WC_WM.txt'
+
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -42,15 +85,85 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'cspp_eng_cspp',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: '',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DbgPdbgDataTypeKey.DBG_PDBG_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_TELEMETERED,
+                DataSetDriverConfigKeys.PATTERN: DBG_PDBG_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            DbgPdbgDataTypeKey.DBG_PDBG_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_RECOVERED,
+                DataSetDriverConfigKeys.PATTERN: DBG_PDBG_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            WcHmrDataTypeKey.WC_HMR_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_TELEMETERED,
+                DataSetDriverConfigKeys.PATTERN: WC_HMR_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            WcHmrDataTypeKey.WC_HMR_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_RECOVERED,
+                DataSetDriverConfigKeys.PATTERN: WC_HMR_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            WcSbeDataTypeKey.WC_SBE_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_TELEMETERED,
+                DataSetDriverConfigKeys.PATTERN: WC_SBE_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_RECOVERED,
+                DataSetDriverConfigKeys.PATTERN: WC_SBE_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_TELEMETERED,
+                DataSetDriverConfigKeys.PATTERN: WC_WM_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            },
+            WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {
+                DataSetDriverConfigKeys.DIRECTORY: DIR_CSPP_RECOVERED,
+                DataSetDriverConfigKeys.PATTERN: WC_WM_PATTERN,
+                DataSetDriverConfigKeys.FREQUENCY: 1
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DbgPdbgDataTypeKey.DBG_PDBG_CSPP_TELEMETERED: {},
+            DbgPdbgDataTypeKey.DBG_PDBG_CSPP_RECOVERED: {},
+            WcHmrDataTypeKey.WC_HMR_CSPP_TELEMETERED: {},
+            WcHmrDataTypeKey.WC_HMR_CSPP_RECOVERED: {},
+            WcSbeDataTypeKey.WC_SBE_CSPP_TELEMETERED: {},
+            WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED: {},
+            WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {},
+            WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {}
+        }
     }
 )
 
-SAMPLE_STREAM = 'cspp_eng_cspp_parsed'
+DBG_PDBG_TEL_PARTICLES = (DbgPdbgTelemeteredGpsParticle,
+                          DbgPdbgTelemeteredBatteryParticle,
+                          DbgPdbgMetadataTelemeteredDataParticle)
+
+WC_HMR_TEL_PARTICLES = (WcHmrEngTelemeteredDataParticle,
+                        WcHmrMetadataTelemeteredDataParticle)
+
+WC_SBE_TEL_PARTICLES = (WcSbeEngTelemeteredDataParticle,
+                        WcSbeMetadataTelemeteredDataParticle)
+
+WC_WM_TEL_PARTICLES = (WcWmEngTelemeteredDataParticle,
+                        WcWmMetadataTelemeteredDataParticle)
+
+DBG_PDBG_REC_PARTICLES = (DbgPdbgRecoveredGpsParticle,
+                          DbgPdbgRecoveredBatteryParticle,
+                          DbgPdbgMetadataRecoveredDataParticle)
+
+WC_HMR_REC_PARTICLES = (WcHmrEngRecoveredDataParticle,
+                        WcHmrMetadataRecoveredDataParticle)
+
+WC_SBE_REC_PARTICLES = (WcSbeEngRecoveredDataParticle,
+                        WcSbeMetadataRecoveredDataParticle)
+
+WC_WM_REC_PARTICLES = (WcWmEngRecoveredDataParticle,
+                        WcWmMetadataRecoveredDataParticle)
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
@@ -69,7 +182,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-        pass
+        log.info("================ START INTEG TEST GET =====================")
+
+        # Start sampling.
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        # test that everything works for the telemetered harvester
+        self.create_sample_data_set_dir('01554008_DBG_PDBG.txt', DIR_CSPP_RECOVERED)
+
+        log.debug('### Sample file created in dir = %s ', DIR_CSPP_RECOVERED)
+
+        # check the metadata particle and the first 19 instrument particles
+        self.assert_data(DBG_PDBG_REC_PARTICLES,
+                         '01554008_DBG_PDBG_recov.yml',
+                         count=8, timeout=10)
 
     def test_stop_resume(self):
         """
