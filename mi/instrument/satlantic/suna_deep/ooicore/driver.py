@@ -1395,8 +1395,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         Start acquire sample
         """
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
-        self._send_dollar()
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 1, expected_prompt=[Prompt.POLLED, Prompt.COMMAND],
+                          timeout=POLL_TIMEOUT)
+
+        ret_prompt = self._send_dollar()
+
+        #came from autosampling/polling, need to resend '$' one more time to get it into command mode
+        if ret_prompt == Prompt.POLLED:
+            self._send_dollar()
 
         return None, (None, None)
 
@@ -1553,14 +1559,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                           expected_prompt=[Prompt.OK, Prompt.ERROR, Prompt.POLLED])
         self._do_cmd_resp(InstrumentCommand.EXIT, expected_prompt=Prompt.POLLED)
 
-        #return ProtocolState.POLL, (ResourceAgentState.BUSY, None)
-
     def _handler_poll_acquire_sample(self):
         """
         Get a sample from the SUNA
         """
         self._start_poll()
-        self._do_cmd_resp(InstrumentCommand.MEASURE, 1, expected_prompt=Prompt.POLLED)
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 1, expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
         self._stop_poll()
         return None, (None, None)
 
@@ -1569,8 +1573,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         Measure N Light Samples
         """
         self._start_poll()
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self._param_dict.get(Parameter.NUM_LIGHT_SAMPLES),
-                             expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._do_cmd_resp(InstrumentCommand.MEASURE, self._param_dict.get(Parameter.NUM_LIGHT_SAMPLES),
+                          expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
         self._stop_poll()
         return None, (None, None)
 
@@ -1579,7 +1583,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         Measure 0 Dark Sample
         """
         self._start_poll()
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, 0)
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 0, expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
         return None, (None, None)
 
     def _handler_poll_timed_n(self):
@@ -1587,7 +1592,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Timed Sampling for N time
         """
         self._start_poll()
-        self._do_cmd_no_resp(InstrumentCommand.TIMED, self._param_dict.get(Parameter.TIME_LIGHT_SAMPLE),
+        self._do_cmd_resp(InstrumentCommand.TIMED, self._param_dict.get(Parameter.TIME_LIGHT_SAMPLE),
                              expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
         self._stop_poll()
         return None, (None, None)
@@ -1598,7 +1603,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         try:
             self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-            self._send_dollar()     # send a "$" to get the instrument back to command mode
+            ret_prompt = self._send_dollar()
+
+            #came from autosampling/polling, need to resend '$' one more time to get it into command mode
+            if ret_prompt == Prompt.POLLED:
+                self._send_dollar()
+
         except InstrumentException:
             raise InstrumentProtocolException("Could not interrupt hardware!")
 
