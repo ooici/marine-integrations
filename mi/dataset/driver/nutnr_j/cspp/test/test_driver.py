@@ -20,6 +20,9 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
+
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.exceptions import SampleTimeout
 
@@ -29,7 +32,8 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, \
                                       DataSetDriverConfigKeys, \
-                                      DriverStateKey
+                                      DriverStateKey, \
+                                      DriverParameter
 from mi.dataset.driver.nutnr_j.cspp.driver import NutnrJCsppDataSetDriver, DataSourceKey
 from mi.dataset.parser.cspp_base import StateKey
 from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppMetadataTelemeteredDataParticle, \
@@ -189,27 +193,173 @@ class QualificationTest(DataSetQualificationTestCase):
         result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1, 60)
         result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 171, 60)
 
-        #result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 60)
-        #result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 175, 60)
+        result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 60)
+        result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 181, 60)
         
-    def test_stop_start(self):
+    def test_stop_start_telem(self):
         """
         Test the agents ability to start data flowing, stop, then restart
-        at the correct spot.
+        at the correct spot for the telemetered parser.
         """
-        pass
+        # slow down sampling to give us time to stop
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
-    def test_shutdown_restart(self):
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', TELEM_DIR)
+
+        # get the metadata and first 2 samples
+        result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
+        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+        result_t.extend(result_t2)
+
+        # stop sampling
+        self.assert_stop_sampling()
+        #restart sampling
+        self.assert_start_sampling()
+
+        # should get the last 3 samples
+        result_t3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 3)
+        result_t.extend(result_t3)
+
+        # confirm we got particles in the order expected
+        self.assert_data_values(result_t, 'short_SNA_telem.yml')
+
+    def test_stop_start_recov(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot for the recovered parser.
+        """
+        # slow down sampling to give us time to stop
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', RECOV_DIR)
+
+        # get the metadata and first 2 samples
+        result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1)
+        result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
+        result_r.extend(result_r2)
+
+        # stop sampling
+        self.assert_stop_sampling()
+        #restart sampling
+        self.assert_start_sampling()
+
+        # should get the last 3 samples
+        result_r3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 3)
+        result_r.extend(result_r3)
+
+        # confirm we got particles in the order expected
+        self.assert_data_values(result_r, 'short_SNA_recov.yml')
+
+    def test_shutdown_restart_telem(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
-        and confirm it restarts at the correct spot.
+        and confirm it restarts at the correct spot for telemetered.
         """
-        pass
+        # slow down sampling to give us time to stop
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', TELEM_DIR)
+
+        # get the metadata and first 2 samples
+        result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
+        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+        result_t.extend(result_t2)
+
+        # stop sampling
+        self.assert_stop_sampling()
+        # stop the dataset agent
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        #restart sampling
+        self.assert_initialize()
+
+        # should get the last 3 samples
+        result_t3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 3)
+        result_t.extend(result_t3)
+
+        # confirm we got particles in the order expected
+        self.assert_data_values(result_t, 'short_SNA_telem.yml')
+        
+    def test_shutdown_restart_recov(self):
+        """
+        Test a full stop of the dataset agent, then restart the agent 
+        and confirm it restarts at the correct spot for recovered.
+        """
+        # slow down sampling to give us time to stop
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        self.create_sample_data_set_dir('short_SNA_SNA.txt', RECOV_DIR)
+
+        # get the metadata and first 2 samples
+        result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1)
+        result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
+        result_r.extend(result_r2)
+
+        # stop sampling
+        self.assert_stop_sampling()
+        # stop the dataset agent
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        #restart sampling
+        self.assert_initialize()
+
+        # should get the last 3 samples
+        result_r3 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 3)
+        result_r.extend(result_r3)
+
+        # confirm we got particles in the order expected
+        self.assert_data_values(result_r, 'short_SNA_recov.yml')
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        self.create_sample_data_set_dir('bad_SNA_SNA.txt', RECOV_DIR)
 
+        self.assert_initialize()
+
+        # get just the last sample which is the only not bad sample, which also makes a metadata
+        result_r = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1)
+        result_r2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 1)
+        result_r.extend(result_r2)
+        self.assert_data_values(result_r, 'last_and_meta_SNA_recov.yml')
+
+        # confirm an exception occured
+        self.assert_event_received(ResourceAgentErrorEvent)
+
+    def test_byte_loss(self):
+        """
+        Test that a file with known byte loss occuring creates an exception
+        """
+        self.create_sample_data_set_dir('11330408_SNA_SNA.txt', TELEM_DIR)
+
+        self.assert_initialize()
+
+        result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
+        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
+        result_t.extend(result_t2)
+
+        # make sure we get the one ok sample in the file and metadata
+        self.assert_data_values(result_t, 'byte_loss.yml')
+
+        # confirm an exception occured
+        
+        ### TODO:
+        ### The current parser is including the ascii hex in its ignore matcher
+        ### and not returning samples, need to fix ignore matcher in parser
+        self.assert_event_received(ResourceAgentErrorEvent)

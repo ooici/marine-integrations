@@ -1,0 +1,53 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: NutnrJCsppMetadataTelemeteredDataParticle
+    particle_type: nutnr_j_cspp_metadata
+    internal_timestamp: 3608910014.369 
+    last_character_controller_id: '1'
+    day_of_year_number: 133
+    fraction_of_day: 408
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11330408.SNA'
+    processing_time: '07/18/2014 13:49:12'
+    preprocessing_software_version: '1.11'
+    start_date: '05/12/2014'
+  - _index: 2
+    particle_object: NutnrJCsppTelemeteredDataParticle
+    particle_type: nutnr_j_cspp_instrument
+    internal_timestamp: 3608910014.369
+    profiler_timestamp: 1399921214.369
+    pressure_depth: 0.0
+    suspect_timestamp: 1
+    frame_type: 'SDB'
+    year: 2014
+    day_of_year: 132
+    time_of_sample: 18.997472
+    nitrate_concentration: 0.0
+    nutnr_nitrogen_in_nitrate: 0.0
+    nutnr_absorbance_at_254_nm: 0.0
+    nutnr_absorbance_at_350_nm: 0.0
+    nutnr_bromide_trace: 0.0
+    nutnr_spectrum_average: 487
+    nutnr_dark_value_used_for_fit: 0 
+    nutnr_integration_time_factor: 1
+    spectral_channels: [481, 485, 495, 489, 498, 490, 489, 490, 482, 481, 488, 490, 493, 485, 481, 471, 491, 480, 483, 493, 490, 500, 499, 493, 488, 485, 478, 494, 486, 477, 491, 500, 492, 490, 496, 482, 475, 477, 478, 485, 472, 487, 496, 493, 497, 503, 501, 491, 489, 486, 485, 477, 495, 490, 484, 499, 493, 483, 477, 487, 484, 501, 494, 487, 503, 476, 487, 487, 484, 469, 499, 482, 491, 494, 503, 491, 499, 496, 489, 491, 483, 491, 477, 482, 489, 482, 487, 487, 493, 485, 479, 494, 478, 487, 474, 491, 489, 481, 483, 481, 495, 485, 478, 487, 487, 490, 483, 487, 484, 498, 489, 483, 481, 480, 480, 493, 482, 483, 495, 493, 489, 489, 484, 3338, 3338, 23346, 12337, 13359, 12341, 12081, 13088, 12336, 14901, 14394, 12339, 23840, 30285, 24937, 28238, 26996, 29281, 29797, 21601, 29547, 10281, 14906, 18766, 17999, 11603, 29793, 29300, 8275, 21838, 16672, 21326, 14896, 13107, 14112, 22066, 11296, 18007, 8242, 11826, 11825, 13069, 2651, 12848, 12596, 12080, 13615, 12595, 8240, 12346, 13624, 14896, 13149, 8310, 19809, 26990, 20073, 29810, 24948, 25940, 24947, 27432, 10554, 14921, 20038, 20269, 17256, 24946, 26469, 8304, 28535, 25970, 8300, 28531, 29472, 28786, 28532, 25955, 29807, 29230, 3338, 23346, 12337, 13359, 12341, 12081, 13088, 12336, 14901, 14394, 12341, 23840, 30285, 24937, 28238, 26996, 29281, 29797, 21601, 29547, 10281, 14906, 18766, 17999, 11602, 25971, 25972, 8294, 29295, 27936, 28783, 30565, 29216, 25465, 25452, 26990, 26381, 2573, 2643, 16724, 21316, 16944, 13107, 14080, 7867, 46399, 61215, 31748, 31230, 59136, 0, 0, 0]
+    temp_interior: 0.0
+    temp_spectrometer: 0.0 
+    temp_lamp: 0.0
+    lamp_time: 125184
+    humidity: 0.0
+    voltage_main: 0.0
+    voltage_lamp: 0.0
+    nutnr_voltage_int: 0.0
+    nutnr_current_main: 0.0
+    aux_fitting_1: 0.0
+    aux_fitting_2: 0.0
+    nutnr_fit_base_1: 0.0
+    nutnr_fit_base_2: 0.0
+    nutnr_fit_rmse: 0.0
+    ctd_time_uint32: 32309732
+    ctd_psu: 0.0
+    ctd_temp: 0.0
+    ctd_dbar: 0.0
