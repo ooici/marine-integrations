@@ -13,39 +13,22 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+
 import time
-from pyon.core.exception import BadRequest
-from mi.core.instrument.instrument_driver import DriverConfigKey
-
-__author__ = 'Godfrey Duke'
-__license__ = 'Apache 2.0'
-
-from gevent import monkey;
-
-monkey.patch_all()
-
 from nose.plugins.attrib import attr
 from mock import Mock
-
-from mi.core.log import get_logger;
-
-log = get_logger()
 
 from pyon.agent.agent import ResourceAgentState
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.instrument.chunker import StringChunker
-
 from mi.idk.unit_test import DriverTestMixin, InstrumentDriverTestCase, DriverStartupConfigKey
 from mi.idk.unit_test import ParameterTestConfigKey
-
-from mi.core.exceptions import InstrumentCommandException, InstrumentParameterException
-
+from mi.core.exceptions import InstrumentCommandException
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
-
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import DataParticleType, \
     SatlanticOCR507ConfigurationParticleKey, EOLN
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentProtocol
@@ -54,11 +37,19 @@ from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticProtoco
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticCapability
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Parameter
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Command
+from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import Prompt
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticle
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507DataParticleKey
 from mi.instrument.satlantic.ocr_507_icsw.ooicore.driver import SatlanticOCR507InstrumentDriver
+from mi.core.log import get_logger
 
-# # Initialize the test parameters
+
+__author__ = 'Godfrey Duke'
+__license__ = 'Apache 2.0'
+
+log = get_logger()
+
+# Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.ocr_507_icsw.ooicore.driver',
     driver_class="SatlanticOCR507InstrumentDriver",
@@ -69,14 +60,14 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.MAX_RATE: 4.0,
+            Parameter.MAX_RATE: 0.0,
             Parameter.INIT_SM: True,
             Parameter.INIT_AT: True,
             Parameter.NET_MODE: False
         }
     }
 )
-#
+
 
 VALID_SAMPLE_INVALID_CHECKSUM = 'SATDI702331310692.31\xff{\x80\x01\xae\x80\x80\x1a\xfc\x80\x80&\x98\x00\x80\x05"\xc0\x80#z@\x809\xc9@\x80\x03\xff\xc0\x01\x1a\x00\xaf\x00\xa1\x14\xc3\r\n'
 VALID_SAMPLE_VALID_CHECKSUM = 'SATDI702330316551.83\xff{\x80\x00\x12\x00\x80\t\xed\xc0\x80\x01\xd6\xc0\x80\x01\xea\x80\x80\x0f\x84\x00\x80\x12\xc8\x00\x80\x00\x90\x00\x01\x1b\x00\xaf\x00\xa2\xc4\x9c\r\n'
@@ -125,7 +116,7 @@ class SatlanticMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 4.0},
+        Parameter.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0.0},
         Parameter.INIT_SM: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
         Parameter.INIT_AT: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
         Parameter.NET_MODE: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
@@ -237,17 +228,11 @@ class SatlanticProtocolUnitTest(InstrumentDriverUnitTestCase, SatlanticMixin):
         # This will want to be created in the driver eventually...
         chunker = StringChunker(SatlanticOCR507InstrumentProtocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, VALID_SAMPLE_INVALID_CHECKSUM)
-        self.assert_chunker_sample(chunker, VALID_CONFIG)
-
-        self.assert_chunker_fragmented_sample(chunker, VALID_SAMPLE_INVALID_CHECKSUM)
-        self.assert_chunker_fragmented_sample(chunker, VALID_CONFIG)
-
-        self.assert_chunker_combined_sample(chunker, VALID_SAMPLE_INVALID_CHECKSUM)
-        self.assert_chunker_combined_sample(chunker, VALID_CONFIG)
-
-        self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE_INVALID_CHECKSUM)
-        self.assert_chunker_sample_with_noise(chunker, VALID_CONFIG)
+        for sample in [ VALID_SAMPLE_INVALID_CHECKSUM, VALID_SAMPLE_VALID_CHECKSUM, VALID_CONFIG ]:
+            self.assert_chunker_sample(chunker, sample)
+            self.assert_chunker_fragmented_sample(chunker, sample)
+            self.assert_chunker_combined_sample(chunker, sample)
+            self.assert_chunker_sample_with_noise(chunker, sample)
 
     def test_got_data(self):
         """
@@ -382,6 +367,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_driver_command(SatlanticProtocolEvent.ACQUIRE_STATUS, state=SatlanticProtocolState.COMMAND)
         self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_particle_config, timeout=10)
 
+    def test_startup_parameter_defaults(self):
+        self.assert_initialize_driver()
+        self.assert_get(Parameter.MAX_RATE, self._driver_parameters[Parameter.MAX_RATE][self.VALUE])
+        self.assert_get(Parameter.INIT_SM, self._driver_parameters[Parameter.INIT_SM][self.VALUE])
+        self.assert_get(Parameter.INIT_AT, self._driver_parameters[Parameter.INIT_AT][self.VALUE])
+        self.assert_get(Parameter.NET_MODE, self._driver_parameters[Parameter.NET_MODE][self.VALUE])
+
     def test_parameters(self):
         """
         Verify that we can set the parameters
@@ -419,7 +411,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
 
         # test set bad param values
         self.assert_set_exception(Parameter.NET_MODE, 'Do a barrel roll!')
-
+        self.assert_set_exception(Parameter.MAX_RATE, 40)
         # test get/set bad param
         self.assert_set_exception('bad_param', False)
         with self.assertRaises(Exception):
@@ -465,26 +457,36 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, 
         # parameters are restored on DA exit.
         ###
         self.assert_enter_command_mode()
-        self.assert_get_parameter(Parameter.MAX_RATE, 4)
+        self.assert_get_parameter(Parameter.MAX_RATE, self._driver_parameters[Parameter.MAX_RATE][self.VALUE])
+        self.assert_get_parameter(Parameter.INIT_AT, self._driver_parameters[Parameter.INIT_AT][self.VALUE])
+        self.assert_get_parameter(Parameter.INIT_SM, self._driver_parameters[Parameter.INIT_SM][self.VALUE])
+        self.assert_get_parameter(Parameter.NET_MODE, self._driver_parameters[Parameter.NET_MODE][self.VALUE])
 
         # go into direct access, and modify the DA parameters
         self.assert_direct_access_start_telnet()
         self.tcp_client.send_data("set maxrate 1")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
-        self.tcp_client.send_data("set initat false")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
-        self.tcp_client.send_data("set initsm false")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+        self.tcp_client.send_data("show maxrate")
+        self.assertTrue(self.tcp_client.expect('Maximum Frame Rate: 1 Hz'))
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+
+        self.tcp_client.send_data("set initat off")
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+        self.tcp_client.send_data("show initat")
+        self.assertTrue(self.tcp_client.expect('Initialize Automatic Telemetry: off'))
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+
+        self.tcp_client.send_data("set initsm off")
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+        self.tcp_client.send_data("show initsm")
+        self.assertTrue(self.tcp_client.expect('Initialize Silent Mode: off'))
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+
         self.tcp_client.send_data("set netmode on")
-        time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
+        self.tcp_client.send_data("show netmode")
+        self.assertTrue(self.tcp_client.expect('Network Mode: on'))
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
 
         #need to sleep as the instrument needs time to apply the new param value
         time.sleep(5)
@@ -492,18 +494,17 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, 
         # Verify the param value got changed on the instrument
         self.tcp_client.send_data("show maxrate")
         time.sleep(0.4)
-        self.tcp_client.send_data(EOLN)
-        time.sleep(0.4)
 
-        self.tcp_client.expect("Maximum Frame Rate: 1 Hz")
+        self.assertTrue(self.tcp_client.expect("Maximum Frame Rate: 1 Hz"))
+        self.assertTrue(self.tcp_client.expect(Prompt.COMMAND))
         self.assert_direct_access_stop_telnet()
 
         # verify the DA parameters revert to their pre-DA values
         self.assert_enter_command_mode()
-        self.assert_get_parameter(Parameter.MAX_RATE, 4)
-        self.assert_get_parameter(Parameter.INIT_AT, True)
-        self.assert_get_parameter(Parameter.INIT_SM, True)
-        self.assert_get_parameter(Parameter.NET_MODE, False)
+        self.assert_get_parameter(Parameter.MAX_RATE, self._driver_parameters[Parameter.MAX_RATE][self.VALUE])
+        self.assert_get_parameter(Parameter.INIT_AT, self._driver_parameters[Parameter.INIT_AT][self.VALUE])
+        self.assert_get_parameter(Parameter.INIT_SM, self._driver_parameters[Parameter.INIT_SM][self.VALUE])
+        self.assert_get_parameter(Parameter.NET_MODE, self._driver_parameters[Parameter.NET_MODE][self.VALUE])
 
     def test_direct_access_telnet_timeout(self):
         """
@@ -516,6 +517,28 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, 
         self.assertTrue(self.tcp_client)
 
         self.assert_state_change(ResourceAgentState.COMMAND, SatlanticProtocolState.COMMAND, 180)
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        Force the instrument into streaming when in DA.  Then we need to verify the transition back
+        to the driver works as expected.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access
+        self.assert_direct_access_start_telnet()
+
+        self.tcp_client.send_data('exit!')
+
+        #verify we're sampling
+        self.assertTrue(self.tcp_client.expect('SATDI7', sleep_time=2))
+
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.STREAMING, SatlanticProtocolState.AUTOSAMPLE, timeout=10)
+
+        #now stop autosampling
+        self.assert_stop_autosample()
 
     def test_get_set_parameters(self):
         """
@@ -536,9 +559,10 @@ class SatlanticProtocolQualificationTest(InstrumentDriverQualificationTestCase, 
         Verify data particles for auto-sampling that are specific to SPKIR
         """
         self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.MAX_RATE, 1)
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.PARSED, self.assert_particle_sample)
+        self.assert_particle_async(DataParticleType.PARSED, self.assert_particle_sample, particle_count=10, timeout=12)
 
         self.assert_stop_autosample()
 
