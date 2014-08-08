@@ -94,7 +94,7 @@ BATTERY_STATUS_CLASS_KEY = 'battery_status_class'
 GPS_ADJUSTMENT_CLASS_KEY = 'gps_adjustment_class'
 
 
-class DataParticleType(BaseEnum):
+class DbgPdbgDataParticleType(BaseEnum):
     BATTERY_TELEMETERED = 'cspp_eng_cspp_dbg_pdbg_batt_eng'
     BATTERY_RECOVERED = 'cspp_eng_cspp_dbg_pdbg_batt_eng_recovered'
     GPS_TELEMETERED = 'cspp_eng_cspp_dbg_pdbg_gps_eng'
@@ -173,7 +173,7 @@ class DbgPdbgMetadataRecoveredDataParticle(DbgPdbgMetadataDataParticle):
     Class for building a dbg pdbg recovered metadata particle
     """
 
-    _data_particle_type = DataParticleType.METADATA_RECOVERED
+    _data_particle_type = DbgPdbgDataParticleType.METADATA_RECOVERED
 
 
 class DbgPdbgMetadataTelemeteredDataParticle(DbgPdbgMetadataDataParticle):
@@ -181,7 +181,7 @@ class DbgPdbgMetadataTelemeteredDataParticle(DbgPdbgMetadataDataParticle):
     Class for building a dbg pdbg telemetered metadata particle
     """
 
-    _data_particle_type = DataParticleType.METADATA_TELEMETERED
+    _data_particle_type = DbgPdbgDataParticleType.METADATA_TELEMETERED
 
 
 class DbgPdbgBatteryParticle(DataParticle):
@@ -232,7 +232,7 @@ class DbgPdbgRecoveredBatteryParticle(DbgPdbgBatteryParticle):
     Class for building a dbg pdbg recovered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.BATTERY_RECOVERED
+    _data_particle_type = DbgPdbgDataParticleType.BATTERY_RECOVERED
 
 
 class DbgPdbgTelemeteredBatteryParticle(DbgPdbgBatteryParticle):
@@ -240,7 +240,7 @@ class DbgPdbgTelemeteredBatteryParticle(DbgPdbgBatteryParticle):
     Class for building a dbg pdbg telemetered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.BATTERY_TELEMETERED
+    _data_particle_type = DbgPdbgDataParticleType.BATTERY_TELEMETERED
 
 
 class DbgPdbgGpsParticle(DataParticle):
@@ -287,7 +287,7 @@ class DbgPdbgRecoveredGpsParticle(DbgPdbgGpsParticle):
     Class for building a dbg pdbg recovered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.GPS_RECOVERED
+    _data_particle_type = DbgPdbgDataParticleType.GPS_RECOVERED
 
 
 class DbgPdbgTelemeteredGpsParticle(DbgPdbgGpsParticle):
@@ -295,7 +295,7 @@ class DbgPdbgTelemeteredGpsParticle(DbgPdbgGpsParticle):
     Class for building a dbg pdbg telemetered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.GPS_TELEMETERED
+    _data_particle_type = DbgPdbgDataParticleType.GPS_TELEMETERED
 
 
 class DbgPdbgCsppParser(BufferLoadingParser):
@@ -527,11 +527,11 @@ class DbgPdbgCsppParser(BufferLoadingParser):
         """
         Handle any non-data that is found in the file
         """
-        # if non-data is expected, handle it here, otherwise it is an error
+        # non-data is not expected, if found it is an error
         if non_data is not None and non_end <= start:
             log.debug("non_data: %s", non_data)
-            # if this non-data is an error, send an UnexpectedDataException and increment the state
+            #  send an UnexpectedDataException and increment the state
             self._increment_read_state(len(non_data))
-            # if non-data is a fatal error, directly call the exception, if it is not use the _exception_callback
+
             self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" %
                                                              (len(non_data), non_data)))

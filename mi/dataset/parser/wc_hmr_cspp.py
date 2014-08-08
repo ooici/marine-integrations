@@ -70,7 +70,7 @@ class DataMatchesGroupNumber(BaseEnum):
     ROLL = 6
 
 
-class DataParticleType(BaseEnum):
+class WcHmrDataParticleType(BaseEnum):
     ENGINEERING_TELEMETERED = 'cspp_eng_cspp_wc_hmr_eng'
     ENGINEERING_RECOVERED = 'cspp_eng_cspp_wc_hmr_eng_recovered'
     METADATA_TELEMETERED = 'cspp_eng_cspp_wc_hmr_metadata'
@@ -139,7 +139,7 @@ class WcHmrMetadataRecoveredDataParticle(WcHmrMetadataDataParticle):
     Class for building a wc hmr recovered metadata particle
     """
 
-    _data_particle_type = DataParticleType.METADATA_RECOVERED
+    _data_particle_type = WcHmrDataParticleType.METADATA_RECOVERED
 
 
 class WcHmrMetadataTelemeteredDataParticle(WcHmrMetadataDataParticle):
@@ -147,7 +147,7 @@ class WcHmrMetadataTelemeteredDataParticle(WcHmrMetadataDataParticle):
     Class for building a wc hmr telemetered metadata particle
     """
 
-    _data_particle_type = DataParticleType.METADATA_TELEMETERED
+    _data_particle_type = WcHmrDataParticleType.METADATA_TELEMETERED
 
 
 class WcHmrEngDataParticle(DataParticle):
@@ -190,7 +190,7 @@ class WcHmrEngRecoveredDataParticle(WcHmrEngDataParticle):
     Class for building a wc hmr recovered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.ENGINEERING_RECOVERED
+    _data_particle_type = WcHmrDataParticleType.ENGINEERING_RECOVERED
 
 
 class WcHmrEngTelemeteredDataParticle(WcHmrEngDataParticle):
@@ -198,7 +198,7 @@ class WcHmrEngTelemeteredDataParticle(WcHmrEngDataParticle):
     Class for building a wc hmr telemetered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.ENGINEERING_TELEMETERED
+    _data_particle_type = WcHmrDataParticleType.ENGINEERING_TELEMETERED
 
 
 class WcHmrCsppParser(CsppParser):

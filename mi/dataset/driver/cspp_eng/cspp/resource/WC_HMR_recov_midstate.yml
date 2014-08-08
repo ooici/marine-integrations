@@ -1,0 +1,84 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.359000
+    profiler_timestamp: 1397773523.3589999675750732
+    pressure_depth: 0.5460000000000000
+    suspect_timestamp: 0
+    heading: 140.9000000000000057
+    pitch: 12.1999999999999993
+    roll: 5.5999999999999996
+  - _index: 2
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.480000
+    profiler_timestamp: 1397773523.4800000190734863
+    pressure_depth: 0.5290000000000000
+    suspect_timestamp: 0
+    heading: 138.9000000000000057
+    pitch: 14.6999999999999993
+    roll: 4.7999999999999998
+  - _index: 3
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.604000
+    profiler_timestamp: 1397773523.6040000915527344
+    pressure_depth: 0.5180000000000000
+    suspect_timestamp: 0
+    heading: 136.9000000000000057
+    pitch: 16.5000000000000000
+    roll: 3.6000000000000001
+  - _index: 4
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.712000
+    profiler_timestamp: 1397773523.7119998931884766
+    pressure_depth: 0.5050000000000000
+    suspect_timestamp: 0
+    heading: 134.5000000000000000
+    pitch: 17.5000000000000000
+    roll: 2.2000000000000002
+  - _index: 5
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.832000
+    profiler_timestamp: 1397773523.8320000171661377
+    pressure_depth: 0.4860000000000000
+    suspect_timestamp: 0
+    heading: 131.5999999999999943
+    pitch: 17.8999999999999986
+    roll: 0.5000000000000000
+  - _index: 6
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.954000
+    profiler_timestamp: 1397773523.9539999961853027
+    pressure_depth: 0.4770000000000000
+    suspect_timestamp: 0
+    heading: 129.1999999999999886
+    pitch: 17.6999999999999993
+    roll: -1.3999999999999999
+  - _index: 7
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762324.070000
+    profiler_timestamp: 1397773524.0699999332427979
+    pressure_depth: 0.4660000000000000
+    suspect_timestamp: 0
+    heading: 127.4000000000000057
+    pitch: 16.8000000000000007
+    roll: -3.7999999999999998
+  - _index: 8
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762324.188000
+    profiler_timestamp: 1397773524.1879999637603760
+    pressure_depth: 0.4460000000000000
+    suspect_timestamp: 0
+    heading: 126.7999999999999972
+    pitch: 15.0000000000000000
+    roll: -6.5000000000000000

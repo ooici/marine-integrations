@@ -30,9 +30,6 @@ from mi.dataset.parser.cspp_base import \
     END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
-    PARTICLE_KEY_INDEX, \
-    DATA_MATCHES_GROUP_NUMBER_INDEX, \
-    TYPE_ENCODING_INDEX, \
     encode_y_or_n
 
 # Input Records are formatted as follows
@@ -65,7 +62,7 @@ class DataMatchesGroupNumber(BaseEnum):
     VELOCITY = 4
 
 
-class DataParticleType(BaseEnum):
+class WcSbeDataParticleType(BaseEnum):
     ENGINEERING_TELEMETERED = 'cspp_eng_cspp_wc_sbe_eng'
     ENGINEERING_RECOVERED = 'cspp_eng_cspp_wc_sbe_eng_recovered'
     METADATA_TELEMETERED = 'cspp_eng_cspp_wc_sbe_metadata'
@@ -130,7 +127,7 @@ class WcSbeMetadataRecoveredDataParticle(WcSbeMetadataDataParticle):
     Class for building a wc sbe recovered metadata particle
     """
 
-    _data_particle_type = DataParticleType.METADATA_RECOVERED
+    _data_particle_type = WcSbeDataParticleType.METADATA_RECOVERED
 
 
 class WcSbeMetadataTelemeteredDataParticle(WcSbeMetadataDataParticle):
@@ -138,7 +135,7 @@ class WcSbeMetadataTelemeteredDataParticle(WcSbeMetadataDataParticle):
     Class for building a wc sbe telemetered metadata particle
     """
 
-    _data_particle_type = DataParticleType.METADATA_TELEMETERED
+    _data_particle_type = WcSbeDataParticleType.METADATA_TELEMETERED
 
 
 class WcSbeEngDataParticle(DataParticle):
@@ -181,7 +178,7 @@ class WcSbeEngRecoveredDataParticle(WcSbeEngDataParticle):
     Class for building a wc sbe recovered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.ENGINEERING_RECOVERED
+    _data_particle_type = WcSbeDataParticleType.ENGINEERING_RECOVERED
 
 
 class WcSbeEngTelemeteredDataParticle(WcSbeEngDataParticle):
@@ -189,7 +186,7 @@ class WcSbeEngTelemeteredDataParticle(WcSbeEngDataParticle):
     Class for building a wc sbe telemetered engineering data particle
     """
 
-    _data_particle_type = DataParticleType.ENGINEERING_TELEMETERED
+    _data_particle_type = WcSbeDataParticleType.ENGINEERING_TELEMETERED
 
 
 class WcSbeCsppParser(CsppParser):

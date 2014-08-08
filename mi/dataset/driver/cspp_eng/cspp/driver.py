@@ -181,25 +181,30 @@ class CsppEngCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             log.warn('Invalid Data_Key %s.  Not building parser', data_key)
             raise ConfigurationException
 
-        config.update({
-            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-            DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT:
-                PARSER_CONFIG_DICT[data_key][DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT]
-        })
+        try:
+            config.update({
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT:
+                    PARSER_CONFIG_DICT[data_key][DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT]
+            })
 
-        parser_class = PARSER_CONFIG_DICT[data_key][DataSetDriverConfigKeys.PARSER]
+            parser_class = PARSER_CONFIG_DICT[data_key][DataSetDriverConfigKeys.PARSER]
 
-        log.debug('### build_parser Parser Class is %s', parser_class)
+            log.debug('### build_parser Parser Class is %s', parser_class)
 
-        parser = parser_class(
-            config,
-            parser_state,
-            stream_in,
-            lambda state, ingested:
-            self._save_parser_state(state, data_key, ingested),
-            self._data_callback,
-            self._sample_exception_callback
-        )
+            parser = parser_class(
+                config,
+                parser_state,
+                stream_in,
+                lambda state, ingested:
+                self._save_parser_state(state, data_key, ingested),
+                self._data_callback,
+                self._sample_exception_callback
+            )
+        except Exception as e:
+            log.error('Something went wrong building Parser for key %s', data_key)
+            parser = None
+            self._exception_callback(e)
 
         return parser
 

@@ -343,3 +343,27 @@ class WcSbeCsppParserUnitTestCase(ParserUnitTestCase):
             self.assert_result(expected_results['data'][i + offset], particles[i])
 
         stream_handle.close()
+
+    def test_bad_data(self):
+        """
+        Ensure that bad data is skipped when it exists.
+        """
+
+        # the first useful record in this file is corrupted and will be ignored
+        # we expect to get the metadata particle with the
+        # timestamp from the 2nd data record and all of the valid engineering
+        # data records
+
+        file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_WC_SBE.txt')
+        stream_handle = open(file_path, 'r')
+
+        log.info(self.exception_callback_value)
+
+        parser = WcSbeCsppParser(self.config.get(WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED),
+                                 None, stream_handle,
+                                 self.state_callback, self.pub_callback,
+                                 self.exception_callback)
+
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
+
+        stream_handle.close()

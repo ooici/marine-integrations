@@ -1,0 +1,30 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610863479.847000
+    profiler_timestamp: 1401874679.847
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 2
+    battery_voltage_flt32: 33.13
+  - _index: 2
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610863480.347000
+    profiler_timestamp: 1401874680.347
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 1
+    battery_voltage_flt32: 33.15
+  - _index: 3
+    particle_object: DbgPdbgRecoveredGpsParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_gps_eng_recovered
+    internal_timestamp: 3610863538.001000
+    profiler_timestamp: 1401874738.001
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 0
+    gps_adjustment: 7
