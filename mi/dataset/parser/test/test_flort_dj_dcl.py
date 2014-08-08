@@ -43,8 +43,6 @@ import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger; log = get_logger()
-from mi.core.exceptions import SampleException
-from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -58,13 +56,10 @@ from mi.dataset.parser.flort_dj_dcl import \
 
 from mi.idk.config import Config
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver',
-                 'flort_dj', 'dcl', 'resource')
+                             'flort_dj', 'dcl', 'resource')
 
 MODULE_NAME = 'mi.dataset.parser.flort_dj_dcl'
 
-
-# Expected tuples for data in file 20010101.flort1.log
-# This file has no sensor data records and should not produce any particles.
 
 # Expected tuples for data in file 20020215.flort2.log
 EXPECTED_20020215_flort2 = [
@@ -357,9 +352,9 @@ EXPECTED_FILE2 = EXPECTED_20020215_flort2
 EXPECTED_FILE3 = EXPECTED_20030413_flort3
 EXPECTED_FILE4 = EXPECTED_20040505_flort4
 EXPECTED_FILE5 = EXPECTED_20050406_flort5
-EXPECTED_FILE6 = 300    # number of records expected
-EXPECTED_FILE7 = 400    # number of records expected
-EXPECTED_FILE8 = 47     # number of exceptions expected
+RECORDS_FILE6 = 300      # number of records expected
+RECORDS_FILE7 = 400      # number of records expected
+EXCEPTIONS_FILE8 = 47    # number of exceptions expected
 
 
 @attr('UNIT', group='mi')
@@ -455,7 +450,7 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         parser = self.create_rec_parser(in_file)
 
         # In a single read, get all particles in this file.
-        number_expected_results = EXPECTED_FILE6
+        number_expected_results = RECORDS_FILE6
         result = parser.get_records(number_expected_results)
         self.assertEqual(len(result), number_expected_results)
 
@@ -467,7 +462,7 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         parser = self.create_tel_parser(in_file)
 
         # In a single read, get all particles in this file.
-        number_expected_results = EXPECTED_FILE7
+        number_expected_results = RECORDS_FILE7
         result = parser.get_records(number_expected_results)
         self.assertEqual(len(result), number_expected_results)
 
@@ -530,7 +525,7 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         # Try to get records and verify that none are returned.
         result = parser.get_records(1)
         self.assertEqual(result, [])
-        self.assertEqual(self.rec_exceptions_detected, EXPECTED_FILE8)
+        self.assertEqual(self.rec_exceptions_detected, EXCEPTIONS_FILE8)
 
         in_file.close()
 
@@ -541,7 +536,7 @@ class FlortDjDclParserUnitTestCase(ParserUnitTestCase):
         # Try to get records and verify that none are returned.
         result = parser.get_records(1)
         self.assertEqual(result, [])
-        self.assertEqual(self.tel_exceptions_detected, EXPECTED_FILE8)
+        self.assertEqual(self.tel_exceptions_detected, EXCEPTIONS_FILE8)
 
         in_file.close()
 

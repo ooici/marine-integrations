@@ -144,7 +144,7 @@ class FlortDjDclDataSetDriver(MultipleHarvesterDataSetDriver):
         # No parser for you!
 
         else:
-            raise ConfigurationException('Spkir_abj Parser configuration incorrect %s',
+            raise ConfigurationException('Flort_dj Parser configuration incorrect %s',
                                          data_key)
 
         parser = parser_class(

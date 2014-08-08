@@ -73,6 +73,7 @@ FILE4 = '20040505.flort4.log'
 FILE5 = '20050406.flort5.log'
 FILE6 = '20061220.flort6.log'
 FILE7 = '20071225.flort7.log'
+FILE_REAL = '20140101.flort_real.log'
 
 REC_YML2 = 'rec_20020215.flort2.yml'
 REC_YML3 = 'rec_20030413.flort3.yml'
@@ -81,6 +82,7 @@ REC_YML4_LAST4 = 'rec_20040505.flort4_last4.yml'
 REC_YML5 = 'rec_20050406.flort5.yml'
 REC_YML6 = 'rec_20061220.flort6.yml'
 REC_YML7 = 'rec_20071225.flort7.yml'
+REC_YML_REAL = 'rec_20140101.flort_real.yml'
 
 TEL_YML2 = 'tel_20020215.flort2.yml'
 TEL_YML3 = 'tel_20030413.flort3.yml'
@@ -89,6 +91,7 @@ TEL_YML5 = 'tel_20050406.flort5.yml'
 TEL_YML5_LAST6 = 'tel_20050406.flort5_last6.yml'
 TEL_YML6 = 'tel_20061220.flort6.yml'
 TEL_YML7 = 'tel_20071225.flort7.yml'
+TEL_YML_REAL = 'tel_20140101.flort_real.yml'
 
 # Number of expected particles from the file.
 EXPECTED_FILE2 = 30
@@ -341,37 +344,266 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
+    def test_harvester_new_file_exception(self):
+        """
+        Must override the default test_harvester_new_file_exception because
+        it won't handle file patterns that are anything other than '*.'
+        """
+        pass
+
+    def test_harvester_new_file_exception_rec(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        log.debug('===== START QUAL TEST HARVESTER EXCEPTION REC =====')
+        self.create_sample_data_set_dir(FILE6, REC_DIR, mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir(FILE5, REC_DIR)
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+        log.debug('===== END QUAL TEST HARVESTER EXCEPTION REC =====')
+
+    def test_harvester_new_file_exception_tel(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        log.debug('===== START QUAL TEST HARVESTER EXCEPTION REC =====')
+        self.create_sample_data_set_dir(FILE6, TEL_DIR, mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data_set_dir(FILE5, TEL_DIR)
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+        log.debug('===== END QUAL TEST HARVESTER EXCEPTION REC =====')
+
+    def test_large_import(self):
+        """
+        Test a large import
+        """
+        log.debug('===== START QUAL TEST LARGE IMPORT =====')
+        self.create_sample_data_set_dir(FILE7, TEL_DIR)
+        self.create_sample_data_set_dir(FILE6, REC_DIR)
+        self.assert_initialize()
+
+        self.data_subscribers.get_samples(REC_STREAM, EXPECTED_FILE6, EXPECTED_FILE6)
+        self.data_subscribers.get_samples(TEL_STREAM, EXPECTED_FILE7, EXPECTED_FILE7)
+
+        log.debug('===== END QUAL TEST LARGE IMPORT =====')
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        log.debug('===== START QUAL TEST PUBLISH PATH =====')
+        self.create_sample_data_set_dir(FILE2, REC_DIR)
+        self.create_sample_data_set_dir(FILE4, REC_DIR)
+        self.create_sample_data_set_dir(FILE3, TEL_DIR)
+        self.create_sample_data_set_dir(FILE5, TEL_DIR)
 
-    def test_large_import(self):
-        """
-        Test importing a large number of samples from the file at once
-        """
-        pass
+        self.assert_initialize()
 
-    def test_stop_start(self):
+        try:
+            # Verify we get samples from first Telemetered file.
+            result = self.data_subscribers.get_samples(TEL_STREAM, EXPECTED_FILE3)
+            self.assert_data_values(result, TEL_YML3)
+
+            # Verify we get samples from first Recovered file.
+            result = self.data_subscribers.get_samples(REC_STREAM, EXPECTED_FILE2)
+            self.assert_data_values(result, REC_YML2)
+
+            # Verify we get samples from second Recovered file.
+            result = self.data_subscribers.get_samples(REC_STREAM, EXPECTED_FILE4)
+            self.assert_data_values(result, REC_YML4)
+
+            # Verify we get samples from second Telemetered file.
+            result = self.data_subscribers.get_samples(TEL_STREAM, EXPECTED_FILE5)
+            self.assert_data_values(result, TEL_YML5)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST PUBLISH PATH =====')
+    def test_real_file(self):
+        """
+        Verify that records from a real file can be obtained.
+        The first 3 and last 3 records will be verified.
+        The file contains 108 records.
+        """
+        log.debug('===== START QUAL TEST REAL FILE =====')
+
+        self.create_sample_data_set_dir(FILE_REAL, REC_DIR)
+        self.create_sample_data_set_dir(FILE_REAL, TEL_DIR)
+        self.assert_initialize()
+
+        # Verify we get the correct samples
+        try:
+            # Get the first 3 particles.
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 3, 10)
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 3, 10)
+
+            # Ignore the next 102 particles.
+            self.data_subscribers.get_samples(REC_STREAM, 93, 150)
+            self.data_subscribers.get_samples(TEL_STREAM, 93, 150)
+
+            # Get the last 3 particles and combine with the first 3.
+            rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 3, 10)
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 3, 10)
+
+            rec_result.extend(rec_result2)
+            tel_result.extend(tel_result2)
+
+            # Verify results
+            self.assert_data_values(rec_result, REC_YML_REAL)
+            self.assert_data_values(tel_result, TEL_YML_REAL)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST REAL FILE =====')
+
+    def test_shutdown_restart(self):
+        """
+        Test a full stop of the dataset agent, then restart the agent and
+        confirm it restarts at the correct spot.
+        """
+        log.debug('===== START QUAL TEST SHUTDOWN RESTART =====')
+
+        self.create_sample_data_set_dir(FILE2, REC_DIR)
+        self.create_sample_data_set_dir(FILE3, TEL_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get the correct samples
+        try:
+            # Read the first 7 particles from the Recovered file.
+            # Read the first 18 particles from the Telemetered file.
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 7, 10)
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 18, 20)
+
+            # stop and re-start the agent
+            self.stop_dataset_agent_client()
+            self.init_dataset_agent_client()
+            # re-initialize
+            self.assert_initialize()
+
+            # Read the last 34 particles from the Telemetered CT file.
+            # Read the last 23 particles from the Recovered file.
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 34, 40)
+            rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 23, 30)
+
+            # Combine the results into a single list.
+            rec_result.extend(rec_result2)
+            tel_result.extend(tel_result2)
+
+            # Verify the results.
+            self.assert_data_values(rec_result, REC_YML2)
+            self.assert_data_values(tel_result, TEL_YML3)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST SHUTDOWN RESTART =====')
+
+    def test_simple(self):
+        """
+        Verify that all records from a file can be obtained in a single read.
+        """
+        log.debug('===== START QUAL TEST SIMPLE =====')
+
+        self.create_sample_data_set_dir(FILE5, REC_DIR)
+        self.create_sample_data_set_dir(FILE4, TEL_DIR)
+        self.assert_initialize()
+
+        # Verify we get the correct samples
+        try:
+            # Get the particles.
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 25, 30)
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 24, 30)
+
+            # Verify results
+            self.assert_data_values(tel_result, TEL_YML4)
+            self.assert_data_values(rec_result, REC_YML5)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST SIMPLE =====')
+
+    def test_start_stop_restart(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.debug('===== START QUAL TEST START STOP RESTART =====')
 
-    def test_shutdown_restart(self):
-        """
-        Test a full stop of the dataset agent, then restart the agent 
-        and confirm it restarts at the correct spot.
-        """
-        pass
+        self.create_sample_data_set_dir(FILE6, TEL_DIR)
+        self.create_sample_data_set_dir(FILE7, REC_DIR)
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-    def test_parser_exception(self):
-        """
-        Test an exception is raised after the driver is started during
-        record parsing.
-        """
-        pass
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
+        # Verify we get the correct samples
+        try:
+            # Get the first 100 Telemetered particles.
+            # Get the first 125 Recovered particles.
+            tel_result = self.data_subscribers.get_samples(TEL_STREAM, 100, 125)
+            rec_result = self.data_subscribers.get_samples(REC_STREAM, 125, 150)
+
+            # Stop and then restart sampling.
+            self.assert_stop_sampling()
+            self.assert_start_sampling()
+
+            # Get the next 200 Recovered particles.
+            # Get the last 200 Telemetered particles.
+            # Get the last 75 Recovered particles.
+            rec_result2 = self.data_subscribers.get_samples(REC_STREAM, 200, 250)
+            tel_result2 = self.data_subscribers.get_samples(TEL_STREAM, 200, 250)
+            rec_result3 = self.data_subscribers.get_samples(REC_STREAM, 75, 100)
+
+            # Combine results into a single list.
+            rec_result.extend(rec_result2)
+            rec_result.extend(rec_result3)
+            tel_result.extend(tel_result2)
+
+            # Verify results.
+            self.assert_data_values(rec_result, REC_YML7)
+            self.assert_data_values(tel_result, TEL_YML6)
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.debug('===== END QUAL TEST START STOP RESTART =====')
