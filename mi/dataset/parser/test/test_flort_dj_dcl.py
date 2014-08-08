@@ -32,7 +32,7 @@ Files used for testing:
 20071225.flort7.log
   Metadata - 2 sets,  Sensor Data - 200 records
 
-20060401.flort6.log
+20080401.flort8.log
   This file contains a boatload of invalid sensor data records.
   See metadata in file for a list of the errors.
   20 metadata records, 47 sensor data records
