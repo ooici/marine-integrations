@@ -23,11 +23,17 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
+
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import \
+    DataSourceConfigKey, \
+    DataSetDriverConfigKeys, \
+    DriverParameter
 from mi.dataset.driver.cspp_eng.cspp.driver import CsppEngCsppDataSetDriver
 
 from mi.dataset.parser.cspp_base import StateKey
@@ -666,19 +672,371 @@ class QualificationTest(DataSetQualificationTestCase):
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.info("================ START QUAL TEST STOP START =====================")
+
+        self.create_sample_data_set_dir('01554008_DBG_PDBG.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('01554008_DBG_PDBG.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_TELEMETERED)
+        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        #-------------------DBG PDBG RECOVERED------------------------
+        # check the metadata particle and 4 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_RECOVERED, 4, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_recov_start_stop1.yml')
+
+        #-------------------DBG PDBG TELEMETERED------------------------
+        # check the metadata particle and 1 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_TELEMETERED, 1, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_telem_start_stop1.yml')
+
+        #-------------------WC HMR RECOVERED------------------------
+        # check the metadata particle and the first 5 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_RECOVERED, 5, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_HMR_recov_start_stop1.yml')
+
+        #-------------------WC HMR TELEMETERED------------------------
+        # check the metadata particle and the first 10 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_TELEMETERED, 10, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_HMR_telem_start_stop1.yml')
+
+        #-------------------WC SBE RECOVERED------------------------
+        # check the metadata particle and the first 8 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_RECOVERED, 8, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_SBE_recov_start_stop1.yml')
+
+        #-------------------WC SBE TELEMETERED------------------------
+        # check the metadata particle and the first 3 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_TELEMETERED, 3, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_SBE_telem_start_stop1.yml')
+
+        #-------------------WC WM RECOVERED------------------------
+        # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_recov.yml')
+        #
+        # #-------------------WC WM TELEMETERED------------------------
+        # # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_telem.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        #restart sampling
+        self.assert_start_sampling()
+
+        #-------------------DBG PDBG RECOVERED------------------------
+        # check the last 3 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_RECOVERED, 2, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.GPS_RECOVERED, 1, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_recov_start_stop2.yml')
+
+        #-------------------DBG PDBG TELEMETERED------------------------
+        # check the last 6 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_TELEMETERED, 5, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.GPS_TELEMETERED, 1, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_telem_start_stop2.yml')
+
+        #-------------------WC HMR RECOVERED------------------------
+        # check the next 5 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_RECOVERED, 4, 20)
+
+        self.assert_data_values(result1, 'WC_HMR_recov_start_stop2.yml')
+
+        #-------------------WC HMR TELEMETERED------------------------
+        # check the next 6 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_TELEMETERED, 6, 20)
+
+        self.assert_data_values(result1, 'WC_HMR_telem_start_stop2.yml')
+
+        #-------------------WC SBE RECOVERED------------------------
+        # check the next 7 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_RECOVERED, 7, 20)
+
+        self.assert_data_values(result1, 'WC_SBE_recov_start_stop2.yml')
+
+        #-------------------WC SBE TELEMETERED------------------------
+        # check the next 7 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_TELEMETERED, 7, 20)
+
+        self.assert_data_values(result1, 'WC_SBE_telem_start_stop2.yml')
+
+        #-------------------WC WM RECOVERED------------------------
+        # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_recov.yml')
+        #
+        # #-------------------WC WM TELEMETERED------------------------
+        # # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_telem.yml')
+
 
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        pass
+        log.info("================ START QUAL TEST SHUTDOWN RESTART =====================")
+
+        self.create_sample_data_set_dir('01554008_DBG_PDBG.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('01554008_DBG_PDBG.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_TELEMETERED)
+        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        #-------------------DBG PDBG RECOVERED------------------------
+        # check the metadata particle and 4 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_RECOVERED, 4, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_recov_start_stop1.yml')
+
+        #-------------------DBG PDBG TELEMETERED------------------------
+        # check the metadata particle and 1 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_TELEMETERED, 1, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_telem_start_stop1.yml')
+
+        #-------------------WC HMR RECOVERED------------------------
+        # check the metadata particle and the first 5 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_RECOVERED, 5, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_HMR_recov_start_stop1.yml')
+
+        #-------------------WC HMR TELEMETERED------------------------
+        # check the metadata particle and the first 10 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_TELEMETERED, 10, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_HMR_telem_start_stop1.yml')
+
+        #-------------------WC SBE RECOVERED------------------------
+        # check the metadata particle and the first 8 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_RECOVERED, 8, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_SBE_recov_start_stop1.yml')
+
+        #-------------------WC SBE TELEMETERED------------------------
+        # check the metadata particle and the first 3 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_TELEMETERED, 3, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'WC_SBE_telem_start_stop1.yml')
+
+        #-------------------WC WM RECOVERED------------------------
+        # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_recov.yml')
+        #
+        # #-------------------WC WM TELEMETERED------------------------
+        # # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_telem.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        # Re-initialize
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        #restart sampling
+        self.assert_start_sampling()
+
+        #-------------------DBG PDBG RECOVERED------------------------
+        # check the last 3 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_RECOVERED, 2, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.GPS_RECOVERED, 1, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_recov_start_stop2.yml')
+
+        #-------------------DBG PDBG TELEMETERED------------------------
+        # check the last 6 instrument particles
+        result1 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.BATTERY_TELEMETERED, 5, 10)
+        result2 = self.data_subscribers.get_samples(DbgPdbgDataParticleType.GPS_TELEMETERED, 1, 10)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, 'DBG_PDBG_telem_start_stop2.yml')
+
+        #-------------------WC HMR RECOVERED------------------------
+        # check the next 5 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_RECOVERED, 4, 20)
+
+        self.assert_data_values(result1, 'WC_HMR_recov_start_stop2.yml')
+
+        #-------------------WC HMR TELEMETERED------------------------
+        # check the next 6 instrument particles
+        result1 = self.data_subscribers.get_samples(WcHmrDataParticleType.ENGINEERING_TELEMETERED, 6, 20)
+
+        self.assert_data_values(result1, 'WC_HMR_telem_start_stop2.yml')
+
+        #-------------------WC SBE RECOVERED------------------------
+        # check the next 7 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_RECOVERED, 7, 20)
+
+        self.assert_data_values(result1, 'WC_SBE_recov_start_stop2.yml')
+
+        #-------------------WC SBE TELEMETERED------------------------
+        # check the next 7 instrument particles
+        result1 = self.data_subscribers.get_samples(WcSbeDataParticleType.ENGINEERING_TELEMETERED, 7, 20)
+
+        self.assert_data_values(result1, 'WC_SBE_telem_start_stop2.yml')
+
+        #-------------------WC WM RECOVERED------------------------
+        # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_recov.yml')
+        #
+        # #-------------------WC WM TELEMETERED------------------------
+        # # check the metadata particle and the first 19 instrument particles
+        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
+        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
+        #
+        # result1.extend(result2)
+        #
+        # self.assert_data_values(result1, '11079364_WC_WM_telem.yml')
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        log.info("=========== START QUAL TEST PARSER EXCEPTION =================")
 
+        self.assert_initialize()
+
+        self.create_sample_data_set_dir('01554008_BAD_DBG_PDBG.txt', DIR_CSPP_RECOVERED)
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+
+        self.event_subscribers.clear_events()  # note this required a bug fix in the unit test class to work correctly
+
+        self.create_sample_data_set_dir('01554008_BAD_DBG_PDBG.txt', DIR_CSPP_TELEMETERED)
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+
+        self.event_subscribers.clear_events()
+
+        self.create_sample_data_set_dir('11079364_BAD_WC_HMR.txt', DIR_CSPP_RECOVERED)
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+
+        self.event_subscribers.clear_events()
+
+        self.create_sample_data_set_dir('11079364_BAD_WC_HMR.txt', DIR_CSPP_TELEMETERED)
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+
+        self.event_subscribers.clear_events()
+
+        self.create_sample_data_set_dir('11079364_BAD_WC_SBE.txt', DIR_CSPP_RECOVERED)
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+
+        self.event_subscribers.clear_events()
+
+        self.create_sample_data_set_dir('11079364_BAD_WC_SBE.txt', DIR_CSPP_TELEMETERED)
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+
+        # self.event_subscribers.clear_events()
+        #
+        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        # self.assert_event_received(ResourceAgentErrorEvent, 10)
+        #
+        # self.event_subscribers.clear_events()
+        #
+        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+        # self.assert_event_received(ResourceAgentErrorEvent, 10)
