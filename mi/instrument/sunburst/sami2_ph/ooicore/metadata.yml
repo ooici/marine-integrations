@@ -5,4 +5,4 @@ driver_metadata:
   driver_name: ooicore
   email: spearce@coas.oregonstate.edu
   release_notes: Sunburst Sensors SAMI2-PH pH underwater sensor
-  version: 0.0.0
+  version: 0.0.2

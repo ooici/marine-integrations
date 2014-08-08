@@ -1,0 +1,47 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3583638124.0
+    particle_object: DostaLnWfpInstrumentParserDataParticle
+    particle_type: dosta_ln_wfp_instrument_recovered
+    estimated_oxygen_concentration: 0.0
+    optode_temperature: 0.0
+    wfp_timestamp: 1374649324
+  - _index: 2
+    internal_timestamp: 3583638134.0
+    particle_object: DostaLnWfpInstrumentParserDataParticle
+    particle_type: dosta_ln_wfp_instrument_recovered
+    estimated_oxygen_concentration: 0.0
+    optode_temperature: 0.0
+    wfp_timestamp: 1374649334
+  - _index: 3
+    internal_timestamp: 3583638144.0
+    particle_object: DostaLnWfpInstrumentParserDataParticle
+    particle_type: dosta_ln_wfp_instrument_recovered
+    estimated_oxygen_concentration: 0.0
+    optode_temperature: 0.0
+    wfp_timestamp: 1374649344
+  - _index: 4
+    internal_timestamp: 3583638157.0
+    particle_object: DostaLnWfpInstrumentParserDataParticle
+    particle_type: dosta_ln_wfp_instrument_recovered
+    estimated_oxygen_concentration: 154.18499755859375
+    optode_temperature: 1.4769999980926514
+    wfp_timestamp: 1374649357
+  - _index: 5
+    internal_timestamp: 3583638167.0
+    particle_object: DostaLnWfpInstrumentParserDataParticle
+    particle_type: dosta_ln_wfp_instrument_recovered
+    estimated_oxygen_concentration: 153.66799926757812
+    optode_temperature: 1.4800000190734863
+    wfp_timestamp: 1374649367
+  - _index: 6
+    internal_timestamp: 3583638177.0
+    particle_object: DostaLnWfpInstrumentParserDataParticle
+    particle_type: dosta_ln_wfp_instrument_recovered
+    estimated_oxygen_concentration: 154.23699951171875
+    optode_temperature: 1.4819999933242798
+    wfp_timestamp: 1374649377

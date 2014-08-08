@@ -1,0 +1,60 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.467000
+    profiler_timestamp: 1397774253.4670000076293945
+    pressure_depth: 19.3939999999999984
+    suspect_timestamp: 0
+    timer: 4.0800000000000001
+    sample_delay: -133
+    channel_array: [2147989504, 2147700352, 2148766208, 2148786560, 2150781248, 2147358272, 2147465792]
+    vin_sense: 297
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 0
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.603000
+    profiler_timestamp: 1397774253.6029999256134033
+    pressure_depth: 19.3820000000000014
+    suspect_timestamp: 0
+    timer: 4.2199999999999998
+    sample_delay: -133
+    channel_array: [2147991936, 2147699840, 2148777792, 2148791680, 2150791744, 2147353216, 2147460032]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 1
+  - _index: 3
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.738000
+    profiler_timestamp: 1397774253.7379999160766602
+    pressure_depth: 19.3659999999999997
+    suspect_timestamp: 0
+    timer: 4.3499999999999996
+    sample_delay: -133
+    channel_array: [2147992384, 2147696000, 2148777472, 2148799872, 2150797120, 2147347072, 2147457664]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 2
+  - _index: 4
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.876000
+    profiler_timestamp: 1397774253.8759999275207520
+    pressure_depth: 19.3509999999999991
+    suspect_timestamp: 0
+    timer: 4.4900000000000002
+    sample_delay: -133
+    channel_array: [2147990656, 2147698048, 2148788928, 2148813248, 2150810816, 2147354944, 2147463680]
+    vin_sense: 280
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 3

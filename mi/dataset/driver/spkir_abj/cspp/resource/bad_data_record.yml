@@ -1,0 +1,31 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppMetadataRecoveredDataParticle
+    particle_type: spkir_abj_cspp_metadata_recovered
+    internal_timestamp: 3606763053.603000  # this is the timestamp from the data particle
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9419
+    processing_time: '07/18/2014 12:23:17'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079419.PPB'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+    instrument_id: 'SATDI7'
+    serial_number: '0237'
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentRecoveredDataParticle
+    particle_type: spkir_abj_cspp_instrument_recovered
+    internal_timestamp: 3606763053.603000
+    profiler_timestamp: 1397774253.6029999256134033
+    pressure_depth: 19.3820000000000014
+    suspect_timestamp: 0
+    timer: 4.2199999999999998
+    sample_delay: -133
+    channel_array: [2147991936, 2147699840, 2148777792, 2148791680, 2150791744, 2147353216, 2147460032]
+    vin_sense: 284
+    va_sense: 177
+    internal_temperature: 177
+    frame_counter: 1

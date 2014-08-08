@@ -350,7 +350,7 @@ class DriverTestMixinSub(SamiMixin):
         self.assert_data_particle_keys(PhsenSamiSampleDataParticleKey,
                                        self._sami_data_sample_parameters)
         self.assert_data_particle_header(data_particle,
-                                         DataParticleType.SAMI_SAMPLE)
+                                         DataParticleType.PHSEN_DATA_RECORD)
         self.assert_data_particle_parameters(data_particle,
                                              self._sami_data_sample_parameters,
                                              verify_values)
@@ -364,7 +364,7 @@ class DriverTestMixinSub(SamiMixin):
         self.assert_data_particle_keys(PhsenConfigDataParticleKey,
                                        self._configuration_parameters)
         self.assert_data_particle_header(data_particle,
-                                         DataParticleType.CONFIGURATION)
+                                         DataParticleType.PHSEN_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle,
                                              self._configuration_parameters,
                                              verify_values)
@@ -692,7 +692,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
         self.assert_set_bulk(new_values)
 
-        reply = self.driver_client.cmd_dvr('apply_startup_params')
+        self.driver_client.cmd_dvr('apply_startup_params')
 
         for (key, val) in startup_values.iteritems():
             self.assert_get(key, val)
@@ -770,7 +770,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
     def test_acquire_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               timeout=240)
         self.assert_current_state(ProtocolState.COMMAND)
 
@@ -779,7 +779,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 320)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               particle_count=3, timeout=1280)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
         self.clear_events()
@@ -787,7 +787,8 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         #Now verify that no more particles get generated
         failed = False
         try:
-            self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+            self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD,
+                                                  self.assert_particle_sami_data_sample,
                                                   timeout=400)
             failed = True
         except AssertionError:
@@ -797,20 +798,20 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         #Restart autosample
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               particle_count=3, timeout=1280)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_polled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               timeout=240)
 
     def test_scheduled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               timeout=240)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
@@ -821,10 +822,11 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=160)
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_CONFIGURATION, self.assert_particle_configuration,
                                               timeout=280)
-        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
-        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_BATTERY_VOLTAGE,
+                                              self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.PHSEN_THERMISTOR_VOLTAGE,
                                               self.assert_particle_thermistor_voltage)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
@@ -838,9 +840,10 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               timeout=240)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_REGULAR_STATUS,
+                                              self.assert_particle_regular_status,
                                               timeout=240)
 
         self.assert_current_state(ProtocolState.COMMAND)
@@ -855,9 +858,10 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
         ## Queue sample and status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_DATA_RECORD, self.assert_particle_sami_data_sample,
                                               timeout=240)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_REGULAR_STATUS,
+                                              self.assert_particle_regular_status,
                                               timeout=240)
 
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
@@ -865,11 +869,11 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
     def test_acquire_status(self):
         self.assert_initialize_driver()
         self.clear_events()
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.REGULAR_STATUS,
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.PHSEN_REGULAR_STATUS,
                                         self.assert_particle_regular_status)
-        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration)
-        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
-        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_async_particle_generation(DataParticleType.PHSEN_BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.PHSEN_THERMISTOR_VOLTAGE,
                                               self.assert_particle_thermistor_voltage)
 
     def test_scheduled_device_status_command(self):
@@ -878,10 +882,10 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         """
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_CONFIGURATION, self.assert_particle_configuration,
                                               timeout=180)
-        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
-        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE,
+        self.assert_async_particle_generation(DataParticleType.PHSEN_BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.PHSEN_THERMISTOR_VOLTAGE,
                                               self.assert_particle_thermistor_voltage)
         self.assert_current_state(ProtocolState.COMMAND)
 
@@ -908,7 +912,7 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         """
         self.assert_enter_command_mode()
 
-        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE,
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.PHSEN_DATA_RECORD,
                                       timeout=14400)
 
     def test_direct_access_telnet_mode(self):
@@ -964,16 +968,16 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_enter_command_mode()
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample,
-                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
+                                    DataParticleType.PHSEN_DATA_RECORD, sample_count=1, timeout=240)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status,
-                                    DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_REGULAR_STATUS, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration,
-                                    DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_CONFIGURATION, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage,
-                                    DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage,
-                                    DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
         self.assert_resource_command(ProtocolEvent.SEAWATER_FLUSH_2750ML, delay=220,
                                      agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
@@ -992,16 +996,16 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_start_autosample(timeout=240)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample,
-                                    DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
+                                    DataParticleType.PHSEN_DATA_RECORD, sample_count=1, timeout=240)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status,
-                                    DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_REGULAR_STATUS, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration,
-                                    DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_CONFIGURATION, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage,
-                                    DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage,
-                                    DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+                                    DataParticleType.PHSEN_THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
         self.assert_stop_autosample()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
@@ -1013,7 +1017,7 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_enter_command_mode()
         self.assert_set_parameter(Parameter.AUTO_SAMPLE_INTERVAL, 320)
 
-        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE)
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.PHSEN_DATA_RECORD)
 
     def test_get_capabilities(self):
         """

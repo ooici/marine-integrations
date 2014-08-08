@@ -1,0 +1,44 @@
+header:
+ particle_object: 'MULTIPLE'
+ particle_type: 'MULTIPLE'
+data:
+ - _index: 1
+   particle_object: ParadJCsppInstrumentRecoveredDataParticle
+   particle_type: parad_j_cspp_instrument_recovered
+   internal_timestamp: 3606762494.692000
+   profiler_timestamp: 1397773694.6919999122619629
+   pressure_depth: 19.2429999999999986
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:22:31'
+   par: 4942
+ - _index: 2
+   particle_object: ParadJCsppInstrumentRecoveredDataParticle
+   particle_type: parad_j_cspp_instrument_recovered
+   internal_timestamp: 3606762495.829000
+   profiler_timestamp: 1397773695.8289999961853027
+   pressure_depth: 19.1200000000000010
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:22:33'
+   par: 5026
+ - _index: 3
+   particle_object: ParadJCsppInstrumentRecoveredDataParticle
+   particle_type: parad_j_cspp_instrument_recovered
+   internal_timestamp: 3606762496.966000
+   profiler_timestamp: 1397773696.9660000801086426
+   pressure_depth: 19.1550000000000011
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:22:34'
+   par: 5019
+ - _index: 4
+   particle_object: ParadJCsppInstrumentRecoveredDataParticle
+   particle_type: parad_j_cspp_instrument_recovered
+   internal_timestamp: 3606762498.105000
+   profiler_timestamp: 1397773698.1050000190734863
+   pressure_depth: 19.3649999999999984
+   suspect_timestamp: 0
+   date_string: '04/17/14'
+   time_string: '15:22:35'
+   par: 4894
