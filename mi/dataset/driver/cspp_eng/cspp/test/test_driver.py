@@ -1006,7 +1006,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('01554008_BAD_DBG_PDBG.txt', DIR_CSPP_RECOVERED)
         self.assert_event_received(ResourceAgentErrorEvent, 10)
 
-        self.event_subscribers.clear_events()  # note this required a bug fix in the unit test class to work correctly
+        # note this required a bug fix in /instrument_agent_client.py to work correctly
+        self.event_subscribers.clear_events()
 
         self.create_sample_data_set_dir('01554008_BAD_DBG_PDBG.txt', DIR_CSPP_TELEMETERED)
         self.assert_event_received(ResourceAgentErrorEvent, 10)
