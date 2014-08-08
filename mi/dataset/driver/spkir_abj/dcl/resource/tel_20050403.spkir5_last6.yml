@@ -1,0 +1,95 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2005-04-03T09:16:23Z'
+    dcl_controller_timestamp: '2005/04/03 09:16:23.450'
+    instrument_id: 'SATDI4'
+    serial_number: '2004'
+    timer:      65.45
+    sample_delay: 2974
+    channel_array: [2342709426, 2342709427, 2342709428, 2342709429, 2342709430, 2342709431, 2342709432]
+    vin_sense: 35742
+    va_sense: 35742
+    internal_temperature: 35742
+    frame_counter: 138
+    passed_checksum: 1
+  - _index:  2
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2005-04-03T09:16:37Z'
+    dcl_controller_timestamp: '2005/04/03 09:16:37.029'
+    instrument_id: 'SATDI4'
+    serial_number: '2004'
+    timer:      76.36
+    sample_delay: 8931
+    channel_array: [2733160997, 2733160998, 2733160999, 2733161000, 2733161001, 2733161002, 2733161003]
+    vin_sense: 41699
+    va_sense: 41699
+    internal_temperature: 41699
+    frame_counter: 161
+    passed_checksum: 1
+  - _index:  3
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2005-04-03T09:16:50Z'
+    dcl_controller_timestamp: '2005/04/03 09:16:50.608'
+    instrument_id: 'SATDI4'
+    serial_number: '2004'
+    timer:      87.27
+    sample_delay: 14888
+    channel_array: [3123612568, 3123612569, 3123612570, 3123612571, 3123612572, 3123612573, 3123612574]
+    vin_sense: 47656
+    va_sense: 47656
+    internal_temperature: 47656
+    frame_counter: 184
+    passed_checksum: 1
+  - _index:  4
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2005-04-03T09:17:58Z'
+    dcl_controller_timestamp: '2005/04/03 09:17:58.503'
+    instrument_id: 'SATDI4'
+    serial_number: '2004'
+    timer:      98.18
+    sample_delay: 20845
+    channel_array: [3514064139, 3514064140, 3514064141, 3514064142, 3514064143, 3514064144, 3514064145]
+    vin_sense: 53613
+    va_sense: 53613
+    internal_temperature: 53613
+    frame_counter: 207
+    passed_checksum: 1
+  - _index:  5
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2005-04-03T09:18:12Z'
+    dcl_controller_timestamp: '2005/04/03 09:18:12.082'
+    instrument_id: 'SATDI4'
+    serial_number: '2004'
+    timer:     109.09
+    sample_delay: 26802
+    channel_array: [3904515710, 3904515711, 3904515712, 3904515713, 3904515714, 3904515715, 3904515716]
+    vin_sense: 59570
+    va_sense: 59570
+    internal_temperature: 59570
+    frame_counter: 230
+    passed_checksum: 1
+  - _index:  6
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2005-04-03T09:18:25Z'
+    dcl_controller_timestamp: '2005/04/03 09:18:25.661'
+    instrument_id: 'SATDI4'
+    serial_number: '2004'
+    timer:     120.00
+    sample_delay: 32759
+    channel_array: [4294967281, 4294967282, 4294967283, 4294967284, 4294967285, 4294967286, 4294967287]
+    vin_sense: 65527
+    va_sense: 65527
+    internal_temperature: 65527
+    frame_counter: 253
+    passed_checksum: 1
