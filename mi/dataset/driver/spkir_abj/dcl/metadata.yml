@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Steve Myerson
+  constructor: SpkirAbjDclDataSetDriver
+  driver_name: spkir_abj_dcl
+  driver_path: "spkir_abj/dcl"
+  email: Steven_G_Myerson@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1
