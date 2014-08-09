@@ -9,6 +9,7 @@ with the Satlantic OCR507 ICSW w/ Midrange Bioshutter
 import time
 import re
 import struct
+import decimal
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.driver_dict import DriverDictKey
@@ -435,7 +436,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.MAX_RATE,
                              r"Maximum\ Frame\ Rate:\ ([(\d|.]+)\ Hz\s*",
                              lambda match: float(match.group(1)),
-                             lambda fVal: '%.3f' % fVal,
+                             lambda fVal: '%s' % str(fVal),
                              type=ParameterDictType.FLOAT,
                              display_name="Max Rate",
                              default_value=0,
@@ -647,14 +648,14 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                     (expected_prompt is not None or
                          (response_regex is not None)) \
                     and cmd_line not in result:
-                log.debug("_do_cmd_resp: Send command: %s failed %s attempt, result = %s.", cmd, retry_num, result)
+                log.debug('_do_cmd_resp: Send command: %s failed %s attempt, result = %s.', cmd, retry_num, result)
                 if retry_num >= retry_count:
                     raise InstrumentCommandException('_do_cmd_resp: Failed %s attempts sending command: %s' %
                                                      (retry_count, cmd))
             else:
                 break
 
-        log.debug("_do_cmd_resp: Sent command: %s, %s reattempts, expected_prompt=%s, result=%r.",
+        log.debug('_do_cmd_resp: Sent command: %s, %s reattempts, expected_prompt=%s, result=%r.',
                   cmd_line, retry_num, expected_prompt, result)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \

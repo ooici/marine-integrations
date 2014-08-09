@@ -60,7 +60,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.MAX_RATE: 0.0,
+            Parameter.MAX_RATE: 0,
             Parameter.INIT_SM: True,
             Parameter.INIT_AT: True,
             Parameter.NET_MODE: False
@@ -116,7 +116,7 @@ class SatlanticMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0.0},
+        Parameter.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0},
         Parameter.INIT_SM: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
         Parameter.INIT_AT: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
         Parameter.NET_MODE: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
@@ -365,7 +365,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample, timeout=30)
         self.assert_driver_command(SatlanticProtocolEvent.STOP_AUTOSAMPLE, state=SatlanticProtocolState.COMMAND)
         self.assert_driver_command(SatlanticProtocolEvent.ACQUIRE_STATUS, state=SatlanticProtocolState.COMMAND)
-        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_particle_config, timeout=10)
+        self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_particle_config, timeout=30)
 
     def test_startup_parameter_defaults(self):
         self.assert_initialize_driver()
