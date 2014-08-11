@@ -283,24 +283,24 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         #--------------------------------------------------------------------------------
         # test that everything works for the wc_wm recovered harvester
-        # self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_RECOVERED)
-        #
-        # log.debug('### WC_WM Sample file created in dir = %s ', DIR_CSPP_RECOVERED)
-        #
-        # # check the metadata particle and the first 19 instrument particles
-        # self.assert_data(WC_WM_REC_PARTICLES,
-        #                  '11079364_WC_SBE_recov.yml',
-        #                  count=20, timeout=10)
-        #
-        # # test that everything works for the wc_wm telemetered harvester
-        # self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_TELEMETERED)
-        #
-        # log.debug('### WC_WM Sample file created in dir = %s ', DIR_CSPP_TELEMETERED)
-        #
-        # # check the metadata particle and the first 19 instrument particles
-        # self.assert_data(WC_WM_TEL_PARTICLES,
-        #                  '11079364_WC_SBE_telem.yml',
-        #                  count=20, timeout=10)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+
+        log.debug('### WC_WM Sample file created in dir = %s ', DIR_CSPP_RECOVERED)
+
+        # check the metadata particle and the first 19 instrument particles
+        self.assert_data(WC_WM_REC_PARTICLES,
+                         '11079364_WC_WM_recov.yml',
+                         count=20, timeout=10)
+
+        # test that everything works for the wc_wm telemetered harvester
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+
+        log.debug('### WC_WM Sample file created in dir = %s ', DIR_CSPP_TELEMETERED)
+
+        # check the metadata particle and the first 19 instrument particles
+        self.assert_data(WC_WM_TEL_PARTICLES,
+                         '11079364_WC_WM_telem.yml',
+                         count=20, timeout=10)
 
     def test_mid_state_start(self):
         """
@@ -318,8 +318,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         wc_hmr_telem_file = '11079364_WC_HMR.txt'
         wc_sbe_recov_file = '11079364_WC_SBE.txt'
         wc_sbe_telem_file = '11079364_WC_SBE.txt'
-        # wc_wm_recov_file = '11079364_WC_WM.txt'
-        # wc_wm_telem_file = '11079364_WC_WM.txt'
+        wc_wm_recov_file = '11079364_WC_WM.txt'
+        wc_wm_telem_file = '11079364_WC_WM.txt'
 
         dbg_pdbg_recov_path = self.create_sample_data_set_dir(dbg_pdbg_recov_file, DIR_CSPP_RECOVERED)
         dbg_pdbg_telem_path = self.create_sample_data_set_dir(dbg_pdbg_telem_file, DIR_CSPP_TELEMETERED)
@@ -327,8 +327,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         wc_hmr_telem_path = self.create_sample_data_set_dir(wc_hmr_telem_file, DIR_CSPP_TELEMETERED)
         wc_sbe_recov_path = self.create_sample_data_set_dir(wc_sbe_recov_file, DIR_CSPP_RECOVERED)
         wc_sbe_telem_path = self.create_sample_data_set_dir(wc_sbe_telem_file, DIR_CSPP_TELEMETERED)
-        # wc_wm_recov_path = self.create_sample_data_set_dir(wc_wm_recov_file, DIR_CSPP_RECOVERED)
-        # wc_wm_telem_path = self.create_sample_data_set_dir(wc_wm_telem_file, DIR_CSPP_TELEMETERED)
+        wc_wm_recov_path = self.create_sample_data_set_dir(wc_wm_recov_file, DIR_CSPP_RECOVERED)
+        wc_wm_telem_path = self.create_sample_data_set_dir(wc_wm_telem_file, DIR_CSPP_TELEMETERED)
 
         state = {
             DbgPdbgDataTypeKey.DBG_PDBG_CSPP_RECOVERED: {
@@ -369,21 +369,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                                        position=375,             # end of 4th data record
                                                        metadata_extracted=True)
             },
-            WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {},
-            WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {}
 
-            # WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {
-            #     wc_wm_recov_file: self.get_file_state(wc_wm_recov_path,
-            #                                           ingested=False,
-            #                                           position=1410,
-            #                                           metadata_extracted=True)
-            # },
-            # WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {
-            #     wc_wm_recov_file: self.get_file_state(wc_wm_recov_path,
-            #                                           ingested=False,
-            #                                           position=602,
-            #                                           metadata_extracted=True)
-            # }
+            WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {
+                wc_wm_recov_file: self.get_file_state(wc_wm_recov_path,
+                                                      ingested=False,
+                                                      position=1445,             # end of 15th data record
+                                                      metadata_extracted=True)
+            },
+            WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {
+                wc_wm_recov_file: self.get_file_state(wc_wm_recov_path,
+                                                      ingested=False,
+                                                      position=643,             # end of 4th data record
+                                                      metadata_extracted=True)
+            }
         }
 
         driver = self._get_driver_object(memento=state)
@@ -399,8 +397,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(WC_HMR_TEL_PARTICLES, 'WC_HMR_telem_midstate.yml', count=9, timeout=10)
         self.assert_data(WC_SBE_REC_PARTICLES, 'WC_SBE_recov_midstate.yml', count=7, timeout=10)
         self.assert_data(WC_SBE_TEL_PARTICLES, 'WC_SBE_telem_midstate.yml', count=6, timeout=10)
-        # self.assert_data(WC_WM_REC_PARTICLES, 'WC_WM_recov_midstate.yml', count=7, timeout=10)
-        # self.assert_data(WC_WM_TEL_PARTICLES, 'WC_WM_telem_midstate.yml', count=6, timeout=10)
+        self.assert_data(WC_WM_REC_PARTICLES, 'WC_WM_recov_midstate.yml', count=4, timeout=10)
+        self.assert_data(WC_WM_TEL_PARTICLES, 'WC_WM_telem_midstate.yml', count=5, timeout=10)
 
         # self.assert_data(TEL_PARTICLES, 'test_telemetered_midstate_start.yml', count=2, timeout=10)
 
@@ -418,8 +416,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_TELEMETERED)
         self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_RECOVERED)
         self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_TELEMETERED)
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
 
         self.clear_async_data()
 
@@ -432,8 +430,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(WC_HMR_TEL_PARTICLES, 'WC_HMR_telem_start_stop1.yml', count=11, timeout=10)
         self.assert_data(WC_SBE_REC_PARTICLES, 'WC_SBE_recov_start_stop1.yml', count=9, timeout=10)
         self.assert_data(WC_SBE_TEL_PARTICLES, 'WC_SBE_telem_start_stop1.yml', count=4, timeout=10)
-        # self.assert_data(WC_WM_REC_PARTICLES, 'WC_WM_recov_start_stop1.yml', count=9, timeout=10)
-        # self.assert_data(WC_WM_TEL_PARTICLES, 'WC_WM_telem_start_stop1.yml', count=4, timeout=10)
+        self.assert_data(WC_WM_REC_PARTICLES, 'WC_WM_recov_start_stop1.yml', count=3, timeout=10)
+        self.assert_data(WC_WM_TEL_PARTICLES, 'WC_WM_telem_start_stop1.yml', count=8, timeout=10)
 
         self.driver.stop_sampling()
 
@@ -446,8 +444,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(WC_HMR_TEL_PARTICLES, 'WC_HMR_telem_start_stop2.yml', count=6, timeout=10)
         self.assert_data(WC_SBE_REC_PARTICLES, 'WC_SBE_recov_start_stop2.yml', count=7, timeout=10)
         self.assert_data(WC_SBE_TEL_PARTICLES, 'WC_SBE_telem_start_stop2.yml', count=7, timeout=10)
-        # self.assert_data(WC_WM_REC_PARTICLES, 'WC_WM_recov_start_stop2.yml', count=9, timeout=10)
-        # self.assert_data(WC_WM_TEL_PARTICLES, 'WC_WM_telem_start_stop2.yml', count=4, timeout=10)
+        self.assert_data(WC_WM_REC_PARTICLES, 'WC_WM_recov_start_stop2.yml', count=4, timeout=10)
+        self.assert_data(WC_WM_TEL_PARTICLES, 'WC_WM_telem_start_stop2.yml', count=7, timeout=10)
 
     def test_sample_exception(self):
         """
@@ -490,15 +488,15 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
         self.clear_async_data()
 
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_BAD_WC_WM.txt', DIR_CSPP_RECOVERED)
         # an event catches the sample exception
-        # self.assert_event('ResourceAgentErrorEvent')
-        # self.clear_async_data()
+        self.assert_event('ResourceAgentErrorEvent')
+        self.clear_async_data()
 
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_BAD_WC_WM.txt', DIR_CSPP_TELEMETERED)
         # an event catches the sample exception
-        # self.assert_event('ResourceAgentErrorEvent')
-        # self.clear_async_data()
+        self.assert_event('ResourceAgentErrorEvent')
+        self.clear_async_data()
 
 
 ###############################################################################
@@ -524,8 +522,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_TELEMETERED)
         self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_RECOVERED)
         self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_TELEMETERED)
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
 
         self.assert_initialize()
 
@@ -589,21 +587,21 @@ class QualificationTest(DataSetQualificationTestCase):
 
         #-------------------WC WM RECOVERED------------------------
         # check the metadata particle and the first 19 instrument particles
-        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
-        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
-        #
-        # result1.extend(result2)
-        #
-        # self.assert_data_values(result1, '11079364_WC_WM_recov.yml')
-        #
-        # #-------------------WC WM TELEMETERED------------------------
-        # # check the metadata particle and the first 19 instrument particles
-        # result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
-        # result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
-        #
-        # result1.extend(result2)
-        #
-        # self.assert_data_values(result1, '11079364_WC_WM_telem.yml')
+        result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, '11079364_WC_WM_recov.yml')
+
+        #-------------------WC WM TELEMETERED------------------------
+        # check the metadata particle and the first 19 instrument particles
+        result1 = self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
+        result2 = self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
+
+        result1.extend(result2)
+
+        self.assert_data_values(result1, '11079364_WC_WM_telem.yml')
 
     def test_large_import(self):
         """
@@ -617,8 +615,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir('11079364_WC_HMR.txt', DIR_CSPP_TELEMETERED)
         self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_RECOVERED)
         self.create_sample_data_set_dir('11079364_WC_SBE.txt', DIR_CSPP_TELEMETERED)
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
-        # self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_RECOVERED)
+        self.create_sample_data_set_dir('11079364_WC_WM.txt', DIR_CSPP_TELEMETERED)
 
         self.assert_initialize()
 
@@ -658,14 +656,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
         #-------------------WC WM RECOVERED------------------------
         # check the metadata particle and the first 19 instrument particles
-        # self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
-        # self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
-        #
-        # #-------------------WC WM TELEMETERED------------------------
-        # # check the metadata particle and the first 19 instrument particles
-        # self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
-        # self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
-        #
+        self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_RECOVERED, 1, 10)
+        self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_RECOVERED, 19, 20)
+
+        #-------------------WC WM TELEMETERED------------------------
+        # check the metadata particle and the first 19 instrument particles
+        self.data_subscribers.get_samples(WcWmDataParticleType.METADATA_TELEMETERED, 1, 10)
+        self.data_subscribers.get_samples(WcWmDataParticleType.ENGINEERING_TELEMETERED, 19, 20)
+
 
     def test_stop_start(self):
         """

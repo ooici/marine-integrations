@@ -143,9 +143,9 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle = fid
         parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_RECOVERED),
-                                 None, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
+                                None, stream_handle,
+                                self.state_callback, self.pub_callback,
+                                self.exception_callback)
 
         particles = parser.get_records(20)
 
@@ -186,9 +186,9 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
                 particle_data = particle_values.get(key)
                 #others are all part of the parsed values part of the particle
 
-            # log.debug('*** assert result: test data key = %s', key)
-            # log.debug('*** assert result: test data val = %s', test_data)
-            # log.debug('*** assert result: part data val = %s', particle_data)
+            # log.info('*** assert result: test data key = %s', key)
+            # log.info('*** assert result: test data val = %s', test_data)
+            # log.info('*** assert result: part data val = %s', particle_data)
 
             if particle_data is None:
                 #generally OK to ignore index keys in the test data, verify others
@@ -196,6 +196,9 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
                 log.warning("\nWarning: assert_result ignoring test key %s, does not exist in particle", key)
             else:
                 if isinstance(test_data, float):
+
+                    # log.info('*** assert result: test data val = %.6f', test_data)
+                    # log.info('*** assert result: part data val = %.6f', particle_data)
 
                     # slightly different test for these values as they are floats.
                     compare = numpy.abs(test_data - particle_data) <= 1e-5
@@ -218,22 +221,22 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         # in driver tests
 
         parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_RECOVERED),
-                                 None, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
+                                None, stream_handle,
+                                self.state_callback, self.pub_callback,
+                                self.exception_callback)
 
         particles = parser.get_records(20)
 
         log.debug("*** test_simple Num particles %s", len(particles))
 
         # check the first particle, which should be the metadata particle (recovered)
-        # test_data = self.get_dict_from_yml('11079364_WC_WM_recov.yml')
+        test_data = self.get_dict_from_yml('11079364_WC_WM_recov.yml')
 
         # # check all the values against expected results.
 
-        # for i in range(len(particles)):
-        #
-        #     self.assert_result(test_data['data'][i], particles[i])
+        for i in range(len(particles)):
+
+            self.assert_result(test_data['data'][i], particles[i])
 
         stream_handle.close()
 
@@ -250,9 +253,9 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         # in driver tests
 
         parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED),
-                                 None, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
+                                None, stream_handle,
+                                self.state_callback, self.pub_callback,
+                                self.exception_callback)
 
         # try to get 2000 particles, there are more data records in the file
         # so should get 2000 including the meta data
@@ -271,14 +274,14 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, '11079364_WC_WM.txt')
         stream_handle = open(file_path, 'r')
 
-        # position 547 is the end of the 7th data record, which would have produced the
-        # metadata particle and the first 7 engineering particles
-        initial_state = {StateKey.POSITION: 549, StateKey.METADATA_EXTRACTED: True}
+        # position 1445 is the end of the 15th data record, which would have produced the
+        # metadata particle and the first 15 engineering particles
+        initial_state = {StateKey.POSITION: 1445, StateKey.METADATA_EXTRACTED: True}
 
         parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_RECOVERED),
-                                 initial_state, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
+                                initial_state, stream_handle,
+                                self.state_callback, self.pub_callback,
+                                self.exception_callback)
 
         #expect to get the 8th and 9th engineering particles next
         particles = parser.get_records(2)
@@ -289,14 +292,14 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
 
         expected_results = self.get_dict_from_yml('11079364_WC_WM_recov.yml')
 
-        # skip the first 8 particles in the yml file due to mid state start
-        offset = 8
+        # skip the first 16 particles in the yml file due to mid state start
+        offset = 16
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i + offset], particles[i])
 
-        # now expect the state to be the end of the 9th data record and metadata sent
-        the_new_state = {StateKey.POSITION: 627, StateKey.METADATA_EXTRACTED: True}
+        # now expect the state to be the end of the 17th data record and metadata sent
+        the_new_state = {StateKey.POSITION: 1591, StateKey.METADATA_EXTRACTED: True}
         log.debug("********** expected state: %s", the_new_state)
         log.debug("******** new parser state: %s", parser._state)
         self.assertTrue(parser._state == the_new_state)
@@ -318,9 +321,9 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         expected_results = self.get_dict_from_yml('11079364_WC_WM_recov.yml')
 
         parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_RECOVERED),
-                                 None, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
+                                None, stream_handle,
+                                self.state_callback, self.pub_callback,
+                                self.exception_callback)
 
         particles = parser.get_records(2)
 
@@ -331,8 +334,8 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
-        # position 945 is the byte at the start of the 18th data record
-        new_state = {StateKey.POSITION: 945, StateKey.METADATA_EXTRACTED: True}
+        # position 945 is the byte at the start of the 9th data record
+        new_state = {StateKey.POSITION: 935, StateKey.METADATA_EXTRACTED: True}
 
         parser.set_state(new_state)
 
@@ -341,7 +344,7 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(len(particles) == 2)
 
         # offset in the expected results
-        offset = 18
+        offset = 9
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i + offset], particles[i])
 
@@ -360,65 +363,16 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_WC_WM.txt')
         stream_handle = open(file_path, 'r')
 
-        log.info(self.exception_callback_value)
-
         parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_RECOVERED),
-                                 None, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
+                                None, stream_handle,
+                                self.state_callback, self.pub_callback,
+                                self.exception_callback)
 
-        # 18 particles
-        particles = parser.get_records(18)
+        particles = parser.get_records(20)
 
-        expected_results = self.get_dict_from_yml('WC_WM_bad_data_records.yml')
-
-        self.assertTrue(len(particles) == 18)
-
-        for i in range(len(particles)):
-            self.assert_result(expected_results['data'][i], particles[i])
-
-        stream_handle.close()
-
-    def test_extra_data(self):
-
-        """
-        Ensure that bad data is skipped when it exists.
-        """
-
-        # the first 2nd and 8th data record in this file are corrupted by adding additional
-        # data values separated by tabs and will be ignored
-        # we expect to get the metadata particle and only the valid
-        # engineering data particles
-
-        file_path = os.path.join(RESOURCE_PATH, '11079364_EXTRA_DATA_WC_WM.txt')
-
-        stream_handle = open(file_path, 'r')
-
-        log.info(self.exception_callback_value)
-
-        parser = WcWmCsppParser(self.config.get(WcWmDataTypeKey.WC_WM_CSPP_RECOVERED),
-                                 None, stream_handle,
-                                 self.state_callback, self.pub_callback,
-                                 self.exception_callback)
-
-        particles = parser.get_records(18)
-
-        self.assertTrue(self.exception_callback_value is not None)
+        # log.info('##Exception value %s', self.exception_callback_value)
 
         self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
-        # expect to see a recoverable sample exception in the log
-        log.debug('TEST EXTRA DATA exception call back is %s', self.exception_callback_value)
-
-        expected_results = self.get_dict_from_yml('WC_WM_extra_data_values.yml')
-
-        self.assertTrue(len(particles) == 18)
-
-        # since the first two records were corrupted the first records received
-        # should be metadata particle with the timestamp of the 3rd data row
-        # and the engineering particle from the 3rd row
-
-        for i in range(len(particles)):
-            self.assert_result(expected_results['data'][i], particles[i])
-
         stream_handle.close()
+

@@ -60,8 +60,8 @@ DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX  # Suspect Timestamp
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Encoder Counts
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Winch Current
 DATA_REGEX += '(' + STRING_REGEX + ')' + MULTIPLE_TAB_REGEX  # Winch Status
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Velocity
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Temperature
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Velocity
+DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Temperature
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Winch Voltage
 DATA_REGEX += INT_REGEX +  MULTIPLE_TAB_REGEX                # Time Counts (ignored)
 DATA_REGEX += INT_REGEX + MULTIPLE_TAB_REGEX                 # Discharge Counts (ignored)
@@ -114,14 +114,14 @@ class WcWmEngDataParticleKey(BaseEnum):
 
 # A group of instrument data particle encoding rules used to simplify encoding using a loop
 ENGINEERING_PARTICLE_ENCODING_RULES = [
-    (WcWmEngDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
+    (WcWmEngDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, float),
     (WcWmEngDataParticleKey.PRESSURE, DataMatchesGroupNumber.PRESSURE, float),
     (WcWmEngDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
     (WcWmEngDataParticleKey.ENCODER_COUNTS, DataMatchesGroupNumber.ENCODER_COUNTS, int),
     (WcWmEngDataParticleKey.WINCH_CURRENT, DataMatchesGroupNumber.WINCH_CURRENT, float),
     (WcWmEngDataParticleKey.WINCH_STATUS, DataMatchesGroupNumber.WINCH_STATUS, str),
-    (WcWmEngDataParticleKey.VELOCITY, DataMatchesGroupNumber.VELOCITY, float),
-    (WcWmEngDataParticleKey.TEMPERATURE, DataMatchesGroupNumber.TEMPERATURE, float),
+    (WcWmEngDataParticleKey.VELOCITY, DataMatchesGroupNumber.VELOCITY, int),
+    (WcWmEngDataParticleKey.TEMPERATURE, DataMatchesGroupNumber.TEMPERATURE, int),
     (WcWmEngDataParticleKey.WINCH_VOLTAGE, DataMatchesGroupNumber.WINCH_VOLTAGE, float),
     (WcWmEngDataParticleKey.ROPE_ON_DRUM, DataMatchesGroupNumber.ROPE_ON_DRUM, float),
 ]
