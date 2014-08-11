@@ -50,37 +50,13 @@ from mi.dataset.parser.cspp_base import \
     MetadataRawDataKey, \
     encode_y_or_n
 
-# Any record
-RECORD_REGEX = r'.*'
-RECORD_REGEX += END_OF_LINE_REGEX
-RECORD_MATCHER = re.compile(RECORD_REGEX)
-
-# regex for the data record
-DATA_REGEX = r'(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Depth
-DATA_REGEX += '(' + Y_OR_N_REGEX + ')' + MULTIPLE_TAB_REGEX     # Suspect Timestamp
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # Serial Number
-DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # On Seconds
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # Num Wavelengths
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # C Ref Dark
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # C Ref Counts TODO there are num wavelengths of these
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # C Sig Dark
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # C Sig Counts TODO there are num wavelengths of these
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # A Ref Dark
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # A Ref Counts TODO there are num wavelengths of these
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # A Sig Dark
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # A Sig Counts TODO there are num wavelengths of these
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # External Temp Counts
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX    # Internal Temp Counts
-DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX + END_OF_LINE_REGEX   # Pressure Counts
-
 TAB_REGEX = r'\t'
-REGEX = '(' + FLOAT_REGEX + ')' + TAB_REGEX
-REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX
-REGEX += '(' + Y_OR_N_REGEX + ')' + TAB_REGEX
+REGEX = '(' + FLOAT_REGEX + ')' + TAB_REGEX     # Profiler Timestamp
+REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX    # Depth
+REGEX += '(' + Y_OR_N_REGEX + ')' + TAB_REGEX   # Suspect Timestamp
 REGEX += '(' + INT_REGEX + ')' + TAB_REGEX      # serial number
 REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX    # powered on seconds
-REGEX += '(' + INT_REGEX + ')' + TAB_REGEX  # num wavelengths
+REGEX += '(' + INT_REGEX + ')' + TAB_REGEX      # num wavelengths
 MATCHER = re.compile(REGEX)
 
 
@@ -196,9 +172,13 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         @throws RecoverableSampleException If there is a problem with sample creation
         """
 
-        field = 0
-        profiler_timestamp = self.raw_data[field]
+        group_num = 0
+        log.debug("group 0: %s", group_num)
+        profiler_timestamp = self.raw_data.group(DataMatchesGroupNumber.PROFILER_TIMESTAMP)
         log.debug("profiler_timestamp: %s", profiler_timestamp)
+        group_num += 1
+        pressure_depth = self.raw_data.group(DataMatchesGroupNumber.DEPTH)
+        log.debug("pressure depth: %s", pressure_depth)
         results = []
 
         # try:
@@ -347,7 +327,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
         log.debug("data_particle: %s", data_particle)
 
-
         # If we created a data particle, let's append the particle to the result particles
         # to return and increment the state data positioning
         if data_particle:
@@ -367,6 +346,8 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 
+            log.debug('result_particles: %s', result_particles)
+
     def _process_header_part_match(self, header_part_match):
         """
         This method processes a header part match. It will process one row within a cspp header
@@ -374,6 +355,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
         will be updated with the obtained header values.
         @param header_part_match A regular expression match object for a cspp header row
         """
+        log.debug("entered _process_header_part_match")
         header_part_key = header_part_match.group(
             HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
         header_part_value = header_part_match.group(
@@ -434,6 +416,8 @@ class OptaaDjCsppParser(BufferLoadingParser):
             self._increment_read_state(len(chunk))
 
             match = MATCHER.match(chunk)
+            log.debug('match: %s', match)
+
             if match is not None:
 
                 count = match.group(6)   # num wavelengths
@@ -442,30 +426,20 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
                 fields = re.match(data_regex, chunk)
                 if fields is not None:
-                    log.debug('Fields %s', fields.groups())
+                    log.debug('Fields groups %s', fields.groups())
                     self._process_data_match(self._data_particle_class, fields, result_particles)
-                else:
-                    # Check for head part match
-                    header_part_match = HEADER_PART_MATCHER.match(chunk)
+            else:
+                log.debug('Match is None')
+                # Check for head part match
+                header_part_match = HEADER_PART_MATCHER.match(chunk)
+                log.debug('header_part_match: %s', header_part_match)
 
                 if header_part_match is not None:
+                    log.debug("header_part_match is not None:")
                     self._process_header_part_match(header_part_match)
                 else:
+                    log.debug("header_part_match is None:")
                     self._process_chunk_not_containing_data_record_or_header_part(chunk)
-
-            # If we found a data match, let's process it
-            # if battery_match is not None:
-            #     self._process_data_match(self._battery_status_class, battery_match, result_particles)
-            # elif gps_match is not None:
-            #     self._process_data_match(self._gps_adjustment_class, gps_match, result_particles)
-            # else:
-            # Check for head part match
-            # header_part_match = HEADER_PART_MATCHER.match(chunk)
-
-            # if header_part_match is not None:
-            #     self._process_header_part_match(header_part_match)
-            # else:
-            #     self._process_chunk_not_containing_data_record_or_header_part(chunk)
 
             # Retrieve the next non data chunk
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -488,20 +462,20 @@ class OptaaDjCsppParser(BufferLoadingParser):
         data_regex += array  # C Ref counts
 
         data_regex += '(' + INT_REGEX + ')' + TAB_REGEX  # C sig dark
-        #
+
         data_regex += array  # c sig counts
         data_regex += '(' + INT_REGEX + ')' + TAB_REGEX      # A ref dark
-        #
+
         data_regex += array      # a ref counts
-        #
+
         data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # A sig dark
-        #
+
         data_regex += array      # a sig counts
-        #
+
         data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # external temp
         data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # internal temp
         data_regex += '(' + INT_REGEX + ')'      # pressure counts
-        #
+
         data_regex += r'\t*' + END_OF_LINE_REGEX
 
         return data_regex
