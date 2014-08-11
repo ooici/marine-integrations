@@ -72,7 +72,16 @@ class DataMatchesGroupNumber(BaseEnum):
     ON_SECONDS = 5
     NUM_WAVELENGTHS = 6
     C_REF_DARK = 7
-    # TODO complete this
+    C_REF_COUNTS = 8
+    C_SIG_DARK = 9
+    C_SIG_COUNTS = 10
+    A_REF_DARK = 11
+    A_REF_COUNTS = 12
+    A_SIG_DARK = 13
+    A_SIG_COUNTS = 14
+    EXTERNAL_TEMP_COUNTS = 15
+    INTERNAL_TEMP_COUNTS = 16
+    PRESSURE_COUNTS = 17
 
 
 class DataParticleType(BaseEnum):
@@ -172,38 +181,93 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         @throws RecoverableSampleException If there is a problem with sample creation
         """
 
-        group_num = 0
-        log.debug("group 0: %s", group_num)
-        profiler_timestamp = self.raw_data.group(DataMatchesGroupNumber.PROFILER_TIMESTAMP)
-        log.debug("profiler_timestamp: %s", profiler_timestamp)
-        group_num += 1
-        pressure_depth = self.raw_data.group(DataMatchesGroupNumber.DEPTH)
-        log.debug("pressure depth: %s", pressure_depth)
         results = []
 
-        # try:
-        #     results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP,
-        #                                       self.raw_data.group(DataMatchesGroupNumber.PROFILER_TIMESTAMP),
-        #                                       numpy.float))
-        #
-        #     # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_DEPTH,
-        #     #                                   self.raw_data.group(DataMatchesGroupNumber.DEPTH),
-        #     #                                   float))
-        #     #
-        #     # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.SUSPECT_TIMESTAMP,
-        #     #                                   self.raw_data.group(DataMatchesGroupNumber.SUSPECT_TIMESTAMP),
-        #     #                                   encode_y_or_n))
-        #
-        #     # TODO still doing this way? finish it
-        #
-        #     # Set the internal timestamp
-        #
-        #
-        # except (ValueError, TypeError, IndexError) as ex:
-        #     log.warn("Exception when building instrument parsed values")
-        #     raise RecoverableSampleException(
-        #         "Error (%s) while decoding parameters in data: [%s]"
-        #         % (ex, self.raw_data))
+        try:
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP,
+                                              self.raw_data.group(DataMatchesGroupNumber.PROFILER_TIMESTAMP),
+                                              numpy.float))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_DEPTH,
+                                              self.raw_data.group(DataMatchesGroupNumber.DEPTH),
+                                              float))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.SUSPECT_TIMESTAMP,
+                                              self.raw_data.group(DataMatchesGroupNumber.SUSPECT_TIMESTAMP),
+                                              encode_y_or_n))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.ON_SECONDS,
+                                              self.raw_data.group(DataMatchesGroupNumber.ON_SECONDS),
+                                              float))
+
+            num_wavelengths = self.raw_data.group(DataMatchesGroupNumber.NUM_WAVELENGTHS)
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.NUM_WAVELENGTHS,
+                                              num_wavelengths,
+                                              int))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
+                                              self.raw_data.group(DataMatchesGroupNumber.C_REF_DARK),
+                                              int))
+
+            # Encode as array
+            idx = 0
+            # Load the tab separated string
+            c_ref_counts_tab_str = self.raw_data.group(DataMatchesGroupNumber.C_REF_COUNTS)
+            log.debug("c_ref_counts_tab_str: %s", c_ref_counts_tab_str)
+            c_ref_counts_tab_str_stripped = c_ref_counts_tab_str.strip('\t')
+            c_ref_counts_list = c_ref_counts_tab_str_stripped.split('\t')
+            log.debug("c_ref_counts_list: %s", c_ref_counts_list)
+            log.debug("size of c_ref_counts_list: %s", len(c_ref_counts_list))
+            c_ref_counts = [0 for x in range(len(c_ref_counts_list))]
+            log.debug("c_ref_counts: %s", c_ref_counts)
+            for record_set in range(0, len(c_ref_counts_list)):
+                log.debug("int(c_ref_counts_list[idx]: %s",  int(c_ref_counts_list[idx]))
+
+                # We cast to int here as _encode_value does not cast elements in the list
+                c_ref_counts[record_set] = int(c_ref_counts_list[idx], 10)
+                log.debug("int(c_ref_counts_array[idx], 10) %s", int(c_ref_counts_list[idx], 10))
+                idx += 1
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_COUNTS,
+                                              c_ref_counts,
+                                              list))
+
+            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
+            #                                   self.raw_data.group(DataMatchesGroupNumber.C_REF_DARK),
+            #                                   int))
+            #
+            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_DARK_COUNTS,
+            #                                   self.raw_data.group(DataMatchesGroupNumber.C_SIG_DARK),
+            #                                   int))
+            #
+            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_COUNTS,
+            #                                   self.raw_data.group(DataMatchesGroupNumber.C_SIG_COUNTS),
+            #                                   int))
+            #
+            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.EXTERNAL_TEMP_RAW,
+            #                                   self.raw_data.group(DataMatchesGroupNumber.EXTERNAL_TEMP_COUNTS),
+            #                                   int))
+            #
+            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.INTERNAL_TEMP_RAW,
+            #                                   self.raw_data.group(DataMatchesGroupNumber.INTERNAL_TEMP_COUNTS),
+            #                                   int))
+            #
+            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_COUNTS,
+            #                                   self.raw_data.group(DataMatchesGroupNumber.PRESSURE_COUNTS),
+            #                                   int))
+
+            # Set the internal timestamp
+            internal_timestamp_unix = numpy.float(self.raw_data.group(
+                                                  DataMatchesGroupNumber.PROFILER_TIMESTAMP))
+            self.set_internal_timestamp(unix_time=internal_timestamp_unix)
+
+        except (ValueError, TypeError, IndexError) as ex:
+            log.warn("Exception when building instrument parsed values")
+            raise RecoverableSampleException(
+                "Error (%s) while decoding parameters in data: [%s]"
+                % (ex, self.raw_data))
+
+        log.debug("results: %s", results)
 
         return results
 
