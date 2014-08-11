@@ -342,7 +342,6 @@ class SatlanticOCR507ConfigurationParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        log.debug('TODO: Remove this - Attempting to build configuration particle')
         match = CONFIG_REGEX.match(self.raw_data)
 
         if not match:
@@ -449,7 +448,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.INVALID, self._parse_invalid_response)
 
         self._param_dict.add(Parameter.MAX_RATE,
-                             # TODO: r"Maximum\ Frame\ Rate:\ ([(\d|.]+)\ Hz\s*",
                              r"Maximum\ Frame\ Rate:\ (\S+).*?\s*",
                              lambda match: match.group(1),
                              lambda sVal: '%s' % sVal,
