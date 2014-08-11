@@ -1,0 +1,95 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2013-11-21T00:10:15Z'
+    dcl_controller_timestamp: '2013/11/21 00:10:15.098'
+    instrument_id: 'SATDI7'
+    serial_number: '0238'
+    timer:       4.90
+    sample_delay: -133
+    channel_array: [2147461376, 2147942848, 2147948800, 2147340608, 2146671296, 2147799936, 2146995392]
+    vin_sense: 272
+    va_sense: 178
+    internal_temperature: 118
+    frame_counter: 0
+    passed_checksum: 1
+  - _index:  2
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2013-11-21T00:10:16Z'
+    dcl_controller_timestamp: '2013/11/21 00:10:16.102'
+    instrument_id: 'SATDI7'
+    serial_number: '0238'
+    timer:      5.99
+    sample_delay: -133
+    channel_array: [2147458688, 2147942208, 2147951424, 2147336640, 2146672128, 2147789312, 2146991680]
+    vin_sense: 277
+    va_sense: 178
+    internal_temperature: 117
+    frame_counter: 1
+    passed_checksum: 1
+  - _index:  3
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2013-11-21T00:10:17Z'
+    dcl_controller_timestamp: '2013/11/21 00:10:17.106'
+    instrument_id: 'SATDI7'
+    serial_number: '0238'
+    timer:      6.94
+    sample_delay: -133
+    channel_array: [2147456896, 2147943232, 2147944768, 2147340672, 2146669888, 2147797312, 2146987840]
+    vin_sense: 276
+    va_sense: 177
+    internal_temperature: 117
+    frame_counter: 2
+    passed_checksum: 1
+  - _index:  4
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2013-11-21T00:12:00Z'
+    dcl_controller_timestamp: '2013/11/21 00:12:00.534'
+    instrument_id: 'SATDI7'
+    serial_number: '0238'
+    timer:      110.37
+    sample_delay: -133
+    channel_array: [2147459840, 2147940800, 2147938560, 2147329984, 2146668224, 2147787840, 2146979776]
+    vin_sense: 282
+    va_sense: 179
+    internal_temperature: 120
+    frame_counter: 105
+    passed_checksum: 1
+  - _index:  5
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2013-11-21T00:12:01Z'
+    dcl_controller_timestamp: '2013/11/21 00:12:01.548'
+    instrument_id: 'SATDI7'
+    serial_number: '0238'
+    timer:      111.33
+    sample_delay: -133
+    channel_array: [2147459776, 2147943104, 2147942336, 2147333312, 2146665344, 2147783488, 2146986048]
+    vin_sense: 274
+    va_sense: 178
+    internal_temperature: 119
+    frame_counter: 106
+    passed_checksum: 1
+  - _index:  6
+    particle_object: SpkirAbjDclTelemeteredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument
+    internal_timestamp: '2013-11-21T00:12:02Z'
+    dcl_controller_timestamp: '2013/11/21 00:12:02.543'
+    instrument_id: 'SATDI7'
+    serial_number: '0238'
+    timer:      112.43
+    sample_delay: -133
+    channel_array: [2147462976, 2147943232, 2147941632, 2147324736, 2146665536, 2147784000, 2146979968]
+    vin_sense: 286
+    va_sense: 178
+    internal_temperature: 120
+    frame_counter: 107
+    passed_checksum: 1
