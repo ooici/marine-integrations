@@ -23,6 +23,7 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
+from mi.core.exceptions import RecoverableSampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.driver.velpt_j.cspp.driver import DataTypeKey
@@ -67,7 +68,7 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataTypeKey.VELPT_J_CSPP_RECOVERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: VelptJCsppMetadataRecoveredDataParticle,
@@ -75,7 +76,7 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
                     }
             },
             DataTypeKey.VELPT_J_CSPP_TELEMETERED: {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: VelptJCsppMetadataTelemeteredDataParticle,
@@ -90,8 +91,6 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = None
-        #creates the yaml file, commented out to save time when the file already exists
-        self.create_yml()
 
     def particle_to_yml(self, particles, filename, mode='w'):
         """
@@ -228,9 +227,6 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 231)
 
-        for particle in particles:
-            print particle.generate_dict()
-
         test_data = self.get_dict_from_yml(RECOVERED_RESULTS)
 
         for n in range(193):
@@ -336,7 +332,7 @@ class VelptJCsppParserUnitTestCase(ParserUnitTestCase):
 
         self.assertTrue(len(particles) == 2)
 
-        self.assertTrue(self.exception_callback_value)
+        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])

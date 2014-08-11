@@ -55,7 +55,7 @@ class VelptJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
         if data_key == DataTypeKey.VELPT_J_CSPP_RECOVERED:
             config = self._parser_config.get(DataTypeKey.VELPT_J_CSPP_RECOVERED)
             config.update({
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: VelptJCsppMetadataRecoveredDataParticle,
@@ -67,7 +67,7 @@ class VelptJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             config = self._parser_config.get(DataTypeKey.VELPT_J_CSPP_TELEMETERED)
             config.update(
             {
-                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp.py',
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.velpt_j_cspp',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: VelptJCsppMetadataTelemeteredDataParticle,

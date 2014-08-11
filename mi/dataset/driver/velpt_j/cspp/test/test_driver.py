@@ -95,9 +95,6 @@ DataSetTestCase.initialize(
     }
 )
 
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -135,8 +132,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         sampling can be started and stopped
         """
 
-        self.clear_sample_data()
-
         self.driver.start_sampling()
 
         self.create_sample_data_set_dir(SECOND_TEXT, TELEMETERED_DIR)
@@ -160,9 +155,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         log.info("================ START INTEG TEST MID STATE START =====================")
 
-        # Clear any existing sampling
-        self.clear_sample_data()
-
         recovered_path_1 = self.create_sample_data_set_dir(FIRST_TEXT, RECOVERED_DIR)
         telemetered_path_1 = self.create_sample_data_set_dir(SECOND_TEXT, TELEMETERED_DIR)
 
@@ -183,7 +175,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         driver = self._get_driver_object(memento=state)
 
-        # create some data to parse
         self.clear_async_data()
 
         driver.start_sampling()
@@ -252,10 +243,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir(FIRST_TEXT, TELEMETERED_DIR)
         self.create_sample_data_set_dir(FIRST_TEXT, RECOVERED_DIR)
 
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        self.assert_start_sampling()
+        self.assert_initialize()
 
         try:
             result_telemetered = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED,
@@ -283,10 +271,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data_set_dir(FIRST_TEXT, TELEMETERED_DIR)
         self.create_sample_data_set_dir(FIRST_TEXT, RECOVERED_DIR)
 
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 3})
-        self.assert_start_sampling()
+        self.assert_initialize()
 
         try:
             result_telemetered = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED,

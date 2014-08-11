@@ -129,7 +129,7 @@ class VelptJCsppMetadataDataParticle(CsppMetadataDataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
 
         results = []
@@ -177,7 +177,7 @@ class VelptJCsppInstrumentDataParticle(DataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
 
         results = []
@@ -201,7 +201,6 @@ class VelptJCsppInstrumentDataParticle(DataParticle):
             log.warn("Exception when building parsed values")
             raise RecoverableSampleException("Error (%s) while decoding parameters in data: %s" % (ex, self.raw_data))
 
-        log.debug('VelptJCsppInstrumentDataParticle: particle=%s', results)
         return results
 
 
