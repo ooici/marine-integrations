@@ -44,7 +44,6 @@ from mi.dataset.parser.cspp_base import \
     FLOAT_REGEX, \
     INT_REGEX, \
     Y_OR_N_REGEX, \
-    MULTIPLE_TAB_REGEX, \
     END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
@@ -209,52 +208,37 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                                               self.raw_data.group(DataMatchesGroupNumber.C_REF_DARK),
                                               int))
 
-            # Encode as array
-            idx = 0
-            # Load the tab separated string
-            c_ref_counts_tab_str = self.raw_data.group(DataMatchesGroupNumber.C_REF_COUNTS)
-            log.debug("c_ref_counts_tab_str: %s", c_ref_counts_tab_str)
-            c_ref_counts_tab_str_stripped = c_ref_counts_tab_str.strip('\t')
-            c_ref_counts_list = c_ref_counts_tab_str_stripped.split('\t')
-            log.debug("c_ref_counts_list: %s", c_ref_counts_list)
-            log.debug("size of c_ref_counts_list: %s", len(c_ref_counts_list))
-            c_ref_counts = [0 for x in range(len(c_ref_counts_list))]
-            log.debug("c_ref_counts: %s", c_ref_counts)
-            for record_set in range(0, len(c_ref_counts_list)):
-                log.debug("int(c_ref_counts_list[idx]: %s",  int(c_ref_counts_list[idx]))
-
-                # We cast to int here as _encode_value does not cast elements in the list
-                c_ref_counts[record_set] = int(c_ref_counts_list[idx], 10)
-                log.debug("int(c_ref_counts_array[idx], 10) %s", int(c_ref_counts_list[idx], 10))
-                idx += 1
-
+            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_REF_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_COUNTS,
-                                              c_ref_counts,
+                                              counts,
                                               list))
 
-            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
-            #                                   self.raw_data.group(DataMatchesGroupNumber.C_REF_DARK),
-            #                                   int))
-            #
-            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_DARK_COUNTS,
-            #                                   self.raw_data.group(DataMatchesGroupNumber.C_SIG_DARK),
-            #                                   int))
-            #
-            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_COUNTS,
-            #                                   self.raw_data.group(DataMatchesGroupNumber.C_SIG_COUNTS),
-            #                                   int))
-            #
-            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.EXTERNAL_TEMP_RAW,
-            #                                   self.raw_data.group(DataMatchesGroupNumber.EXTERNAL_TEMP_COUNTS),
-            #                                   int))
-            #
-            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.INTERNAL_TEMP_RAW,
-            #                                   self.raw_data.group(DataMatchesGroupNumber.INTERNAL_TEMP_COUNTS),
-            #                                   int))
-            #
-            # results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_COUNTS,
-            #                                   self.raw_data.group(DataMatchesGroupNumber.PRESSURE_COUNTS),
-            #                                   int))
+            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_REF_DARK)
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
+                                              counts,
+                                              list))
+
+            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_SIG_DARK)
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_DARK_COUNTS,
+                                              counts,
+                                              list))
+
+            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_SIG_COUNTS)
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_COUNTS,
+                                              counts,
+                                              list))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.EXTERNAL_TEMP_RAW,
+                                              self.raw_data.group(DataMatchesGroupNumber.EXTERNAL_TEMP_COUNTS),
+                                              int))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.INTERNAL_TEMP_RAW,
+                                              self.raw_data.group(DataMatchesGroupNumber.INTERNAL_TEMP_COUNTS),
+                                              int))
+
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_COUNTS,
+                                              self.raw_data.group(DataMatchesGroupNumber.PRESSURE_COUNTS),
+                                              int))
 
             # Set the internal timestamp
             internal_timestamp_unix = numpy.float(self.raw_data.group(
@@ -270,6 +254,30 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         log.debug("results: %s", results)
 
         return results
+
+    def _build_list_for_encoding(self, group_num):
+        """
+        Helper method for building the list that is needed for encoding
+        @param group_num the group number of the match
+        @return the list of counts
+        """
+
+        # Encode as array
+        idx = 0
+        # Load the tab separated string
+        tab_str = self.raw_data.group(group_num)
+        tab_str_stripped = tab_str.strip('\t')
+        counts_list = tab_str_stripped.split('\t')
+        # noinspection PyUnusedLocal
+        counts = [0 for x in range(len(counts_list))]
+
+        for record_set in range(0, len(counts_list)):
+
+            # We cast to int here as _encode_value does not cast elements in the list
+            counts[record_set] = int(counts_list[idx], 10)
+            idx += 1
+
+        return counts
 
 
 class OptaaDjCsppInstrumentRecoveredDataParticle(OptaaDjCsppInstrumentDataParticle):
@@ -394,6 +402,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
         # If we created a data particle, let's append the particle to the result particles
         # to return and increment the state data positioning
         if data_particle:
+            metadata_particle = None
             if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
                 metadata_particle = self._extract_sample(self._metadata_particle_class,
                                                          None,
@@ -486,7 +495,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
                 count = match.group(6)   # num wavelengths
 
-                data_regex = self.build_data_regex(REGEX, count)
+                data_regex = self._build_data_regex(REGEX, count)
 
                 fields = re.match(data_regex, chunk)
                 if fields is not None:
@@ -517,28 +526,32 @@ class OptaaDjCsppParser(BufferLoadingParser):
         log.debug("leaving parse_chunks")
         return result_particles
 
-    def build_data_regex(self, regex, count):
+    @staticmethod
+    def _build_data_regex(regex, count):
+        """
+        Helper method for building up regex
+        @param regex the beginning part of the regex that has already been determined
+        @param count the number of items in the array
+        """
+
         data_regex = regex
         array = r'((?:\d+\t){%s})' % count
 
-        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX   # C ref dark
+        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # C Ref Dark
+        data_regex += array                                 # C Ref Counts
 
-        data_regex += array  # C Ref counts
+        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # C Sig Dark
+        data_regex += array                                 # C Sig Counts
 
-        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX  # C sig dark
+        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # A Ref Dark
+        data_regex += array                                 # A Ref Counts
 
-        data_regex += array  # c sig counts
-        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX      # A ref dark
+        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # A Sig Dark
+        data_regex += array                                 # A Sig Counts
 
-        data_regex += array      # a ref counts
-
-        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # A sig dark
-
-        data_regex += array      # a sig counts
-
-        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # external temp
-        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # internal temp
-        data_regex += '(' + INT_REGEX + ')'      # pressure counts
+        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # External Temp Counts
+        data_regex += '(' + INT_REGEX + ')' + TAB_REGEX     # Internal Temp Counts
+        data_regex += '(' + INT_REGEX + ')'                 # Pressure Counts
 
         data_regex += r'\t*' + END_OF_LINE_REGEX
 

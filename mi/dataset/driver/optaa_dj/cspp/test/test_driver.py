@@ -2,7 +2,7 @@
 @package mi.dataset.driver.optaa_dj.cspp.test.test_driver
 @file marine-integrations/mi/dataset/driver/optaa_dj/cspp/driver.py
 @author Joe Padula
-@brief Test cases for optaa_dg_cspp driver
+@brief Test cases for optaa_dj_cspp driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -29,7 +29,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.optaa_dj.cspp.driver import OptaaDjCsppDataSetDriver
-from mi.dataset.parser.optaa_dg_cspp import OptaaDgCsppParserDataParticle
+from mi.dataset.parser.optaa_dj_cspp import OptaaDjCsppParserDataParticle
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -39,7 +39,7 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = OptaaDjCsppDataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'optaa_dg_cspp',
+        DataSourceConfigKey.RESOURCE_ID: 'optaa_dj_cspp',
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
@@ -50,7 +50,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'optaa_dg_cspp_parsed'
+SAMPLE_STREAM = 'optaa_dj_cspp_parsed'
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
