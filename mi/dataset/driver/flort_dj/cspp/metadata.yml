@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeremy Amundson
+  constructor: FlortDjCsppDataSetDriver
+  driver_name: flort_dj_cspp
+  driver_path: flort_dj/cspp
+  email: jeremy.s.amundson@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1

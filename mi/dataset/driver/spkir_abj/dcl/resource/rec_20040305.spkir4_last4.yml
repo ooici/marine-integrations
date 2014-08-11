@@ -1,0 +1,65 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2004-03-05T07:15:29Z'
+    dcl_controller_timestamp: '2004/03/05 07:15:29.343'
+    instrument_id: 'SATDI3'
+    serial_number: '0203'
+    timer:      94.29
+    sample_delay: 18723
+    channel_array: [3374617147, 3374617148, 3374617149, 3374617150, 3374617151, 3374617152, 3374617153]
+    vin_sense: 51491
+    va_sense: 51491
+    internal_temperature: 51491
+    frame_counter: 198
+    passed_checksum: 1
+  - _index:  2
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2004-03-05T07:15:42Z'
+    dcl_controller_timestamp: '2004/03/05 07:15:42.922'
+    instrument_id: 'SATDI3'
+    serial_number: '0203'
+    timer:     102.86
+    sample_delay: 23404
+    channel_array: [3681400524, 3681400525, 3681400526, 3681400527, 3681400528, 3681400529, 3681400530]
+    vin_sense: 56172
+    va_sense: 56172
+    internal_temperature: 56172
+    frame_counter: 216
+    passed_checksum: 1
+  - _index:  3
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2004-03-05T07:15:56Z'
+    dcl_controller_timestamp: '2004/03/05 07:15:56.501'
+    instrument_id: 'SATDI3'
+    serial_number: '0203'
+    timer:     111.43
+    sample_delay: 28085
+    channel_array: [3988183901, 3988183902, 3988183903, 3988183904, 3988183905, 3988183906, 3988183907]
+    vin_sense: 60853
+    va_sense: 60853
+    internal_temperature: 60853
+    frame_counter: 234
+    passed_checksum: 1
+  - _index:  4
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2004-03-05T07:16:10Z'
+    dcl_controller_timestamp: '2004/03/05 07:16:10.080'
+    instrument_id: 'SATDI3'
+    serial_number: '0203'
+    timer:     120.00
+    sample_delay: 32766
+    channel_array: [4294967278, 4294967279, 4294967280, 4294967281, 4294967282, 4294967283, 4294967284]
+    vin_sense: 65534
+    va_sense: 65534
+    internal_temperature: 65534
+    frame_counter: 252
+    passed_checksum: 1

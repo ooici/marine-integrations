@@ -1,0 +1,24 @@
+header:
+ particle_object: 'MULTIPLE'
+ particle_type: 'MULTIPLE'
+data:
+ - _index: 1
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762493.747000
+   profiler_timestamp: 1397773693.7469999790191650
+   suspect_timestamp: 0
+   temperature: 9.8140999999999998
+   conductivity: 3.6078100000000002
+   pressure: 19.3590000000000018
+   salinity: 33.1099000000000032
+ - _index: 2
+   particle_object: CtdpfJCsppInstrumentRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_instrument_recovered
+   internal_timestamp: 3606762493.810000
+   profiler_timestamp: 1397773693.8099999427795410
+   suspect_timestamp: 0
+   temperature: 9.8137000000000008
+   conductivity: 3.6077599999999999
+   pressure: 19.3460000000000001
+   salinity: 33.1097999999999999
