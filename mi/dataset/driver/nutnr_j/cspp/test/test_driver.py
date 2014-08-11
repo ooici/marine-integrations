@@ -344,22 +344,21 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_byte_loss(self):
         """
-        Test that a file with known byte loss occuring creates an exception
+        Test that a file with known byte loss occuring in the form of hex ascii
+        lines of data creates an exception
         """
         self.create_sample_data_set_dir('11330408_SNA_SNA.txt', TELEM_DIR)
 
         self.assert_initialize()
 
+        # first sample occurs before block of 27 hex ascii lines that produce errors,
+        # the second sample occurs after this block
         result_t = self.data_subscribers.get_samples(DataParticleType.METADATA, 1)
-        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
+        result_t2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
         result_t.extend(result_t2)
 
         # make sure we get the one ok sample in the file and metadata
         self.assert_data_values(result_t, 'byte_loss.yml')
 
         # confirm an exception occured
-        
-        ### TODO:
-        ### The current parser is including the ascii hex in its ignore matcher
-        ### and not returning samples, need to fix ignore matcher in parser
         self.assert_event_received(ResourceAgentErrorEvent)

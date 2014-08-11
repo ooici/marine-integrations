@@ -29,7 +29,9 @@ from mi.dataset.parser.cspp_base import CsppParser, CsppMetadataDataParticle, \
                                         FLOAT_REGEX, INT_REGEX, \
                                         Y_OR_N_REGEX, \
                                         END_OF_LINE_REGEX, \
-                                        encode_y_or_n
+                                        encode_y_or_n, \
+                                        TIMESTAMP_LINE_MATCHER, \
+                                        StateKey
 
 FLOAT_TAB_REGEX = FLOAT_REGEX + '\t'
 
@@ -90,6 +92,9 @@ GRP_CTD_TIME = GRP_SPECTRAL_END + 14
 GRP_CTD_PSU = GRP_SPECTRAL_END + 15
 GRP_CTD_TEMP = GRP_SPECTRAL_END + 16
 GRP_CTD_DBAR = GRP_SPECTRAL_END + 17
+
+HEX_LINE_REGEX = LINE_START_REGEX + '[0-9A-Fa-f]*' + END_OF_LINE_REGEX
+HEX_LINE_MATCHER = re.compile(HEX_LINE_REGEX)
 
 # ignore lines matching the start (timestamp, depth, suspect timestamp),
 # then any text not containing tabs
@@ -317,4 +322,39 @@ class NutnrJCsppParser(CsppParser):
                                                DATA_REGEX,
                                                ignore_matcher=IGNORE_MATCHER,
                                                *args, **kwargs)
+
+    def _process_chunk_not_containing_data_record_or_header_part(self, chunk):
+        """
+        This method processes a chunk that does not contain a data record or header.  This case is
+        not applicable to "non_data".  For cspp file streams, we expect some lines in the file that
+        we do not care about, and we will not consider them "non_data".
+        This is overridden from the base class to handle matching and throwing an exception for
+        data that has been corrupted with all hex ascii
+        @param chunk A regular expression match object for a cspp header row
+        """
+
+        if TIMESTAMP_LINE_MATCHER.match(chunk):
+            # Ignore the timestamp header line
+            pass
+
+        elif HEX_LINE_MATCHER.match(chunk):
+            # we found a line starting with the timestamp, depth, and
+            # suspect timestamp, followed by all hex ascii chars
+            log.warn('got hex ascii corrupted data %s at position %s', chunk,
+                     self._read_state[StateKey.POSITION])
+            self._exception_callback(RecoverableSampleException(
+                "Found hex ascii corrupted data: %s" % chunk))
+
+        # ignore matcher must come after hex line matcher because the ignore regex
+        # will also match hex ascii
+        elif self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
+            # Ignore
+            pass
+
+        else:
+            # OK.  We got unexpected data
+            log.warn('got unrecognized row %s at position %s', chunk,
+                     self._read_state[StateKey.POSITION])
+            self._exception_callback(RecoverableSampleException(
+                "Found an invalid chunk: %s" % chunk))
 

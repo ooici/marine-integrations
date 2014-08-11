@@ -406,7 +406,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, PARTICLE_E_POS, self.recov_particle_e, True)
 
         # confirm no exceptions occurred
-        self.assertEqual(self.exception_callback_value, None)
+        self.assertEqual(self.exception_callback_value, [])
 
         stream_handle.close()
 
@@ -497,7 +497,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assert_position(PARTICLE_E_POS)
         self.assertEqual(self.file_ingested_value, True)
         # confirm no exceptions occurred
-        self.assertEqual(self.exception_callback_value, None)
+        self.assertEqual(self.exception_callback_value, [])
 
 	stream_handle.close()
 
