@@ -15,6 +15,7 @@ USAGE:
 """
 
 import time
+import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
@@ -60,7 +61,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.MAX_RATE: 0,
+            Parameter.MAX_RATE: '0',
             Parameter.INIT_SM: True,
             Parameter.INIT_AT: True,
             Parameter.NET_MODE: False
@@ -116,7 +117,7 @@ class SatlanticMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.MAX_RATE: {TYPE: float, READONLY: False, DA: True, STARTUP: True, VALUE: 0},
+        Parameter.MAX_RATE: {TYPE: str, READONLY: False, DA: True, STARTUP: True, VALUE: '0'},
         Parameter.INIT_SM: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
         Parameter.INIT_AT: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True},
         Parameter.NET_MODE: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
@@ -387,7 +388,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_initialize_driver(SatlanticProtocolState.COMMAND)
 
         #test read/write parameter
-        self.assert_set(Parameter.MAX_RATE, 2.0)
+        self.assert_set(Parameter.MAX_RATE, '2.0')
 
         #test setting immutable parameters when startup
         self.assert_set(Parameter.INIT_SM, False, startup=True, no_get=True)
@@ -411,7 +412,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
 
         # test set bad param values
         self.assert_set_exception(Parameter.NET_MODE, 'Do a barrel roll!')
-        self.assert_set_exception(Parameter.MAX_RATE, 40)
+        self.assert_set_exception(Parameter.MAX_RATE, '40')
         # test get/set bad param
         self.assert_set_exception('bad_param', False)
         with self.assertRaises(Exception):

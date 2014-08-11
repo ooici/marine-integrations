@@ -45,7 +45,7 @@ CONFIG_PATTERN = '''Satlantic\ OCR.*?
             Instrument:\ (?P<instrument_id>\w+)\s*
             S\/N:\ (?P<serial_number>\w+).*?
             Telemetry\ Baud\ Rate:\ (?P<telemetry_baud_rate>\d+)\ bps\s*
-            Maximum\ Frame\ Rate:\ (?P<max_frame_rate>\d+)\ Hz\s*
+            Maximum\ Frame\ Rate:\ (?P<max_frame_rate>\S+).*?
             Initialize\ Silent\ Mode:\ (?P<initialize_silent_mode>off|on)\s*
             Initialize\ Power\ Down:\ (?P<initialize_power_down>off|on)\s*
             Initialize\ Automatic\ Telemetry:\ (?P<initialize_auto_telemetry>off|on)\s*
@@ -53,6 +53,20 @@ CONFIG_PATTERN = '''Satlantic\ OCR.*?
             Network\ Address:\ (?P<network_address>\d+)\s*
             Network\ Baud\ Rate:\ (?P<network_baud_rate>\d+)\ bps.*?
             \[Auto'''
+
+# CONFIG_PATTERN = '''Satlantic\ OCR.*?
+#             Firmware\ version:\ (?P<firmware_version>.*?)\s*
+#             Instrument:\ (?P<instrument_id>\w+)\s*
+#             S\/N:\ (?P<serial_number>\w+).*?
+#             Telemetry\ Baud\ Rate:\ (?P<telemetry_baud_rate>\d+)\ bps\s*
+#             Maximum\ Frame\ Rate:\ (?P<max_frame_rate>\d+)\ Hz\s*
+#             Initialize\ Silent\ Mode:\ (?P<initialize_silent_mode>off|on)\s*
+#             Initialize\ Power\ Down:\ (?P<initialize_power_down>off|on)\s*
+#             Initialize\ Automatic\ Telemetry:\ (?P<initialize_auto_telemetry>off|on)\s*
+#             Network\ Mode:\ (?P<network_mode>off|on)\s*
+#             Network\ Address:\ (?P<network_address>\d+)\s*
+#             Network\ Baud\ Rate:\ (?P<network_baud_rate>\d+)\ bps.*?
+#             \[Auto'''
 
 CONFIG_REGEX = re.compile(CONFIG_PATTERN, re.DOTALL | re.VERBOSE)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
@@ -328,6 +342,7 @@ class SatlanticOCR507ConfigurationParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
+        log.debug('TODO: Remove this - Attempting to build configuration particle')
         match = CONFIG_REGEX.match(self.raw_data)
 
         if not match:
@@ -434,12 +449,13 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.INVALID, self._parse_invalid_response)
 
         self._param_dict.add(Parameter.MAX_RATE,
-                             r"Maximum\ Frame\ Rate:\ ([(\d|.]+)\ Hz\s*",
-                             lambda match: float(match.group(1)),
-                             lambda fVal: '%s' % str(fVal),
-                             type=ParameterDictType.FLOAT,
+                             # TODO: r"Maximum\ Frame\ Rate:\ ([(\d|.]+)\ Hz\s*",
+                             r"Maximum\ Frame\ Rate:\ (\S+).*?\s*",
+                             lambda match: match.group(1),
+                             lambda sVal: '%s' % sVal,
+                             type=ParameterDictType.STRING,
                              display_name="Max Rate",
-                             default_value=0,
+                             default_value='0',
                              startup_param=True,
                              direct_access=True)
 
@@ -935,7 +951,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                 break
             val = self._param_dict.format(key, params[key])
             log.debug("KEY = %s VALUE = %s", str(key), str(val))
-            if key == Parameter.MAX_RATE and params[key] not in VALID_MAXRATES:
+            if key == Parameter.MAX_RATE and float(params[key]) not in VALID_MAXRATES:
                 exception = InstrumentParameterException("Maxrate %s out of range" % val)
                 break
             # Check for existance in dict (send only on change)
@@ -987,7 +1003,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             if COMMAND_PATTERN in self._promptbuf:
                 break
 
-            if time.time() > starttime + 5:
+            if time.time() > starttime + 10:
                 raise InstrumentTimeoutException("Break command failing to stop autosample!")
 
             time.sleep(0.1)
