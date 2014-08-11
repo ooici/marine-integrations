@@ -11,12 +11,10 @@ initial release
 __author__ = 'Jeff Roy'
 __license__ = 'Apache 2.0'
 
-import string
 
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.core.common import BaseEnum
 from mi.core.exceptions import ConfigurationException
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver

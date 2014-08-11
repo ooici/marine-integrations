@@ -375,4 +375,3 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
         stream_handle.close()
-

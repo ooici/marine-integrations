@@ -31,9 +31,6 @@ from mi.dataset.parser.cspp_base import \
     END_OF_LINE_REGEX, \
     CsppMetadataDataParticle, \
     MetadataRawDataKey, \
-    PARTICLE_KEY_INDEX, \
-    DATA_MATCHES_GROUP_NUMBER_INDEX, \
-    TYPE_ENCODING_INDEX, \
     encode_y_or_n
 
 # Input Records are formatted as follows
@@ -63,7 +60,7 @@ DATA_REGEX += '(' + STRING_REGEX + ')' + MULTIPLE_TAB_REGEX  # Winch Status
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Velocity
 DATA_REGEX += '(' + INT_REGEX + ')' + MULTIPLE_TAB_REGEX     # Temperature
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX   # Winch Voltage
-DATA_REGEX += INT_REGEX +  MULTIPLE_TAB_REGEX                # Time Counts (ignored)
+DATA_REGEX += INT_REGEX + MULTIPLE_TAB_REGEX                 # Time Counts (ignored)
 DATA_REGEX += INT_REGEX + MULTIPLE_TAB_REGEX                 # Discharge Counts (ignored)
 DATA_REGEX += '(' + FLOAT_REGEX + ')' + END_OF_LINE_REGEX    # Rope on Drum
 
