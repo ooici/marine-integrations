@@ -68,6 +68,8 @@ class DataParticleType(BaseEnum):
     METADATA = 'nutnr_j_cspp_metadata'
     METADATA_RECOVERED = 'nutnr_j_cspp_metadata_recovered'
 
+SPECTRAL_CHANNELS = 'spectral_channels'
+
 PARAMETER_MAP = [
     ('profiler_timestamp',             0, float),
     ('pressure_depth',                 1, float),
@@ -84,7 +86,7 @@ PARAMETER_MAP = [
     ('nutnr_spectrum_average',        12, int),
     ('nutnr_dark_value_used_for_fit', 13, int),
     ('nutnr_integration_time_factor', 14, int),
-    ('spectral_channels',             GRP_SPECTRAL_START,    list),
+    (SPECTRAL_CHANNELS,               GRP_SPECTRAL_START,    list),
     ('temp_interior',                 GRP_SPECTRAL_END,      float),
     ('temp_spectrometer',             GRP_SPECTRAL_END + 1,  float),
     ('temp_lamp',                     GRP_SPECTRAL_END + 2,  float),
@@ -170,7 +172,7 @@ class NutnrJCsppDataParticle(DataParticle):
                                                  self.raw_data.group(0))
 
             for name, index, encode_function in PARAMETER_MAP:
-                if name == 'spectral_channels':
+                if name == SPECTRAL_CHANNELS:
                     # spectral channels is an array of ints, need to do the extra map 
                     results.append(self._encode_value(name,
                                                       map(int, params[index:GRP_SPECTRAL_END]),

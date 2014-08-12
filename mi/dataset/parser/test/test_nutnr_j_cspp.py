@@ -596,7 +596,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.file_ingested_value, True)
         # confirm no exceptions occurred
         self.assertEqual(len(self.exception_callback_value), 1)
-        self.assert_(isinstance(self.exception_callback_value[0], SampleException))
+        self.assert_(isinstance(self.exception_callback_value[0], RecoverableSampleException))
 
         stream_handle.close()
 
@@ -623,6 +623,6 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.file_ingested_value, True)
         # confirm no exceptions occurred
         self.assertEqual(len(self.exception_callback_value), 1)
-        self.assert_(isinstance(self.exception_callback_value[0], SampleException))
+        self.assert_(isinstance(self.exception_callback_value[0], RecoverableSampleException))
 
         stream_handle.close()

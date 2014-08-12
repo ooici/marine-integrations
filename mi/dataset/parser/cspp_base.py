@@ -372,7 +372,7 @@ class CsppParser(BufferLoadingParser):
                     # extract sample will catch and send recoverable and encoding exceptions to the
                     # exception callback, all other exceptions should make it here
                     log.warn('Error creating metadata particle: %s', e)
-                    self._exception_callback(SampleException('Error creating metadata particle: %s' % e))
+                    self._exception_callback(RecoverableSampleException('Error creating metadata particle: %s' % e))
 
                 # need to set metadata extracted to true so we don't keep creating
                 # the metadata, even if it failed
@@ -415,7 +415,7 @@ class CsppParser(BufferLoadingParser):
             # suspect timestamp, followed by all hex ascii chars
             log.warn('got hex ascii corrupted data %s at position %s', chunk,
                      self._read_state[StateKey.POSITION])
-            self._exception_callback(SampleException(
+            self._exception_callback(RecoverableSampleException(
                 "Found hex ascii corrupted data: %s" % chunk))
 
         # ignore matcher must come after hex line matcher because the ignore regex
