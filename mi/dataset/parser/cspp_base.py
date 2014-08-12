@@ -22,7 +22,8 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import DatasetParserException, \
-    UnexpectedDataException, RecoverableSampleException, SampleException
+    UnexpectedDataException, RecoverableSampleException, \
+    ConfigurationException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -54,6 +55,9 @@ SAMPLE_START_REGEX = FLOAT_REGEX + '\t' + FLOAT_REGEX + '\t' + Y_OR_N_REGEX + '\
 
 # match the profiler timestamp, depth, suspect timestamp followed by all hex
 # ascii chars
+# not all cspp instruments will match this due to the depth and suspect timestamp
+# being reversed, but those do not have ignore matchers so they will get caught
+# by being expected data
 HEX_ASCII_LINE_REGEX = SAMPLE_START_REGEX + '[0-9A-Fa-f]*' + END_OF_LINE_REGEX
 HEX_ASCII_LINE_MATCHER = re.compile(HEX_ASCII_LINE_REGEX)
 
@@ -68,6 +72,7 @@ def encode_y_or_n(val):
         return 1
     else:
         return 0
+
 
 class HeaderPartMatchesGroupNumber(BaseEnum):
     """
@@ -87,7 +92,6 @@ class DefaultHeaderKey(BaseEnum):
     DEVICE = 'Device'
     START_DATE = 'Start Date'
 
-
 # The default set of header keys as a list
 DEFAULT_HEADER_KEY_LIST = DefaultHeaderKey.list()
 
@@ -104,7 +108,6 @@ class CsppMetadataParserDataParticleKey(BaseEnum):
     PREPROCESSING_SOFTWARE_VERSION = 'preprocessing_software_version'
     START_DATE = 'start_date'
 
-
 # The following are used to index into encoding rules tuple structures.  The HEADER_DICTIONARY_KEY_INDEX
 # is the same value as the DATA_MATCHES_GROUP_NUMBER_INDEX because one is used for the metadata and the other
 # is used for the data record.
@@ -113,12 +116,12 @@ HEADER_DICTIONARY_KEY_INDEX = 1
 DATA_MATCHES_GROUP_NUMBER_INDEX = 1
 TYPE_ENCODING_INDEX = 2
 
-
 # A group of metadata particle encoding rules used to simplify encoding using a loop
 METADATA_PARTICLE_ENCODING_RULES = [
     (CsppMetadataParserDataParticleKey.SOURCE_FILE, DefaultHeaderKey.SOURCE_FILE, str),
     (CsppMetadataParserDataParticleKey.PREPROCESSING_SOFTWARE_VERSION, DefaultHeaderKey.USING_VERSION, str),
     (CsppMetadataParserDataParticleKey.START_DATE, DefaultHeaderKey.START_DATE, str),
+    (CsppMetadataParserDataParticleKey.PROCESSING_TIME, DefaultHeaderKey.PROCESSED, str)
 ]
 
 # The following items are used to index into source file name string
@@ -167,60 +170,36 @@ class CsppMetadataDataParticle(DataParticle):
         # Grab the source file path from the match raw_data's
         source_file_path = header_dict[DefaultHeaderKey.SOURCE_FILE]
 
-        if source_file_path is not None:
+        # Split the source file path.  The regex below supports splitting on a Windows or unix/linux file path.
+        source_file_name_parts = re.split(r'\\|/', source_file_path)
+        # Obtain the list of source file name parts
+        num_source_name_file_parts = len(source_file_name_parts)
+        # Grab the last part of the source file name
+        last_part_of_source_file_name = source_file_name_parts[num_source_name_file_parts - 1]
 
-            # Split the source file path.  The regex below supports splitting on a Windows or unix/linux file path.
-            source_file_name_parts = re.split(r'\\|/', source_file_path)
-            # Obtain the list of source file name parts
-            num_source_name_file_parts = len(source_file_name_parts)
-            # Grab the last part of the source file name
-            last_part_of_source_file_name = source_file_name_parts[num_source_name_file_parts - 1]
+        # Encode the last character controller ID which consists of one character within the source file name
+        results.append(self._encode_value(
+            CsppMetadataParserDataParticleKey.LAST_CHARACTER_CONTROLLER_ID,
+            last_part_of_source_file_name[LAST_CHARACTER_CONTROLLER_ID_SOURCE_FILE_CHAR_POSITION],
+            str))
 
-            # Encode the last character controller ID which consists of one character within the source file name
-            results.append(self._encode_value(
-                CsppMetadataParserDataParticleKey.LAST_CHARACTER_CONTROLLER_ID,
-                last_part_of_source_file_name[LAST_CHARACTER_CONTROLLER_ID_SOURCE_FILE_CHAR_POSITION],
-                str))
+        # Encode the day of year number which consists of three characters within the source file name
+        results.append(self._encode_value(
+            CsppMetadataParserDataParticleKey.DAY_OF_YEAR_NUMBER,
+            last_part_of_source_file_name[
+                DAY_OF_YEAR_NUMBER_SOURCE_FILE_STARTING_CHAR_POSITION:DAY_OF_YEAR_NUMBER_SOURCE_FILE_CHARS_END_RANGE],
+            int))
 
-            # Encode the day of year number which consists of three characters within the source file name
-            results.append(self._encode_value(
-                CsppMetadataParserDataParticleKey.DAY_OF_YEAR_NUMBER,
-                last_part_of_source_file_name[
-                    DAY_OF_YEAR_NUMBER_SOURCE_FILE_STARTING_CHAR_POSITION:DAY_OF_YEAR_NUMBER_SOURCE_FILE_CHARS_END_RANGE],
-                int))
-
-            # Encode the fraction of day which consists of four characters within the source file name
-            results.append(self._encode_value(
-                CsppMetadataParserDataParticleKey.FRACTION_OF_DAY,
-                last_part_of_source_file_name[
-                    FRACTION_OF_DAY_SOURCE_FILE_STARTING_CHAR_POSITION:FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE],
-                int))
-
-        else:
-            log.warn("No source file path, not creating metadata")
-            raise SampleException("No source file path, not creating metadata")
-
-        # Grab the processed date and time from the match raw_data
-        if header_dict[DefaultHeaderKey.PROCESSED] is not None:
-            (processed_date, processed_time) = header_dict[DefaultHeaderKey.PROCESSED].split()
-
-            # Encode the processing time which includes the processed date and time retrieved above
-            results.append(self._encode_value(
-                CsppMetadataParserDataParticleKey.PROCESSING_TIME,
-                processed_date + " " + processed_time,
-                str))
-        else:
-            # No processed time, include 'None' string
-            results.append(self._encode_value(
-                CsppMetadataParserDataParticleKey.PROCESSING_TIME, None, str))
+        # Encode the fraction of day which consists of four characters within the source file name
+        results.append(self._encode_value(
+            CsppMetadataParserDataParticleKey.FRACTION_OF_DAY,
+            last_part_of_source_file_name[
+                FRACTION_OF_DAY_SOURCE_FILE_STARTING_CHAR_POSITION:FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE],
+            int))
 
         # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
-        for rule in METADATA_PARTICLE_ENCODING_RULES:
-
-            results.append(self._encode_value(
-                rule[PARTICLE_KEY_INDEX],
-                header_dict[rule[HEADER_DICTIONARY_KEY_INDEX]],
-                rule[TYPE_ENCODING_INDEX]))
+        for name, index, encoding_func in METADATA_PARTICLE_ENCODING_RULES:
+            results.append(self._encode_value(name, header_dict[index], encoding_func))
 
         log.debug('CsppMetadataDataParticle: particle=%s', results)
         return results
@@ -275,10 +254,21 @@ class CsppParser(BufferLoadingParser):
             self._header_state[header_key] = None
 
         # Obtain the particle classes dictionary from the config data
-        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-        # Set the metadata and data particle classes to be used later
-        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
-        self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+        if DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT in config:
+            particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
+            # Set the metadata and data particle classes to be used later
+            if METADATA_PARTICLE_CLASS_KEY in particle_classes_dict and \
+            DATA_PARTICLE_CLASS_KEY in particle_classes_dict:
+                self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+                self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+            else:
+                log.warning(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+                raise ConfigurationException(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+        else:
+            log.warning('Configuration missing particle classes dict')
+            raise ConfigurationException('Configuration missing particle classes dict')
 
         # Initialize the record buffer to an empty list
         self._record_buffer = []
@@ -352,27 +342,30 @@ class CsppParser(BufferLoadingParser):
             if not self._read_state[StateKey.METADATA_EXTRACTED]:
                 # once the first data particle is read, all header lines should have
                 # also been read, if they haven't the not filled in values in the
-                # header state dictionary are None
-                try:
+                # header state dictionary are None, except for source file which is required
+
+                if self._header_state[DefaultHeaderKey.SOURCE_FILE] is not None:
                     metadata_particle = self._extract_sample(self._metadata_particle_class,
                                                              None,
                                                              (copy.copy(self._header_state),
                                                               data_match),
                                                              None)
-                    # the only way we won't get a metadata particle is if there is a
-                    # recoverable sample exception
                     if metadata_particle:
-                        self._read_state[StateKey.METADATA_EXTRACTED] = True
                         # We're going to insert the metadata particle so that it is 
                         # the first in the list and set the position to 0, as it cannot 
                         # have the same position as the non-metadata particle
                         result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
                                                                         StateKey.METADATA_EXTRACTED: True}))
-                except Exception as e:
-                    # extract sample will catch and send recoverable and encoding exceptions to the
-                    # exception callback, all other exceptions should make it here
-                    log.warn('Error creating metadata particle: %s', e)
-                    self._exception_callback(RecoverableSampleException('Error creating metadata particle: %s' % e))
+                    else:
+                        # metadata particle was not created successfully
+                        log.warn('Unable to create metadata particle')
+                        self._exception_callback(RecoverableSampleException(
+                            'Unable to create metadata particle'))
+                else:
+                    # no source file path, don't create metadata particle
+                    log.warn('No source file, not creating metadata particle')
+                    self._exception_callback(RecoverableSampleException(
+                        'No source file, not creating metadata particle'))
 
                 # need to set metadata extracted to true so we don't keep creating
                 # the metadata, even if it failed
@@ -419,7 +412,7 @@ class CsppParser(BufferLoadingParser):
                 "Found hex ascii corrupted data: %s" % chunk))
 
         # ignore matcher must come after hex line matcher because the ignore regex
-        # will also match hex ascii
+        # may also match hex ascii
         elif self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
             # Ignore
             pass

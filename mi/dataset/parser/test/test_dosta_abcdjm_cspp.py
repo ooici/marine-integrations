@@ -609,7 +609,7 @@ class DostaAbcdjmCsppParserUnitTestCase(ParserUnitTestCase):
 
         # parser should return metadata without start date filled in
         parser.get_records(1)
-        self.assertTrue(self.exception_callback_value != None)
+        self.assertEqual(self.exception_callback_value, None)
 
         stream_handle.close()
 

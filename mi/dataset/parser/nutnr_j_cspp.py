@@ -20,8 +20,7 @@ import ntplib
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException, \
-                               UnexpectedDataException, RecoverableSampleException
+from mi.core.exceptions import RecoverableSampleException
 
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.dataset.parser.cspp_base import CsppParser, CsppMetadataDataParticle, \
@@ -40,7 +39,7 @@ DATA_REGEX = SAMPLE_START_REGEX
 DATA_REGEX += '[a-zA-Z]+\t' # Frame Type
 DATA_REGEX += '\d+\t\d+\t' # year, day of year
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){6}' # match 6 floats separated by tabs
-DATA_REGEX += '[\d\t]+' # match any number or tabs to match a series of ints separated by tabs
+DATA_REGEX += '(?:\d+\t){259}' # match 259 ints separated by tabs, non capturing group due to number of groups
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){3}' # match 3 floats separated by tabs
 DATA_REGEX += '(' + INT_REGEX + ')\t' # lamp time
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){10}' # match 10 floats separated by tabs
@@ -61,6 +60,7 @@ GRP_SPECTRAL_END = GRP_SPECTRAL_START + NUMBER_CHANNELS
 # then any text not containing tabs
 IGNORE_LINE_REGEX = SAMPLE_START_REGEX + '[^\t]*' + END_OF_LINE_REGEX
 IGNORE_MATCHER = re.compile(IGNORE_LINE_REGEX)
+
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'nutnr_j_cspp_instrument'
@@ -116,7 +116,7 @@ class NutnrJCsppMetadataDataParticle(CsppMetadataDataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
         try:
             # this particle only contains common metdata values
@@ -158,7 +158,7 @@ class NutnrJCsppDataParticle(DataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
+        @throws RecoverableSampleException If there is a problem with sample creation
         """
         results = []
         try:

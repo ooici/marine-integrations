@@ -25,8 +25,7 @@ from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppParser, \
                                            NutnrJCsppRecoveredDataParticle, \
                                            NutnrJCsppMetadataTelemeteredDataParticle, \
                                            NutnrJCsppMetadataRecoveredDataParticle
-                                           
-                                           
+
 
 class DataSourceKey(BaseEnum):
     """
@@ -35,6 +34,7 @@ class DataSourceKey(BaseEnum):
     # Replace keys below with parser harvester named keys
     NUTNR_J_CSPP_TELEMETERED = "nutnr_j_cspp_telemetered"
     NUTNR_J_CSPP_RECOVERED = "nutnr_j_cspp_recovered"
+
 
 class NutnrJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
     

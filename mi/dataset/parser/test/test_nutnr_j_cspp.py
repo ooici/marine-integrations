@@ -11,8 +11,9 @@ import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException, UnexpectedDataException, \
-                               RecoverableSampleException
+from mi.core.exceptions import UnexpectedDataException, \
+                               RecoverableSampleException, \
+                               ConfigurationException
 from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.idk.config import Config
@@ -626,3 +627,33 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.exception_callback_value[0], RecoverableSampleException))
 
         stream_handle.close()
+
+    def test_bad_config(self):
+        """
+        Test that configurations with a missing data particle dict and missing
+        data particle class key causes a configuration exception
+        """
+        config = {
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+        }
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'short_SNA_SNA.txt'), 'r')
+
+        with self.assertRaises(ConfigurationException):
+            self.parser = NutnrJCsppParser(config, None, stream_handle,
+                                           self.state_callback, self.pub_callback,
+                                           self.exception_callback)
+
+        config = {
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+            DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                METADATA_PARTICLE_CLASS_KEY: NutnrJCsppMetadataTelemeteredDataParticle,
+            }
+        }
+
+        with self.assertRaises(ConfigurationException):
+            self.parser = NutnrJCsppParser(config, None, stream_handle,
+                                           self.state_callback, self.pub_callback,
+                                           self.exception_callback)
