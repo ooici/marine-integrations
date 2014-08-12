@@ -147,6 +147,35 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
 
+    def test_no_header(self):
+        """
+        Test a case where the file has no header, which should not make a
+        metadata particle and throw an exception
+        """
+
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        self.create_sample_data_set_dir('no_header_SNA_SNA.txt', TELEM_DIR)
+
+        self.assert_data(TELEM_PARTICLES, 'short_SNA_telem_no_meta.yml', count=5)
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+
+    def test_partial_header(self):
+        """
+        Test a case where we are missing part of the header, but it is not
+        the source file so we still want to create the header
+        """
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        self.create_sample_data_set_dir('part_header_SNA_SNA.txt', TELEM_DIR)
+
+        self.assert_data(TELEM_PARTICLES, 'short_SNA_telem_part.yml', count=6)
+
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #

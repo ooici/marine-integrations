@@ -22,7 +22,7 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import DatasetParserException, \
-    UnexpectedDataException, RecoverableSampleException
+    UnexpectedDataException, RecoverableSampleException, SampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -47,6 +47,15 @@ INT_REGEX = r'[+-]?[0-9]+'
 Y_OR_N_REGEX = r'[yYnN]'
 # A regex to match against one or more tab characters
 MULTIPLE_TAB_REGEX = r'\t+'
+
+# a regex to match the 3 items that start a sample or status line:
+# profiler timestamp, depth, suspect timestamp
+SAMPLE_START_REGEX = FLOAT_REGEX + '\t' + FLOAT_REGEX + '\t' + Y_OR_N_REGEX + '\t'
+
+# match the profiler timestamp, depth, suspect timestamp followed by all hex
+# ascii chars
+HEX_ASCII_LINE_REGEX = SAMPLE_START_REGEX + '[0-9A-Fa-f]*' + END_OF_LINE_REGEX
+HEX_ASCII_LINE_MATCHER = re.compile(HEX_ASCII_LINE_REGEX)
 
 # The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
 # The key for the metadata particle class
@@ -158,41 +167,52 @@ class CsppMetadataDataParticle(DataParticle):
         # Grab the source file path from the match raw_data's
         source_file_path = header_dict[DefaultHeaderKey.SOURCE_FILE]
 
-        # Split the source file path.  The regex below supports splitting on a Windows or unix/linux file path.
-        source_file_name_parts = re.split(r'\\|/', source_file_path)
-        # Obtain the list of source file name parts
-        num_source_name_file_parts = len(source_file_name_parts)
-        # Grab the last part of the source file name
-        last_part_of_source_file_name = source_file_name_parts[num_source_name_file_parts - 1]
+        if source_file_path is not None:
 
-        # Encode the last character controller ID which consists of one character within the source file name
-        results.append(self._encode_value(
-            CsppMetadataParserDataParticleKey.LAST_CHARACTER_CONTROLLER_ID,
-            last_part_of_source_file_name[LAST_CHARACTER_CONTROLLER_ID_SOURCE_FILE_CHAR_POSITION],
-            str))
+            # Split the source file path.  The regex below supports splitting on a Windows or unix/linux file path.
+            source_file_name_parts = re.split(r'\\|/', source_file_path)
+            # Obtain the list of source file name parts
+            num_source_name_file_parts = len(source_file_name_parts)
+            # Grab the last part of the source file name
+            last_part_of_source_file_name = source_file_name_parts[num_source_name_file_parts - 1]
 
-        # Encode the day of year number which consists of three characters within the source file name
-        results.append(self._encode_value(
-            CsppMetadataParserDataParticleKey.DAY_OF_YEAR_NUMBER,
-            last_part_of_source_file_name[
-                DAY_OF_YEAR_NUMBER_SOURCE_FILE_STARTING_CHAR_POSITION:DAY_OF_YEAR_NUMBER_SOURCE_FILE_CHARS_END_RANGE],
-            int))
+            # Encode the last character controller ID which consists of one character within the source file name
+            results.append(self._encode_value(
+                CsppMetadataParserDataParticleKey.LAST_CHARACTER_CONTROLLER_ID,
+                last_part_of_source_file_name[LAST_CHARACTER_CONTROLLER_ID_SOURCE_FILE_CHAR_POSITION],
+                str))
 
-        # Encode the fraction of day which consists of four characters within the source file name
-        results.append(self._encode_value(
-            CsppMetadataParserDataParticleKey.FRACTION_OF_DAY,
-            last_part_of_source_file_name[
-                FRACTION_OF_DAY_SOURCE_FILE_STARTING_CHAR_POSITION:FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE],
-            int))
+            # Encode the day of year number which consists of three characters within the source file name
+            results.append(self._encode_value(
+                CsppMetadataParserDataParticleKey.DAY_OF_YEAR_NUMBER,
+                last_part_of_source_file_name[
+                    DAY_OF_YEAR_NUMBER_SOURCE_FILE_STARTING_CHAR_POSITION:DAY_OF_YEAR_NUMBER_SOURCE_FILE_CHARS_END_RANGE],
+                int))
+
+            # Encode the fraction of day which consists of four characters within the source file name
+            results.append(self._encode_value(
+                CsppMetadataParserDataParticleKey.FRACTION_OF_DAY,
+                last_part_of_source_file_name[
+                    FRACTION_OF_DAY_SOURCE_FILE_STARTING_CHAR_POSITION:FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE],
+                int))
+
+        else:
+            log.warn("No source file path, not creating metadata")
+            raise SampleException("No source file path, not creating metadata")
 
         # Grab the processed date and time from the match raw_data
-        (processed_date, processed_time) = header_dict[DefaultHeaderKey.PROCESSED].split()
+        if header_dict[DefaultHeaderKey.PROCESSED] is not None:
+            (processed_date, processed_time) = header_dict[DefaultHeaderKey.PROCESSED].split()
 
-        # Encode the processing time which includes the processed date and time retrieved above
-        results.append(self._encode_value(
-            CsppMetadataParserDataParticleKey.PROCESSING_TIME,
-            processed_date + " " + processed_time,
-            str))
+            # Encode the processing time which includes the processed date and time retrieved above
+            results.append(self._encode_value(
+                CsppMetadataParserDataParticleKey.PROCESSING_TIME,
+                processed_date + " " + processed_time,
+                str))
+        else:
+            # No processed time, include 'None' string
+            results.append(self._encode_value(
+                CsppMetadataParserDataParticleKey.PROCESSING_TIME, None, str))
 
         # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
         for rule in METADATA_PARTICLE_ENCODING_RULES:
@@ -329,19 +349,34 @@ class CsppParser(BufferLoadingParser):
         # to return and increment the state data positioning
         if data_particle:
 
-            if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
-                metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                         None,
-                                                         (copy.copy(self._header_state),
-                                                          data_match),
-                                                         None)
-                if metadata_particle:
-                    self._read_state[StateKey.METADATA_EXTRACTED] = True
-                    # We're going to insert the metadata particle so that it is the first in the list
-                    # and set the position to 0, as it cannot have the same position as the non-metadata
-                    # particle
-                    result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
-                                                                    StateKey.METADATA_EXTRACTED: True}))
+            if not self._read_state[StateKey.METADATA_EXTRACTED]:
+                # once the first data particle is read, all header lines should have
+                # also been read, if they haven't the not filled in values in the
+                # header state dictionary are None
+                try:
+                    metadata_particle = self._extract_sample(self._metadata_particle_class,
+                                                             None,
+                                                             (copy.copy(self._header_state),
+                                                              data_match),
+                                                             None)
+                    # the only way we won't get a metadata particle is if there is a
+                    # recoverable sample exception
+                    if metadata_particle:
+                        self._read_state[StateKey.METADATA_EXTRACTED] = True
+                        # We're going to insert the metadata particle so that it is 
+                        # the first in the list and set the position to 0, as it cannot 
+                        # have the same position as the non-metadata particle
+                        result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
+                                                                        StateKey.METADATA_EXTRACTED: True}))
+                except Exception as e:
+                    # extract sample will catch and send recoverable and encoding exceptions to the
+                    # exception callback, all other exceptions should make it here
+                    log.warn('Error creating metadata particle: %s', e)
+                    self._exception_callback(SampleException('Error creating metadata particle: %s' % e))
+
+                # need to set metadata extracted to true so we don't keep creating
+                # the metadata, even if it failed
+                self._read_state[StateKey.METADATA_EXTRACTED] = True
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 
@@ -370,21 +405,29 @@ class CsppParser(BufferLoadingParser):
         """
 
         # Check for the expected timestamp line we will ignore
-        timestamp_line_match = TIMESTAMP_LINE_MATCHER.match(chunk)
+        if TIMESTAMP_LINE_MATCHER.match(chunk):
+            # Ignore
+            pass
 
-        if timestamp_line_match is not None:
+        # Check for a line containing hex ascii chars
+        elif HEX_ASCII_LINE_MATCHER.match(chunk):
+            # we found a line starting with the timestamp, depth, and
+            # suspect timestamp, followed by all hex ascii chars
+            log.warn('got hex ascii corrupted data %s at position %s', chunk,
+                     self._read_state[StateKey.POSITION])
+            self._exception_callback(SampleException(
+                "Found hex ascii corrupted data: %s" % chunk))
+
+        # ignore matcher must come after hex line matcher because the ignore regex
+        # will also match hex ascii
+        elif self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
             # Ignore
             pass
 
         else:
-
-            if self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
-                # Ignore
-                pass
-            else:
-                # OK.  We got unexpected data
-                log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
-                self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
+            # OK.  We got unexpected data
+            log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
+            self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
     def parse_chunks(self):
         """

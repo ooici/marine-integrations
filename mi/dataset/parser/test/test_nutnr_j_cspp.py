@@ -512,7 +512,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
                      StateKey.METADATA_EXTRACTED: True}
 
         stream_handle = open(os.path.join(RESOURCE_PATH,
-                                          'short_SNA_SNA.txt'), 'rb')
+                                          'short_SNA_SNA.txt'), 'r')
 
         self.create_parser(stream_handle)
 
@@ -556,7 +556,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         # particle C has bad frame type
         # particle D has bad year
         stream_handle = open(os.path.join(RESOURCE_PATH,
-                                          'bad_SNA_SNA.txt'), 'rb')
+                                          'bad_SNA_SNA.txt'), 'r')
 
         self.create_parser(stream_handle)
 
@@ -572,3 +572,57 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
 
 	for exception in self.exception_callback_value:
 	    self.assert_(isinstance(exception, RecoverableSampleException))
+
+    def test_missing_source_file(self):
+        """
+        Test that a file with a missing source file path in the header
+        fails to create a metadata particle and throws an exception
+        """
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'no_source_file_SNA_SNA.txt'), 'r')
+
+        self.create_parser(stream_handle)
+
+        # get A-E, without metadata
+        result = self.parser.get_records(5)
+
+        self.assert_data_and_timestamp(result, self.telem_particle_a, result_index=0)
+        self.assert_data_and_timestamp(result, self.telem_particle_b, result_index=1)
+        self.assert_data_and_timestamp(result, self.telem_particle_c, result_index=2)
+        self.assert_data_and_timestamp(result, self.telem_particle_d, result_index=3)
+        self.assert_data_and_timestamp(result, self.telem_particle_e, result_index=4)
+
+        # compare file ingested from the state
+        self.assertEqual(self.file_ingested_value, True)
+        # confirm no exceptions occurred
+        self.assertEqual(len(self.exception_callback_value), 1)
+        self.assert_(isinstance(self.exception_callback_value[0], SampleException))
+
+        stream_handle.close()
+
+    def test_no_header(self):
+        """
+        Test that a file with no header lines
+        fails to create a metadata particle and throws an exception
+        """
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'no_header_SNA_SNA.txt'), 'r')
+
+        self.create_parser(stream_handle)
+
+        # get A-E, without metadata
+        result = self.parser.get_records(5)
+
+        self.assert_data_and_timestamp(result, self.telem_particle_a, result_index=0)
+        self.assert_data_and_timestamp(result, self.telem_particle_b, result_index=1)
+        self.assert_data_and_timestamp(result, self.telem_particle_c, result_index=2)
+        self.assert_data_and_timestamp(result, self.telem_particle_d, result_index=3)
+        self.assert_data_and_timestamp(result, self.telem_particle_e, result_index=4)
+
+        # compare file ingested from the state
+        self.assertEqual(self.file_ingested_value, True)
+        # confirm no exceptions occurred
+        self.assertEqual(len(self.exception_callback_value), 1)
+        self.assert_(isinstance(self.exception_callback_value[0], SampleException))
+
+        stream_handle.close()
