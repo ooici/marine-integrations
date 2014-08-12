@@ -19,22 +19,27 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
-from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered, DostadParserDataParticle
-from mi.dataset.parser.dostad import DostadMetadataDataParticle, StateKey
+from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered
+from mi.dataset.parser.dostad import StateKey
+from mi.dataset.parser.dostad import DostadParserRecoveredDataParticle
+from mi.dataset.parser.dostad import DostadParserTelemeteredDataParticle
+from mi.dataset.parser.dostad import DostadParserRecoveredMetadataDataParticle
+from mi.dataset.parser.dostad import DostadParserTelemeteredMetadataDataParticle
 
 class DataSourceKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    DOSTA_ABCDJM_SIO_TELEMETERED = 'dosta_abcdjm_sio_telemetered'
-    DOSTA_ABCDJM_SIO_RECOVERED = 'dosta_abcdjm_sio_recovered'
+    DOSTA_ABCDJM_SIO_TELEMETERED = 'dosta_abcdjm_sio_mule_telemetered'
+    DOSTA_ABCDJM_SIO_RECOVERED = 'dosta_abcdjm_sio_mule_telemetered_recovered'
 
 class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
         # Fill in below with particle stream
-        return [DostadParserDataParticle.type(), DostadMetadataDataParticle.type()]
+        return [DostadParserRecoveredDataParticle.type(), DostadParserTelemeteredDataParticle.type(),
+                DostadParserRecoveredMetadataDataParticle.type(), DostadParserTelemeteredMetadataDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
