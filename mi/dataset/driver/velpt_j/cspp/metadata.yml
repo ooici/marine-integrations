@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeremy Amundson
+  constructor: VelptJCsppDataSetDriver
+  driver_name: velpt_j_cspp
+  driver_path: velpt_j/cspp
+  email: jeremy.s.amundson@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1
