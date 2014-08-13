@@ -115,6 +115,19 @@ class OptaaDjCsppParserDataParticleKey(BaseEnum):
     INTERNAL_TEMP_RAW = 'internal_temp_raw'
     PRESSURE_COUNTS = 'pressure_counts'
 
+INSTRUMENT_PARTICLE_ENCODING_RULES = [
+    # Since 1/1/70 with millisecond resolution
+    (OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
+    # "Depth" from Record Structure section
+    (OptaaDjCsppParserDataParticleKey.PRESSURE_DEPTH, DataMatchesGroupNumber.DEPTH, float),
+    # Flag indicating a potential inaccuracy in the timestamp
+    (OptaaDjCsppParserDataParticleKey.SUSPECT_TIMESTAMP, DataMatchesGroupNumber.SUSPECT_TIMESTAMP, encode_y_or_n),
+    # Powered On Seconds
+    (OptaaDjCsppParserDataParticleKey.ON_SECONDS, DataMatchesGroupNumber.ON_SECONDS, float),
+    # Number of output wavelengths.
+    (OptaaDjCsppParserDataParticleKey.NUM_WAVELENGTHS, DataMatchesGroupNumber.NUM_WAVELENGTHS, int)
+]
+
 
 class OptaaDjCsppMetadataDataParticle(CsppMetadataDataParticle):
     """
@@ -183,31 +196,11 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         results = []
 
         try:
-            # Since 1/1/70 with millisecond resolution
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP,
-                                              self.raw_data.group(DataMatchesGroupNumber.PROFILER_TIMESTAMP),
-                                              numpy.float))
+            # Process each of the non-list instrument particle parameters
+            for name, group, function in INSTRUMENT_PARTICLE_ENCODING_RULES:
+                results.append(self._encode_value(name, self.raw_data.group(group), function))
 
-            # "Depth" from Record Structure section
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_DEPTH,
-                                              self.raw_data.group(DataMatchesGroupNumber.DEPTH),
-                                              float))
-
-            # Flag indicating a potential inaccuracy in the timestamp
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.SUSPECT_TIMESTAMP,
-                                              self.raw_data.group(DataMatchesGroupNumber.SUSPECT_TIMESTAMP),
-                                              encode_y_or_n))
-
-            # Powered On Seconds
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.ON_SECONDS,
-                                              self.raw_data.group(DataMatchesGroupNumber.ON_SECONDS),
-                                              float))
-
-            # Number of output wavelengths.
-            num_wavelengths = self.raw_data.group(DataMatchesGroupNumber.NUM_WAVELENGTHS)
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.NUM_WAVELENGTHS,
-                                              num_wavelengths,
-                                              int))
+            # The rest are a mix if int, followed by a list, and then some ints.
 
             # C-channel reference dark counts, used for diagnostic purposes.
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
