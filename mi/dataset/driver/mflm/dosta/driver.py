@@ -19,8 +19,8 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
-from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered
-from mi.dataset.parser.dostad import StateKey
+from mi.dataset.parser.dostad import DostadParser, DostadRecoveredParser
+from mi.dataset.parser.dostad import StateKey, METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
 from mi.dataset.parser.dostad import DostadParserRecoveredDataParticle
 from mi.dataset.parser.dostad import DostadParserTelemeteredDataParticle
 from mi.dataset.parser.dostad import DostadParserRecoveredMetadataDataParticle
@@ -46,18 +46,20 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
 
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
-        # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED,
-                     DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED]
-        
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {
             DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED: HarvesterType.SINGLE_FILE,
             DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED: HarvesterType.SINGLE_DIRECTORY
         }
         
-        super(MflmDOSTADDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
-                                                     exception_callback, data_keys, harvester_type=harvester_type)
+        super(MflmDOSTADDataSetDriver, self).__init__(config,
+            memento,
+            data_callback,
+            state_callback,
+            event_callback,
+            exception_callback,
+            DataTypeKey.list(),
+            harvester_type=harvester_type)
 
 
     def _build_parser(self, parser_state, stream_in, data_key=None):
@@ -80,10 +82,10 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
                 }
             })
 
-            parser = DostadParserRecovered(
+            parser = DostadRecoveredParser(
                 config,
                 parser_state,
-                infile,
+                stream_in,
                 lambda state, ingested: self._save_parser_state(state, data_key, ingested),
                 self._data_callback,
                 self._sample_exception_callback)
@@ -106,8 +108,8 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
             parser = DostadParser(
                 config,
                 parser_state,
-                infile,
-                lambda state, ingested: self._save_parser_state(state, data_key, ingested),
+                stream_in,
+                lambda state: self._save_parser_state(state, data_key),
                 self._data_callback,
                 self._sample_exception_callback)
     

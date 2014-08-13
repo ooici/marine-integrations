@@ -19,6 +19,9 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.dataset.parser.sio_mule_common import SioParser, SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException, RecoverableSampleException
+from mi.dataset.dataset_parser import Parser
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
+
 
 class DataParticleType(BaseEnum):
     SAMPLE_TELEMETERED = 'dosta_abcdjm_sio_instrument'
@@ -53,6 +56,12 @@ class DostadMetadataDataParticleKey(BaseEnum):
     PRODUCT_NUMBER = 'product_number'
     SERIAL_NUMBER = 'serial_number'
 
+
+# The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
+# The key for the metadata particle class
+METADATA_PARTICLE_CLASS_KEY = 'metadata_particle_class'
+# The key for the data particle class
+DATA_PARTICLE_CLASS_KEY = 'data_particle_class'
     
 
 # regex to match the dosta data, header ID 0xff112511, 2 integers for product and serial number,
@@ -221,20 +230,20 @@ class DostadParserTelemeteredMetadataDataParticle(DostadMetadataDataParticle):
  
 
 
-class DostadParser(SioMuleParser):
-
+class DostadParserCommon(Parser):
     def __init__(self,
                  config,
                  state,
+                 sieve_function,
                  stream_handle,
                  state_callback,
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
-        super(DostadParser, self).__init__(config,
+        super(DostadParserCommon, self).__init__(config,
                                           stream_handle,
                                           state,
-                                          self.sieve_function,
+                                          sieve_function,
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
@@ -243,8 +252,8 @@ class DostadParser(SioMuleParser):
         # initialize the metadata since sio mule common doesn't initialize this field
         if not StateKey.METADATA_SENT in self._read_state:
             self._read_state[StateKey.METADATA_SENT] = False
-            
-            
+                
+                
         # Obtain the particle classes dictionary from the config data
         particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
         # Set the metadata and data particle classes to be used later
@@ -253,6 +262,9 @@ class DostadParser(SioMuleParser):
 
 
     def parse_chunks(self):
+        
+
+        
         """
         Parse out any pending data chunks in the chunker. If
         it is a valid data piece, build a particle, update the position and
@@ -306,7 +318,10 @@ class DostadParser(SioMuleParser):
         return result_particles
 
 
-class DostadParserRecovered(SioParser):
+
+
+
+class DostadParser(DostadParserCommon, SioMuleParser):
 
     def __init__(self,
                  config,
@@ -317,76 +332,32 @@ class DostadParserRecovered(SioParser):
                  exception_callback,
                  *args, **kwargs):
         super(DostadParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          self.sieve_function,
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
-        # initialize the metadata since sio mule common doesn't initialize this field
-        if not StateKey.METADATA_SENT in self._read_state:
-            self._read_state[StateKey.METADATA_SENT] = False
-            
-            
-        # Obtain the particle classes dictionary from the config data
-        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-        # Set the metadata and data particle classes to be used later
-        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
-        self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+                                state,
+                                self.sieve_function,
+                                stream_handle,
+                                state_callback,
+                                publish_callback,
+                                exception_callback,
+                                *args, **kwargs)
 
 
-    def parse_chunks(self):
-        """
-        Parse out any pending data chunks in the chunker. If
-        it is a valid data piece, build a particle, update the position and
-        timestamp. Go until the chunker has no more valid data.
-        @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state. An empty list of nothing was parsed.
-        """
-        result_particles = []
-        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
-        while (chunk != None):
-            header_match = SIO_HEADER_MATCHER.match(chunk)
-            sample_count = 0
-            log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == 'DO':
+class DostadRecoveredParser(DostadParserCommon, SioParser):
 
-                data_match = DATA_MATCHER.search(chunk)
-                if data_match:
-                    log.debug('Found data match in chunk %s', chunk[1:32])
-
-                    if not self._read_state.get(StateKey.METADATA_SENT):
-                        # create the metadata particle
-                        # prepend the timestamp from sio mule header to the dosta raw data,
-                        # which is stored in header_match.group(3)
-                        metadata_sample = self._extract_sample(self._metadata_particle_class,
-                                                None,
-                                                header_match.group(3) + data_match.group(0),
-                                                None)
-                        if metadata_sample:
-                            result_particles.append(metadata_sample)
-                            sample_count += 1
-                            self._read_state[StateKey.METADATA_SENT] = True
-
-                    # create the dosta data particle
-                    # prepend the timestamp from sio mule header to the dosta raw data ,
-                    # which is stored in header_match.group(3)                    
-                    sample = self._extract_sample(self._data_particle_class, None,
-                                                  header_match.group(3) + data_match.group(0),
-                                                  None)
-                    if sample:
-                        # create particle
-                        result_particles.append(sample)
-                        sample_count += 1
-
-            self._chunk_sample_count.append(sample_count)
-
-            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-
-        return result_particles
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 exception_callback,
+                 *args, **kwargs):
+        super(DostadRecoveredParser, self).__init__(config,
+                                state,
+                                self.sieve_function,
+                                stream_handle,
+                                state_callback,
+                                publish_callback,
+                                exception_callback,
+                                *args, **kwargs)
 
