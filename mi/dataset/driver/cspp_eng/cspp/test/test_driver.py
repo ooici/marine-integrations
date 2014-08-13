@@ -134,44 +134,44 @@ DataSetTestCase.initialize(
             }
         },
         DataSourceConfigKey.PARSER: {
-            DbgPdbgDataTypeKey.DBG_PDBG_CSPP_TELEMETERED: {},
             DbgPdbgDataTypeKey.DBG_PDBG_CSPP_RECOVERED: {},
-            WcHmrDataTypeKey.WC_HMR_CSPP_TELEMETERED: {},
+            DbgPdbgDataTypeKey.DBG_PDBG_CSPP_TELEMETERED: {},
             WcHmrDataTypeKey.WC_HMR_CSPP_RECOVERED: {},
-            WcSbeDataTypeKey.WC_SBE_CSPP_TELEMETERED: {},
+            WcHmrDataTypeKey.WC_HMR_CSPP_TELEMETERED: {},
             WcSbeDataTypeKey.WC_SBE_CSPP_RECOVERED: {},
-            WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {},
-            WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {}
+            WcSbeDataTypeKey.WC_SBE_CSPP_TELEMETERED: {},
+            WcWmDataTypeKey.WC_WM_CSPP_RECOVERED: {},
+            WcWmDataTypeKey.WC_WM_CSPP_TELEMETERED: {}
         }
     }
 )
 
 # Particle tuples used in integration tests for each parser
-DBG_PDBG_TEL_PARTICLES = (DbgPdbgTelemeteredGpsParticle,
-                          DbgPdbgTelemeteredBatteryParticle,
-                          DbgPdbgMetadataTelemeteredDataParticle)
-
-WC_HMR_TEL_PARTICLES = (WcHmrEngTelemeteredDataParticle,
-                        WcHmrMetadataTelemeteredDataParticle)
-
-WC_SBE_TEL_PARTICLES = (WcSbeEngTelemeteredDataParticle,
-                        WcSbeMetadataTelemeteredDataParticle)
-
-WC_WM_TEL_PARTICLES = (WcWmEngTelemeteredDataParticle,
-                       WcWmMetadataTelemeteredDataParticle)
-
 DBG_PDBG_REC_PARTICLES = (DbgPdbgRecoveredGpsParticle,
                           DbgPdbgRecoveredBatteryParticle,
                           DbgPdbgMetadataRecoveredDataParticle)
 
+DBG_PDBG_TEL_PARTICLES = (DbgPdbgTelemeteredGpsParticle,
+                          DbgPdbgTelemeteredBatteryParticle,
+                          DbgPdbgMetadataTelemeteredDataParticle)
+
 WC_HMR_REC_PARTICLES = (WcHmrEngRecoveredDataParticle,
                         WcHmrMetadataRecoveredDataParticle)
+
+WC_HMR_TEL_PARTICLES = (WcHmrEngTelemeteredDataParticle,
+                        WcHmrMetadataTelemeteredDataParticle)
 
 WC_SBE_REC_PARTICLES = (WcSbeEngRecoveredDataParticle,
                         WcSbeMetadataRecoveredDataParticle)
 
+WC_SBE_TEL_PARTICLES = (WcSbeEngTelemeteredDataParticle,
+                        WcSbeMetadataTelemeteredDataParticle)
+
 WC_WM_REC_PARTICLES = (WcWmEngRecoveredDataParticle,
                        WcWmMetadataRecoveredDataParticle)
+
+WC_WM_TEL_PARTICLES = (WcWmEngTelemeteredDataParticle,
+                       WcWmMetadataTelemeteredDataParticle)
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
