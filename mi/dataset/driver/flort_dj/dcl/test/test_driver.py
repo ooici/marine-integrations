@@ -140,10 +140,6 @@ DataSetTestCase.initialize(
 )
 
 
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
-
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 # Device specific integration tests are for                                   #
@@ -171,8 +167,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=EXPECTED_FILE6, timeout=EXPECTED_FILE6)
         self.assert_data(TEL_PARTICLE, TEL_YML7,
                          count=EXPECTED_FILE7, timeout=EXPECTED_FILE7)
-
-        self.driver.stop_sampling()
 
         log.info("========= END INTEG BIG GIANT INPUT ==============")
 
@@ -433,6 +427,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Verify we get samples from first Recovered file.
             result = self.data_subscribers.get_samples(REC_STREAM, EXPECTED_FILE2)
+
             self.assert_data_values(result, REC_YML2)
 
             # Verify we get samples from second Recovered file.
@@ -448,6 +443,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.fail("Sample timeout.")
 
         log.debug('===== END QUAL TEST PUBLISH PATH =====')
+
     def test_real_file(self):
         """
         Verify that records from a real file can be obtained.
