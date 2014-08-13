@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Steve Myerson
+  constructor: FlortDjDclDataSetDriver
+  driver_name: flort_dj_dcl
+  driver_path: "flort_dj/dcl"
+  email: Steven_G_Myerson@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1

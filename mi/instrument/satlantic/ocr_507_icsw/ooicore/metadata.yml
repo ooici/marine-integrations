@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Godfrey Duke
+  driver_make: satlantic
+  driver_model: ocr_507_icsw
+  driver_name: ooicore
+  email: godfrey.duke@gmail.com
+  release_notes: OCR507 ICSW w/ Midrange Bioshutter
+  version: 0.0.1
