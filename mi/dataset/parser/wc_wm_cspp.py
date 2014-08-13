@@ -104,7 +104,7 @@ class WcWmEngDataParticleKey(BaseEnum):
     ENCODER_COUNTS = 'encoder_counts'
     WINCH_CURRENT = 'current_flt32'
     WINCH_STATUS = 'device_status'
-    VELOCITY = 'winch_velocity'
+    WINCH_VELOCITY = 'winch_velocity'
     TEMPERATURE = 'temperature'
     WINCH_VOLTAGE = 'voltage_flt32'
     ROPE_ON_DRUM = 'rope_on_drum'
@@ -117,7 +117,7 @@ ENGINEERING_PARTICLE_ENCODING_RULES = [
     (WcWmEngDataParticleKey.ENCODER_COUNTS, DataMatchesGroupNumber.ENCODER_COUNTS, int),
     (WcWmEngDataParticleKey.WINCH_CURRENT, DataMatchesGroupNumber.WINCH_CURRENT, float),
     (WcWmEngDataParticleKey.WINCH_STATUS, DataMatchesGroupNumber.WINCH_STATUS, str),
-    (WcWmEngDataParticleKey.VELOCITY, DataMatchesGroupNumber.VELOCITY, int),
+    (WcWmEngDataParticleKey.WINCH_VELOCITY, DataMatchesGroupNumber.VELOCITY, int),
     (WcWmEngDataParticleKey.TEMPERATURE, DataMatchesGroupNumber.TEMPERATURE, int),
     (WcWmEngDataParticleKey.WINCH_VOLTAGE, DataMatchesGroupNumber.WINCH_VOLTAGE, float),
     (WcWmEngDataParticleKey.ROPE_ON_DRUM, DataMatchesGroupNumber.ROPE_ON_DRUM, float),
@@ -126,7 +126,7 @@ ENGINEERING_PARTICLE_ENCODING_RULES = [
 
 class WcWmMetadataDataParticle(CsppMetadataDataParticle):
     """
-    Class for building a wc hmr metadata particle
+    Class for building a wc wm metadata particle
     """
 
     def _build_parsed_values(self):
@@ -161,7 +161,7 @@ class WcWmMetadataDataParticle(CsppMetadataDataParticle):
 
 class WcWmMetadataRecoveredDataParticle(WcWmMetadataDataParticle):
     """
-    Class for building a wc hmr recovered metadata particle
+    Class for building a wc wm recovered metadata particle
     """
 
     _data_particle_type = WcWmDataParticleType.METADATA_RECOVERED
@@ -169,7 +169,7 @@ class WcWmMetadataRecoveredDataParticle(WcWmMetadataDataParticle):
 
 class WcWmMetadataTelemeteredDataParticle(WcWmMetadataDataParticle):
     """
-    Class for building a wc hmr telemetered metadata particle
+    Class for building a wc wm telemetered metadata particle
     """
 
     _data_particle_type = WcWmDataParticleType.METADATA_TELEMETERED
@@ -177,7 +177,7 @@ class WcWmMetadataTelemeteredDataParticle(WcWmMetadataDataParticle):
 
 class WcWmEngDataParticle(DataParticle):
     """
-    Class for parsing data from the wc hmr engineering data set
+    Class for parsing data from the wc wm engineering data set
     """
 
     def _build_parsed_values(self):
@@ -212,7 +212,7 @@ class WcWmEngDataParticle(DataParticle):
 
 class WcWmEngRecoveredDataParticle(WcWmEngDataParticle):
     """
-    Class for building a wc hmr recovered engineering data particle
+    Class for building a wc wm recovered engineering data particle
     """
 
     _data_particle_type = WcWmDataParticleType.ENGINEERING_RECOVERED
@@ -220,7 +220,7 @@ class WcWmEngRecoveredDataParticle(WcWmEngDataParticle):
 
 class WcWmEngTelemeteredDataParticle(WcWmEngDataParticle):
     """
-    Class for building a wc hmr telemetered engineering data particle
+    Class for building a wc wm telemetered engineering data particle
     """
 
     _data_particle_type = WcWmDataParticleType.ENGINEERING_TELEMETERED
@@ -237,9 +237,9 @@ class WcWmCsppParser(CsppParser):
                  exception_callback,
                  *args, **kwargs):
         """
-        This method is a constructor that will instantiate an CsppEngCsppParser object.
-        @param config The configuration for this CsppEngCsppParser parser
-        @param state The state the CsppEngCsppParser should use to initialize itself
+        This method is a constructor that will instantiate an WcWmCsppParser object.
+        @param config The configuration for this WcWmCsppParser parser
+        @param state The state the WcWmCsppParser should use to initialize itself
         @param stream_handle The handle to the data stream containing the cspp_eng_cspp data
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles

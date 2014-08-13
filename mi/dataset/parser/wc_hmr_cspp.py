@@ -212,9 +212,9 @@ class WcHmrCsppParser(CsppParser):
                  exception_callback,
                  *args, **kwargs):
         """
-        This method is a constructor that will instantiate an CsppEngCsppParser object.
-        @param config The configuration for this CsppEngCsppParser parser
-        @param state The state the CsppEngCsppParser should use to initialize itself
+        This method is a constructor that will instantiate an WcHmrCsppParser object.
+        @param config The configuration for this WcHmrCsppParser parser
+        @param state The state the WcHmrCsppParser should use to initialize itself
         @param stream_handle The handle to the data stream containing the cspp_eng_cspp data
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles

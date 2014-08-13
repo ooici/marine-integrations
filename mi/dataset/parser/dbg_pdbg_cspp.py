@@ -27,7 +27,9 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import \
     DatasetParserException, \
     UnexpectedDataException, \
-    RecoverableSampleException
+    RecoverableSampleException, \
+    ConfigurationException
+
 
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -41,6 +43,7 @@ from mi.dataset.parser.cspp_base import \
     HeaderPartMatchesGroupNumber, \
     TIMESTAMP_LINE_MATCHER, \
     HEADER_PART_MATCHER, \
+    DefaultHeaderKey, \
     INT_REGEX, \
     FLOAT_REGEX, \
     Y_OR_N_REGEX, \
@@ -82,7 +85,7 @@ class DataMatchesGroupNumber(BaseEnum):
     SUSPECT_TIMESTAMP = 3
     BATTERY_NUMBER = 4
     BATTERY_VOLTAGE = 5
-    GPS_ADJUSTMENT = 4
+    GPS_ADJUSTMENT = 4  # uses same index as BATTERY_NUMBER because they are for different particles
 
 
 class DbgPdbgDataTypeKey(BaseEnum):
@@ -116,7 +119,7 @@ class DbgPdbgBatteryParticleKey(BaseEnum):
 
 class DbgPdbgGpsParticleKey(BaseEnum):
     """
-    The data particle keys associated with dbg_pdbg battery status particle parameters
+    The data particle keys associated with dbg_pdbg GPS adjustment particle parameters
     """
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE = 'pressure_depth'
@@ -313,9 +316,9 @@ class DbgPdbgCsppParser(BufferLoadingParser):
                  publish_callback,
                  exception_callback):
         """
-        This method is a constructor that will instantiate an CsppParser object.
-        @param config The configuration for this CsppParser parser
-        @param state The state the CsppParser should use to initialize itself
+        This method is a constructor that will instantiate an DbgPdbgCsppParser object.
+        @param config The configuration for this DbgPdbgCsppParser parser
+        @param state The state the DbgPdbgCsppParser should use to initialize itself
         @param stream_handle The handle to the data stream containing the cspp data
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
@@ -331,13 +334,28 @@ class DbgPdbgCsppParser(BufferLoadingParser):
             self._header_state[header_key] = None
 
         # Obtain the particle classes dictionary from the config data
-        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-        # Set the metadata and data particle classes to be used later
+        if DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT in config:
+            particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
 
-        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+            # Set the metadata and data particle classes to be used later
 
-        self._battery_status_class = particle_classes_dict.get(BATTERY_STATUS_CLASS_KEY)
-        self._gps_adjustment_class = particle_classes_dict.get(GPS_ADJUSTMENT_CLASS_KEY)
+            if METADATA_PARTICLE_CLASS_KEY in particle_classes_dict and \
+               BATTERY_STATUS_CLASS_KEY in particle_classes_dict and \
+               GPS_ADJUSTMENT_CLASS_KEY in particle_classes_dict:
+
+                self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+
+                self._battery_status_class = particle_classes_dict.get(BATTERY_STATUS_CLASS_KEY)
+                self._gps_adjustment_class = particle_classes_dict.get(GPS_ADJUSTMENT_CLASS_KEY)
+
+            else:
+                log.warning(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+                raise ConfigurationException(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+        else:
+            log.warning('Configuration missing particle classes dict')
+            raise ConfigurationException('Configuration missing particle classes dict')
 
         # Initialize the record buffer to an empty list
         self._record_buffer = []
@@ -367,7 +385,11 @@ class DbgPdbgCsppParser(BufferLoadingParser):
         @throws DatasetParserException if there is a bad state structure
         """
 
+        #TODO add error checking for state keys being present, mention to Emily
         if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+
+        if not (StateKey.POSITION in state_obj and StateKey.METADATA_EXTRACTED in state_obj):
             raise DatasetParserException("Invalid state structure")
 
         self._state = state_obj
@@ -409,19 +431,37 @@ class DbgPdbgCsppParser(BufferLoadingParser):
         # to return and increment the state data positioning
         if data_particle:
 
-            if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
-                metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                         None,
-                                                         (copy.copy(self._header_state),
-                                                          data_match),
-                                                         None)
-                if metadata_particle:
-                    self._read_state[StateKey.METADATA_EXTRACTED] = True
-                    # We're going to insert the metadata particle so that it is the first in the list
-                    # and set the position to 0, as it cannot have the same position as the non-metadata
-                    # particle
-                    result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
-                                                                    StateKey.METADATA_EXTRACTED: True}))
+            if not self._read_state[StateKey.METADATA_EXTRACTED]:
+                # once the first data particle is read, all header lines should have
+                # also been read
+
+                # Source File is the only part of the header that is required
+                if self._header_state[DefaultHeaderKey.SOURCE_FILE] is not None:
+                    metadata_particle = self._extract_sample(self._metadata_particle_class,
+                                                             None,
+                                                             (copy.copy(self._header_state),
+                                                              data_match),
+                                                             None)
+                    if metadata_particle:
+                        # We're going to insert the metadata particle so that it is
+                        # the first in the list and set the position to 0, as it cannot
+                        # have the same position as the non-metadata particle
+                        result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
+                                                                        StateKey.METADATA_EXTRACTED: True}))
+                    else:
+                        # metadata particle was not created successfully
+                        log.warn('Unable to create metadata particle')
+                        self._exception_callback(RecoverableSampleException(
+                            'Unable to create metadata particle'))
+                else:
+                    # no source file path, don't create metadata particle
+                    log.warn('No source file, not creating metadata particle')
+                    self._exception_callback(RecoverableSampleException(
+                        'No source file, not creating metadata particle'))
+
+                # need to set metadata extracted to true so we don't keep creating
+                # the metadata, even if it failed
+                self._read_state[StateKey.METADATA_EXTRACTED] = True
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 

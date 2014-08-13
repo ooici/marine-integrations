@@ -80,9 +80,6 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
             },
         }
 
-        # Define test data particles and their associated timestamps which will be
-        # compared with returned results
-
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
@@ -138,7 +135,6 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         Be sure to verify the results by eye before trusting!
         """
 
-        #ADCP_data_20130702.PD0 has one record in it
         fid = open(os.path.join(RESOURCE_PATH, '11079364_WC_WM.txt'), 'r')
 
         stream_handle = fid
@@ -229,7 +225,6 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
 
         log.debug("*** test_simple Num particles %s", len(particles))
 
-        # check the first particle, which should be the metadata particle (recovered)
         test_data = self.get_dict_from_yml('11079364_WC_WM_recov.yml')
 
         # # check all the values against expected results.
@@ -283,7 +278,7 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
                                 self.state_callback, self.pub_callback,
                                 self.exception_callback)
 
-        #expect to get the 8th and 9th engineering particles next
+        #expect to get the 16th and 17th engineering particles next
         particles = parser.get_records(2)
 
         log.debug("Num particles: %s", len(particles))
@@ -334,7 +329,7 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
 
-        # position 945 is the byte at the start of the 9th data record
+        # position 935 is the byte at the start of the 9th data record
         new_state = {StateKey.POSITION: 935, StateKey.METADATA_EXTRACTED: True}
 
         parser.set_state(new_state)
@@ -355,10 +350,7 @@ class WcWmCsppParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
 
-        # the first and 7th data record in this file are corrupted and will be ignored
-        # we expect to get the metadata particle with the
-        # timestamp from the 2nd data record and all of the valid engineering
-        # data records
+        # the 4th data record in this file are corrupted and will be ignored
 
         file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_WC_WM.txt')
         stream_handle = open(file_path, 'r')

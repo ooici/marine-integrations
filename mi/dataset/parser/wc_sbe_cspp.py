@@ -36,8 +36,8 @@ from mi.dataset.parser.cspp_base import \
 # FORMAT    DATA Type       Field               Units       Notes
 #
 # string 	float64 	Profiler Timestamp 	    seconds 	Seconds since 1/1/70 with millisecond resolution
-# string 	float32 	Pressure 	                decibars
 # string 	string 	    Suspect Timestamp 	    1 	        "y" or "n"
+# string 	float32 	Pressure 	            decibars
 # string 	float32 	Velocity 	            m/s
 
 DATA_REGEX = '(' + FLOAT_REGEX + ')' + MULTIPLE_TAB_REGEX  # Profiler Timestamp
@@ -200,9 +200,9 @@ class WcSbeCsppParser(CsppParser):
                  exception_callback,
                  *args, **kwargs):
         """
-        This method is a constructor that will instantiate an CsppEngCsppParser object.
-        @param config The configuration for this CsppEngCsppParser parser
-        @param state The state the CsppEngCsppParser should use to initialize itself
+        This method is a constructor that will instantiate an WcSbeCsppParser object.
+        @param config The configuration for this WcSbeCsppParser parser
+        @param state The state the WcSbeCsppParser should use to initialize itself
         @param stream_handle The handle to the data stream containing the cspp_eng_cspp data
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
