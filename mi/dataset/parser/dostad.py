@@ -17,7 +17,7 @@ import ntplib
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
+from mi.dataset.parser.sio_mule_common import SioParser, SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException, RecoverableSampleException
 
 class DataParticleType(BaseEnum):
@@ -243,6 +243,14 @@ class DostadParser(SioMuleParser):
         # initialize the metadata since sio mule common doesn't initialize this field
         if not StateKey.METADATA_SENT in self._read_state:
             self._read_state[StateKey.METADATA_SENT] = False
+            
+            
+        # Obtain the particle classes dictionary from the config data
+        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
+        # Set the metadata and data particle classes to be used later
+        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+        self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+
 
     def parse_chunks(self):
         """
@@ -270,9 +278,10 @@ class DostadParser(SioMuleParser):
                         # create the metadata particle
                         # prepend the timestamp from sio mule header to the dosta raw data,
                         # which is stored in header_match.group(3)
-                        metadata_sample = self._extract_sample(DostadParserTelemeteredMetadataDataParticle, None,
-                                                  header_match.group(3) + data_match.group(0),
-                                                  None)
+                        metadata_sample = self._extract_sample(self._metadata_particle_class,
+                                                None,
+                                                header_match.group(3) + data_match.group(0),
+                                                None)
                         if metadata_sample:
                             result_particles.append(metadata_sample)
                             sample_count += 1
@@ -281,7 +290,7 @@ class DostadParser(SioMuleParser):
                     # create the dosta data particle
                     # prepend the timestamp from sio mule header to the dosta raw data ,
                     # which is stored in header_match.group(3)                    
-                    sample = self._extract_sample(DostadParserTelemeteredDataParticle, None,
+                    sample = self._extract_sample(self._data_particle_class, None,
                                                   header_match.group(3) + data_match.group(0),
                                                   None)
                     if sample:
@@ -297,8 +306,7 @@ class DostadParser(SioMuleParser):
         return result_particles
 
 
-
-class DostadParserRecovered(SioMuleParser):
+class DostadParserRecovered(SioParser):
 
     def __init__(self,
                  config,
@@ -308,7 +316,7 @@ class DostadParserRecovered(SioMuleParser):
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
-        super(DostadParserRecovered, self).__init__(config,
+        super(DostadParser, self).__init__(config,
                                           stream_handle,
                                           state,
                                           self.sieve_function,
@@ -320,6 +328,14 @@ class DostadParserRecovered(SioMuleParser):
         # initialize the metadata since sio mule common doesn't initialize this field
         if not StateKey.METADATA_SENT in self._read_state:
             self._read_state[StateKey.METADATA_SENT] = False
+            
+            
+        # Obtain the particle classes dictionary from the config data
+        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
+        # Set the metadata and data particle classes to be used later
+        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+        self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+
 
     def parse_chunks(self):
         """
@@ -336,30 +352,30 @@ class DostadParserRecovered(SioMuleParser):
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            log.debug('parsing rec header %s', header_match.group(0)[1:32])
+            log.debug('parsing header %s', header_match.group(0)[1:32])
             if header_match.group(1) == 'DO':
 
                 data_match = DATA_MATCHER.search(chunk)
                 if data_match:
-                    log.debug('Found rec data match in chunk %s', chunk[1:32])
-                    
+                    log.debug('Found data match in chunk %s', chunk[1:32])
+
                     if not self._read_state.get(StateKey.METADATA_SENT):
                         # create the metadata particle
                         # prepend the timestamp from sio mule header to the dosta raw data,
                         # which is stored in header_match.group(3)
-                        print header_match.group(3) + data_match.group(0)
-                        metadata_sample = self._extract_sample(DostadParserRecoveredMetadataDataParticle, None,
-                                                  header_match.group(3) + data_match.group(0),
-                                                  None)
+                        metadata_sample = self._extract_sample(self._metadata_particle_class,
+                                                None,
+                                                header_match.group(3) + data_match.group(0),
+                                                None)
                         if metadata_sample:
                             result_particles.append(metadata_sample)
                             sample_count += 1
                             self._read_state[StateKey.METADATA_SENT] = True
 
                     # create the dosta data particle
-                    # prepend the timestamp from sio mule header to the dosta raw data,
+                    # prepend the timestamp from sio mule header to the dosta raw data ,
                     # which is stored in header_match.group(3)                    
-                    sample = self._extract_sample(DostadParserRecoveredDataParticle, None,
+                    sample = self._extract_sample(self._data_particle_class, None,
                                                   header_match.group(3) + data_match.group(0),
                                                   None)
                     if sample:
@@ -373,3 +389,4 @@ class DostadParserRecovered(SioMuleParser):
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
         return result_particles
+

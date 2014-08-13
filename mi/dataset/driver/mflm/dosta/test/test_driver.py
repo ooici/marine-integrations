@@ -33,7 +33,7 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.dataset.driver.mflm.dosta.driver import MflmDOSTADDataSetDriver, DataSourceKey
+from mi.dataset.driver.mflm.dosta.driver import MflmDOSTADDataSetDriver, DataTypeKey
 from mi.dataset.parser.dostad import DataParticleType
 from mi.dataset.parser.dostad import DostadParserRecoveredDataParticle, DostadParserTelemeteredDataParticle
 from mi.dataset.parser.dostad import DostadParserRecoveredMetadataDataParticle, DostadParserTelemeteredMetadataDataParticle
@@ -50,13 +50,13 @@ DataSetTestCase.initialize(
     agent_packet_config = MflmDOSTADDataSetDriver.stream_config(),
     startup_config = {
         DataSourceConfigKey.HARVESTER: {
-            DataSourceKey.DOSTA_ABCDJM_SIO_TELEMETERED: {
+            DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED: {
                 DataSetDriverConfigKeys.DIRECTORY: TELEM_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
                 DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
             },
-            DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED: {
+            DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED: {
                 DataSetDriverConfigKeys.DIRECTORY: RECOV_DIR,
                 DataSetDriverConfigKeys.PATTERN: 'DOS*.DAT',
                 DataSetDriverConfigKeys.FREQUENCY: 1,
@@ -64,8 +64,8 @@ DataSetTestCase.initialize(
             },
         },
         DataSourceConfigKey.PARSER: {
-            DataSourceKey.DOSTA_ABCDJM_SIO_TELEMETERED: {},
-            DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED: {},
+            DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED: {},
+            DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED: {},
         }
     }
 )

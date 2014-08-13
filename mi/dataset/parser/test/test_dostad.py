@@ -8,8 +8,10 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
-from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered, DostadParserDataParticle
-from mi.dataset.parser.dostad import DostadMetadataDataParticle, StateKey
+from mi.dataset.parser.dostad import DostadParserRecoveredDataParticle, DostadParserTelemeteredDataParticle
+from mi.dataset.parser.dostad import DostadParserRecoveredMetadataDataParticle, DostadParserTelemeteredMetadataDataParticle
+from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered
+from mi.dataset.parser.dostad import StateKey
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
 
@@ -35,66 +37,87 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
-        self.config = {
+	
+	self.config = {
+            DataSourceKey.OSTA_ABCDJM_SIO_TELEMETERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dostad',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    METADATA_PARTICLE_CLASS_KEY: DostadParserTelemeteredMetadataDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: DostadParserTelemeteredDataParticle,
+                }
+            },
+            DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dostad',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    METADATA_PARTICLE_CLASS_KEY: DostadParserRecoveredMetadataDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: DostadParserRecoveredDataParticle,
+                }
+            },
+        }
+
+	
+
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dostad',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostadParserDataParticle'
             }
 
         # first DO tag
-        self.particle_a = DostadParserDataParticle('51EF0E75\xff\x11\x25\x11' \
+        self.particle_a = DostadParserTelemeteredDataParticle('51EF0E75\xff\x11\x25\x11' \
             '4831\t128\t302.636\t98.918\t16.355\t30.771\t' \
             '30.771\t36.199\t5.429\t1309.9\t1175.7\t299.6\x0d\x0a')
 
-        self.particle_metadata = DostadMetadataDataParticle('51EF0E75\xff\x11\x25\x11' \
+        self.particle_metadata = DostadParserTelemeteredMetadataDataParticle('51EF0E75\xff\x11\x25\x11' \
             '4831\t128\t302.636\t98.918\t16.355\t30.771\t' \
             '30.771\t36.199\t5.429\t1309.9\t1175.7\t299.6\x0d\x0a')
 
-        self.particle_b = DostadParserDataParticle('51EF1901\xff\x11\x25\x11' \
+        self.particle_b = DostadParserTelemeteredDataParticle('51EF1901\xff\x11\x25\x11' \
             '4831\t128\t317.073\t98.515\t14.004\t31.299\t31.299' \
             '\t36.647\t5.349\t1338.5\t1212.4\t375.8\x0d\x0a')
 
-        self.particle_c = DostadParserDataParticle('51EF6D61\xff\x11\x25\x11' \
+        self.particle_c = DostadParserTelemeteredDataParticle('51EF6D61\xff\x11\x25\x11' \
             '4831\t128\t326.544\t96.726\t11.873\t31.965\t31.965' \
             '\t37.134\t5.169\t1370.7\t1245.9\t444.4\x0d\x0a')
 
-        self.particle_d = DostadParserDataParticle('51EFC1C2\xff\x11\x25\x11' \
+        self.particle_d = DostadParserTelemeteredDataParticle('51EFC1C2\xff\x11\x25\x11' \
             '4831\t128\t332.060\t99.617\t12.432\t31.490\t31.490' \
             '\t36.812\t5.323\t1026.0\t1100.0\t426.5\x0d\x0a')
 
-        self.particle_e = DostadParserDataParticle('51F01622\xff\x11\x25\x11' \
+        self.particle_e = DostadParserTelemeteredDataParticle('51F01622\xff\x11\x25\x11' \
             '4831\t128\t354.515\t101.592\t10.440\t31.666\t31.666' \
             '\t36.930\t5.263\t1020.1\t1123.0\t490.0\x0d\x0a')
 
-        self.particle_f = DostadParserDataParticle('51F06A82\xff\x11\x25\x11' \
+        self.particle_f = DostadParserTelemeteredDataParticle('51F06A82\xff\x11\x25\x11' \
             '4831\t128\t337.540\t100.172\t11.955\t31.521\t31.521' \
             '\t36.805\t5.284\t983.8\t1092.6\t441.7\x0d\x0a')
 	
 	# RECOVERED test particles
-	self.particle_ra = DostadParserDataParticle('51EC7601\xff\x11' \
+	self.particle_ra = DostadParserRecoveredDataParticle('51EC7601\xff\x11' \
 	    '%\x114831\t128\t302.576\t97.289\t15.584\t31.126\t31.126\t36.306' \
 	    '\t5.180\t1336.5\t1171.2\t324.6\r\n')
 
-	self.particle_rmetadata = DostadMetadataDataParticle('51EC7601\xff\x11' \
+	self.particle_rmetadata = DostadParserRecoveredMetadataDataParticle('51EC7601\xff\x11' \
 	    '%\x114831\t128\t302.576\t97.289\t15.584\t31.126\t31.126\t36.306' \
 	    '\t5.180\t1336.5\t1171.2\t324.6\r\n')
 
-	self.particle_rb = DostadParserDataParticle('51EC7985\xff\x11%\x11' \
+	self.particle_rb = DostadParserRecoveredDataParticle('51EC7985\xff\x11%\x11' \
 	    '4831\t128\t308.673\t97.333\t14.680\t31.305\t31.305\t36.447\t5.142' \
 	    '\t1349.9\t1186.4\t353.9\r\n')
 
-	self.particle_rc = DostadParserDataParticle('51EC7D09\xff\x11%\x11' \
+	self.particle_rc = DostadParserRecoveredDataParticle('51EC7D09\xff\x11%\x11' \
 	    '4831\t128\t308.517\t97.209\t14.645\t31.328\t31.328\t36.454\t5.126' \
 	    '\t1351.5\t1188.4\t355.1\r\n')
 	
-	self.particle_rd = DostadParserDataParticle('51EC808D\xff\x11%\x11' \
+	self.particle_rd = DostadParserRecoveredDataParticle('51EC808D\xff\x11%\x11' \
 	    '4831\t128\t307.609\t97.181\t14.767\t31.307\t31.307\t36.425\t5.119' \
 	    '\t1349.9\t1186.2\t351.1\r\n')
 
-	self.particle_re = DostadParserDataParticle('51EC8411\xff\x11%\x11' \
+	self.particle_re = DostadParserRecoveredDataParticle('51EC8411\xff\x11%\x11' \
 	    '4831\t128\t305.890\t97.154\t15.013\t31.259\t31.259\t36.379\t5.120' \
 	    '\t1346.7\t1182.9\t343.2\r\n')
 
-	self.particle_rf = DostadParserDataParticle('51EC8795\xff\x11%\x11' \
+	self.particle_rf = DostadParserRecoveredDataParticle('51EC8795\xff\x11%\x11' \
 	    '4831\t128\t304.306\t97.139\t15.247\t31.213\t31.213\t36.347\t5.133' \
 	    '\t1343.3\t1179.1\t335.6\r\n')
 
