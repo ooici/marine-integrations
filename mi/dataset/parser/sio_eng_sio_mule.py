@@ -13,26 +13,25 @@ Starting SIO Engineering Driver
 __author__ = 'Mike Nicoletti'
 __license__ = 'Apache 2.0'
 
-import copy
 import re
 import ntplib
-import struct
 
 from datetime import datetime
 
-from mi.dataset.test.test_parser import ParserUnitTestCase
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
+from mi.core.instrument.data_particle import DataParticle
 
-from dateutil import parser
-from mi.dataset.dataset_parser import BufferLoadingParser
-from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
+from mi.core.exceptions import \
+    SampleException
 
-
-
-
+from mi.dataset.parser.sio_mule_common import \
+    SioMuleParser, \
+    SIO_HEADER_MATCHER, \
+    SIO_HEADER_GROUP_ID, SIO_HEADER_GROUP_DATA_LENGTH, \
+    SIO_HEADER_GROUP_TIMESTAMP
 
 ENG_REGEX = r'\x01CS([0-9]{5})[0-9]{2}_[0-9A-Fa-f]{4}[a-zA-Z]([0-9A-Fa-f]{8})_'\
             '[0-9A-Fa-f]{2}_[0-9A-Fa-f]{4}\x02\n([-\d]+\.\d+) '\
@@ -72,7 +71,8 @@ class SioEngSioMuleParserDataParticle(DataParticle):
         with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        match = ENG_MATCHER.match(self.raw_data)
+        match = self.raw_data
+
         if not match:
             raise SampleException("SioEngSioMuleParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
@@ -118,27 +118,25 @@ class SioEngSioMuleParser(SioMuleParser):
         """            
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
-        
 
-        
-        while (chunk != None):
+        while chunk is not None:
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == 'CS':
+            if header_match.group(SIO_HEADER_GROUP_ID) == 'CS':
                 log.debug('\n\nCS Header detected:::  %s\n\n', header_match.group(0)[1:32])
                 data_match = ENG_MATCHER.match(chunk)
                 if data_match:
                     # put timestamp from hex string to float:
-                    posix_time = int(header_match.group(3), 16)
+                    posix_time = int(header_match.group(SIO_HEADER_GROUP_TIMESTAMP), 16)
                     log.debug('utc timestamp %s', datetime.utcfromtimestamp(posix_time))
-                    self._timestamp = ntplib.system_to_ntp_time(float(posix_time))
+                    timestamp = ntplib.system_to_ntp_time(float(posix_time))
                     # particle-ize the data block received, return the record
-                    sample = self._extract_sample(self._particle_class, ENG_MATCHER, chunk, self._timestamp)
+                    sample = self._extract_sample(self._particle_class, None, data_match, timestamp)
                     if sample:
                         # create particle
                         result_particles.append(sample)
-                        sample_count +=1
+                        sample_count += 1
                 else:
                     log.warn('CS data does not match REGEX')
                     self._exception_callback(SampleException('CS data does not match REGEX'))
