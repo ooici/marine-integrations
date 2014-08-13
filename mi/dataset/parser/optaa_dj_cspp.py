@@ -50,13 +50,14 @@ from mi.dataset.parser.cspp_base import \
     encode_y_or_n
 
 TAB_REGEX = r'\t'
-REGEX = '(' + FLOAT_REGEX + ')' + TAB_REGEX     # Profiler Timestamp
-REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX    # Depth
-REGEX += '(' + Y_OR_N_REGEX + ')' + TAB_REGEX   # Suspect Timestamp
-REGEX += '(' + INT_REGEX + ')' + TAB_REGEX      # serial number
-REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX    # powered on seconds
-REGEX += '(' + INT_REGEX + ')' + TAB_REGEX      # num wavelengths
-MATCHER = re.compile(REGEX)
+# This is the beginning part of the REGEX, the rest of it varies
+BEGIN_REGEX = '(' + FLOAT_REGEX + ')' + TAB_REGEX     # Profiler Timestamp
+BEGIN_REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX    # Depth
+BEGIN_REGEX += '(' + Y_OR_N_REGEX + ')' + TAB_REGEX   # Suspect Timestamp
+BEGIN_REGEX += '(' + INT_REGEX + ')' + TAB_REGEX      # serial number
+BEGIN_REGEX += '(' + FLOAT_REGEX + ')' + TAB_REGEX    # powered on seconds
+BEGIN_REGEX += '(' + INT_REGEX + ')' + TAB_REGEX      # num wavelengths
+BEGIN_MATCHER = re.compile(BEGIN_REGEX)
 
 
 class DataMatchesGroupNumber(BaseEnum):
@@ -127,7 +128,6 @@ class OptaaDjCsppMetadataDataParticle(CsppMetadataDataParticle):
         with the appropriate tag.
         @throws RecoverableSampleException If there is a problem with sample creation
         """
-        log.debug("build metadata parsed values")
         results = []
 
         try:
@@ -183,48 +183,73 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         results = []
 
         try:
+            # Since 1/1/70 with millisecond resolution
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP,
                                               self.raw_data.group(DataMatchesGroupNumber.PROFILER_TIMESTAMP),
                                               numpy.float))
 
+            # "Depth" from Record Structure section
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_DEPTH,
                                               self.raw_data.group(DataMatchesGroupNumber.DEPTH),
                                               float))
 
+            # Flag indicating a potential inaccuracy in the timestamp
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.SUSPECT_TIMESTAMP,
                                               self.raw_data.group(DataMatchesGroupNumber.SUSPECT_TIMESTAMP),
                                               encode_y_or_n))
 
+            # Powered On Seconds
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.ON_SECONDS,
                                               self.raw_data.group(DataMatchesGroupNumber.ON_SECONDS),
                                               float))
 
+            # Number of output wavelengths.
             num_wavelengths = self.raw_data.group(DataMatchesGroupNumber.NUM_WAVELENGTHS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.NUM_WAVELENGTHS,
                                               num_wavelengths,
                                               int))
 
+            # C-channel reference dark counts, used for diagnostic purposes.
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
                                               self.raw_data.group(DataMatchesGroupNumber.C_REF_DARK),
                                               int))
 
+            # Array of raw c-channel reference counts
             counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_REF_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_COUNTS,
                                               counts,
                                               list))
 
-            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_REF_DARK)
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
-                                              counts,
-                                              list))
-
-            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_SIG_DARK)
+            # C-signal reference dark counts, used for diagnostic purposes.
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_DARK_COUNTS,
-                                              counts,
-                                              list))
+                                              self.raw_data.group(DataMatchesGroupNumber.C_SIG_DARK),
+                                              int))
 
+            # Array of raw c-channel signal counts
             counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_SIG_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_COUNTS,
+                                              counts,
+                                              list))
+
+            # A-channel reference dark counts, used for diagnostic purposes.
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.A_REFERENCE_DARK_COUNTS,
+                                              self.raw_data.group(DataMatchesGroupNumber.A_REF_DARK),
+                                              int))
+
+            # Array of raw a-channel reference counts
+            counts = self._build_list_for_encoding(DataMatchesGroupNumber.A_REF_COUNTS)
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.A_REFERENCE_COUNTS,
+                                              counts,
+                                              list))
+
+            # A-signal reference dark counts, used for diagnostic purposes.
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.A_SIGNAL_DARK_COUNTS,
+                                              self.raw_data.group(DataMatchesGroupNumber.A_SIG_DARK),
+                                              int))
+
+            # Array of raw a-channel signal counts
+            counts = self._build_list_for_encoding(DataMatchesGroupNumber.A_SIG_COUNTS)
+            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.A_SIGNAL_COUNTS,
                                               counts,
                                               list))
 
@@ -251,7 +276,7 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                 "Error (%s) while decoding parameters in data: [%s]"
                 % (ex, self.raw_data))
 
-        log.debug("results: %s", results)
+        #log.debug("results: %s", results)
 
         return results
 
@@ -266,6 +291,7 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         idx = 0
         # Load the tab separated string
         tab_str = self.raw_data.group(group_num)
+        # Strip off the ending tab
         tab_str_stripped = tab_str.strip('\t')
         counts_list = tab_str_stripped.split('\t')
         # noinspection PyUnusedLocal
@@ -314,7 +340,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
         @param publish_callback The function to call to provide particles
         @param exception_callback The function to call to report exceptions
         """
-        log.debug("OptaaDjCsppParser init")
         # Build up the header state dictionary using the default header key list
         self._header_state = {}
 
@@ -350,7 +375,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
         else:
             # Initialize the read state
             self._read_state = {StateKey.POSITION: 0, StateKey.METADATA_EXTRACTED: False}
-        log.debug("OptaaDjCsppParser leaving init")
 
     def set_state(self, state_obj):
         """
@@ -390,14 +414,11 @@ class OptaaDjCsppParser(BufferLoadingParser):
         @param result_particles A list which should be updated to include any particles extracted
         """
 
-        log.debug('entered _process_data_match')
         # Extract the data record particle
         data_particle = self._extract_sample(particle_class,
                                              None,
                                              data_match,
                                              None)
-
-        log.debug("data_particle: %s", data_particle)
 
         # If we created a data particle, let's append the particle to the result particles
         # to return and increment the state data positioning
@@ -419,7 +440,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 
-            log.debug('result_particles: %s', result_particles)
+        #log.debug('result_particles: %s', result_particles)
 
     def _process_header_part_match(self, header_part_match):
         """
@@ -428,7 +449,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
         will be updated with the obtained header values.
         @param header_part_match A regular expression match object for a cspp header row
         """
-        log.debug("entered _process_header_part_match")
         header_part_key = header_part_match.group(
             HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
         header_part_value = header_part_match.group(
@@ -455,7 +475,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
             # Ignore
             pass
         else:
-            # OK. We got unexpected data
+            # We got unexpected data
             log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
             self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
@@ -467,7 +487,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
         @retval a list of tuples with sample particles encountered in this
         parsing, plus the state. An empty list of nothing was parsed.
         """
-        log.debug("entering parse_chunks")
         # Initialize the result particles list we will return
         result_particles = []
 
@@ -483,35 +502,33 @@ class OptaaDjCsppParser(BufferLoadingParser):
         # While the data chunk is not None, process the data chunk
         while chunk is not None:
 
-            log.debug("chunk: %s", chunk)
-
             # Increment the read state position now
             self._increment_read_state(len(chunk))
 
-            match = MATCHER.match(chunk)
-            log.debug('match: %s', match)
+            # Look for match in beginning part of the regex
+            match = BEGIN_MATCHER.match(chunk)
 
             if match is not None:
 
                 count = match.group(6)   # num wavelengths
 
-                data_regex = self._build_data_regex(REGEX, count)
+                data_regex = self._build_data_regex(BEGIN_REGEX, count)
 
                 fields = re.match(data_regex, chunk)
+
                 if fields is not None:
-                    log.debug('Fields groups %s', fields.groups())
                     self._process_data_match(self._data_particle_class, fields, result_particles)
+                else:  # did not match the regex
+                    log.warn("chunk did not match regex %s", chunk)
+                    self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
+
             else:
-                log.debug('Match is None')
                 # Check for head part match
                 header_part_match = HEADER_PART_MATCHER.match(chunk)
-                log.debug('header_part_match: %s', header_part_match)
 
                 if header_part_match is not None:
-                    log.debug("header_part_match is not None:")
                     self._process_header_part_match(header_part_match)
                 else:
-                    log.debug("header_part_match is None:")
                     self._process_chunk_not_containing_data_record_or_header_part(chunk)
 
             # Retrieve the next non data chunk
@@ -523,7 +540,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
             # Process the non data
             self.handle_non_data(non_data, non_end, start)
 
-        log.debug("leaving parse_chunks")
         return result_particles
 
     @staticmethod
@@ -563,7 +579,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
         """
         # non-data is not expected, if found it is an error
         if non_data is not None and non_end <= start:
-            log.debug("non_data: %s", non_data)
             # send an UnexpectedDataException and increment the state
             self._increment_read_state(len(non_data))
             self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" %

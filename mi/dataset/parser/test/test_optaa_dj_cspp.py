@@ -11,6 +11,7 @@ import os
 import yaml
 import numpy
 
+# noinspection PyUnresolvedReferences
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
@@ -36,8 +37,6 @@ from mi.dataset.parser.optaa_dj_cspp import \
     OptaaDjCsppMetadataRecoveredDataParticle
 
 from mi.dataset.driver.optaa_dj.cspp.driver import DataTypeKey
-# The list of generated tests are the suggested tests, but there may
-# be other tests needed to fully test your parser
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'optaa_dj', 'cspp', 'resource')
 
@@ -64,6 +63,7 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         self.exception_callback_value.append(exception)
         self.count += 1
 
+    # noinspection PyPep8Naming
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
@@ -91,7 +91,8 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         self.exception_callback_value = []
         self.count = 0
 
-    def particle_to_yml(self, particles, filename, mode='w'):
+    @staticmethod
+    def particle_to_yml(particles, filename, mode='w'):
         """
         This is added as a testing helper, not actually as part of the parser tests. Since the same particles
         will be used for the driver test it is helpful to write them to .yml in the same form they need in the
@@ -123,7 +124,8 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
                     fid.write('   %s: %s\n' % (val.get('value_id'), val.get('value')))
         fid.close()
 
-    def get_dict_from_yml(self, filename):
+    @staticmethod
+    def get_dict_from_yml(filename):
         """
         This utility routine loads the contents of a yml file
         into a dictionary
@@ -140,17 +142,17 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         This utility creates a yml file
         """
 
-        fid = open(os.path.join(RESOURCE_PATH, TELEMETERED_SAMPLE_DATA), 'r')
+        fid = open(os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA), 'r')
 
         stream_handle = fid
-        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_TELEMETERED),
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
                                    None, stream_handle,
                                    self.state_callback, self.pub_callback,
                                    self.exception_callback)
 
         particles = parser.get_records(20)
 
-        self.particle_to_yml(particles, '11079364_ACD_ACS_telem.yml')
+        self.particle_to_yml(particles, '11079364_ACS_ACS_recov.yml')
         fid.close()
 
     def assert_result(self, test, particle):
@@ -208,11 +210,12 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_simple(self):
         """
-        Read test data and pull out 20 data particles.
+        Read test data and pull out the first particle (metadata).
         Assert that the results are those we expected.
         """
         log.debug('test_simple')
         file_path = os.path.join(RESOURCE_PATH, '11079364_ACS_ACS_one_data_record.txt')
+
         stream_handle = open(file_path, 'r')
         # data = stream_handle.read(1024)
         # log.debug("Data %s", data)
@@ -231,38 +234,119 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         #particles = parser.get_records(20)
         particles = parser.get_records(1)
         log.debug('particle: %s', particles)
-        #
-        # log.debug("*** test_simple Num particles %s", len(particles))
-        #
-        # # load a dictionary from the yml file
-        # test_data = self.get_dict_from_yml('11079364_PPB_CTD_recov.yml')
-        #
-        # # check all the values against expected results.
-        #
-        # for i in range(len(particles)):
-        #
-        #     self.assert_result(test_data['data'][i], particles[i])
-        #
-        # stream_handle.close()
+
+        log.debug("*** test_simple Num particles %s", len(particles))
+
+        # load a dictionary from the yml file
+        test_data = self.get_dict_from_yml('11079364_ACS_ACS_recov.yml')
+
+        # check all the values against expected results.
+        for i in range(len(particles)):
+
+            self.assert_result(test_data['data'][i], particles[i])
+
+        stream_handle.close()
 
     def test_get_many(self):
-	"""
-	Read test data and pull out multiple data particles at one time.
-	Assert that the results are those we expected.
-	"""
-        pass
+        """
+        Read test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        """
+        log.debug('test_get_many')
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
+
+        stream_handle = open(file_path, 'r')
+        # data = stream_handle.read(1024)
+        # log.debug("Data %s", data)
+
+        # Note: since the recovered and telemetered parser and particles are common
+        # to each other, testing one is sufficient, will be completely tested
+        # in driver tests
+        log.debug('creating parser')
+
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                                   None, stream_handle,
+                                   self.state_callback, self.pub_callback,
+                                   self.exception_callback)
+
+        log.debug('parser: %s', parser)
+        particles = parser.get_records(20)
+        log.debug('particle: %s', particles)
+
+        log.debug("*** test_simple Num particles %s", len(particles))
+
+        # load a dictionary from the yml file
+        test_data = self.get_dict_from_yml('11079364_ACS_ACS_recov.yml')
+
+        # check all the values against expected results.
+        for i in range(len(particles)):
+
+            self.assert_result(test_data['data'][i], particles[i])
+
+        stream_handle.close()
 
     def test_long_stream(self):
         """
-        Test a long stream 
+        Read test data and pull out multiple data particles
+        Assert that we have the correct number of particles
         """
-        pass
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
+        stream_handle = open(file_path, 'r')
+
+        # Note: since the recovered and telemetered parser and particles are common
+        # to each other, testing one is sufficient, will be completely tested
+        # in driver tests
+
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                                   None, stream_handle,
+                                   self.state_callback, self.pub_callback,
+                                   self.exception_callback)
+
+        # try to get 1044 particles, 1043 data records plus one meta data
+        particles = parser.get_records(1044)
+
+        log.info("*** test_long_stream Num particles is: %s", len(particles))
+        self.assertEqual(len(particles), 1044)
+
+        stream_handle.close()
 
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
+        This test makes sure that we retrieve the correct particles upon starting with an offset state.
         """
-        pass
+
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
+        stream_handle = open(file_path, 'rb')
+
+        # position 2394 is the beginning of the second data record, which would have produced the
+        # metadata particle and the first instrument particle
+        initial_state = {StateKey.POSITION: 2394, StateKey.METADATA_EXTRACTED: True}
+
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                                   initial_state, stream_handle,
+                                   self.state_callback, self.pub_callback,
+                                   self.exception_callback)
+
+        # expect to get the 2nd and 3rd instrument particles next
+        particles = parser.get_records(2)
+
+        log.debug("Num particles: %s", len(particles))
+
+        self.assertTrue(len(particles) == 2)
+
+        expected_results = self.get_dict_from_yml('mid_state_start.yml')
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        # now expect the state to be the beginning of 5th record (4th data record)
+        the_new_state = {StateKey.POSITION: 6316, StateKey.METADATA_EXTRACTED: True}
+        log.debug("********** expected state: %s", the_new_state)
+        log.debug("******** new parser state: %s", parser._state)
+        self.assertTrue(parser._state == the_new_state)
+
+        stream_handle.close()
 
     def test_set_state(self):
         """
@@ -270,10 +354,84 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        pass
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
+        stream_handle = open(file_path, 'r')
+
+        # The yml file has the metadata and the first 19
+        # instrument particles in it
+        expected_results = self.get_dict_from_yml('11079364_ACS_ACS_recov.yml')
+
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                                   None, stream_handle,
+                                   self.state_callback, self.pub_callback,
+                                   self.exception_callback)
+
+        particles = parser.get_records(2)
+
+        log.debug("Num particles: %s", len(particles))
+
+        self.assertTrue(len(particles) == 2)
+
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i], particles[i])
+
+        # position 33765 is the byte at the start of the 18th data record
+        new_state = {StateKey.POSITION: 33765, StateKey.METADATA_EXTRACTED: True}
+
+        parser.set_state(new_state)
+
+        particles = parser.get_records(2)
+
+        self.assertTrue(len(particles) == 2)
+
+        # offset in the expected results, into the 18th result
+        offset = 18
+        for i in range(len(particles)):
+            self.assert_result(expected_results['data'][i + offset], particles[i])
+
+        stream_handle.close()
 
     def test_bad_data(self):
         """
-        Ensure that bad data is skipped when it exists.
+        Ensure that bad data is skipped when it exists and a RecoverableSampleException is thrown.
+        Note: every other data record has bad data (float instead of int, extra column etc.)
         """
-        pass
+        # Data Record 1: timestamp is int
+        # Data Record 3: timestamp has non-digit
+        # Data Record 5: depth is int
+        # Data Record 7: suspect_timestamp is digit
+        # Data Record 9: serial number has letters
+        # Data Record 11: on seconds is missing
+        # Data Record 13: num wavelengths is letters
+        # Data Record 15: c ref dark is float
+        # Data Record 17: a c ref count is letters
+        # Data Record 19: begin with tab
+        # Data Record 21: begin with space
+        # Data Record 23: a sig count has a letter
+        # Data Record 25: external temp count is a float
+        # Data Record 27: internal temp count has a letter
+        # Data Record 29: pressure counts has a letter
+        # Data Record 31: has byte loss - from sample file in IDD
+
+        file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_ACS_ACS.txt')
+        stream_handle = open(file_path, 'rb')
+
+        log.info(self.exception_callback_value)
+
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                                   None, stream_handle,
+                                   self.state_callback, self.pub_callback,
+                                   self.exception_callback)
+
+        parser.get_records(20)
+
+        log.info("Exception callback value: %s", self.exception_callback_value)
+
+        self.assertTrue(self.exception_callback_value is not None)
+
+        for i in range(len(self.exception_callback_value)):
+            self.assert_(isinstance(self.exception_callback_value[i], RecoverableSampleException))
+
+        # bad records
+        self.assertEqual(self.count, 16)
+        stream_handle.close()
