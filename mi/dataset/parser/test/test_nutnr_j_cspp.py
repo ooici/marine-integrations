@@ -41,6 +41,7 @@ PARTICLE_D_POS = 9055
 PARTICLE_E_POS = 10282
 END_LONG_POS = 226490
 
+
 @attr('UNIT', group='mi')
 class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
     """
@@ -595,7 +596,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
 
         # compare file ingested from the state
         self.assertEqual(self.file_ingested_value, True)
-        # confirm no exceptions occurred
+        # confirm an exception occurred
         self.assertEqual(len(self.exception_callback_value), 1)
         self.assert_(isinstance(self.exception_callback_value[0], RecoverableSampleException))
 
@@ -622,7 +623,7 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
 
         # compare file ingested from the state
         self.assertEqual(self.file_ingested_value, True)
-        # confirm no exceptions occurred
+        # confirm an exception occurred
         self.assertEqual(len(self.exception_callback_value), 1)
         self.assert_(isinstance(self.exception_callback_value[0], RecoverableSampleException))
 
@@ -633,10 +634,8 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
         Test that configurations with a missing data particle dict and missing
         data particle class key causes a configuration exception
         """
-        config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
-        }
+        # test a config with a missing particle classes dict
+        config = {}
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'short_SNA_SNA.txt'), 'r')
 
@@ -645,9 +644,8 @@ class NutnrJCsppParserUnitTestCase(ParserUnitTestCase):
                                            self.state_callback, self.pub_callback,
                                            self.exception_callback)
 
+        # test a config with a missing data particle class key
         config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.nutnr_j_cspp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: None,
             DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                 METADATA_PARTICLE_CLASS_KEY: NutnrJCsppMetadataTelemeteredDataParticle,
             }

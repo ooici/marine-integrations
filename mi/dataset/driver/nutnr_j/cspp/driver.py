@@ -79,6 +79,7 @@ class NutnrJCsppDataSetDriver(MultipleHarvesterDataSetDriver):
             })
 
         else:
+            log.warn("Cannot build parser for unknown data source key %s", data_key)
             raise ConfigurationException("Cannot build parser for unknown data source key %s" % \
                                          data_key)
         

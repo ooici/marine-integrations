@@ -173,7 +173,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data_set_dir('part_header_SNA_SNA.txt', TELEM_DIR)
 
-        self.assert_data(TELEM_PARTICLES, 'short_SNA_telem_part.yml', count=6)
+        self.assert_data(TELEM_PARTICLES, 'short_SNA_telem_part.yml', count=6,
+                         timeout=20)
 
 
 ###############################################################################

@@ -240,6 +240,7 @@ class CsppParser(BufferLoadingParser):
 
         # Ensure that we have a data regex
         if data_record_regex is None:
+            log.warn('A data_record_regex is required, but None was given')
             raise DatasetParserException("Must provide a data_record_regex")
         else:
             self._data_record_matcher = re.compile(data_record_regex)
@@ -300,6 +301,8 @@ class CsppParser(BufferLoadingParser):
 
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj and StateKey.METADATA_EXTRACTED in state_obj):
+            raise DatasetParserException("Provided state is missing position or metadata extracted")
 
         self._state = state_obj
         self._read_state = state_obj
@@ -340,9 +343,9 @@ class CsppParser(BufferLoadingParser):
         if data_particle:
 
             if not self._read_state[StateKey.METADATA_EXTRACTED]:
-                # once the first data particle is read, all header lines should have
-                # also been read, if they haven't the not filled in values in the
-                # header state dictionary are None, except for source file which is required
+                # Once the first data particle is read, all available header lines will 
+                # have been read and inserted into the header state dictionary.
+                # Only the source file is required to create a metadata particle.
 
                 if self._header_state[DefaultHeaderKey.SOURCE_FILE] is not None:
                     metadata_particle = self._extract_sample(self._metadata_particle_class,
@@ -397,13 +400,7 @@ class CsppParser(BufferLoadingParser):
         @param chunk A regular expression match object for a cspp header row
         """
 
-        # Check for the expected timestamp line we will ignore
-        if TIMESTAMP_LINE_MATCHER.match(chunk):
-            # Ignore
-            pass
-
-        # Check for a line containing hex ascii chars
-        elif HEX_ASCII_LINE_MATCHER.match(chunk):
+        if HEX_ASCII_LINE_MATCHER.match(chunk):
             # we found a line starting with the timestamp, depth, and
             # suspect timestamp, followed by all hex ascii chars
             log.warn('got hex ascii corrupted data %s at position %s', chunk,
@@ -411,14 +408,11 @@ class CsppParser(BufferLoadingParser):
             self._exception_callback(RecoverableSampleException(
                 "Found hex ascii corrupted data: %s" % chunk))
 
-        # ignore matcher must come after hex line matcher because the ignore regex
-        # may also match hex ascii
-        elif self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
-            # Ignore
-            pass
-
-        else:
-            # OK.  We got unexpected data
+        # ignore the expected timestamp line and any lines matching the ignore regex,
+        # otherwise data is unexpected
+        elif not TIMESTAMP_LINE_MATCHER.match(chunk) and not \
+        (self._ignore_matcher is not None and self._ignore_matcher.match(chunk)):
+            # Unexpected data was found 
             log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
             self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
