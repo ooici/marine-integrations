@@ -22,7 +22,8 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import DatasetParserException, \
-    UnexpectedDataException, RecoverableSampleException
+    UnexpectedDataException, RecoverableSampleException, \
+    ConfigurationException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -48,6 +49,18 @@ Y_OR_N_REGEX = r'[yYnN]'
 # A regex to match against one or more tab characters
 MULTIPLE_TAB_REGEX = r'\t+'
 
+# a regex to match the 3 items that start a sample or status line:
+# profiler timestamp, depth, suspect timestamp
+SAMPLE_START_REGEX = FLOAT_REGEX + '\t' + FLOAT_REGEX + '\t' + Y_OR_N_REGEX + '\t'
+
+# match the profiler timestamp, depth, suspect timestamp followed by all hex
+# ascii chars
+# not all cspp instruments will match this due to the depth and suspect timestamp
+# being reversed, but those do not have ignore matchers so they will get caught
+# by being expected data
+HEX_ASCII_LINE_REGEX = SAMPLE_START_REGEX + '[0-9A-Fa-f]*' + END_OF_LINE_REGEX
+HEX_ASCII_LINE_MATCHER = re.compile(HEX_ASCII_LINE_REGEX)
+
 # The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
 # The key for the metadata particle class
 METADATA_PARTICLE_CLASS_KEY = 'metadata_particle_class'
@@ -59,6 +72,7 @@ def encode_y_or_n(val):
         return 1
     else:
         return 0
+
 
 class HeaderPartMatchesGroupNumber(BaseEnum):
     """
@@ -78,7 +92,6 @@ class DefaultHeaderKey(BaseEnum):
     DEVICE = 'Device'
     START_DATE = 'Start Date'
 
-
 # The default set of header keys as a list
 DEFAULT_HEADER_KEY_LIST = DefaultHeaderKey.list()
 
@@ -95,7 +108,6 @@ class CsppMetadataParserDataParticleKey(BaseEnum):
     PREPROCESSING_SOFTWARE_VERSION = 'preprocessing_software_version'
     START_DATE = 'start_date'
 
-
 # The following are used to index into encoding rules tuple structures.  The HEADER_DICTIONARY_KEY_INDEX
 # is the same value as the DATA_MATCHES_GROUP_NUMBER_INDEX because one is used for the metadata and the other
 # is used for the data record.
@@ -104,12 +116,12 @@ HEADER_DICTIONARY_KEY_INDEX = 1
 DATA_MATCHES_GROUP_NUMBER_INDEX = 1
 TYPE_ENCODING_INDEX = 2
 
-
 # A group of metadata particle encoding rules used to simplify encoding using a loop
 METADATA_PARTICLE_ENCODING_RULES = [
     (CsppMetadataParserDataParticleKey.SOURCE_FILE, DefaultHeaderKey.SOURCE_FILE, str),
     (CsppMetadataParserDataParticleKey.PREPROCESSING_SOFTWARE_VERSION, DefaultHeaderKey.USING_VERSION, str),
     (CsppMetadataParserDataParticleKey.START_DATE, DefaultHeaderKey.START_DATE, str),
+    (CsppMetadataParserDataParticleKey.PROCESSING_TIME, DefaultHeaderKey.PROCESSED, str)
 ]
 
 # The following items are used to index into source file name string
@@ -185,22 +197,9 @@ class CsppMetadataDataParticle(DataParticle):
                 FRACTION_OF_DAY_SOURCE_FILE_STARTING_CHAR_POSITION:FRACTION_OF_DAY_SOURCE_FILE_CHARS_END_RANGE],
             int))
 
-        # Grab the processed date and time from the match raw_data
-        (processed_date, processed_time) = header_dict[DefaultHeaderKey.PROCESSED].split()
-
-        # Encode the processing time which includes the processed date and time retrieved above
-        results.append(self._encode_value(
-            CsppMetadataParserDataParticleKey.PROCESSING_TIME,
-            processed_date + " " + processed_time,
-            str))
-
         # Iterate through a set of metadata particle encoding rules to encode the remaining parameters
-        for rule in METADATA_PARTICLE_ENCODING_RULES:
-
-            results.append(self._encode_value(
-                rule[PARTICLE_KEY_INDEX],
-                header_dict[rule[HEADER_DICTIONARY_KEY_INDEX]],
-                rule[TYPE_ENCODING_INDEX]))
+        for name, index, encoding_func in METADATA_PARTICLE_ENCODING_RULES:
+            results.append(self._encode_value(name, header_dict[index], encoding_func))
 
         log.debug('CsppMetadataDataParticle: particle=%s', results)
         return results
@@ -241,6 +240,7 @@ class CsppParser(BufferLoadingParser):
 
         # Ensure that we have a data regex
         if data_record_regex is None:
+            log.warn('A data_record_regex is required, but None was given')
             raise DatasetParserException("Must provide a data_record_regex")
         else:
             self._data_record_matcher = re.compile(data_record_regex)
@@ -255,10 +255,21 @@ class CsppParser(BufferLoadingParser):
             self._header_state[header_key] = None
 
         # Obtain the particle classes dictionary from the config data
-        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-        # Set the metadata and data particle classes to be used later
-        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
-        self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+        if DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT in config:
+            particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
+            # Set the metadata and data particle classes to be used later
+            if METADATA_PARTICLE_CLASS_KEY in particle_classes_dict and \
+            DATA_PARTICLE_CLASS_KEY in particle_classes_dict:
+                self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+                self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+            else:
+                log.warning(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+                raise ConfigurationException(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+        else:
+            log.warning('Configuration missing particle classes dict')
+            raise ConfigurationException('Configuration missing particle classes dict')
 
         # Initialize the record buffer to an empty list
         self._record_buffer = []
@@ -290,6 +301,8 @@ class CsppParser(BufferLoadingParser):
 
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj and StateKey.METADATA_EXTRACTED in state_obj):
+            raise DatasetParserException("Provided state is missing position or metadata extracted")
 
         self._state = state_obj
         self._read_state = state_obj
@@ -329,19 +342,37 @@ class CsppParser(BufferLoadingParser):
         # to return and increment the state data positioning
         if data_particle:
 
-            if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
-                metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                         None,
-                                                         (copy.copy(self._header_state),
-                                                          data_match),
-                                                         None)
-                if metadata_particle:
-                    self._read_state[StateKey.METADATA_EXTRACTED] = True
-                    # We're going to insert the metadata particle so that it is the first in the list
-                    # and set the position to 0, as it cannot have the same position as the non-metadata
-                    # particle
-                    result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
-                                                                    StateKey.METADATA_EXTRACTED: True}))
+            if not self._read_state[StateKey.METADATA_EXTRACTED]:
+                # Once the first data particle is read, all available header lines will 
+                # have been read and inserted into the header state dictionary.
+                # Only the source file is required to create a metadata particle.
+
+                if self._header_state[DefaultHeaderKey.SOURCE_FILE] is not None:
+                    metadata_particle = self._extract_sample(self._metadata_particle_class,
+                                                             None,
+                                                             (copy.copy(self._header_state),
+                                                              data_match),
+                                                             None)
+                    if metadata_particle:
+                        # We're going to insert the metadata particle so that it is 
+                        # the first in the list and set the position to 0, as it cannot 
+                        # have the same position as the non-metadata particle
+                        result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
+                                                                        StateKey.METADATA_EXTRACTED: True}))
+                    else:
+                        # metadata particle was not created successfully
+                        log.warn('Unable to create metadata particle')
+                        self._exception_callback(RecoverableSampleException(
+                            'Unable to create metadata particle'))
+                else:
+                    # no source file path, don't create metadata particle
+                    log.warn('No source file, not creating metadata particle')
+                    self._exception_callback(RecoverableSampleException(
+                        'No source file, not creating metadata particle'))
+
+                # need to set metadata extracted to true so we don't keep creating
+                # the metadata, even if it failed
+                self._read_state[StateKey.METADATA_EXTRACTED] = True
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 
@@ -369,22 +400,21 @@ class CsppParser(BufferLoadingParser):
         @param chunk A regular expression match object for a cspp header row
         """
 
-        # Check for the expected timestamp line we will ignore
-        timestamp_line_match = TIMESTAMP_LINE_MATCHER.match(chunk)
+        if HEX_ASCII_LINE_MATCHER.match(chunk):
+            # we found a line starting with the timestamp, depth, and
+            # suspect timestamp, followed by all hex ascii chars
+            log.warn('got hex ascii corrupted data %s at position %s', chunk,
+                     self._read_state[StateKey.POSITION])
+            self._exception_callback(RecoverableSampleException(
+                "Found hex ascii corrupted data: %s" % chunk))
 
-        if timestamp_line_match is not None:
-            # Ignore
-            pass
-
-        else:
-
-            if self._ignore_matcher is not None and self._ignore_matcher.match(chunk):
-                # Ignore
-                pass
-            else:
-                # OK.  We got unexpected data
-                log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
-                self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
+        # ignore the expected timestamp line and any lines matching the ignore regex,
+        # otherwise data is unexpected
+        elif not TIMESTAMP_LINE_MATCHER.match(chunk) and not \
+        (self._ignore_matcher is not None and self._ignore_matcher.match(chunk)):
+            # Unexpected data was found 
+            log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
+            self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
     def parse_chunks(self):
         """

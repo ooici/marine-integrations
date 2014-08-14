@@ -1,0 +1,61 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2004-05-05T09:12:38Z'
+    dcl_controller_timestamp: '2004/05/05 09:12:38.907'
+    date_string: '05/05/03'
+    time_string: '21:12:38'
+    measurement_wavelength_beta: 57330
+    raw_signal_beta: 57331
+    measurement_wavelength_chl: 57332
+    raw_signal_chl: 57333
+    measurement_wavelength_cdom: 57334
+    raw_signal_cdom: 57335
+    raw_internal_temp: 57336
+  - _index:  2
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2004-05-05T09:12:41Z'
+    dcl_controller_timestamp: '2004/05/05 09:12:41.265'
+    date_string: '05/05/03'
+    time_string: '21:12:41'
+    measurement_wavelength_beta: 60060
+    raw_signal_beta: 60061
+    measurement_wavelength_chl: 60062
+    raw_signal_chl: 60063
+    measurement_wavelength_cdom: 60064
+    raw_signal_cdom: 60065
+    raw_internal_temp: 60066
+  - _index:  3
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2004-05-05T09:12:43Z'
+    dcl_controller_timestamp: '2004/05/05 09:12:43.623'
+    date_string: '05/05/03'
+    time_string: '21:12:43'
+    measurement_wavelength_beta: 62790
+    raw_signal_beta: 62791
+    measurement_wavelength_chl: 62792
+    raw_signal_chl: 62793
+    measurement_wavelength_cdom: 62794
+    raw_signal_cdom: 62795
+    raw_internal_temp: 62796
+  - _index:  4
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2004-05-05T09:12:45Z'
+    dcl_controller_timestamp: '2004/05/05 09:12:45.981'
+    date_string: '05/05/03'
+    time_string: '21:12:45'
+    measurement_wavelength_beta: 65520
+    raw_signal_beta: 65521
+    measurement_wavelength_chl: 65522
+    raw_signal_chl: 65523
+    measurement_wavelength_cdom: 65524
+    raw_signal_cdom: 65525
+    raw_internal_temp: 65526
