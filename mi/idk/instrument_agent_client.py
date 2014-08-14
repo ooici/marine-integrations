@@ -536,7 +536,8 @@ class InstrumentAgentEventSubscribers(object):
         """
         Reset event counter
         """
-        self._events_received = []
+
+        self.events_received = []
 
     def stop(self):
         try:
