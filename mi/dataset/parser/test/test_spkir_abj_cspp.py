@@ -353,7 +353,7 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         # the first data record in this file is corrupted and will be ignored
         # we expect the first 2 particles to be the metadata particle and the
-        # instrument particle from the data record after the corrupted one
+        # intrument particle from the data record after the corrupted one
 
         file_path = os.path.join(RESOURCE_PATH, '11079419_BAD_PPB_OCR.txt')
         stream_handle = open(file_path, 'rb')
@@ -373,8 +373,6 @@ class SpkirAbjCsppParserUnitTestCase(ParserUnitTestCase):
 
         for i in range(len(particles)):
             self.assert_result(expected_results['data'][i], particles[i])
-
-        self.assert_(isinstance(self.exception_callback_value, RecoverableSampleException))
 
         stream_handle.close()
 
