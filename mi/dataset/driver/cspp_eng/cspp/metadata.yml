@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeff Roy
+  constructor: CsppEngCsppDataSetDriver
+  driver_name: cspp_eng_cspp
+  driver_path: cspp_eng/cspp
+  email: Jeffrey_A_Roy@Raytheon.com
+  release_notes: initial release
+  version: 0.0.1

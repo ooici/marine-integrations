@@ -1,0 +1,274 @@
+Source File: Q:\Profilers\WLP-0002\Build - 06092014\2014_06_03WLP-002QuarryTesting\01554078.DBG
+Processed: 07/16/2014 10:19:24
+Using Version: 1.11
+Device: PDBG
+Start Date: 06/04/2014
+Timestamp (s)	Depth (dbar)	Suspect Timestamp	Data
+1401874809.538	0.000	n	NOT,1,WK*5
+1401874809.542	0.000	n	Winch WK. status was = 01C70000
+1401874809.902	0.000	n	S,1,00000060*3
+1401874809.927	0.000	n	DATE,2,6/4/2014,09:40:09*5
+1401874809.985	0.000	n	LOG,2,1,01554008.WC*0
+1401874810.559	0.000	n	S,1,00000170*3
+1401874811.561	0.000	n	S,1,00000172*3
+1401874811.562	0.000	n	Getting Descent Battery Status
+1401874811.563	0.000	n	ubs BF:1 mode:2
+1401874811.564	0.000	n	ubs BF:1 now mode:4
+1401874811.565	0.000	n	ubs BF:2 mode:2
+1401874811.566	0.000	n	ubs BF:2 now mode:4
+1401874814.077	0.000	n	GP
+1401874814.078	0.000	n	-772603,30.0
+1401874814.082	0.000	n	Get Stat for bat =1
+1401874814.092	0.000	n	quit/status test i=0
+1401874814.094	0.000	n	status test BF:1 mode:4 ct:6
+1401874814.095	0.000	n	status test BF:2 mode:4 ct:6
+1401874814.101	0.000	n	STPM,1,0*4
+1401874814.113	0.000	n	GP,2,-772603,30.00*5
+1401874814.125	0.000	n	S,1,00000173*3
+1401874814.140	0.000	y	&01q0 d- 33.15  0.43  20.2 4.130 4.155 0  983.66   0:55:44 m 0 0    0
+1401874814.583	0.000	n	Get Stat for bat =2
+1401874814.593	0.000	n	quit/status test i=0
+1401874814.595	0.000	n	status test BF:1 mode:1 ct:5
+1401874814.596	0.000	n	status test BF:2 mode:4 ct:6
+1401874814.628	0.000	y	&02q0 d- 33.09  0.94  20.1 4.129 4.154 0  961.04   0:55:51 m 0 0    0
+1401874815.083	0.000	n	Sending Bat Disable
+1401874815.093	0.000	n	quit/status test i=0
+1401874815.095	0.000	n	status test BF:1 mode:1 ct:5
+1401874815.096	0.000	n	status test BF:2 mode:1 ct:5
+1401874815.103	0.000	n	S,1,000001B3*4
+1401874815.163	0.000	n	WD off detected for bat 01 with mode 1
+1401874815.161	0.000	y	&01wf 1
+1401874815.584	0.000	n	Sending Bat Disable
+1401874815.593	0.000	n	quit/status test i=1
+1401874815.595	0.000	n	status test BF:1 mode:2 ct:6
+1401874815.596	0.000	n	status test BF:2 mode:1 ct:5
+1401874815.645	0.000	n	WD off detected for bat 02 with mode 1
+1401874815.643	0.000	y	&02wf 1
+1401874816.084	0.000	n	quit/status test i=2
+1401874816.086	0.000	n	status test BF:1 mode:2 ct:6
+1401874816.087	0.000	n	status test BF:2 mode:2 ct:6
+1401874816.157	0.000	n	SUM:1.17,1.16,0.77,32.2,-772609,01554008.PPB,64973,1020362752,82,7,33.09,4.129,961.04,2
+1401874833.105	0.000	n	S,1,00001372*3
+1401874833.105	0.000	n	Home shutting down inst
+1401874834.480	0.000	n	SUM,5,1.423,32.0,-772609,1024049152,7*0
+1401874834.494	0.000	n	wd=1.42,wv=32.0,wp=-772609
+1401874834.495	0.000	n	new scooch pos=-769251
+1401874834.571	0.000	n	LOG,2,0,01554008.WC*0
+1401874834.573	0.000	n	cwf=01554008.WC nwf=01554078.WC
+1401874834.574	0.000	n	TYPE for 01554008.WC
+1401874834.619	0.000	n	TYPE,2,\140603\01554008.WC,66507*5
+1401874834.664	0.000	n	Receiving file 01554008.WC of 66507 bytes
+1401874843.789	0.000	n	TYPE,1,DONE*7
+1401874843.790	0.000	n	wc TYPE done, not deleting
+1401874843.993	0.000	n	setting wof to cwlf:01554008.WC
+1401874844.235	0.000	n	Q*0
+1401874844.236	0.000	n	Winch Quit received.
+1401874863.539	0.000	n	Bedtime: turning CTD on to check bedtime depth
+1401874865.372	0.000	n	startDepth:1.166
+1401874865.375	0.000	n	CTD depth of 1.166 at 1401874865 after early wake to check depth
+1401874865.376	0.000	n	Turning off CTD
+1401875165.378	0.000	n	Turning CTD back on at 1401875165 to check depth
+1401875167.212	0.000	n	startDepth:1.169
+1401875167.215	0.000	n	CTD depth of 1.169 at 1401875167 after early wake to check depth
+1401875167.216	0.000	n	Turning off CTD
+1401875222.002	0.000	n	Start time at 1401875222 while checking depth from prev ps 13
+1401875222.260	0.000	n	ACS over pkt size
+1401875222.262	0.000	n	SUNA over pkt size
+1401875222.263	0.000	n	SUNA over buf size
+1401875224.068	0.000	n	startDepth:1.167
+1401875224.799	0.000	n	ADCP over pkt size
+1401875225.380	0.000	n	NOT,1,WK*5
+1401875225.383	0.000	n	Winch WK. status was = 01870000
+1401875225.746	0.000	n	S,1,00000060*3
+1401875225.763	0.000	n	DATE,2,6/4/2014,09:47:05*5
+1401875225.841	0.000	n	LOG,2,1,01554078.WC*0
+1401875226.399	0.000	n	S,1,00000170*3
+1401875227.411	0.000	n	S,1,00000172*3
+1401875227.412	0.000	n	Skipping start setup
+1401875227.432	0.000	n	D,1,1.423*0
+1401875227.442	0.000	n	Winch Depth = 1.42
+1401875227.442	0.000	n	Depth ok. Changing to PRO_START
+1401875232.008	0.000	n	START GO
+1401875232.008	0.000	n	0.70,10.0
+1401875232.009	0.000	n	Getting Setup Battery Status
+1401875232.010	0.000	n	ubs BF:1 mode:2
+1401875232.011	0.000	n	ubs BF:1 now mode:4
+1401875232.012	0.000	n	ubs BF:2 mode:2
+1401875232.012	0.000	n	ubs BF:2 now mode:4
+1401875232.045	0.000	n	GO,2,0.700,10.00*4
+1401875232.434	0.000	n	S,1,000001B3*4
+1401875232.513	0.000	n	Get Stat for bat =1
+1401875232.523	0.000	n	quit/status test i=0
+1401875232.525	0.000	n	status test BF:1 mode:4 ct:6
+1401875232.526	0.000	n	status test BF:2 mode:4 ct:6
+1401875232.589	0.000	y	&01q0 d- 33.15  1.02  20.1 4.129 4.154 0  982.67   1:02:33 m 0 0    0
+1401875233.014	0.000	n	Get Stat for bat =2
+1401875233.024	0.000	n	quit/status test i=0
+1401875233.025	0.000	n	status test BF:1 mode:1 ct:5
+1401875233.027	0.000	n	status test BF:2 mode:4 ct:6
+1401875233.065	0.000	y	&02q0 d- 33.13  0.83  20.1 4.129 4.153 0  960.06   1:02:41 m 0 0    0
+1401875233.516	0.000	n	Sending Bat Disable
+1401875233.525	0.000	n	quit/status test i=0
+1401875233.527	0.000	n	status test BF:1 mode:1 ct:5
+1401875233.529	0.000	n	status test BF:2 mode:1 ct:5
+1401875233.572	0.000	n	WD off detected for bat 01 with mode 1
+1401875233.570	0.000	y	&01wf 1
+1401875234.016	0.000	n	Sending Bat Disable
+1401875234.026	0.000	n	quit/status test i=1
+1401875234.028	0.000	n	status test BF:1 mode:2 ct:6
+1401875234.029	0.000	n	status test BF:2 mode:1 ct:5
+1401875234.081	0.000	n	WD off detected for bat 02 with mode 1
+1401875234.078	0.000	y	&02wf 1
+1401875234.270	0.000	n	ACS over pkt size
+1401875234.519	0.000	n	quit/status test i=2
+1401875234.520	0.000	n	status test BF:1 mode:2 ct:6
+1401875234.522	0.000	n	status test BF:2 mode:2 ct:6
+1401875234.604	0.000	n	SUM:1.17,1.16,23364586.67,32.0,-772609,01554008.PPB,64973,1020280832,82,7,33.09,4.129,961.04,2
+1401875234.760	0.000	n	ACS over pkt size
+1401875235.247	0.000	n	ACS over pkt size
+1401875235.736	0.000	n	ACS over pkt size
+1401875236.230	0.000	n	ACS over pkt size
+1401875236.723	0.000	n	ACS over pkt size
+1401875237.221	0.000	n	ACS over pkt size
+1401875237.718	0.000	n	ACS over pkt size
+1401875238.213	0.000	n	ACS over pkt size
+1401875238.711	0.000	n	ACS over pkt size
+1401875239.208	0.000	n	ACS over pkt size
+1401875239.705	0.000	n	ACS over pkt size
+1401875240.206	0.000	n	ACS over pkt size
+1401875240.702	0.000	n	ACS over pkt size
+1401875241.201	0.000	n	ACS over pkt size
+1401875241.514	0.000	n	OCR over pkt size
+1401875241.949	0.000	n	ACS over pkt size
+1401875242.447	0.000	n	ACS over pkt size
+1401875242.943	0.000	n	ACS over pkt size
+1401875243.443	0.000	n	ACS over pkt size
+1401875243.940	0.000	n	ACS over pkt size
+1401875244.439	0.000	n	ACS over pkt size
+1401875244.938	0.000	n	ACS over pkt size
+1401875245.434	0.000	n	ACS over pkt size
+1401875245.608	0.000	n	OCR over pkt size
+1401875245.932	0.000	n	ACS over pkt size
+1401875246.429	0.000	n	ACS over pkt size
+1401875246.927	0.000	n	ACS over pkt size
+1401875247.428	0.000	n	ACS over pkt size
+1401875247.924	0.000	n	ACS over pkt size
+1401875248.421	0.000	n	ACS over pkt size
+1401875248.920	0.000	n	ACS over pkt size
+1401875249.419	0.000	n	ACS over pkt size
+1401875249.918	0.000	n	ACS over pkt size
+1401875250.415	0.000	n	ACS over pkt size
+1401875250.914	0.000	n	ACS over pkt size
+1401875251.413	0.000	n	ACS over pkt size
+1401875251.910	0.000	n	ACS over pkt size
+1401875252.411	0.000	n	ACS over pkt size
+1401875252.908	0.000	n	ACS over pkt size
+1401875253.407	0.000	n	ACS over pkt size
+1401875253.904	0.000	n	ACS over pkt size
+1401875254.403	0.000	n	ACS over pkt size
+1401875254.903	0.000	n	ACS over pkt size
+1401875255.399	0.000	n	ACS over pkt size
+1401875255.900	0.000	n	ACS over pkt size
+1401875256.401	0.000	n	ACS over pkt size
+1401875256.898	0.000	n	ACS over pkt size
+1401875257.395	0.000	n	ACS over pkt size
+1401875257.894	0.000	n	ACS over pkt size
+1401875258.394	0.000	n	ACS over pkt size
+1401875258.891	0.000	n	ACS over pkt size
+1401875259.389	0.000	n	ACS over pkt size
+1401875259.889	0.000	n	ACS over pkt size
+1401875260.387	0.000	n	ACS over pkt size
+1401875260.889	0.000	n	ACS over pkt size
+1401875261.386	0.000	n	ACS over pkt size
+1401875261.900	0.000	n	ACS over pkt size
+1401875262.386	0.000	n	ACS over pkt size
+1401875262.881	0.000	n	ACS over pkt size
+1401875263.381	0.000	n	ACS over pkt size
+1401875263.879	0.000	n	ACS over pkt size
+1401875264.378	0.000	n	ACS over pkt size
+1401875264.879	0.000	n	ACS over pkt size
+1401875265.379	0.000	n	ACS over pkt size
+1401875265.880	0.000	n	ACS over pkt size
+1401875266.375	0.000	n	ACS over pkt size
+1401875266.875	0.000	n	ACS over pkt size
+1401875267.375	0.000	n	ACS over pkt size
+1401875267.873	0.000	n	ACS over pkt size
+1401875268.372	0.000	n	ACS over pkt size
+1401875268.873	0.000	n	ACS over pkt size
+1401875269.371	0.000	n	ACS over pkt size
+1401875269.870	0.000	n	ACS over pkt size
+1401875270.368	0.000	n	ACS over pkt size
+1401875270.867	0.000	n	ACS over pkt size
+1401875271.368	0.000	n	ACS over pkt size
+1401875271.865	0.000	n	ACS over pkt size
+1401875272.044	0.000	n	OCR over pkt size
+1401875272.366	0.000	n	ACS over pkt size
+1401875272.863	0.000	n	ACS over pkt size
+1401875273.363	0.000	n	ACS over pkt size
+1401875273.864	0.000	n	ACS over pkt size
+1401875274.362	0.000	n	ACS over pkt size
+1401875274.862	0.000	n	ACS over pkt size
+1401875275.359	0.000	n	ACS over pkt size
+1401875275.860	0.000	n	ACS over pkt size
+1401875276.360	0.000	n	ACS over pkt size
+1401875276.857	0.000	n	ACS over pkt size
+1401875277.359	0.000	n	ACS over pkt size
+1401875277.856	0.000	n	ACS over pkt size
+1401875278.358	0.000	n	ACS over pkt size
+1401875278.662	0.000	n	S,1,00000BB2*3
+1401875278.663	0.000	n	Top limit detected.
+1401875278.664	0.000	n	Shutting down inst
+1401875279.137	0.000	n	Getting profile end battery status
+1401875279.138	0.000	n	ubs BF:1 mode:2
+1401875279.139	0.000	n	ubs BF:1 now mode:4
+1401875279.140	0.000	n	ubs BF:2 mode:2
+1401875279.141	0.000	n	ubs BF:2 now mode:4
+1401875279.142	0.000	n	Switching to Pro end cmd
+1401875279.353	0.000	n	OCR over pkt size
+1401875279.354	0.000	n	OCR over buf size
+1401875279.642	0.000	n	Get Stat for bat =1
+1401875279.652	0.000	n	quit/status test i=0
+1401875279.654	0.000	n	status test BF:1 mode:4 ct:6
+1401875279.655	0.000	n	status test BF:2 mode:4 ct:6
+1401875279.675	0.000	n	S,1,00000B72*4
+1401875279.693	0.000	y	&01q0 d- 33.15  0.43  20.1 4.127 4.152 0  982.30   1:03:19 m 0 0    0
+1401875280.143	0.000	n	Get Stat for bat =2
+1401875280.153	0.000	n	quit/status test i=0
+1401875280.154	0.000	n	status test BF:1 mode:1 ct:5
+1401875280.155	0.000	n	status test BF:2 mode:4 ct:6
+1401875280.190	0.000	y	&02q0 d- 33.13  0.30  20.1 4.128 4.153 0  959.69   1:03:27 m 0 0    0
+1401875280.644	0.000	n	Sending Bat Disable
+1401875280.654	0.000	n	quit/status test i=0
+1401875280.655	0.000	n	status test BF:1 mode:1 ct:5
+1401875280.657	0.000	n	status test BF:2 mode:1 ct:5
+1401875280.713	0.000	n	WD off detected for bat 01 with mode 1
+1401875280.711	0.000	y	&01wf 1
+1401875281.146	0.000	n	Sending Bat Disable
+1401875281.156	0.000	n	quit/status test i=1
+1401875281.157	0.000	n	status test BF:1 mode:2 ct:6
+1401875281.158	0.000	n	status test BF:2 mode:1 ct:5
+1401875281.198	0.000	n	WD off detected for bat 02 with mode 1
+1401875281.196	0.000	y	&02wf 1
+1401875281.648	0.000	n	quit/status test i=2
+1401875281.649	0.000	n	status test BF:1 mode:2 ct:6
+1401875281.650	0.000	n	status test BF:2 mode:2 ct:6
+1401875281.719	0.000	n	SUM:1.17,1.16,0.77,32.0,-772609,01554008.PPB,64973,1020084224,82,7,33.09,4.129,961.04,2
+1401875284.137	0.000	n	Clearing winch move done
+1401875284.155	0.000	n	CMD,1,00000172*2
+1401875284.156	0.000	n	CMD rcvd pfs=22
+1401875284.201	0.000	n	LOG,2,0,01554078.WC*0
+1401875284.282	0.000	n	pro num now 0, start time = 1401875832
+1401875284.670	0.000	n	mmdepth=1160.00
+1401875284.672	0.000	n	depth=1.16
+1401875284.674	0.000	n	Close enough d=1.16
+1401875284.684	0.000	n	LOG,2,1,01554078.WC*0
+1401875286.723	0.000	n	Q*0
+1401875286.724	0.000	n	Winch Quit received.
+1401875304.010	0.000	n	Valid GPS
+1401875303.829	0.000	n	$GPRMC,164824,A,4432.3170,N,12322.6118,W,000.0,000.0,040614,015.6,E*66
+1401875304.001	0.000	n	GPS adjustment 0
+1401875304.004	0.000	n	Profile ended
+1401875305.061	0.000	n	IRDM Startup
+1401875319.663	0.000	n	NO CARRIER
+1401875346.506	0.000	n	CONNECT 115200
+1401875351.507	0.000	n	IRDM connection returned IRDM_CONNECTED
