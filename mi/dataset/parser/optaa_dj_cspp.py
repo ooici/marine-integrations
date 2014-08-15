@@ -4,7 +4,9 @@
 @package mi.dataset.parser.optaa_dj_cspp
 @file marine-integrations/mi/dataset/parser/optaa_dj_cspp.py
 @author Joe Padula
-@brief Parser for the optaa_dj_cspp dataset driver
+@brief Parser for the optaa_dj_cspp dataset driver. This parser extends from certain classes
+    in cspp_base.py but not all. For instance OptaaDjCsppParser is not extended from cspp_base,
+    instead it is extended from BufferLoadingParser.
 Release notes:
 
 Initial Release
@@ -33,6 +35,7 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
 from mi.dataset.parser.cspp_base import \
+    DefaultHeaderKey, \
     DEFAULT_HEADER_KEY_LIST, \
     DATA_PARTICLE_CLASS_KEY, \
     METADATA_PARTICLE_CLASS_KEY, \
@@ -95,9 +98,14 @@ class DataParticleType(BaseEnum):
 
 
 class OptaaDjCsppParserDataParticleKey(BaseEnum):
+
     """
-    The data particle keys associated with the data instrument particle parameters
+    The data particle keys associated with the metadata particle parameters
     """
+    # non-common metadata particle key
+    SERIAL_NUMBER = 'serial_number'
+
+    # The data particle keys associated with the data instrument particle parameters
     PROFILER_TIMESTAMP = 'profiler_timestamp'
     PRESSURE_DEPTH = 'pressure_depth'
     SUSPECT_TIMESTAMP = 'suspect_timestamp'
@@ -115,6 +123,7 @@ class OptaaDjCsppParserDataParticleKey(BaseEnum):
     INTERNAL_TEMP_RAW = 'internal_temp_raw'
     PRESSURE_COUNTS = 'pressure_counts'
 
+# A group instrument particle encoding rules used to simplify encoding using a loop
 INSTRUMENT_PARTICLE_ENCODING_RULES = [
     # Since 1/1/70 with millisecond resolution
     (OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
@@ -139,16 +148,24 @@ class OptaaDjCsppMetadataDataParticle(CsppMetadataDataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
+        @returns results a list of encoded metadata particle (key/value pairs)
         @throws RecoverableSampleException If there is a problem with sample creation
         """
-        results = []
+        metadata_particle = []
 
         try:
 
-            # Append the base metadata parsed values to the results to return
-            results += self._build_metadata_parsed_values()
+            # Call base class to append the base metadata parsed values to the particle to return
+            metadata_particle += self._build_metadata_parsed_values()
 
             data_match = self.raw_data[MetadataRawDataKey.DATA_MATCH]
+
+            # Process the non common metadata particle parameter
+
+            # Instrument serial number (from first record)
+            metadata_particle.append(self._encode_value(OptaaDjCsppParserDataParticleKey.SERIAL_NUMBER,
+                                                        data_match.group(DataMatchesGroupNumber.SERIAL_NUMBER),
+                                                        int))
 
             # Set the internal timestamp
             internal_timestamp_unix = numpy.float(data_match.group(
@@ -156,12 +173,13 @@ class OptaaDjCsppMetadataDataParticle(CsppMetadataDataParticle):
             self.set_internal_timestamp(unix_time=internal_timestamp_unix)
 
         except (ValueError, TypeError, IndexError) as ex:
-            log.warn("Exception when building metadata parsed values")
+            log.warn("Exception when building metadata particle")
             raise RecoverableSampleException(
                 "Error (%s) while decoding parameters in data: [%s]"
                 % (ex, self.raw_data))
 
-        return results
+        log.debug('metadata_particle: %s', metadata_particle)
+        return metadata_particle
 
 
 class OptaaDjCsppMetadataRecoveredDataParticle(OptaaDjCsppMetadataDataParticle):
@@ -416,24 +434,42 @@ class OptaaDjCsppParser(BufferLoadingParser):
         # If we created a data particle, let's append the particle to the result particles
         # to return and increment the state data positioning
         if data_particle:
-            metadata_particle = None
-            if not self._read_state[StateKey.METADATA_EXTRACTED] and None not in self._header_state.values():
-                metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                         None,
-                                                         (copy.copy(self._header_state),
-                                                         data_match),
-                                                         None)
-            if metadata_particle:
+
+            if not self._read_state[StateKey.METADATA_EXTRACTED]:
+                # Once the first data particle is read, all available header lines will
+                # have been read and inserted into the header state dictionary.
+                # Only the source file is required to create a metadata particle.
+
+                if self._header_state[DefaultHeaderKey.SOURCE_FILE] is not None:
+                    metadata_particle = self._extract_sample(self._metadata_particle_class,
+                                                             None,
+                                                             (copy.copy(self._header_state),
+                                                              data_match),
+                                                             None)
+                    if metadata_particle:
+                        # We're going to insert the metadata particle so that it is
+                        # the first in the list and set the position to 0, as it cannot
+                        # have the same position as the non-metadata particle
+                        result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
+                                                                        StateKey.METADATA_EXTRACTED: True}))
+                    else:
+                        # metadata particle was not created successfully
+                        log.warn('Unable to create metadata particle')
+                        self._exception_callback(RecoverableSampleException(
+                            'Unable to create metadata particle'))
+                else:
+                    # no source file path, don't create metadata particle
+                    log.warn('No source file, not creating metadata particle')
+                    self._exception_callback(RecoverableSampleException(
+                        'No source file, not creating metadata particle'))
+
+                # need to set metadata extracted to true so we don't keep creating
+                # the metadata, even if it failed
                 self._read_state[StateKey.METADATA_EXTRACTED] = True
-                # We're going to insert the metadata particle so that it is the first in the list
-                # and set the position to 0, as it cannot have the same position as the non-metadata
-                # particle
-                result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
-                                        StateKey.METADATA_EXTRACTED: True}))
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 
-        #log.debug('result_particles: %s', result_particles)
+        log.debug('result_particles: %s', result_particles)
 
     def _process_header_part_match(self, header_part_match):
         """
