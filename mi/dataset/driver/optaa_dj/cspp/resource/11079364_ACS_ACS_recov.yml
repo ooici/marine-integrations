@@ -13,6 +13,7 @@ data:
    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.ACS'
    preprocessing_software_version: '1.11'
    start_date: '04/17/2014'
+   serial_number: 137
  - _index: 2
    particle_object: OptaaDjCsppInstrumentRecoveredDataParticle
    particle_type: optaa_dj_cspp_instrument_recovered
