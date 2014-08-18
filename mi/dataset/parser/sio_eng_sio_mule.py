@@ -19,6 +19,7 @@ import ntplib
 from datetime import datetime
 
 from mi.core.log import get_logger
+
 log = get_logger()
 
 from mi.core.common import BaseEnum
@@ -27,21 +28,25 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import \
     SampleException
 
+from mi.dataset.dataset_parser import Parser
 from mi.dataset.parser.sio_mule_common import \
     SioMuleParser, \
+    SioParser, \
     SIO_HEADER_MATCHER, \
-    SIO_HEADER_GROUP_ID, SIO_HEADER_GROUP_DATA_LENGTH, \
+    SIO_HEADER_GROUP_ID, \
     SIO_HEADER_GROUP_TIMESTAMP
 
-ENG_REGEX = r'\x01CS([0-9]{5})[0-9]{2}_[0-9A-Fa-f]{4}[a-zA-Z]([0-9A-Fa-f]{8})_'\
-            '[0-9A-Fa-f]{2}_[0-9A-Fa-f]{4}\x02\n([-\d]+\.\d+) '\
+ENG_REGEX = r'\x01CS([0-9]{5})[0-9]{2}_[0-9A-Fa-f]{4}[a-zA-Z]([0-9A-Fa-f]{8})_' \
+            '[0-9A-Fa-f]{2}_[0-9A-Fa-f]{4}\x02\n([-\d]+\.\d+) ' \
             '([-\d]+\.\d+) ([-\d]+) ([-\d]+) ([-\d]+)\n'
 
 ENG_MATCHER = re.compile(ENG_REGEX)
 
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'sio_eng_control_status'
+    TELEMETERED = 'sio_eng_control_status'
+    RECOVERED = 'sio_eng_control_status_recovered'
+
 
 class SioEngSioMuleParserDataParticleKey(BaseEnum):
     # sio_eng_control_status
@@ -52,18 +57,17 @@ class SioEngSioMuleParserDataParticleKey(BaseEnum):
     SIO_ON_TIME = 'sio_eng_on_time'
     SIO_NUMBER_OF_WAKEUPS = 'sio_eng_number_of_wakeups'
     SIO_CLOCK_DRIFT = 'sio_eng_clock_drift'
-    
 
-class SioEngSioMuleParserDataParticle(DataParticle):
+
+class SioEngSioDataParticle(DataParticle):
     """
     Class for parsing data from the sio_eng_sio_mule data set
     """
 
-    _data_particle_type = DataParticleType.SAMPLE
     @staticmethod
     def encode_int_16(hex_str):
         return int(hex_str, 16)
-    
+
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -73,40 +77,35 @@ class SioEngSioMuleParserDataParticle(DataParticle):
         """
         match = self.raw_data
 
-        if not match:
-            raise SampleException("SioEngSioMuleParserDataParticle: No regex match of \
-                                  parsed sample data [%s]", self.raw_data)
-
         result = [self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CONTROLLER_ID, match.group(1), int),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CONTROLLER_TIMESTAMP,
-                                    match.group(2), SioEngSioMuleParserDataParticle.encode_int_16),
+                                     match.group(2), SioEngSioMuleParserDataParticle.encode_int_16),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_VOLTAGE_STRING, match.group(3), float),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_TEMPERATURE_STRING, match.group(4), float),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_ON_TIME, match.group(5), int),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_NUMBER_OF_WAKEUPS, match.group(6), int),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CLOCK_DRIFT, match.group(7), int)]
-        
+
         return result
 
-class SioEngSioMuleParser(SioMuleParser):
 
-    def __init__(self,
-                 config,
-                 state,
-                 stream_handle,
-                 state_callback,
-                 publish_callback,
-                 exception_callback,
-                 *args, **kwargs):
-        super(SioEngSioMuleParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          self.sieve_function,
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
+class SioEngSioMuleParserDataParticle(SioEngSioDataParticle):
+    """
+    Class for parsing data from the sio_eng_sio_mule data set
+    """
+
+    _data_particle_type = DataParticleType.TELEMETERED
+
+
+class SioEngSioMuleParserRecoveredDataParticle(SioEngSioDataParticle):
+    """
+    Class for parsing data from the sio_eng_sio_mule data set
+    """
+
+    _data_particle_type = DataParticleType.RECOVERED
+
+
+class SioMuleCommonParser(Parser):
 
     def parse_chunks(self):
         """
@@ -115,7 +114,7 @@ class SioEngSioMuleParser(SioMuleParser):
         timestamp. Go until the chunker has no more valid data.
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list of nothing was parsed.
-        """            
+        """
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
@@ -140,10 +139,51 @@ class SioEngSioMuleParser(SioMuleParser):
                 else:
                     log.warn('CS data does not match REGEX')
                     self._exception_callback(SampleException('CS data does not match REGEX'))
-                    
+
             self._chunk_sample_count.append(sample_count)
-            
+
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
 
         return result_particles
 
+
+class SioEngSioMuleParser(SioMuleCommonParser, SioMuleParser):
+
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 exception_callback,
+                 *args, **kwargs):
+        super(SioEngSioMuleParser, self).__init__(config,
+                                                  stream_handle,
+                                                  state,
+                                                  self.sieve_function,
+                                                  state_callback,
+                                                  publish_callback,
+                                                  exception_callback,
+                                                  *args,
+                                                  **kwargs)
+
+
+class SioEngSioRecoveredParser(SioMuleCommonParser, SioParser):
+
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 exception_callback,
+                 *args, **kwargs):
+        super(SioEngSioRecoveredParser, self).__init__(config,
+                                                       stream_handle,
+                                                       state,
+                                                       self.sieve_function,
+                                                       state_callback,
+                                                       publish_callback,
+                                                       exception_callback,
+                                                       *args,
+                                                       **kwargs)

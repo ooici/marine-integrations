@@ -21,6 +21,7 @@ from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.parser.sio_eng_sio_mule import \
     SioEngSioMuleParserDataParticle, \
     SioEngSioMuleParser, \
+    SioEngSioRecoveredParser, \
     ENG_MATCHER
 
 from mi.idk.config import Config
@@ -39,6 +40,10 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
     def state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
+
+    def state_callback_recovered(self, state, ingested):
+        """ Call back method to watch what comes in via the position callback for the recovered parser"""
+        self.state_callback_recov_value = state
 
     def exception_callback(self, exception):
         """ Call back method to watch what comes in via the exception callback """
@@ -59,7 +64,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.assertTrue(abs(result_particle.contents[DataParticleKey.INTERNAL_TIMESTAMP] -
                             particle.contents[DataParticleKey.INTERNAL_TIMESTAMP]) <= allowed_diff)
 
-    def assert_result(self, result, in_process_data, unprocessed_data, particle):
+    def assert_result(self, result, in_process_data, unprocessed_data, particle, recov_flag=False):
         """
         print(result.raw_data)
         print(particle.raw_data)
@@ -69,13 +74,17 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.assert_particle(result[0], particle)
 
         # verify the state is correct
-        self.assert_state(in_process_data, unprocessed_data)
+        self.assert_state(in_process_data, unprocessed_data, recov_flag)
 
-    def assert_state(self, in_process_data, unprocessed_data):
+    def assert_state(self, in_process_data, unprocessed_data, recov_flag=False):
         self.assertEqual(self._parser._state[StateKey.IN_PROCESS_DATA], in_process_data)
         self.assertEqual(self._parser._state[StateKey.UNPROCESSED_DATA], unprocessed_data)
-        self.assertEqual(self.state_callback_value[StateKey.IN_PROCESS_DATA], in_process_data)
-        self.assertEqual(self.state_callback_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
+        if recov_flag:
+            self.assertEqual(self.state_callback_recov_value[StateKey.IN_PROCESS_DATA], in_process_data)
+            self.assertEqual(self.state_callback_recov_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
+        else:
+            self.assertEqual(self.state_callback_value[StateKey.IN_PROCESS_DATA], in_process_data)
+            self.assertEqual(self.state_callback_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
@@ -220,6 +229,49 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_simple_recov(self):
+        """
+        Read test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        """
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'STA15908.DAT'))
+        # NOTE: using the unprocessed data state of 0,200 limits the file to reading
+        # just 200 bytes, so even though the file is longer it only reads the first
+        # 200. FILE_SIZE is also ignored but must be present, so a dummy value is set
+        state = {StateKey.UNPROCESSED_DATA: [[0, 200]],
+                 StateKey.IN_PROCESS_DATA: [],
+                 StateKey.FILE_SIZE: 7}
+
+        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        result = self._parser.get_records(1)
+        self.assert_result(result,
+                           [[58, 116, 1, 0], [116, 174, 1, 0]],
+                           [[58, 200]],
+                           self.particle_a,
+                           recov_flag=True)
+
+        result = self._parser.get_records(1)
+        self.assert_result(result,
+                           [[116, 174, 1, 0]],
+                           [[116, 200]],
+                           self.particle_b,
+                           recov_flag=True)
+
+        result = self._parser.get_records(1)
+        self.assert_result(result,
+                           [],
+                           [[174, 200]],
+                           self.particle_c,
+                           recov_flag=True)
+
+        stream_handle.close()
+
     def test_simple2(self):
         """
         Read test data and pull out data particles one at a time.
@@ -299,6 +351,45 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_get_many_recov(self):
+        """
+        Read test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        """
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'STA15908.DAT'))
+
+        # NOTE: using the unprocessed data state of 0,600 limits the file to reading
+        # just 600 bytes, so even though the file is longer it only reads the first
+        # 600
+
+        log.debug('--------------------------------------------------------Starting test_get_many')
+
+        state = {StateKey.UNPROCESSED_DATA: [[0, 600]],
+                 StateKey.IN_PROCESS_DATA: [],
+                 StateKey.FILE_SIZE: 7}
+
+        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        result = self._parser.get_records(6)
+
+        # no more in process or unprocessed data
+        self.assert_state([[348, 406, 1, 0], [406, 464, 1, 0], [464, 522, 1, 0], [522, 580, 1, 0]],
+                          [[348, 600]], recov_flag=True)
+
+        self.assert_particle(result[0], self.particle_a)
+        self.assert_particle(result[1], self.particle_b)
+        self.assert_particle(result[2], self.particle_c)
+        self.assert_particle(result[3], self.particle_d)
+        self.assert_particle(result[4], self.particle_e)
+        self.assert_particle(result[5], self.particle_f)
+
+        stream_handle.close()
+
     def test_long_stream(self):
         """
         Test a long stream 
@@ -332,6 +423,41 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_long_stream_recov(self):
+        """
+        Test a long stream
+        """
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'STA15908.DAT'))
+        # NOTE: using the unprocessed data state of 0,1000 limits the file to reading
+        # just 1000 bytes, so even though the file is longer it only reads the first
+        # 1000
+
+        state = {StateKey.UNPROCESSED_DATA: [[0, 700]],
+                 StateKey.IN_PROCESS_DATA: [],
+                 StateKey.FILE_SIZE: 7}
+
+        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        result = self._parser.get_records(12)
+
+        self.assert_particle(result[0], self.particle_a)
+        self.assert_particle(result[1], self.particle_b)
+        self.assert_particle(result[2], self.particle_c)
+        self.assert_particle(result[3], self.particle_d)
+        self.assert_particle(result[4], self.particle_e)
+        self.assert_particle(result[5], self.particle_f)
+
+        self.assert_particle(result[-2], self.particle_11)
+        self.assert_particle(result[-1], self.particle_12)
+
+        self.assert_state([], [[696, 700]], recov_flag=True)
+
+        stream_handle.close()
+
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
@@ -356,6 +482,35 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         result = self._parser.get_records(1)
 
         self.assert_result(result, [], [], self.particle_e)
+
+        stream_handle.close()
+
+    def test_mid_state_start_recov(self):
+        """
+        Test starting the parser in a state in the middle of processing
+        """
+        log.debug('-----------------------------------------------------------Starting test_mid_state_start')
+
+        new_state = {StateKey.IN_PROCESS_DATA: [],
+                     StateKey.UNPROCESSED_DATA: [[174, 290]],
+                     StateKey.FILE_SIZE: 7}
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'STA15908.DAT'))
+
+        self._parser = SioEngSioRecoveredParser(self.config, new_state, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        result = self._parser.get_records(1)
+
+        self.assert_result(result, [[232, 290, 1, 0]],
+                           [[232, 290]], self.particle_d, recov_flag=True)
+
+        result = self._parser.get_records(1)
+
+        self.assert_result(result, [], [], self.particle_e, recov_flag=True)
 
         stream_handle.close()
 
@@ -390,6 +545,39 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_in_process_start_recov(self):
+        """
+        test starting a parser with a state in the middle of processing
+        """
+
+        log.debug('-------------------------------------------------------------Starting test_in_process_start')
+
+        new_state = {StateKey.IN_PROCESS_DATA: [[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
+                     StateKey.UNPROCESSED_DATA: [[174, 600]],
+                     StateKey.FILE_SIZE: 7}
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'STA15908.DAT'))
+
+        self._parser = SioEngSioRecoveredParser(self.config, new_state, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        result = self._parser.get_records(1)
+
+        self.assert_result(result, [[232, 290, 1, 0], [290, 348, 1, 0]],
+                           [[232, 600]], self.particle_d, recov_flag=True)
+
+        result = self._parser.get_records(2)
+
+        self.assert_particle(result[0], self.particle_e)
+        self.assert_particle(result[1], self.particle_f)
+
+        self.assert_state([], [[348, 600]], recov_flag=True)
+
+        stream_handle.close()
+
     def test_set_state(self):
         """
         Test changing to a new state after initializing the parser and
@@ -408,6 +596,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         state = {StateKey.UNPROCESSED_DATA: [[0, 700]],
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
+
         self._parser = SioEngSioMuleParser(self.config, state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -427,5 +616,48 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.assert_particle(result[0], self.particle_d)
         self.assert_particle(result[1], self.particle_e)
         self.assert_state([[290, 348, 1, 0]], [[290, 600]])
+
+        stream_handle.close()
+
+    def test_set_state_recov(self):
+        """
+        Test changing to a new state after initializing the parser and
+        reading data, as if new data has been found and the state has
+        changed
+        """
+        log.debug('-------------------------------------------------------------Starting test_set_state	')
+
+        stream_handle = open(os.path.join(RESOURCE_PATH,
+                                          'STA15908.DAT'))
+
+        # NOTE: using the unprocessed data state of 0,700 limits the file to reading
+        # just 700 bytes, so even though the file is longer it only reads the first
+        # 700. Also, FILE_SIZE must exist but is unused so a dummy value is inserted
+
+        state = {StateKey.UNPROCESSED_DATA: [[0, 700]],
+                 StateKey.IN_PROCESS_DATA: [],
+                 StateKey.FILE_SIZE: 7}
+
+        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        result = self._parser.get_records(1)
+
+        self.assert_particle(result[0], self.particle_a)
+
+        new_state2 = {StateKey.IN_PROCESS_DATA: [[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
+                      StateKey.UNPROCESSED_DATA: [[174, 600]],
+                      StateKey.FILE_SIZE: 7}
+
+        log.debug("----------------- Setting State!------------")
+        log.debug("New_state: %s", new_state2)
+        self._parser.set_state(new_state2)
+
+        result = self._parser.get_records(2)
+        self.assert_particle(result[0], self.particle_d)
+        self.assert_particle(result[1], self.particle_e)
+        self.assert_state([[290, 348, 1, 0]], [[290, 600]], recov_flag=True)
 
         stream_handle.close()
