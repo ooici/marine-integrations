@@ -60,7 +60,7 @@ from mi.core.common import BaseEnum
 NEWLINE = '\n\r'
 
 # default timeout.
-TIMEOUT = 15
+TIMEOUT = 60
 # allowable time delay for sync the clock
 TIME_DELAY = 2
 # sample collection is ~60 seconds, add padding
@@ -83,7 +83,7 @@ HEAD_CONFIG_DATA_REGEX = re.compile(HEAD_CONFIG_DATA_PATTERN, re.DOTALL)
 USER_CONFIG_DATA_PATTERN = r'(%s)(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{6})(.{2})(.{6})(.{4})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{180})(.{180})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
-                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})(\x06\x06)' % USER_CONFIG_SYNC_BYTES
+                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})(\x06\x06?)' % USER_CONFIG_SYNC_BYTES
 USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
 # min, sec, day, hour, year, month
@@ -99,7 +99,7 @@ BATTERY_DATA_PATTERN = r'([\x00-\xFF][\x13-\x46])\x06\x06'
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
 
 # [\x00, \x01, \x02, \x04, and \x05]
-MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)\x06\x06'
+MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)(\x06\x06?)'
 MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
 
 # ["VEC 8181", "AQD 8493      "]
@@ -267,7 +267,7 @@ class NortekHardwareConfigDataParticleKey(BaseEnum):
     """
     Particle key for the hw config
     """
-    SERIAL_NUM = 'instmt_type_serial_number'
+    SERIAL_NUM = 'instrmt_type_serial_number'
     RECORDER_INSTALLED = 'recorder_installed'
     COMPASS_INSTALLED = 'compass_installed'
     BOARD_FREQUENCY = 'board_frequency'
@@ -773,7 +773,7 @@ class NortekEngBatteryDataParticleKey(BaseEnum):
     """
     Particles for the battery data
     """
-    BATTERY_VOLTAGE = "battery_voltage"
+    BATTERY_VOLTAGE = "battery_voltage_mv"
 
 
 class NortekEngBatteryDataParticle(DataParticle):
@@ -1314,18 +1314,21 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         output = self._create_set_output(self._param_dict)
 
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+
         log.debug('_set_params: writing instrument configuration to instrument')
         self._connection.send(InstrumentCmds.CONFIGURE_INSTRUMENT)
         self._connection.send(output)
 
-        # Clear the prompt buffer.
-        self._promptbuf = ''
-        result = self._get_response(timeout=30,
-                                    expected_prompt=[InstrumentPrompts.Z_ACK, InstrumentPrompts.Z_NACK])
+        # result = self._get_response(timeout=120,
+        #                             expected_prompt=[InstrumentPrompts.Z_ACK, InstrumentPrompts.Z_NACK])
+
+        result = self._get_response(timeout=30, response_regex=USER_CONFIG_DATA_REGEX)
 
         log.debug('_set_params: result=%r', result)
-        if result[1] == InstrumentPrompts.Z_NACK:
-            raise InstrumentParameterException("NortekInstrumentProtocol._set_params(): Invalid configuration file! ")
+        # if result[1] == InstrumentPrompts.Z_NACK:
+        #     raise InstrumentParameterException("NortekInstrumentProtocol._set_params(): Invalid configuration file! ")
 
         self._update_params()
 
@@ -1492,7 +1495,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         #ID + BV    Call these commands at the same time, so their responses are combined (non-unique regex workaround)
         # Issue read id, battery voltage, & clock commands all at the same time (non-unique REGEX workaround).
         self._do_cmd_resp(InstrumentCmds.READ_ID + InstrumentCmds.READ_BATTERY_VOLTAGE,
-                          response_regex=ID_BATTERY_DATA_REGEX, timeout=30)
+                          response_regex=ID_BATTERY_DATA_REGEX, timeout=60)
 
         #RC
         self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, response_regex=CLOCK_DATA_REGEX)
@@ -1558,11 +1561,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         try:
             self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
             time.sleep(.1)
-            result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, timeout=0.6)
+            result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, timeout=0.6, response_regex=MODE_DATA_REGEX)
         except InstrumentTimeoutException:
             log.debug('_handler_unknown_read_mode: no response to "I", sending "II"')
             # if there is no response, catch timeout exception and issue 'II' command instead
-            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, response_regex=MODE_DATA_REGEX)
 
         return next_state, (next_agent_state, result)
 
