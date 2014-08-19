@@ -1,0 +1,183 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: OptaaDjDclTelemeteredMetaDataParticle
+    particle_type: optaa_dj_dcl_metadata
+    internal_timestamp: '2006-12-25T06:12:25Z'
+    start_date: '2006-12-25 06:12:25'
+    packet_type: 9
+    meter_type: 83
+    serial_number: 1193052
+  - _index:  2
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:25Z'
+    a_reference_dark_counts: 1
+    pressure_counts: 2
+    a_signal_dark_counts: 3
+    external_temp_raw: 4
+    internal_temp_raw: 5
+    c_reference_dark_counts: 6
+    c_signal_dark_counts: 7
+    elapsed_run_time: 666
+    num_wavelengths: 1
+    c_reference_counts: [0]
+    a_reference_counts: [32767]
+    c_signal_counts: [32767]
+    a_signal_counts: [65535]
+  - _index:  3
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:25Z'
+    a_reference_dark_counts: 2
+    pressure_counts: 4
+    a_signal_dark_counts: 6
+    external_temp_raw: 8
+    internal_temp_raw: 10
+    c_reference_dark_counts: 12
+    c_signal_dark_counts: 14
+    elapsed_run_time: 1332
+    num_wavelengths: 2
+    c_reference_counts: [0, 32767]
+    a_reference_counts: [32767, 65534]
+    c_signal_counts: [32767, 0]
+    a_signal_counts: [65535, 32768]
+  - _index:  4
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:26Z'
+    a_reference_dark_counts: 3
+    pressure_counts: 6
+    a_signal_dark_counts: 9
+    external_temp_raw: 12
+    internal_temp_raw: 15
+    c_reference_dark_counts: 18
+    c_signal_dark_counts: 21
+    elapsed_run_time: 1998
+    num_wavelengths: 3
+    c_reference_counts: [0, 16383, 32766]
+    a_reference_counts: [32767, 49150, 65533]
+    c_signal_counts: [32767, 16384, 1]
+    a_signal_counts: [65535, 49152, 32769]
+  - _index:  5
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:26Z'
+    a_reference_dark_counts: 4
+    pressure_counts: 8
+    a_signal_dark_counts: 12
+    external_temp_raw: 16
+    internal_temp_raw: 20
+    c_reference_dark_counts: 24
+    c_signal_dark_counts: 28
+    elapsed_run_time: 2664
+    num_wavelengths: 4
+    c_reference_counts: [0, 10922, 21844, 32766]
+    a_reference_counts: [32767, 43689, 54611, 65533]
+    c_signal_counts: [32767, 21845, 10923, 1]
+    a_signal_counts: [65535, 54613, 43691, 32769]
+  - _index:  6
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:27Z'
+    a_reference_dark_counts: 5
+    pressure_counts: 10
+    a_signal_dark_counts: 15
+    external_temp_raw: 20
+    internal_temp_raw: 25
+    c_reference_dark_counts: 30
+    c_signal_dark_counts: 35
+    elapsed_run_time: 3330
+    num_wavelengths: 5
+    c_reference_counts: [0, 8191, 16382, 24573, 32764]
+    a_reference_counts: [32767, 40958, 49149, 57340, 65531]
+    c_signal_counts: [32767, 24576, 16385, 8194, 3]
+    a_signal_counts: [65535, 57344, 49153, 40962, 32771]
+  - _index:  7
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:28Z'
+    a_reference_dark_counts: 6
+    pressure_counts: 12
+    a_signal_dark_counts: 18
+    external_temp_raw: 24
+    internal_temp_raw: 30
+    c_reference_dark_counts: 36
+    c_signal_dark_counts: 42
+    elapsed_run_time: 3996
+    num_wavelengths: 6
+    c_reference_counts: [0, 6553, 13106, 19659, 26212, 32765]
+    a_reference_counts: [32767, 39320, 45873, 52426, 58979, 65532]
+    c_signal_counts: [32767, 26214, 19661, 13108, 6555, 2]
+    a_signal_counts: [65535, 58982, 52429, 45876, 39323, 32770]
+  - _index:  8
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:28Z'
+    a_reference_dark_counts: 7
+    pressure_counts: 14
+    a_signal_dark_counts: 21
+    external_temp_raw: 28
+    internal_temp_raw: 35
+    c_reference_dark_counts: 42
+    c_signal_dark_counts: 49
+    elapsed_run_time: 4662
+    num_wavelengths: 7
+    c_reference_counts: [0, 5461, 10922, 16383, 21844, 27305, 32766]
+    a_reference_counts: [32767, 38228, 43689, 49150, 54611, 60072, 65533]
+    c_signal_counts: [32767, 27306, 21845, 16384, 10923, 5462, 1]
+    a_signal_counts: [65535, 60074, 54613, 49152, 43691, 38230, 32769]
+  - _index:  9
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:29Z'
+    a_reference_dark_counts: 8
+    pressure_counts: 16
+    a_signal_dark_counts: 24
+    external_temp_raw: 32
+    internal_temp_raw: 40
+    c_reference_dark_counts: 48
+    c_signal_dark_counts: 56
+    elapsed_run_time: 5328
+    num_wavelengths: 8
+    c_reference_counts: [0, 4681, 9362, 14043, 18724, 23405, 28086, 32767]
+    a_reference_counts: [32767, 37448, 42129, 46810, 51491, 56172, 60853, 65534]
+    c_signal_counts: [32767, 28086, 23405, 18724, 14043, 9362, 4681, 0]
+    a_signal_counts: [65535, 60854, 56173, 51492, 46811, 42130, 37449, 32768]
+  - _index:  10
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:30Z'
+    a_reference_dark_counts: 9
+    pressure_counts: 18
+    a_signal_dark_counts: 27
+    external_temp_raw: 36
+    internal_temp_raw: 45
+    c_reference_dark_counts: 54
+    c_signal_dark_counts: 63
+    elapsed_run_time: 5994
+    num_wavelengths: 9
+    c_reference_counts: [0, 4095, 8190, 12285, 16380, 20475, 24570, 28665, 32760]
+    a_reference_counts: [32767, 36862, 40957, 45052, 49147, 53242, 57337, 61432, 65527]
+    c_signal_counts: [32767, 28672, 24577, 20482, 16387, 12292, 8197, 4102, 7]
+    a_signal_counts: [65535, 61440, 57345, 53250, 49155, 45060, 40965, 36870, 32775]
+  - _index:  11
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2006-12-25T06:12:30Z'
+    a_reference_dark_counts: 10
+    pressure_counts: 20
+    a_signal_dark_counts: 30
+    external_temp_raw: 40
+    internal_temp_raw: 50
+    c_reference_dark_counts: 60
+    c_signal_dark_counts: 70
+    elapsed_run_time: 6660
+    num_wavelengths: 10
+    c_reference_counts: [0, 3640, 7280, 10920, 14560, 18200, 21840, 25480, 29120, 32760]
+    a_reference_counts: [32767, 36407, 40047, 43687, 47327, 50967, 54607, 58247, 61887, 65527]
+    c_signal_counts: [32767, 29127, 25487, 21847, 18207, 14567, 10927, 7287, 3647, 7]
+    a_signal_counts: [65535, 61895, 58255, 54615, 50975, 47335, 43695, 40055, 36415, 32775]

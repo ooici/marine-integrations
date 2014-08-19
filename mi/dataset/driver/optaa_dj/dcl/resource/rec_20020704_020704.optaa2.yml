@@ -1,0 +1,98 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: OptaaDjDclRecoveredMetaDataParticle
+    particle_type: optaa_dj_dcl_metadata_recovered
+    internal_timestamp: '2002-07-04T02:07:04Z'
+    start_date: '2002-07-04 02:07:04'
+    packet_type: 5
+    meter_type: 83
+    serial_number: 1193048
+  - _index:  2
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: '2002-07-04T02:07:04Z'
+    a_reference_dark_counts: 1
+    pressure_counts: 2
+    a_signal_dark_counts: 3
+    external_temp_raw: 4
+    internal_temp_raw: 5
+    c_reference_dark_counts: 6
+    c_signal_dark_counts: 7
+    elapsed_run_time: 666
+    num_wavelengths: 0
+    c_reference_counts: []
+    a_reference_counts: []
+    c_signal_counts: []
+    a_signal_counts: []
+  - _index:  3
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: '2002-07-04T02:07:04Z'
+    a_reference_dark_counts: 2
+    pressure_counts: 4
+    a_signal_dark_counts: 6
+    external_temp_raw: 8
+    internal_temp_raw: 10
+    c_reference_dark_counts: 12
+    c_signal_dark_counts: 14
+    elapsed_run_time: 1332
+    num_wavelengths: 2
+    c_reference_counts: [0, 32767]
+    a_reference_counts: [32767, 65534]
+    c_signal_counts: [32767, 0]
+    a_signal_counts: [65535, 32768]
+  - _index:  4
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: '2002-07-04T02:07:05Z'
+    a_reference_dark_counts: 3
+    pressure_counts: 6
+    a_signal_dark_counts: 9
+    external_temp_raw: 12
+    internal_temp_raw: 15
+    c_reference_dark_counts: 18
+    c_signal_dark_counts: 21
+    elapsed_run_time: 1998
+    num_wavelengths: 7
+    c_reference_counts: [0, 5461, 10922, 16383, 21844, 27305, 32766]
+    a_reference_counts: [32767, 38228, 43689, 49150, 54611, 60072, 65533]
+    c_signal_counts: [32767, 27306, 21845, 16384, 10923, 5462, 1]
+    a_signal_counts: [65535, 60074, 54613, 49152, 43691, 38230, 32769]
+  - _index:  5
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: '2002-07-04T02:07:05Z'
+    a_reference_dark_counts: 4
+    pressure_counts: 8
+    a_signal_dark_counts: 12
+    external_temp_raw: 16
+    internal_temp_raw: 20
+    c_reference_dark_counts: 24
+    c_signal_dark_counts: 28
+    elapsed_run_time: 2664
+    num_wavelengths: 4
+    c_reference_counts: [0, 10922, 21844, 32766]
+    a_reference_counts: [32767, 43689, 54611, 65533]
+    c_signal_counts: [32767, 21845, 10923, 1]
+    a_signal_counts: [65535, 54613, 43691, 32769]
+  - _index:  6
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: '2002-07-04T02:07:06Z'
+    a_reference_dark_counts: 5
+    pressure_counts: 10
+    a_signal_dark_counts: 15
+    external_temp_raw: 20
+    internal_temp_raw: 25
+    c_reference_dark_counts: 30
+    c_signal_dark_counts: 35
+    elapsed_run_time: 3330
+    num_wavelengths: 27
+    c_reference_counts: [0, 1260, 2520, 3780, 5040, 6300, 7560, 8820, 10080, 11340, 12600, 13860, 15120, 16380, 17640, 18900, 20160, 21420, 22680, 23940, 25200, 26460, 27720, 28980, 30240, 31500, 32760]
+    a_reference_counts: [32767, 34027, 35287, 36547, 37807, 39067, 40327, 41587, 42847, 44107, 45367, 46627, 47887, 49147, 50407, 51667, 52927, 54187, 55447, 56707, 57967, 59227, 60487, 61747, 63007, 64267, 65527]
+    c_signal_counts: [32767, 31507, 30247, 28987, 27727, 26467, 25207, 23947, 22687, 21427, 20167, 18907, 17647, 16387, 15127, 13867, 12607, 11347, 10087, 8827, 7567, 6307, 5047, 3787, 2527, 1267, 7]
+    a_signal_counts: [65535, 64275, 63015, 61755, 60495, 59235, 57975, 56715, 55455, 54195, 52935, 51675, 50415, 49155, 47895, 46635, 45375, 44115, 42855, 41595, 40335, 39075, 37815, 36555, 35295, 34035, 32775]

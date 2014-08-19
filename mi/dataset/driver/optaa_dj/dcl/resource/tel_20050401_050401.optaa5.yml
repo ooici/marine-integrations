@@ -1,0 +1,64 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: OptaaDjDclTelemeteredMetaDataParticle
+    particle_type: optaa_dj_dcl_metadata
+    internal_timestamp: '2005-04-01T05:04:01Z'
+    start_date: '2005-04-01 05:04:01'
+    packet_type: 8
+    meter_type: 83
+    serial_number: 1193051
+  - _index:  2
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2005-04-01T05:04:01Z'
+    a_reference_dark_counts: 1
+    pressure_counts: 2
+    a_signal_dark_counts: 3
+    external_temp_raw: 4
+    internal_temp_raw: 5
+    c_reference_dark_counts: 6
+    c_signal_dark_counts: 7
+    elapsed_run_time: 666
+    num_wavelengths: 1
+    c_reference_counts: [0]
+    a_reference_counts: [32767]
+    c_signal_counts: [32767]
+    a_signal_counts: [65535]
+  - _index:  3
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2005-04-01T05:04:01Z'
+    a_reference_dark_counts: 2
+    pressure_counts: 4
+    a_signal_dark_counts: 6
+    external_temp_raw: 8
+    internal_temp_raw: 10
+    c_reference_dark_counts: 12
+    c_signal_dark_counts: 14
+    elapsed_run_time: 1332
+    num_wavelengths: 2
+    c_reference_counts: [0, 32767]
+    a_reference_counts: [32767, 65534]
+    c_signal_counts: [32767, 0]
+    a_signal_counts: [65535, 32768]
+  - _index:  4
+    particle_object: OptaaDjDclTelemeteredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument
+    internal_timestamp: '2005-04-01T05:04:02Z'
+    a_reference_dark_counts: 3
+    pressure_counts: 6
+    a_signal_dark_counts: 9
+    external_temp_raw: 12
+    internal_temp_raw: 15
+    c_reference_dark_counts: 18
+    c_signal_dark_counts: 21
+    elapsed_run_time: 1998
+    num_wavelengths: 3
+    c_reference_counts: [0, 16383, 32766]
+    a_reference_counts: [32767, 49150, 65533]
+    c_signal_counts: [32767, 16384, 1]
+    a_signal_counts: [65535, 49152, 32769]
