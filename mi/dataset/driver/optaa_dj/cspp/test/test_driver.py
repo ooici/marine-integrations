@@ -94,6 +94,7 @@ TEL_PARTICLES = (OptaaDjCsppMetadataTelemeteredDataParticle,
 # but may not be enough to fully test your driver. Additional tests should be
 # written as needed.
 
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 # Device specific integration tests are for                                   #
@@ -245,6 +246,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -258,32 +260,180 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        pass
+        log.info("=========== START QUAL TEST PUBLISH PATH =================")
+
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_OPTAA_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_OPTAA_RECOVERED)
+
+        self.assert_initialize()
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        #get the telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 19, 620)
+
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, '11079364_ACD_ACS_telem.yml')
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 19, 1000)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, '11079364_ACS_ACS_recov.yml')
 
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
+        Assert that we get the correct number of particles
         """
-        pass
+        log.info("=========== START QUAL TEST LARGE IMPORT =================")
+
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_OPTAA_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_OPTAA_RECOVERED)
+
+        self.assert_initialize()
+
+        # get the telemetered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get ALL of the telemetered instrument particles
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 10, 500)
+
+        # get the recovered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 60)
+        # get the recovered metadata particle
+        self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 200, 10000)
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.info("=========== START QUAL TEST STOP START =================")
+
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_OPTAA_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_OPTAA_RECOVERED)
+
+        # Put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        # get the first 4 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_telemetered_stop_start_one.yml')
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the first 7 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 7, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        # restart sampling
+        self.assert_start_sampling()
+
+        # get the next 12 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 12, 180)
+
+        # check the results
+        self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
+
+        # get the next 8 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 8, 180)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        pass
+        log.info("=========== START QUAL TEST SHUTDOWN RESTART =================")
+
+        self.create_sample_data_set_dir(TELEMETERED_SAMPLE_DATA, DIR_OPTAA_TELEMETERED)
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, DIR_OPTAA_RECOVERED)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the telemetered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
+        #get the first 4 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 4, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_telemetered_stop_start_one.yml')
+
+        # get the recovered metadata particle
+        result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 10)
+        # get the first 7 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 7, 40)
+        # combine the results
+        result1.extend(result2)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        # Re-initialize and enter streaming state
+        self.assert_initialize()
+
+        # get the next 12 telemetered instrument particles
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 12, 240)
+
+        # check the results
+        self.assert_data_values(result2, 'test_telemetered_stop_start_two.yml')
+
+        # get the next 8 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 8, 240)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
-        pass
+        log.info("=========== START QUAL TEST PARSER EXCEPTION =================")
+
+        self.create_sample_data_set_dir('11079364_BAD_ACS_ACS.txt', DIR_OPTAA_RECOVERED)
+
+        self.assert_initialize()
+
+        self.assert_event_received(ResourceAgentErrorEvent, 60)
+
 
