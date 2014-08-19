@@ -622,7 +622,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
 
-        #begin TG
         # Handle engineering parameters
         changed = False
 
@@ -646,8 +645,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 changed = True
         if changed:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-        #end TG
 
         self._update_params()
         return result

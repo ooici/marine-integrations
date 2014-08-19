@@ -1379,7 +1379,6 @@ class Protocol(WorkhorseProtocol):
                     key_split = key.split('_', 1)
                     result = self._do_cmd_resp2(InstrumentCmds.SET2, key_split[0], val, **kwargs)
 
-        #begin TG
         # Handle engineering parameters
         changed = False
 
@@ -1403,8 +1402,6 @@ class Protocol(WorkhorseProtocol):
                 changed = True
         if changed:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-        #end TG
 
         log.trace("_set_params 2 calling _update_params")
         self._update_params2()
