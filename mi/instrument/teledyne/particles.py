@@ -95,7 +95,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     NUM_BEAMS = "num_beams"
     NUM_CELLS = "num_cells"
     PINGS_PER_ENSEMBLE = "pings_per_ensemble"
-    DEPTH_CELL_LENGTH = "depth_cell_length"
+    DEPTH_CELL_LENGTH = "cell_length"
     BLANK_AFTER_TRANSMIT = "blank_after_transmit"
     SIGNAL_PROCESSING_MODE = "signal_processing_mode"
     LOW_CORR_THRESHOLD = "low_corr_threshold"
@@ -139,6 +139,8 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     BEAM_ANGLE = "beam_angle"
     VARIABLE_LEADER_ID = "variable_leader_id"
     ENSEMBLE_NUMBER = "ensemble_number"
+    REAL_TIME_CLOCK = "real_time_clock"
+    ENSEMBLE_START_TIME = "ensemble_start_time"
     INTERNAL_TIMESTAMP = "internal_timestamp"
     ENSEMBLE_NUMBER_INCREMENT = "ensemble_number_increment"
     BIT_RESULT_DEMOD_0 = "bit_result_demod_0"
@@ -162,7 +164,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     ADC_PRESSURE_PLUS = "adc_pressure_plus"
     ADC_PRESSURE_MINUS = "adc_pressure_minus"
     ADC_ATTITUDE_TEMP = "adc_attitude_temp"
-    ADC_ATTITUDE = "adc_attitiude"
+    ADC_ATTITUDE = "adc_attitude"
     ADC_CONTAMINATION_SENSOR = "adc_contamination_sensor"
     BUS_ERROR_EXCEPTION = "bus_error_exception"
     ADDRESS_ERROR_EXCEPTION = "address_error_exception"
@@ -306,7 +308,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         """
         (fixed_leader_id, firmware_version, firmware_revision, sysconfig_frequency, data_flag, lag_length, num_beams,
          num_cells, pings_per_ensemble,
-         depth_cell_length, blank_after_transmit, signal_processing_mode, low_corr_threshold, num_code_repetitions,
+         cell_length, blank_after_transmit, signal_processing_mode, low_corr_threshold, num_code_repetitions,
          percent_good_min, error_vel_threshold,
          time_per_ping_minutes, time_per_ping_seconds, time_per_ping_hundredths, coord_transform_type,
          heading_alignment, heading_bias, sensor_source,
@@ -353,7 +355,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PINGS_PER_ENSEMBLE,
                                   DataParticleKey.VALUE: pings_per_ensemble})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.DEPTH_CELL_LENGTH,
-                                  DataParticleKey.VALUE: depth_cell_length})
+                                  DataParticleKey.VALUE: cell_length})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BLANK_AFTER_TRANSMIT,
                                   DataParticleKey.VALUE: blank_after_transmit})
 
@@ -459,7 +461,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
          mpt_minutes, mpt_seconds_component, mpt_hundredths_component,
          heading_stdev, pitch_stdev, roll_stdev,
          adc_transmit_current, adc_transmit_voltage, adc_ambient_temp, adc_pressure_plus,
-         adc_pressure_minus, adc_attitude_temp, adc_attitiude, adc_contamination_sensor,
+         adc_pressure_minus, adc_attitude_temp, adc_attitude, adc_contamination_sensor,
          error_status_word_1, error_status_word_2, error_status_word_3, error_status_word_4,
          RESERVED1, RESERVED2, pressure, RESERVED3, pressure_variance,
          rtc2k['century'], rtc2k['year'], rtc2k['month'], rtc2k['day'], rtc2k['hour'], rtc2k['minute'], rtc2k['second'],
@@ -497,6 +499,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: temperature})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_MINUTES,
                                   DataParticleKey.VALUE: mpt_minutes})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.REAL_TIME_CLOCK,
+                                  DataParticleKey.VALUE: rtc})
 
         mpt_seconds = float(mpt_seconds_component + (mpt_hundredths_component / 100))
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_SECONDS,
@@ -520,7 +524,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_ATTITUDE_TEMP,
                                   DataParticleKey.VALUE: adc_attitude_temp})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_ATTITUDE,
-                                  DataParticleKey.VALUE: adc_attitiude})
+                                  DataParticleKey.VALUE: adc_attitude})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_CONTAMINATION_SENSOR,
                                   DataParticleKey.VALUE: adc_contamination_sensor})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BUS_ERROR_EXCEPTION,
@@ -577,6 +581,21 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP,
                                   DataParticleKey.VALUE: time.mktime(dts.timetuple()) + (rtc2k['second'] / 100.0)})
+
+        rtc_date = dt.datetime(rtc['year'],
+                          rtc['month'],
+                          rtc['day'],
+                          rtc['hour'],
+                          rtc['minute'],
+                          rtc['second'])
+
+        #ensemble_start_time is expressed as seconds since Jan 01, 1900
+        rtc_epoch = dt.datetime(1900, 1, 1, 0, 0, 0)
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_START_TIME,
+                                  DataParticleKey.VALUE: (rtc_date - rtc_epoch).total_seconds()})
+
+
 
     def parse_velocity_chunk(self, chunk):
         """

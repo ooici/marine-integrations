@@ -1378,6 +1378,34 @@ class Protocol(WorkhorseProtocol):
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     key_split = key.split('_', 1)
                     result = self._do_cmd_resp2(InstrumentCmds.SET2, key_split[0], val, **kwargs)
+
+        #begin TG
+        # Handle engineering parameters
+        changed = False
+
+        if TeledyneParameter.CLOCK_SYNCH_INTERVAL in params:
+            if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
+                    TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
+                self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL,
+                                           params[TeledyneParameter.CLOCK_SYNCH_INTERVAL])
+                self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
+                                         TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+                changed = True
+
+        if TeledyneParameter.GET_STATUS_INTERVAL in params:
+            if (params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(
+                    TeledyneParameter.GET_STATUS_INTERVAL)):
+                self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL,
+                                           params[TeledyneParameter.GET_STATUS_INTERVAL])
+                self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL,
+                                         TeledyneScheduledJob.GET_CONFIGURATION,
+                                         TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+                changed = True
+        if changed:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+        #end TG
+
         log.trace("_set_params 2 calling _update_params")
         self._update_params2()
         return result
