@@ -28,7 +28,8 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import \
     DatasetParserException, \
     UnexpectedDataException, \
-    RecoverableSampleException
+    RecoverableSampleException, \
+    ConfigurationException
 
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -44,6 +45,7 @@ from mi.dataset.parser.cspp_base import \
     HeaderPartMatchesGroupNumber, \
     TIMESTAMP_LINE_MATCHER, \
     HEADER_PART_MATCHER, \
+    HEX_ASCII_LINE_MATCHER, \
     FLOAT_REGEX, \
     INT_REGEX, \
     Y_OR_N_REGEX, \
@@ -123,8 +125,10 @@ class OptaaDjCsppParserDataParticleKey(BaseEnum):
     INTERNAL_TEMP_RAW = 'internal_temp_raw'
     PRESSURE_COUNTS = 'pressure_counts'
 
-# A group instrument particle encoding rules used to simplify encoding using a loop
-INSTRUMENT_PARTICLE_ENCODING_RULES = [
+# Two groups instrument particle encoding rules used to simplify encoding using a loop.
+
+# This the beginning part of the encoding, before the lists.
+INSTRUMENT_PARTICLE_ENCODING_RULES_BEGIN = [
     # Since 1/1/70 with millisecond resolution
     (OptaaDjCsppParserDataParticleKey.PROFILER_TIMESTAMP, DataMatchesGroupNumber.PROFILER_TIMESTAMP, numpy.float),
     # "Depth" from Record Structure section
@@ -135,6 +139,16 @@ INSTRUMENT_PARTICLE_ENCODING_RULES = [
     (OptaaDjCsppParserDataParticleKey.ON_SECONDS, DataMatchesGroupNumber.ON_SECONDS, float),
     # Number of output wavelengths.
     (OptaaDjCsppParserDataParticleKey.NUM_WAVELENGTHS, DataMatchesGroupNumber.NUM_WAVELENGTHS, int)
+]
+
+# This the end part of the encoding, after the lists.
+INSTRUMENT_PARTICLE_ENCODING_RULES_END = [
+    # Temperature external to the instrument measured in counts.
+    (OptaaDjCsppParserDataParticleKey.EXTERNAL_TEMP_RAW, DataMatchesGroupNumber.EXTERNAL_TEMP_COUNTS, int),
+    # Temperature internal to the instrument measured in counts.
+    (OptaaDjCsppParserDataParticleKey.INTERNAL_TEMP_RAW, DataMatchesGroupNumber.INTERNAL_TEMP_COUNTS, int),
+    # Raw A/D counts from the pressure sensor
+    (OptaaDjCsppParserDataParticleKey.PRESSURE_COUNTS, DataMatchesGroupNumber.PRESSURE_COUNTS, int)
 ]
 
 
@@ -178,7 +192,7 @@ class OptaaDjCsppMetadataDataParticle(CsppMetadataDataParticle):
                 "Error (%s) while decoding parameters in data: [%s]"
                 % (ex, self.raw_data))
 
-        log.debug('metadata_particle: %s', metadata_particle)
+        # log.debug('metadata_particle: %s', metadata_particle)
         return metadata_particle
 
 
@@ -214,11 +228,11 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         results = []
 
         try:
-            # Process each of the non-list instrument particle parameters
-            for name, group, function in INSTRUMENT_PARTICLE_ENCODING_RULES:
+            # Process each of the non-list type instrument particle parameters that occur first
+            for name, group, function in INSTRUMENT_PARTICLE_ENCODING_RULES_BEGIN:
                 results.append(self._encode_value(name, self.raw_data.group(group), function))
 
-            # The rest are a mix if int, followed by a list, and then some ints.
+            # The following is a mix if int, followed by a list.
 
             # C-channel reference dark counts, used for diagnostic purposes.
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_DARK_COUNTS,
@@ -264,17 +278,9 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                                               counts,
                                               list))
 
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.EXTERNAL_TEMP_RAW,
-                                              self.raw_data.group(DataMatchesGroupNumber.EXTERNAL_TEMP_COUNTS),
-                                              int))
-
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.INTERNAL_TEMP_RAW,
-                                              self.raw_data.group(DataMatchesGroupNumber.INTERNAL_TEMP_COUNTS),
-                                              int))
-
-            results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.PRESSURE_COUNTS,
-                                              self.raw_data.group(DataMatchesGroupNumber.PRESSURE_COUNTS),
-                                              int))
+            # Process each of the non-list instrument particle parameters that occur last
+            for name, group, function in INSTRUMENT_PARTICLE_ENCODING_RULES_END:
+                results.append(self._encode_value(name, self.raw_data.group(group), function))
 
             # Set the internal timestamp
             internal_timestamp_unix = numpy.float(self.raw_data.group(
@@ -287,7 +293,7 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                 "Error (%s) while decoding parameters in data: [%s]"
                 % (ex, self.raw_data))
 
-        #log.debug("results: %s", results)
+        # log.debug("*** results: %s", results)
 
         return results
 
@@ -298,22 +304,15 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         @return the list of counts
         """
 
-        # Encode as array
-        idx = 0
         # Load the tab separated string
         tab_str = self.raw_data.group(group_num)
         # Strip off the ending tab
         tab_str_stripped = tab_str.strip('\t')
         counts_list = tab_str_stripped.split('\t')
-        # noinspection PyUnusedLocal
-        counts = [0 for x in range(len(counts_list))]
 
-        for record_set in range(0, len(counts_list)):
-
-            # We cast to int here as _encode_value does not cast elements in the list
-            counts[record_set] = int(counts_list[idx], 10)
-            idx += 1
-
+        # Load the counts array by getting value from counts_list as x is incremented
+        # in the for loop
+        counts = [int(counts_list[x], 10) for x in range(len(counts_list))]
         return counts
 
 
@@ -334,6 +333,9 @@ class OptaaDjCsppInstrumentTelemeteredDataParticle(OptaaDjCsppInstrumentDataPart
 
 
 class OptaaDjCsppParser(BufferLoadingParser):
+    """
+    Class for a optaa_dj_cspp data file parser
+    """
 
     def __init__(self,
                  config,
@@ -350,8 +352,10 @@ class OptaaDjCsppParser(BufferLoadingParser):
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
         @param exception_callback The function to call to report exceptions
+        @throws ConfigurationException if the header state dictionary cannot be built
         """
-        # Build up the header state dictionary using the default header key list
+
+        # Build up the header state dictionary using the default her key list ot one that was provided
         self._header_state = {}
 
         header_key_list = DEFAULT_HEADER_KEY_LIST
@@ -359,15 +363,28 @@ class OptaaDjCsppParser(BufferLoadingParser):
         for header_key in header_key_list:
             self._header_state[header_key] = None
 
-        # Obtain the particle classes dictionary from the config data
-        particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-
-        # Set the metadata and data particle classes to be used later
-        self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
-        self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+        # Build up the header state dictionary using the default header key list
+        if DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT in config:
+            particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
+            # Set the metadata and data particle classes to be used later
+            if METADATA_PARTICLE_CLASS_KEY in particle_classes_dict and \
+                    DATA_PARTICLE_CLASS_KEY in particle_classes_dict:
+                self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
+                self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
+            else:
+                log.warning(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+                raise ConfigurationException(
+                    'Configuration missing metadata or data particle class key in particle classes dict')
+        else:
+            log.warning('Configuration missing particle classes dict')
+            raise ConfigurationException('Configuration missing particle classes dict')
 
         # Initialize the record buffer to an empty list
         self._record_buffer = []
+
+        # Initialize the read state
+        self._read_state = {StateKey.POSITION: 0, StateKey.METADATA_EXTRACTED: False}
 
         # Call the superclass constructor
         super(OptaaDjCsppParser, self).__init__(config,
@@ -379,13 +396,9 @@ class OptaaDjCsppParser(BufferLoadingParser):
                                                 publish_callback,
                                                 exception_callback)
 
-        # If provided a state, set it. Otherwise initialize it
-        # This needs to be done post superclass __init__
+       # If provided a state, set it.  This needs to be done post superclass __init__
         if state:
             self.set_state(state)
-        else:
-            # Initialize the read state
-            self._read_state = {StateKey.POSITION: 0, StateKey.METADATA_EXTRACTED: False}
 
     def set_state(self, state_obj):
         """
@@ -395,6 +408,8 @@ class OptaaDjCsppParser(BufferLoadingParser):
         """
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj and StateKey.METADATA_EXTRACTED in state_obj):
+            raise DatasetParserException("Provided state is missing position or metadata extracted")
 
         self._state = state_obj
         self._read_state = state_obj
@@ -469,21 +484,21 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
 
-        log.debug('result_particles: %s', result_particles)
+        # log.debug('result_particles: %s', result_particles)
 
     def _process_header_part_match(self, header_part_match):
         """
         This method processes a header part match. It will process one row within a cspp header
         that matched a provided regex. The match groups should be processed and the _header_state
         will be updated with the obtained header values.
-        @param header_part_match A regular expression match object for a cspp header row
+        @param header_part_match A regular expression match object for a header row
         """
         header_part_key = header_part_match.group(
             HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
-        header_part_value = header_part_match.group(
-            HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
 
         if header_part_key in self._header_state.keys():
+            header_part_value = header_part_match.group(
+                HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
             self._header_state[header_part_key] = string.rstrip(header_part_value)
 
     def _process_chunk_not_containing_data_record_or_header_part(self, chunk):
@@ -491,20 +506,21 @@ class OptaaDjCsppParser(BufferLoadingParser):
         This method processes a chunk that does not contain a data record or header. This case is
         not applicable to "non_data". For cspp file streams, we expect some lines in the file that
         we do not care about, and we will not consider them "non_data".
-        @param chunk A regular expression match object for a cspp header row
+        @param chunk A regular expression match object for a header row
         """
-        # Check for the expected timestamp line we will ignore
-        timestamp_line_match = TIMESTAMP_LINE_MATCHER.match(chunk)
 
-        # Check for other status messages we can ignore
-        #ignore_match = IGNORE_MATCHER.match(chunk)
+        if HEX_ASCII_LINE_MATCHER.match(chunk):
+            # we found a line starting with the timestamp, depth, and
+            # suspect timestamp, followed by all hex ascii chars
+            log.warn('got hex ascii corrupted data %s at position %s', chunk,
+                     self._read_state[StateKey.POSITION])
+            self._exception_callback(RecoverableSampleException(
+                "Found hex ascii corrupted data: %s" % chunk))
 
-        #if timestamp_line_match is not None or ignore_match is not None:
-        if timestamp_line_match is not None:
-            # Ignore
-            pass
-        else:
-            # We got unexpected data
+        # ignore the expected timestamp line and any lines matching the ignore regex,
+        # otherwise data is unexpected
+        elif not TIMESTAMP_LINE_MATCHER.match(chunk):
+            # Unexpected data was found
             log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
             self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
 
@@ -539,7 +555,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
 
             if match is not None:
 
-                count = match.group(6)   # num wavelengths
+                count = match.group(DataMatchesGroupNumber.NUM_WAVELENGTHS)
 
                 data_regex = self._build_data_regex(BEGIN_REGEX, count)
 

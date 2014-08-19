@@ -216,8 +216,6 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, '11079364_ACS_ACS_one_data_record.txt')
 
         stream_handle = open(file_path, 'r')
-        # data = stream_handle.read(1024)
-        # log.debug("Data %s", data)
 
         # Note: since the recovered and telemetered parser and particles are common
         # to each other, testing one is sufficient, will be completely tested
@@ -235,11 +233,8 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         # load a dictionary from the yml file
         test_data = self.get_dict_from_yml('11079364_ACS_ACS_recov.yml')
 
-        # check all the values against expected results.
-        for i in range(len(particles)):
-            log.debug("*** test_data['data'][i]: %s", test_data['data'][i])
-            log.debug("*** particles[i]: %s", particles[i])
-            self.assert_result(test_data['data'][i], particles[i])
+        # check the values against expected results.
+        self.assert_result(test_data['data'][0], particles[0])
 
         stream_handle.close()
 
@@ -252,8 +247,6 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
 
         stream_handle = open(file_path, 'r')
-        # data = stream_handle.read(1024)
-        # log.debug("Data %s", data)
 
         # Note: since the recovered and telemetered parser and particles are common
         # to each other, testing one is sufficient, will be completely tested
@@ -408,8 +401,13 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         # Data Record 27: internal temp count has a letter
         # Data Record 29: pressure counts has a letter
         # Data Record 31: has byte loss - from sample file in IDD
+        # Data Record 33: fields separated by space instead of tab
+        # Data Record 35: fields separated by multiple spaces instead of tab
+        #   (between depth and Suspect Timestamp)
+        # Data Record 37: record ends with space then line feed
 
         file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_ACS_ACS.txt')
+
         stream_handle = open(file_path, 'rb')
 
         log.info(self.exception_callback_value)
@@ -429,7 +427,7 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
             self.assert_(isinstance(self.exception_callback_value[i], RecoverableSampleException))
 
         # bad records
-        self.assertEqual(self.count, 16)
+        self.assertEqual(self.count, 19)
         stream_handle.close()
 
     def test_missing_source_file(self):
@@ -488,4 +486,42 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
 
         # bad records
         self.assertEqual(self.count, 1)
+        stream_handle.close()
+
+    def test_no_trailing_tab(self):
+        """
+        Ensure that we can handle records that do not have trailing tabs. If we encounter them,
+        no exception should be thrown and the particle should be created as usual.
+        """
+
+        log.debug('test_no_trailing_tab')
+
+        # This test file has some records with a trailing tab, and others do not
+        no_trailing_tab_file = '11079364_ACS_ACS_no_trailing_tab.txt'
+
+        file_path = os.path.join(RESOURCE_PATH, no_trailing_tab_file)
+
+        stream_handle = open(file_path, 'r')
+
+        # Note: since the recovered and telemetered parser and particles are common
+        # to each other, testing one is sufficient, will be completely tested
+        # in driver tests
+
+        parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                                   None, stream_handle,
+                                   self.state_callback, self.pub_callback,
+                                   self.exception_callback)
+
+        particles = parser.get_records(20)
+
+        log.debug("*** test_simple Num particles %s", len(particles))
+
+        # load a dictionary from the yml file
+        test_data = self.get_dict_from_yml('11079364_ACS_ACS_recov.yml')
+
+        # check all the values against expected results.
+        for i in range(len(particles)):
+
+            self.assert_result(test_data['data'][i], particles[i])
+
         stream_handle.close()
