@@ -1,0 +1,65 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcHmrMetadataRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_metadata_recovered
+    internal_timestamp: 3606762322.545000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 17:47:40'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.WC'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+  - _index: 2
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762322.545000
+    profiler_timestamp: 1397773522.5450000762939453
+    pressure_depth: 0.5639999999999999
+    suspect_timestamp: 1
+    heading: 153.5999999999999943
+    pitch: -12.6999999999999993
+    roll: -1.0000000000000000
+  - _index: 3
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.093000
+    profiler_timestamp: 1397773523.0929999351501465
+    pressure_depth: 0.5659999999999999
+    suspect_timestamp: 0
+    heading: 153.6999999999999886
+    pitch: -11.8000000000000007
+    roll: -0.7000000000000000
+  - _index: 4
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.105000
+    profiler_timestamp: 1397773523.1050000190734863
+    pressure_depth: 0.5629999999999999
+    suspect_timestamp: 0
+    heading: 152.9000000000000057
+    pitch: -9.1999999999999993
+    roll: 0.6000000000000000
+  - _index: 5
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.126000
+    profiler_timestamp: 1397773523.1259999275207520
+    pressure_depth: 0.5629999999999999
+    suspect_timestamp: 0
+    heading: 150.8000000000000114
+    pitch: -5.2000000000000002
+    roll: 2.2000000000000002
+  - _index: 6
+    particle_object: WcHmrEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_hmr_eng_recovered
+    internal_timestamp: 3606762323.137000
+    profiler_timestamp: 1397773523.1370000839233398
+    pressure_depth: 0.5629999999999999
+    suspect_timestamp: 0
+    heading: 148.0999999999999943
+    pitch: -0.5000000000000000
+    roll: 3.8999999999999999
