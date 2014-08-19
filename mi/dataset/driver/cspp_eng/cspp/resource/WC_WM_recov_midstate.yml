@@ -1,0 +1,60 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcWmEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng_recovered
+    internal_timestamp: 3606762324.058
+    profiler_timestamp: 1397773524.058
+    pressure_depth: 0.466
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.01
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.550
+  - _index: 2
+    particle_object: WcWmEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng_recovered
+    internal_timestamp: 3606762324.121
+    profiler_timestamp: 1397773524.121
+    pressure_depth: 0.456
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.03
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.70
+    rope_on_drum: 9.55
+  - _index: 3
+    particle_object: WcWmEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng_recovered
+    internal_timestamp: 3606762324.183
+    profiler_timestamp: 1397773524.183
+    pressure_depth: 0.446
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: 0.01
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 4
+    particle_object: WcWmEngRecoveredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng_recovered
+    internal_timestamp: 3606762324.246
+    profiler_timestamp: 1397773524.246
+    pressure_depth: 0.438
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.01
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.50
+    rope_on_drum: 9.55

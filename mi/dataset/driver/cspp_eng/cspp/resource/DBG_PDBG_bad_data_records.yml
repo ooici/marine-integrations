@@ -1,0 +1,68 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: DbgPdbgMetadataRecoveredDataParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_metadata_recovered
+    internal_timestamp: 3610862989.532000
+    last_character_controller_id: '0'
+    day_of_year_number: 155
+    fraction_of_day: 4008
+    processing_time: '07/16/2014 10:19:05'
+    source_file: 'Q:\Profilers\WLP-0002\Build - 06092014\2014_06_03WLP-002QuarryTesting\01554008.DBG'
+    preprocessing_software_version: '1.11'
+    start_date: '06/04/2014'
+  - _index: 2
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610862989.532000
+    profiler_timestamp: 1401874189.532
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 2
+    battery_voltage_flt32: 33.13
+  - _index: 3
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610863432.582000
+    profiler_timestamp: 1401874632.582
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 2
+    battery_voltage_flt32: 33.13
+  - _index: 4
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610863433.171000
+    profiler_timestamp: 1401874633.171
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 1
+    battery_voltage_flt32: 33.15
+  - _index: 5
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610863479.847000
+    profiler_timestamp: 1401874679.847
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 2
+    battery_voltage_flt32: 33.13
+  - _index: 6
+    particle_object: DbgPdbgRecoveredBatteryParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_batt_eng_recovered
+    internal_timestamp: 3610863480.347000
+    profiler_timestamp: 1401874680.347
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 1
+    battery_number_uint8: 1
+    battery_voltage_flt32: 33.15
+  - _index: 7
+    particle_object: DbgPdbgRecoveredGpsParticle
+    particle_type: cspp_eng_cspp_dbg_pdbg_gps_eng_recovered
+    internal_timestamp: 3610863538.001000
+    profiler_timestamp: 1401874738.001
+    pressure_depth: 0.0000000000000000
+    suspect_timestamp: 0
+    gps_adjustment: 7
