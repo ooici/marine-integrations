@@ -32,7 +32,6 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.driver_dict import DriverDictKey
 
-# newline.
 NEWLINE = '\n'
 
 INDEX_OF_PACKET_RECORD_LENGTH = 4
@@ -129,10 +128,6 @@ class Prompt(BaseEnum):
 
 
 def get_two_byte_value(str_input, index=0):
-
-    #log.debug('get_two_byte_value str[%r] str[%r]', str_input[index], str_input[index+1])
-    #log.debug('get_two_byte_value ord[%r] ord[%r]', ord(str_input[index])*2**8, ord(str_input[index+1]))
-
     return ord(str_input[index])*2**8 + ord(str_input[index+1])
 
 
@@ -177,27 +172,10 @@ class OptaaSampleDataParticle(DataParticle):
             raise SampleException("OPTAA_SampleDataParticle: No regex match of parsed sample data: [%r]"
                                   % self.raw_data)
 
-        # log.debug('MATCH = group 1 %r', match.group(1))
-        # log.debug('MATCH = group 2 %r', match.group(2))
-        # log.debug('MATCH = group 3 %r', match.group(3))
-        # log.debug('MATCH = group 4 %r', match.group(4))
-        # log.debug('MATCH = group 5 %r', match.group(5))
-        # log.debug('MATCH = group 6 %r', match.group(6))
-        # log.debug('MATCH = group 7 %r', match.group(7))
-        # log.debug('MATCH = group 8 %r', match.group(8))
-        # log.debug('MATCH = group 9 %r', match.group(9))
-        # log.debug('MATCH = group 10 %r', match.group(10))
-        # log.debug('MATCH = group 11 %r', match.group(11))
-        # log.debug('MATCH = group 12 %r', match.group(12))
-        # log.debug('MATCH = group 13 %r', match.group(13))
-
         record_length = get_two_byte_value(match.group(1), 0)
-        #log.debug('RECORD LENGTH = %r', record_length)
-
-        #log.debug('LENGTH OF DATA = %d', len(self.raw_data))
-        
         packet_checksum = get_two_byte_value(self.raw_data, record_length)
         checksum = 0
+
         for i in range(0, record_length):
             checksum += ord(self.raw_data[i])
             checksum &= 0xffff
@@ -215,7 +193,6 @@ class OptaaSampleDataParticle(DataParticle):
         a_signal_counts_vector = []
 
         while index < record_length:
-            #log.debug('INDEX = %d, RECORD_LENGTH = %d', index, record_length)
             c_ref_count_vector.append(get_two_byte_value(self.raw_data, index))
             index += SIZE_OF_SCAN_DATA_SIGNAL_COUNTS
             a_ref_count_vector.append(get_two_byte_value(self.raw_data, index))
@@ -545,4 +522,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         return None, None
 
     def _handler_direct_access_stop_direct(self):
+        """
+        Instead of using discover(), as is the norm, put instrument into
+        Command state.  Instrument can only sample, even when in a command state.
+        """
         return DriverProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)

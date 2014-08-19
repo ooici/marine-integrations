@@ -16,7 +16,7 @@ from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, RE_PATTERN, DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.protocol_param_dict import ParameterDictType, ParameterDictVisibility
 from mi.core.util import dict_equal
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, Units
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverProtocolState, DriverEvent, \
     DriverAsyncEvent, ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -453,6 +453,8 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda sVal: '%s' % sVal,
                              type=ParameterDictType.STRING,
                              display_name="Max Rate",
+                             description="0=auto, else value is in Hertz",
+                             units=Units.HERTZ,
                              default_value='0',
                              startup_param=True,
                              direct_access=True)
