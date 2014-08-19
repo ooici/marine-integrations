@@ -79,7 +79,7 @@ class SioEngSioDataParticle(DataParticle):
 
         result = [self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CONTROLLER_ID, match.group(1), int),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CONTROLLER_TIMESTAMP,
-                                     match.group(2), SioEngSioMuleParserDataParticle.encode_int_16),
+                                     match.group(2), SioEngSioMuleDataParticle.encode_int_16),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_VOLTAGE_STRING, match.group(3), float),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_TEMPERATURE_STRING, match.group(4), float),
                   self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_ON_TIME, match.group(5), int),
@@ -89,7 +89,7 @@ class SioEngSioDataParticle(DataParticle):
         return result
 
 
-class SioEngSioMuleParserDataParticle(SioEngSioDataParticle):
+class SioEngSioMuleDataParticle(SioEngSioDataParticle):
     """
     Class for parsing data from the sio_eng_sio_mule data set
     """
@@ -97,7 +97,7 @@ class SioEngSioMuleParserDataParticle(SioEngSioDataParticle):
     _data_particle_type = DataParticleType.TELEMETERED
 
 
-class SioEngSioMuleParserRecoveredDataParticle(SioEngSioDataParticle):
+class SioEngSioRecoveredDataParticle(SioEngSioDataParticle):
     """
     Class for parsing data from the sio_eng_sio_mule data set
     """
@@ -105,7 +105,7 @@ class SioEngSioMuleParserRecoveredDataParticle(SioEngSioDataParticle):
     _data_particle_type = DataParticleType.RECOVERED
 
 
-class SioMuleCommonParser(Parser):
+class SioEngSioCommonParser(Parser):
 
     def parse_chunks(self):
         """
@@ -147,7 +147,7 @@ class SioMuleCommonParser(Parser):
         return result_particles
 
 
-class SioEngSioMuleParser(SioMuleCommonParser, SioMuleParser):
+class SioEngSioMuleParser(SioEngSioCommonParser, SioMuleParser):
 
     def __init__(self,
                  config,
@@ -155,20 +155,18 @@ class SioEngSioMuleParser(SioMuleCommonParser, SioMuleParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
-                 exception_callback,
-                 *args, **kwargs):
+                 exception_callback):
+
         super(SioEngSioMuleParser, self).__init__(config,
                                                   stream_handle,
                                                   state,
                                                   self.sieve_function,
                                                   state_callback,
                                                   publish_callback,
-                                                  exception_callback,
-                                                  *args,
-                                                  **kwargs)
+                                                  exception_callback)
 
 
-class SioEngSioRecoveredParser(SioMuleCommonParser, SioParser):
+class SioEngSioRecoveredParser(SioEngSioCommonParser, SioParser):
 
     def __init__(self,
                  config,
@@ -176,14 +174,12 @@ class SioEngSioRecoveredParser(SioMuleCommonParser, SioParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
-                 exception_callback,
-                 *args, **kwargs):
+                 exception_callback):
+
         super(SioEngSioRecoveredParser, self).__init__(config,
                                                        stream_handle,
                                                        state,
                                                        self.sieve_function,
                                                        state_callback,
                                                        publish_callback,
-                                                       exception_callback,
-                                                       *args,
-                                                       **kwargs)
+                                                       exception_callback)

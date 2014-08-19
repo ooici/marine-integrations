@@ -19,7 +19,8 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.parser.sio_eng_sio_mule import \
-    SioEngSioMuleParserDataParticle, \
+    SioEngSioMuleDataParticle, \
+    SioEngSioRecoveredDataParticle, \
     SioEngSioMuleParser, \
     SioEngSioRecoveredParser, \
     ENG_MATCHER
@@ -56,7 +57,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
     def assert_particle(self, result_particle, particle):
 
         # raw data is the match result of comparing the chunk against the
-        # Engineering data Regex.  Checki8ng group 0 verifies it is the correct chunk
+        # Engineering data Regex.  Checking group 0 verifies it is the correct chunk
         self.assertEqual(result_particle.raw_data.group(0), particle.raw_data.group(0))
 
         # verify the timestamp is within the acceptable tolerance
@@ -88,9 +89,15 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
-        self.config = {
+        
+        self.telem_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.sio_eng_sio_mule',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioMuleParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioMuleDataParticle'
+        }
+
+        self.recov_config = {
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.sio_eng_sio_mule',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioRecoveredDataParticle'
         }
 
         # Define test data particles and their associated timestamps which will be 
@@ -100,73 +107,73 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         # as much of the old test structure as possible JAR
         posix_time = int('51EC763C', 16)
         self._timestamp1 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_a = SioEngSioMuleParserDataParticle(
+        self.particle_a = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51EC763C_04_8D91\x02\n18.95 15.9 1456 308 -2\n\x03'),
             internal_timestamp=self._timestamp1)
 
         posix_time = int('51EC844C', 16)
         self._timestamp2 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_b = SioEngSioMuleParserDataParticle(
+        self.particle_b = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51EC844C_0D_9AE3\x02\n18.96 15.7 1499 318 -2\n\x03'),
             internal_timestamp=self._timestamp2)
 
         posix_time = int('51EC925D', 16)
         self._timestamp3 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_c = SioEngSioMuleParserDataParticle(
+        self.particle_c = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51EC925D_16_BD7E\x02\n18.95 15.8 1542 328 -2\n\x03'),
             internal_timestamp=self._timestamp3)
 
         posix_time = int('51ECA06D', 16)
         self._timestamp4 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_d = SioEngSioMuleParserDataParticle(
+        self.particle_d = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51ECA06D_1F_B90E\x02\n18.94 16.0 1586 338 -2\n\x03'),
             internal_timestamp=self._timestamp4)
 
         posix_time = int('51ECAE7E', 16)
         self._timestamp5 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_e = SioEngSioMuleParserDataParticle(
+        self.particle_e = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51ECAE7E_28_46EC\x02\n18.96 15.6 1629 348 -2\n\x03'),
             internal_timestamp=self._timestamp5)
 
         posix_time = int('51ECBC8D', 16)
         self._timestamp6 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_f = SioEngSioMuleParserDataParticle(
+        self.particle_f = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51ECBC8D_31_8DAA\x02\n18.94 15.1 1674 358 -2\n\x03'),
             internal_timestamp=self._timestamp6)
 
         posix_time = int('51ED02DD', 16)
         self._timestamp11 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_11 = SioEngSioMuleParserDataParticle(
+        self.particle_11 = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51ED02DD_5E_2B7D\x02\n18.93 14.0 1902 408 -3\n\x03'),
             internal_timestamp=self._timestamp11)
 
         posix_time = int('51ED10ED', 16)
         self._timestamp12 = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_12 = SioEngSioMuleParserDataParticle(
+        self.particle_12 = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51ED10ED_67_EDD2\x02\n18.93 14.0 1947 418 -3\n\x03'),
             internal_timestamp=self._timestamp12)
 
         posix_time = int('51EF04CE', 16)
         self._timestampAA = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_AA = SioEngSioMuleParserDataParticle(
+        self.particle_AA = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1237101_0012u51EF04CE_04_C3AF\x02\n18.72 17.4 2 1 1\n\x03'),
             internal_timestamp=self._timestampAA)
 
         posix_time = int('51EF1B95', 16)
         self._timestampBB = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_BB = SioEngSioMuleParserDataParticle(
+        self.particle_BB = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1237101_0014u51EF1B95_14_C795\x02\n18.88 18.5 206 6 0\n\x03'),
             internal_timestamp=self._timestampBB)
 
         posix_time = int('51EF0DA6', 16)
         self._timestampCC = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_CC = SioEngSioMuleParserDataParticle(
+        self.particle_CC = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0012u51EF0DA6_04_C5D1\x02\n18.58 15.3 2 1 0\n\x03'),
             internal_timestamp=self._timestampCC)
 
         posix_time = int('51EF1B95', 16)
         self._timestampDD = ntplib.system_to_ntp_time(float(posix_time))
-        self.particle_DD = SioEngSioMuleParserDataParticle(
+        self.particle_DD = SioEngSioMuleDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0014u51EF1B95_0D_B13D\x02\n18.93 14.2 71 11 0\n\x03'),
             internal_timestamp=self._timestampDD)
 
@@ -174,22 +181,55 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
 
-    def particle_to_yml(self, particle):
+    def particle_to_yml(self, particles, filename, mode='w'):
         """
         This is added as a testing helper, not actually as part of the parser tests. Since the same particles
         will be used for the driver test it is helpful to write them to .yml in the same form they need in the
-        results.yml files here.
+        results.yml fids here.
         """
-        particle_dict = particle.generate_dict()
-        # open write append, if you want to start from scratch manually delete this file
-        fid = open('test_get_particle.yml', 'a')
-        fid.write('  - _index: 0\n')
-        fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
-        for val in particle_dict.get('values'):
-            if isinstance(val.get('value'), float):
-                fid.write('    %s: %16.20f\n' % (val.get('value_id'), val.get('value')))
-            else:
-                fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
+        # open write append, if you want to start from scratch manually delete this fid
+        fid = open(os.path.join(RESOURCE_PATH, filename), mode)
+
+        fid.write('header:\n')
+        fid.write("    particle_object: 'MULTIPLE'\n")
+        fid.write("    particle_type: 'MULTIPLE'\n")
+        fid.write('data:\n')
+
+        for i in range(0, len(particles)):
+            particle_dict = particles[i].generate_dict()
+
+            fid.write('  - _index: %d\n' % (i+1))
+
+            fid.write('    particle_object: %s\n' % particles[i].__class__.__name__)
+            fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
+            fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
+
+            for val in particle_dict.get('values'):
+                if isinstance(val.get('value'), float):
+                    fid.write('    %s: %4.2f\n' % (val.get('value_id'), val.get('value')))
+                elif isinstance(val.get('value'), str):
+                    fid.write("    %s: '%s'\n" % (val.get('value_id'), val.get('value')))
+                else:
+                    fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
+        fid.close()
+
+    def create_recov_yml(self):
+        """
+        This utility creates a yml file
+        Be sure to verify the results by eye before trusting!
+        """
+
+        fid = open(os.path.join(RESOURCE_PATH, 'STA15908.DAT'), 'r')
+
+        stream_handle = fid
+        parser = SioEngSioRecoveredParser(self.recov_config, None, stream_handle,
+                                                self.state_callback_recovered,
+                                                self.pub_callback,
+                                                self.exception_callback)
+
+        particles = parser.get_records(30)
+
+        self.particle_to_yml(particles, 'STA15908.yml')
         fid.close()
 
     def test_simple(self):
@@ -206,7 +246,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         state = {StateKey.UNPROCESSED_DATA: [[0, 200]],
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
-        self._parser = SioEngSioMuleParser(self.config, state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
@@ -244,7 +284,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+        self._parser = SioEngSioRecoveredParser(self.recov_config, state, stream_handle,
                                                 self.state_callback_recovered,
                                                 self.pub_callback,
                                                 self.exception_callback)
@@ -291,7 +331,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioMuleParser(self.config, state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
@@ -334,7 +374,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioMuleParser(self.config, state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(6)
@@ -370,7 +410,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+        self._parser = SioEngSioRecoveredParser(self.recov_config, state, stream_handle,
                                                 self.state_callback_recovered,
                                                 self.pub_callback,
                                                 self.exception_callback)
@@ -404,7 +444,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioMuleParser(self.config, state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
                                       self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(12)
@@ -437,7 +477,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+        self._parser = SioEngSioRecoveredParser(self.recov_config, state, stream_handle,
                                                 self.state_callback_recovered,
                                                 self.pub_callback,
                                                 self.exception_callback)
@@ -471,7 +511,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'STA15908.DAT'))
 
-        self._parser = SioEngSioMuleParser(self.config, new_state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, new_state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
@@ -498,7 +538,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'STA15908.DAT'))
 
-        self._parser = SioEngSioRecoveredParser(self.config, new_state, stream_handle,
+        self._parser = SioEngSioRecoveredParser(self.recov_config, new_state, stream_handle,
                                                 self.state_callback_recovered,
                                                 self.pub_callback,
                                                 self.exception_callback)
@@ -528,7 +568,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'STA15908.DAT'))
 
-        self._parser = SioEngSioMuleParser(self.config, new_state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, new_state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
@@ -559,7 +599,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                           'STA15908.DAT'))
 
-        self._parser = SioEngSioRecoveredParser(self.config, new_state, stream_handle,
+        self._parser = SioEngSioRecoveredParser(self.recov_config, new_state, stream_handle,
                                                 self.state_callback_recovered,
                                                 self.pub_callback,
                                                 self.exception_callback)
@@ -597,7 +637,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioMuleParser(self.config, state, stream_handle,
+        self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
                                      self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
@@ -638,7 +678,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
 
-        self._parser = SioEngSioRecoveredParser(self.config, state, stream_handle,
+        self._parser = SioEngSioRecoveredParser(self.recov_config, state, stream_handle,
                                                 self.state_callback_recovered,
                                                 self.pub_callback,
                                                 self.exception_callback)
