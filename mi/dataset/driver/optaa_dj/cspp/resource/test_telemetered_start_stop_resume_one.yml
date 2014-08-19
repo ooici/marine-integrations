@@ -5,7 +5,7 @@ data:
  - _index: 1
    particle_object: OptaaDjCsppMetadataTelemeteredDataParticle
    particle_type: optaa_dj_cspp_metadata
-   internal_timestamp: 3606762458.969000
+   internal_timestamp: 3606762458.969
    last_character_controller_id: '1'
    day_of_year_number: 107
    fraction_of_day: 9364

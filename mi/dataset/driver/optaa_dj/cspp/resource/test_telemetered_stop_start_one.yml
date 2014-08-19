@@ -3,6 +3,18 @@ header:
  particle_type: 'MULTIPLE'
 data:
  - _index: 1
+   particle_object: OptaaDjCsppMetadataTelemeteredDataParticle
+   particle_type: optaa_dj_cspp_metadata
+   internal_timestamp: 3606762458.969
+   last_character_controller_id: '1'
+   day_of_year_number: 107
+   fraction_of_day: 9364
+   processing_time: '07/18/2014 13:50:27'
+   source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.ACD'
+   preprocessing_software_version: '1.11'
+   start_date: '04/17/2014'
+   serial_number: 137
+ - _index: 2
    particle_object: OptaaDjCsppInstrumentTelemeteredDataParticle
    particle_type: optaa_dj_cspp_instrument
    internal_timestamp: 3606762458.969
@@ -22,7 +34,7 @@ data:
    external_temp_raw: 39383
    internal_temp_raw: 50007
    pressure_counts: 65535
- - _index: 2
+ - _index: 3
    particle_object: OptaaDjCsppInstrumentTelemeteredDataParticle
    particle_type: optaa_dj_cspp_instrument
    internal_timestamp: 3606762471.427
@@ -42,7 +54,7 @@ data:
    external_temp_raw: 39387
    internal_temp_raw: 50043
    pressure_counts: 65535
- - _index: 3
+ - _index: 4
    particle_object: OptaaDjCsppInstrumentTelemeteredDataParticle
    particle_type: optaa_dj_cspp_instrument
    internal_timestamp: 3606762483.901
@@ -62,7 +74,7 @@ data:
    external_temp_raw: 39389
    internal_temp_raw: 50047
    pressure_counts: 65535
- - _index: 4
+ - _index: 5
    particle_object: OptaaDjCsppInstrumentTelemeteredDataParticle
    particle_type: optaa_dj_cspp_instrument
    internal_timestamp: 3606762505.627
@@ -82,5 +94,3 @@ data:
    external_temp_raw: 39390
    internal_temp_raw: 50071
    pressure_counts: 65535
-
-
