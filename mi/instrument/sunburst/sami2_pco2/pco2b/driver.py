@@ -151,6 +151,8 @@ class DataParticleType(Pco2wSamiDataParticleType):
     PCO2W_B_CONTROL_RECORD = 'pco2w_b_control_record'
     PCO2W_B_BATTERY_VOLTAGE = 'pco2w_b_battery_voltage'
     PCO2W_B_THERMISTOR_VOLTAGE = 'pco2w_b_thermistor_voltage'
+    PCO2W_B_SAMI_SAMPLE = 'pco2w_b_sami_data_record'
+
 
 
 class Parameter(Pco2wParameter):
@@ -181,6 +183,7 @@ SamiBatteryVoltageDataParticle._data_particle_type = DataParticleType.PCO2W_B_BA
 SamiThermistorVoltageDataParticle._data_particle_type = DataParticleType.PCO2W_B_THERMISTOR_VOLTAGE
 SamiRegularStatusDataParticle._data_particle_type = DataParticleType.PCO2W_B_REGULAR_STATUS
 SamiControlRecordDataParticle._data_particle_type = DataParticleType.PCO2W_B_CONTROL_RECORD
+Pco2wSamiSampleDataParticle._data_particle_type = DataParticleType.PCO2W_B_SAMI_SAMPLE
 
 
 class Pco2wbDev1SampleDataParticleKey(BaseEnum):
