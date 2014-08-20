@@ -30,8 +30,8 @@ class DataTypeKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    DOSTA_ABCDJM_SIO_TELEMETERED = 'dosta_abcdjm_sio_mule_telemetered'
-    DOSTA_ABCDJM_SIO_RECOVERED = 'dosta_abcdjm_sio_mule_recovered'
+    DOSTA_ABCDJM_SIO_TELEMETERED = 'dosta_abcdjm_sio_telemetered'
+    DOSTA_ABCDJM_SIO_RECOVERED = 'dosta_abcdjm_sio_recovered'
 
 
 class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
