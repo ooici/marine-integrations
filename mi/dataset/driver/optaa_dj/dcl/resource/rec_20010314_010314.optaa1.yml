@@ -4,9 +4,9 @@ header:
 
 data:
   - _index:  1
-    particle_object: OptaaDjDclRecoveredMetaDataParticle
+    particle_object: OptaaDjDclRecoveredMetadataDataParticle
     particle_type: optaa_dj_dcl_metadata_recovered
-    internal_timestamp: '2001-03-14T01:03:14Z'
+    internal_timestamp: 3193520594.000
     start_date: '2001-03-14 01:03:14'
     packet_type: 4
     meter_type: 83
@@ -14,7 +14,7 @@ data:
   - _index:  2
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2001-03-14T01:03:14Z'
+    internal_timestamp: 3193520594.000
     a_reference_dark_counts: 1
     pressure_counts: 2
     a_signal_dark_counts: 3
@@ -22,7 +22,7 @@ data:
     internal_temp_raw: 5
     c_reference_dark_counts: 6
     c_signal_dark_counts: 7
-    elapsed_run_time: 666
+    elapsed_run_time: 111
     num_wavelengths: 1
     c_reference_counts: [0]
     a_reference_counts: [32767]
@@ -31,7 +31,7 @@ data:
   - _index:  3
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2001-03-14T01:03:14Z'
+    internal_timestamp: 3193520594.111
     a_reference_dark_counts: 2
     pressure_counts: 4
     a_signal_dark_counts: 6
@@ -39,7 +39,7 @@ data:
     internal_temp_raw: 10
     c_reference_dark_counts: 12
     c_signal_dark_counts: 14
-    elapsed_run_time: 1332
+    elapsed_run_time: 222
     num_wavelengths: 3
     c_reference_counts: [0, 16383, 32766]
     a_reference_counts: [32767, 49150, 65533]
@@ -48,7 +48,7 @@ data:
   - _index:  4
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2001-03-14T01:03:15Z'
+    internal_timestamp: 3193520594.222
     a_reference_dark_counts: 3
     pressure_counts: 6
     a_signal_dark_counts: 9
@@ -56,7 +56,7 @@ data:
     internal_temp_raw: 15
     c_reference_dark_counts: 18
     c_signal_dark_counts: 21
-    elapsed_run_time: 1998
+    elapsed_run_time: 333
     num_wavelengths: 14
     c_reference_counts: [0, 2520, 5040, 7560, 10080, 12600, 15120, 17640, 20160, 22680, 25200, 27720, 30240, 32760]
     a_reference_counts: [32767, 35287, 37807, 40327, 42847, 45367, 47887, 50407, 52927, 55447, 57967, 60487, 63007, 65527]

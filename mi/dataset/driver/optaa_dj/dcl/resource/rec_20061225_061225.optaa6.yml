@@ -4,9 +4,9 @@ header:
 
 data:
   - _index:  1
-    particle_object: OptaaDjDclRecoveredMetaDataParticle
+    particle_object: OptaaDjDclRecoveredMetadataDataParticle
     particle_type: optaa_dj_dcl_metadata_recovered
-    internal_timestamp: '2006-12-25T06:12:25Z'
+    internal_timestamp: 3376015945.000
     start_date: '2006-12-25 06:12:25'
     packet_type: 9
     meter_type: 83
@@ -14,7 +14,7 @@ data:
   - _index:  2
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:25Z'
+    internal_timestamp: 3376015945.000
     a_reference_dark_counts: 1
     pressure_counts: 2
     a_signal_dark_counts: 3
@@ -31,7 +31,7 @@ data:
   - _index:  3
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:25Z'
+    internal_timestamp: 3376015945.666
     a_reference_dark_counts: 2
     pressure_counts: 4
     a_signal_dark_counts: 6
@@ -48,7 +48,7 @@ data:
   - _index:  4
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:26Z'
+    internal_timestamp: 3376015946.332
     a_reference_dark_counts: 3
     pressure_counts: 6
     a_signal_dark_counts: 9
@@ -65,7 +65,7 @@ data:
   - _index:  5
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:26Z'
+    internal_timestamp: 3376015946.998
     a_reference_dark_counts: 4
     pressure_counts: 8
     a_signal_dark_counts: 12
@@ -82,7 +82,7 @@ data:
   - _index:  6
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:27Z'
+    internal_timestamp: 3376015947.664
     a_reference_dark_counts: 5
     pressure_counts: 10
     a_signal_dark_counts: 15
@@ -99,7 +99,7 @@ data:
   - _index:  7
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:28Z'
+    internal_timestamp: 3376015948.330
     a_reference_dark_counts: 6
     pressure_counts: 12
     a_signal_dark_counts: 18
@@ -116,7 +116,7 @@ data:
   - _index:  8
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:28Z'
+    internal_timestamp: 3376015948.996
     a_reference_dark_counts: 7
     pressure_counts: 14
     a_signal_dark_counts: 21
@@ -133,7 +133,7 @@ data:
   - _index:  9
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:29Z'
+    internal_timestamp: 3376015949.662
     a_reference_dark_counts: 8
     pressure_counts: 16
     a_signal_dark_counts: 24
@@ -150,7 +150,7 @@ data:
   - _index:  10
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:30Z'
+    internal_timestamp: 3376015950.328
     a_reference_dark_counts: 9
     pressure_counts: 18
     a_signal_dark_counts: 27
@@ -167,7 +167,7 @@ data:
   - _index:  11
     particle_object: OptaaDjDclRecoveredInstrumentDataParticle
     particle_type: optaa_dj_dcl_instrument_recovered
-    internal_timestamp: '2006-12-25T06:12:30Z'
+    internal_timestamp: 3376015950.994
     a_reference_dark_counts: 10
     pressure_counts: 20
     a_signal_dark_counts: 30
