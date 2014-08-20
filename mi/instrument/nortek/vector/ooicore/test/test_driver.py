@@ -29,8 +29,11 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
-from mi.instrument.ooici.mi.test_driver.test.test_driver import DriverTestMixinSub
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import ParameterTestConfigKey
+
+from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, DriverTestMixinSub, \
+    user_config2
 
 from mi.core.instrument.instrument_driver import DriverConfigKey, DriverEvent, ResourceAgentState
 
@@ -39,17 +42,17 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.vector.ooicore.driver import NortekDataParticleType
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, Parameter, NEWLINE, EngineeringParameter
+
+from mi.instrument.nortek.driver import ProtocolEvent
+
+from mi.instrument.nortek.vector.ooicore.driver import Protocol, DataParticleType, NortekDataParticleType
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticleKey
-
-from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, user_config2
-from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, Parameter, \
-    NortekInstrumentProtocol, NEWLINE, EngineeringParameter
 
 ###
 #   Driver parameters for the tests
@@ -60,7 +63,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id='nortek_vector_dw_ooicore',
     instrument_agent_name='nortek_vector_dw_ooicore_agent',
-    instrument_agent_packet_config=NortekDataParticleType(),
+    instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverConfigKey.PARAMETERS: {
             Parameter.DEPLOYMENT_NAME: 'test',
@@ -219,7 +222,7 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
 
         self.assert_data_particle_keys(VectorVelocityDataParticleKey, self._sample_parameters_01)
         log.debug('asserted keys')
-        self.assert_data_particle_header(data_particle, NortekDataParticleType.VELOCITY)
+        self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
         log.debug('asserted header')
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
         log.debug('asserted particle params')
@@ -232,7 +235,7 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
         """
 
         self.assert_data_particle_keys(VectorVelocityHeaderDataParticleKey, self._sample_parameters_02)
-        self.assert_data_particle_header(data_particle, NortekDataParticleType.VELOCITY_HEADER)
+        self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY_HEADER)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
 
     def assert_particle_system(self, data_particle, verify_values=False):
@@ -243,7 +246,7 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
         """
 
         self.assert_data_particle_keys(VectorSystemDataParticleKey, self._system_data_parameter)
-        self.assert_data_particle_header(data_particle, NortekDataParticleType.SYSTEM)
+        self.assert_data_particle_header(data_particle, DataParticleType.SYSTEM)
         self.assert_data_particle_parameters(data_particle, self._system_data_parameter, verify_values)
 
 
@@ -279,7 +282,7 @@ class UnitFromIDK(NortekUnitTest):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: NortekDataParticleType.VELOCITY_HEADER,
+            DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY_HEADER,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
@@ -306,7 +309,7 @@ class UnitFromIDK(NortekUnitTest):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: NortekDataParticleType.VELOCITY,
+            DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
@@ -334,7 +337,7 @@ class UnitFromIDK(NortekUnitTest):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: NortekDataParticleType.SYSTEM,
+            DataParticleKey.STREAM_NAME: DataParticleType.SYSTEM,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
@@ -355,7 +358,7 @@ class UnitFromIDK(NortekUnitTest):
         3. combined data structure
         4. data structure with noise
         """
-        chunker = StringChunker(NortekInstrumentProtocol.sieve_function)
+        chunker = StringChunker(Protocol.sieve_function)
 
         # test complete data structures
         self.assert_chunker_sample(chunker, velocity_sample())
@@ -420,7 +423,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_sample, timeout=TIMEOUT)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=TIMEOUT)
 
     def test_command_autosample(self):
         """
@@ -436,9 +439,9 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
-        self.assert_async_particle_generation(NortekDataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
-        self.assert_async_particle_generation(NortekDataParticleType.SYSTEM, self.assert_particle_system)
-        self.assert_async_particle_generation(NortekDataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
+        self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
@@ -675,7 +678,7 @@ class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
         Verify data particles for a single sample that are specific to Vector
         """
         self.assert_enter_command_mode()
-        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, NortekDataParticleType.VELOCITY,
+        self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.VELOCITY,
                                     timeout=10, sample_count=1)
 
     def test_autosample(self):
@@ -685,7 +688,7 @@ class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
         self.assert_enter_command_mode()
         self.assert_start_autosample()
 
-        self.assert_particle_async(NortekDataParticleType.SYSTEM, self.assert_particle_system)
-        self.assert_particle_async(NortekDataParticleType.VELOCITY, self.assert_particle_sample)
+        self.assert_particle_async(DataParticleType.SYSTEM, self.assert_particle_system)
+        self.assert_particle_async(DataParticleType.VELOCITY, self.assert_particle_sample)
 
         self.assert_stop_autosample()
