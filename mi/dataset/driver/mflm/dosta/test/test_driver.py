@@ -492,23 +492,19 @@ class QualificationTest(DataSetQualificationTestCase):
             self.create_sample_data_set_dir('DOS15908_1st7_step4.DAT', RECOV_DIR, "DOS15909.DAT",
                                             copy_metadata=False)
             # Now read the first records of the second file then stop
-            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 1)
+            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
-            #self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
-            #self.assert_sample_queue_size(DataParticleType.SAMPLE_RECOVERED, 0)
-
+ 
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
-            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 3)
+            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
             log.debug("RESULT: %s", result)
-            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
+            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 1)
             self.assert_data_values(result, 'test_data_4r.txt.result.yml')
-            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
-            self.assert_sample_queue_size(DataParticleType.SAMPLE_RECOVERED, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
@@ -577,11 +573,11 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data_set_dir('node59p1_step2.dat', RECOV_DIR, "node59p1.dat",
+        self.create_sample_data_set_dir('DOS15908_1st7_step1.DAT', RECOV_DIR, "DOS15908.DAT",
                                         copy_metadata=False)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
- 
+
         # Slow down processing to 1 per second to give us time to stop
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
@@ -590,23 +586,20 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             # Read the first file and verify the data
             result = self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1)
-            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
+            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 1)
             result.extend(result1)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'test_data_1-2.txt.result.yml')
+            self.assert_data_values(result, 'test_data_1r.txt.result.yml')
             self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
             self.assert_sample_queue_size(DataParticleType.SAMPLE_RECOVERED, 0)
 
-            self.create_sample_data_set_dir('node59p1_step4.dat', RECOV_DIR, "node59p1.dat",
+            self.create_sample_data_set_dir('DOS15908_1st7_step4.DAT', RECOV_DIR, "DOS15909.DAT",
                                             copy_metadata=False)
             # Now read the first records of the second file then stop
-            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            result1 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
             log.debug("RESULT 1: %s", result1)
-            self.assert_stop_sampling()
-            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
-            self.assert_sample_queue_size(DataParticleType.SAMPLE_RECOVERED, 0)
 
             # stop and re-start the agent
             self.stop_dataset_agent_client()
@@ -614,19 +607,18 @@ class QualificationTest(DataSetQualificationTestCase):
             # re-initialize
             self.assert_initialize()
 
-            # Restart sampling and ensure we get the last 2 records of the file
-            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 2)
+            result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE_RECOVERED, 2)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
             log.debug("RESULT: %s", result)
-            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
-            self.assert_data_values(result, 'test_data_3-4.txt.result.yml')
-            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 0)
-            self.assert_sample_queue_size(DataParticleType.SAMPLE_RECOVERED, 0)
+            self.assert_sample_queue_size(DataParticleType.METADATA_RECOVERED, 1)
+            self.assert_data_values(result, 'test_data_4r.txt.result.yml')
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
+
+
 
     def test_flmb(self):
         """
