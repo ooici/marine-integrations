@@ -192,7 +192,6 @@ class OptaaDjCsppMetadataDataParticle(CsppMetadataDataParticle):
                 "Error (%s) while decoding parameters in data: [%s]"
                 % (ex, self.raw_data))
 
-        # log.debug('metadata_particle: %s', metadata_particle)
         return metadata_particle
 
 
@@ -292,8 +291,6 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
             raise RecoverableSampleException(
                 "Error (%s) while decoding parameters in data: [%s]"
                 % (ex, self.raw_data))
-
-        # log.debug("*** results: %s", results)
 
         return results
 
@@ -483,8 +480,6 @@ class OptaaDjCsppParser(BufferLoadingParser):
                 self._read_state[StateKey.METADATA_EXTRACTED] = True
 
             result_particles.append((data_particle, copy.copy(self._read_state)))
-
-        # log.debug('result_particles: %s', result_particles)
 
     def _process_header_part_match(self, header_part_match):
         """

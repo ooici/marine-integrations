@@ -243,7 +243,6 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        log.debug('test_get_many')
         file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
 
         stream_handle = open(file_path, 'r')
@@ -251,16 +250,13 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         # Note: since the recovered and telemetered parser and particles are common
         # to each other, testing one is sufficient, will be completely tested
         # in driver tests
-        log.debug('creating parser')
 
         parser = OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
                                    None, stream_handle,
                                    self.state_callback, self.pub_callback,
                                    self.exception_callback)
 
-        log.debug('parser: %s', parser)
         particles = parser.get_records(20)
-        log.debug('particle: %s', particles)
 
         log.debug("*** test_simple Num particles %s", len(particles))
 
@@ -493,8 +489,6 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         Ensure that we can handle records that do not have trailing tabs. If we encounter them,
         no exception should be thrown and the particle should be created as usual.
         """
-
-        log.debug('test_no_trailing_tab')
 
         # This test file has some records with a trailing tab, and others do not
         no_trailing_tab_file = '11079364_ACS_ACS_no_trailing_tab.txt'
