@@ -60,7 +60,7 @@ from mi.core.common import BaseEnum
 NEWLINE = '\n\r'
 
 # default timeout.
-TIMEOUT = 60
+TIMEOUT = 15
 # allowable time delay for sync the clock
 TIME_DELAY = 2
 # sample collection is ~60 seconds, add padding
@@ -83,7 +83,7 @@ HEAD_CONFIG_DATA_REGEX = re.compile(HEAD_CONFIG_DATA_PATTERN, re.DOTALL)
 USER_CONFIG_DATA_PATTERN = r'(%s)(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{6})(.{2})(.{6})(.{4})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                            r'(.{2})(.{2})(.{2})(.{2})(.{180})(.{180})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
-                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})(\x06\x06?)' % USER_CONFIG_SYNC_BYTES
+                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})(\x06\x06)' % USER_CONFIG_SYNC_BYTES
 USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
 # min, sec, day, hour, year, month
@@ -99,7 +99,7 @@ BATTERY_DATA_PATTERN = r'([\x00-\xFF][\x13-\x46])\x06\x06'
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
 
 # [\x00, \x01, \x02, \x04, and \x05]
-MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)(\x06\x06?)'
+MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)(\x06\x06)'
 MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
 
 # ["VEC 8181", "AQD 8493      "]
@@ -227,10 +227,14 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
@@ -1316,19 +1320,18 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Clear the prompt buffer.
         self._promptbuf = ''
+        self._linebuf = ''
 
         log.debug('_set_params: writing instrument configuration to instrument')
         self._connection.send(InstrumentCmds.CONFIGURE_INSTRUMENT)
         self._connection.send(output)
 
-        # result = self._get_response(timeout=120,
-        #                             expected_prompt=[InstrumentPrompts.Z_ACK, InstrumentPrompts.Z_NACK])
-
-        result = self._get_response(timeout=30, response_regex=USER_CONFIG_DATA_REGEX)
+        result = self._get_response(timeout=30,
+                                    expected_prompt=[InstrumentPrompts.Z_ACK, InstrumentPrompts.Z_NACK])
 
         log.debug('_set_params: result=%r', result)
-        # if result[1] == InstrumentPrompts.Z_NACK:
-        #     raise InstrumentParameterException("NortekInstrumentProtocol._set_params(): Invalid configuration file! ")
+        if result[1] == InstrumentPrompts.Z_NACK:
+            raise InstrumentParameterException("NortekInstrumentProtocol._set_params(): Invalid configuration file! ")
 
         self._update_params()
 
@@ -1495,7 +1498,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         #ID + BV    Call these commands at the same time, so their responses are combined (non-unique regex workaround)
         # Issue read id, battery voltage, & clock commands all at the same time (non-unique REGEX workaround).
         self._do_cmd_resp(InstrumentCmds.READ_ID + InstrumentCmds.READ_BATTERY_VOLTAGE,
-                          response_regex=ID_BATTERY_DATA_REGEX, timeout=60)
+                          response_regex=ID_BATTERY_DATA_REGEX, timeout=30)
 
         #RC
         self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, response_regex=CLOCK_DATA_REGEX)
@@ -1836,10 +1839,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         from a file if present.
         """
         self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.SET, display_name='set')
+        self._cmd_dict.add(Capability.GET, display_name='get')
         self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire sample')
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='start autosample')
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='stop autosample')
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='clock sync')
+        self._cmd_dict.add(Capability.START_DIRECT, display_name='start direct access')
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct access')
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
 
     def _build_param_dict(self):
