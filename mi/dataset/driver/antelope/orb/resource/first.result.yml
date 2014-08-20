@@ -4,8 +4,8 @@ header:
 data:
   - _index: 1
     internal_timestamp: 2208988801.000000000
-    particle_object: AntelopeOrbPacketParticle
-    particle_type: antelope_orb_packet
+    particle_object: AntelopeOrbPacketParticleCHAN
+    particle_type: antelope_orb_packet_chan
     channels:
     db:
     dfile:
@@ -13,13 +13,13 @@ data:
     pf:
     srcname:
     string:
-    time:
+    packet_time:
     type:
     version:
   - _index: 2
     internal_timestamp: 2208988802.000000000
-    particle_object: AntelopeOrbPacketParticle
-    particle_type: antelope_orb_packet
+    particle_object: AntelopeOrbPacketParticleCHAN
+    particle_type: antelope_orb_packet_chan
     channels:
     db:
     dfile:
@@ -27,7 +27,7 @@ data:
     pf:
     srcname:
     string:
-    time:
+    packet_time:
     type:
     version:
 

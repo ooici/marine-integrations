@@ -1,0 +1,39 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcSbeMetadataTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_metadata
+    internal_timestamp: 3606762323.009000
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 17:47:39'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.WC'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+  - _index: 2
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.009000
+    profiler_timestamp: 1397773523.0090000629425049
+    pressure_depth: 0.5730000000000000
+    suspect_timestamp: 1
+    velocity_flt32: 0.0420000000000000
+  - _index: 3
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.020000
+    profiler_timestamp: 1397773523.0199999809265137
+    pressure_depth: 0.5710000000000000
+    suspect_timestamp: 0
+    velocity_flt32: 0.0320000000000000
+  - _index: 4
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.031000
+    profiler_timestamp: 1397773523.0309998989105225
+    pressure_depth: 0.5710000000000000
+    suspect_timestamp: 0
+    velocity_flt32: 0.0290000000000000

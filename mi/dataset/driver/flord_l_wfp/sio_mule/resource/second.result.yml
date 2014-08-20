@@ -1,0 +1,13 @@
+header:
+  particle_object: FlordLWfpSioMuleParserDataParticle
+  particle_type: flord_l_wfp_instrument
+  
+data:   
+  - _index: 1
+    internal_timestamp: '2013-07-26T15:02:06.000000Z'
+    particle_object: FlordLWfpSioMuleParserDataParticle
+    particle_type: flord_l_wfp_instrument
+    raw_signal_chl: 56
+    raw_signal_beta: 97
+    raw_internal_temp: 573
+    wfp_timestamp: 1374850926

@@ -1,0 +1,16 @@
+header:
+ particle_object: 'MULTIPLE'
+ particle_type: 'MULTIPLE'
+data:
+ - _index: 1
+   particle_object: CtdpfJCsppMetadataRecoveredDataParticle
+   particle_type: ctdpf_j_cspp_metadata_recovered
+   internal_timestamp: 3606762493.683000
+   last_character_controller_id: '1'
+   day_of_year_number: 107
+   fraction_of_day: 9364
+   processing_time: '07/18/2014 12:23:14'
+   source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.PPB'
+   preprocessing_software_version: '1.11'
+   start_date: '04/17/2014'
+

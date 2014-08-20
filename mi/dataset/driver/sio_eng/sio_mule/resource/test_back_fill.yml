@@ -1,0 +1,14 @@
+header:
+    particle_object: SioEngSioMuleParserDataParticle
+    particle_type: sio_eng_control_status
+
+data:
+  - _index: 1
+    internal_timestamp: 3583613461.000000
+    sio_controller_id: 12371
+    sio_controller_timestamp: 1374624661
+    sio_eng_voltage: 18.87999999999999900524
+    sio_eng_temperature: 18.50000000000000000000
+    sio_eng_on_time: 206
+    sio_eng_number_of_wakeups: 6
+    sio_eng_clock_drift: 0

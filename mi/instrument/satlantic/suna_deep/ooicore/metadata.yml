@@ -1,8 +1,8 @@
 driver_metadata:
-  author: Anton Kueltz
+  author: Rachel Manoni
   driver_make: satlantic
   driver_model: suna_deep
   driver_name: ooicore
-  email: Anton.Kueltz@Raytheon.com
-  release_notes: initial_rev
-  version: 0.0.3
+  email: Rachel.E.Manoni@Raytheon.com
+  release_notes: jira_fix cannot get out of polled state
+  version: 0.0.6

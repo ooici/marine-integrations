@@ -13,36 +13,29 @@ Release notes:
     SAMI2 operating structure.
 """
 
-__author__ = 'Stuart Pearce'
+__author__ = 'Stuart Pearce & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
+import time
 
 from mi.core.log import get_logger
+
+
 log = get_logger()
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentProtocolException
-#from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-#from mi.core.instrument.data_particle import CommonDataParticleType
-#from mi.core.instrument.instrument_driver import DriverEvent
-#from mi.core.instrument.instrument_driver import DriverAsyncEvent
-#from mi.core.instrument.instrument_driver import DriverProtocolState
-#from mi.core.instrument.instrument_driver import ResourceAgentState
-#from mi.core.instrument.protocol_param_dict import FunctionParameter
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-
-from mi.instrument.sunburst.driver import Capability
-from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import ProtocolState
-from mi.instrument.sunburst.driver import ProtocolEvent
+from mi.instrument.sunburst.driver import Prompt, SamiBatteryVoltageDataParticle, SamiThermistorVoltageDataParticle
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiParameter
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
@@ -52,25 +45,50 @@ from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
 
-from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
-from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
 
-from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import TIMEOUT
-from mi.instrument.sunburst.driver import SAMI_TO_UNIX
-from mi.instrument.sunburst.driver import SAMI_TO_NTP
+from mi.instrument.sunburst.driver import SAMI_NEWLINE
+from mi.instrument.sunburst.driver import SamiScheduledJob
+from mi.instrument.sunburst.driver import SamiProtocolState
+from mi.instrument.sunburst.driver import SamiProtocolEvent
+from mi.instrument.sunburst.driver import SamiCapability
+from mi.instrument.sunburst.driver import SAMI_PUMP_TIMEOUT_OFFSET
+from mi.instrument.sunburst.driver import SAMI_NEW_LINE_REGEX_MATCHER
+from mi.instrument.sunburst.driver import SAMI_DEFAULT_TIMEOUT
+from mi.instrument.sunburst.driver import SAMI_PUMP_DURATION_UNITS
 
 ###
 #    Driver Constant Definitions
 ###
 
+# PHSEN sample timeout
+PHSEN_SAMPLE_TIMEOUT = 240
+
+# Pump on, valve on
+PHSEN_PUMP_REAGENT_PARAM = '03'
+# Pump off, value on
+PHSEN_PUMP_50ML_STAGE2_PARAM = '02'  # Stage 1 is pump reagent param
+# Pump on, valve off
+PHSEN_PUMP_SEAWATER_PARAM = '01'
+# Sleep time between seawater pumps for 2750ML
+PHSEN_PUMP_SLEEP_SEAWATER_2750ML = 2.0
+# Number of times to pump seawater for 2750ML
+PHSEN_PUMP_COMMANDS_SEAWATER_2750ML = 55
+# Duration parameter to pump seawater command for 2750ML
+PHSEN_PUMP_DURATION_SEAWATER_2750ML = 2
+# Sleep time after pumping 50ML of reagent
+PHSEN_PUMP_SLEEP_REAGENT_50ML = 1.0
+# Duration parameter to pump 50ML of reagent
+PHSEN_PUMP_DURATION_REAGENT_50ML = 4
+
 ###
 #    Driver RegEx Definitions
 ###
 
-# SAMI pH Sample Records (Type 0x0A)
-SAMI_SAMPLE_REGEX = (
+# PHSEN Sample Records (Type 0x0A)
+PHSEN_SAMPLE_REGEX = (
     r'[\*]' +  # record identifier
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
     '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
@@ -83,11 +101,11 @@ SAMI_SAMPLE_REGEX = (
     '([0-9A-Fa-f]{4})' +  # battery voltage
     '([0-9A-Fa-f]{4})' +  # ending thermistor reading
     '([0-9A-Fa-f]{2})' +  # checksum
-    NEWLINE)
-SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
+    SAMI_NEWLINE)
+PHSEN_SAMPLE_REGEX_MATCHER = re.compile(PHSEN_SAMPLE_REGEX)
 
 # Configuration Records
-CONFIGURATION_REGEX = (
+PHSEN_CONFIGURATION_REGEX = (
     r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
     '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
     '([0-9A-Fa-f]{8})' +  # stop time (seconds from start time)
@@ -123,19 +141,57 @@ CONFIGURATION_REGEX = (
     '([0-9A-Fa-f]{2})' +  # pH13: Number of measurements
     '([0-9A-Fa-f]{2})' +  # pH14: Salinity delay
     '([0-9A-Fa-f]{406})' +  # padding of F or 0
-    NEWLINE)
-CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
+    SAMI_NEWLINE)
+PHSEN_CONFIGURATION_REGEX_MATCHER = re.compile(PHSEN_CONFIGURATION_REGEX)
 
 ###
 #    Begin Classes
 ###
 
 
+class ScheduledJob(SamiScheduledJob):
+    """
+    Extend base class with instrument specific functionality.
+    """
+
+
+class ProtocolState(SamiProtocolState):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    SEAWATER_FLUSH_2750ML = 'PROTOCOL_STATE_SEAWATER_FLUSH_2750ML'
+    REAGENT_FLUSH_50ML = 'PROTOCOL_STATE_REAGENT_FLUSH_50ML'
+    SEAWATER_FLUSH = 'PROTOCOL_STATE_SEAWATER_FLUSH'
+
+
+class ProtocolEvent(SamiProtocolEvent):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    SEAWATER_FLUSH_2750ML = 'DRIVER_EVENT_SEAWATER_FLUSH_2750ML'
+    REAGENT_FLUSH_50ML = 'DRIVER_EVENT_REAGENT_FLUSH_50ML'
+    SEAWATER_FLUSH = 'DRIVER_EVENT_SEAWATER_FLUSH'
+
+
+class Capability(SamiCapability):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    SEAWATER_FLUSH_2750ML = ProtocolEvent.SEAWATER_FLUSH_2750ML
+    REAGENT_FLUSH_50ML = ProtocolEvent.REAGENT_FLUSH_50ML
+    SEAWATER_FLUSH = ProtocolEvent.SEAWATER_FLUSH
+
+
 class DataParticleType(SamiDataParticleType):
     """
     Data particle types produced by this driver
     """
-    pass
+    PHSEN_CONFIGURATION = 'phsen_configuration'
+    PHSEN_DATA_RECORD = 'phsen_data_record'
+    PHSEN_REGULAR_STATUS = 'phsen_regular_status'
+    PHSEN_CONTROL_RECORD = 'phsen_control_record'
+    PHSEN_BATTERY_VOLTAGE = 'phsen_battery_voltage'
+    PHSEN_THERMISTOR_VOLTAGE = 'phsen_thermistor_voltage'
 
 
 class Parameter(SamiParameter):
@@ -157,25 +213,29 @@ class Parameter(SamiParameter):
     MEASURE_TO_PUMP_ON = 'measure_to_pump_on'
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
-
-
-#class Prompt(BaseEnum):
-#    """
-#    Device i/o prompts..
-#    """
+    FLUSH_CYCLES = 'flush_cycles'
+    SEAWATER_FLUSH_DURATION = 'seawater_flush_duration'
 
 
 class InstrumentCommand(SamiInstrumentCommand):
     """
-    Device specfic Instrument command strings. Extends superclass
+    Device specific Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
-    pass
+    PHSEN_PUMP_SEAWATER = 'P' + PHSEN_PUMP_SEAWATER_PARAM
+    PHSEN_PUMP_REAGENT = 'P' + PHSEN_PUMP_REAGENT_PARAM
+    PSHEN_PUMP_50ML_STAGE2 = 'P' + PHSEN_PUMP_50ML_STAGE2_PARAM
 
 
 ###############################################################################
 # Data Particles
 ###############################################################################
+
+#Redefine the data particle type so each particle has a unique name
+SamiBatteryVoltageDataParticle._data_particle_type = DataParticleType.PHSEN_BATTERY_VOLTAGE
+SamiThermistorVoltageDataParticle._data_particle_type = DataParticleType.PHSEN_THERMISTOR_VOLTAGE
+SamiRegularStatusDataParticle._data_particle_type = DataParticleType.PHSEN_REGULAR_STATUS
+SamiControlRecordDataParticle._data_particle_type = DataParticleType.PHSEN_CONTROL_RECORD
 
 
 class PhsenSamiSampleDataParticleKey(BaseEnum):
@@ -202,14 +262,14 @@ class PhsenSamiSampleDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.SAMI_SAMPLE
+    _data_particle_type = DataParticleType.PHSEN_DATA_RECORD
 
     def _build_parsed_values(self):
         """
         Parse SAMI2-PH values from raw data into a dictionary
         """
 
-        matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        matched = PHSEN_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
@@ -295,14 +355,14 @@ class PhsenConfigDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.CONFIGURATION
+    _data_particle_type = DataParticleType.PHSEN_CONFIGURATION
 
     def _build_parsed_values(self):
         """
         Parse configuration record values from raw data into a dictionary
         """
 
-        matched = CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
+        matched = PHSEN_CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
@@ -420,7 +480,7 @@ class InstrumentDriver(SamiInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(Prompt, SAMI_NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -433,6 +493,7 @@ class Protocol(SamiProtocol):
     Instrument protocol class
     Subclasses SamiProtocol and CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -440,23 +501,101 @@ class Protocol(SamiProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
+
+        # Build protocol state machine.
+        self._protocol_fsm = ThreadSafeFSM(
+            ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+
         # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
-        ## Continue building protocol state machine from SamiProtocol
         self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-            self._handler_sample_success)
+            ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH_2750ML,
+            self._handler_command_seawater_flush_2750ml)
         self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-            self._handler_sample_timeout)
+            ProtocolState.COMMAND, ProtocolEvent.REAGENT_FLUSH_50ML,
+            self._handler_command_reagent_flush_50ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.SEAWATER_FLUSH,
+            self._handler_command_seawater_flush)
 
+        # this state would be entered whenever a SEAWATER_FLUSH_2750ML event
+        # occurred while in the COMMAND state
         self._protocol_fsm.add_handler(
-            ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-            self._handler_sample_success)
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.ENTER,
+            self._execution_state_enter)
         self._protocol_fsm.add_handler(
-            ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-            self._handler_sample_timeout)
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.EXIT,
+            self._execution_state_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.EXECUTE,
+            self._handler_seawater_flush_execute_2750ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.SUCCESS,
+            self._execution_success_to_command_state)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.TIMEOUT,
+            self._execution_timeout_to_command_state)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH_2750ML, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        # this state would be entered whenever a PUMP_REAGENT_50ML event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.ENTER,
+            self._execution_state_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.EXIT,
+            self._execution_state_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.EXECUTE,
+            self._handler_reagent_flush_execute_50ml)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.SUCCESS,
+            self._execution_success_to_command_state)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.TIMEOUT,
+            self._execution_timeout_to_command_state)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH_50ML, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        # this state would be entered whenever a SEAWATER_FLUSH event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.ENTER,
+            self._execution_state_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.EXIT,
+            self._execution_state_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.EXECUTE,
+            self._handler_seawater_flush_execute)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.SUCCESS,
+            self._execution_success_to_command_state)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.TIMEOUT,
+            self._execution_timeout_to_command_state)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.SEAWATER_FLUSH, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        self._engineering_parameters.append(Parameter.FLUSH_CYCLES)
+        self._engineering_parameters.append(Parameter.SEAWATER_FLUSH_DURATION)
+
+        self._add_build_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._build_pump_command)
+        self._add_build_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._build_pump_command)
+        self._add_build_handler(InstrumentCommand.PSHEN_PUMP_50ML_STAGE2, self._build_pump_command)
+
+        self._add_response_handler(InstrumentCommand.PHSEN_PUMP_REAGENT, self._parse_response_newline)
+        self._add_response_handler(InstrumentCommand.PHSEN_PUMP_SEAWATER, self._parse_response_newline)
+        self._add_response_handler(InstrumentCommand.PSHEN_PUMP_50ML_STAGE2, self._parse_response_newline)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -464,19 +603,225 @@ class Protocol(SamiProtocol):
         # build the chunker bot
         self._chunker = StringChunker(Protocol.sieve_function)
 
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _handler_command_seawater_flush_2750ml(self):
+        """
+        Flush with seawater
+        """
+
+        next_state = ProtocolState.SEAWATER_FLUSH_2750ML
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return next_state, (next_agent_state, result)
+
+    def _handler_command_reagent_flush_50ml(self):
+        """
+        Flush with reagent
+        """
+
+        next_state = ProtocolState.REAGENT_FLUSH_50ML
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return next_state, (next_agent_state, result)
+
+    def _handler_command_seawater_flush(self):
+        """
+        Flush with seawater
+        """
+
+        next_state = ProtocolState.SEAWATER_FLUSH
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return next_state, (next_agent_state, result)
+
+    ########################################################################
+    # Seawater flush 2750 ml handlers.
+    ########################################################################
+
+    def _handler_seawater_flush_execute_2750ml(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
+            log.debug('Pco2wProtocol._handler_seawater_flush_execute_2750ml(): flush cycles = %s', flush_cycles)
+
+            flush_duration = PHSEN_PUMP_DURATION_SEAWATER_2750ML
+            flush_duration_str = self._param_dict.format(Parameter.SEAWATER_FLUSH_DURATION, flush_duration)
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
+            log.debug(
+                'Pco2wProtocol._handler_seawater_flush_execute_2750mll(): flush duration param = %s, seconds = %s',
+                flush_duration, flush_duration_seconds)
+
+            # Add offset to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
+
+            self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_SEAWATER,
+                                        duration=flush_duration_str,
+                                        timeout=flush_timeout,
+                                        delay=PHSEN_PUMP_SLEEP_SEAWATER_2750ML,
+                                        command_count=PHSEN_PUMP_COMMANDS_SEAWATER_2750ML,
+                                        cycles=flush_cycles)
+
+            log.debug('Protocol._handler_seawater_flush_execute_2750ml(): SUCCESS')
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Protocol._handler_seawater_flush_execute_2750ml(): TIMEOUT')
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Reagent flush 100 ml handlers.
+    ########################################################################
+
+    def _handler_reagent_flush_execute_50ml(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            flush_cycles = self._param_dict.get(Parameter.FLUSH_CYCLES)
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush cycles = %s', flush_cycles)
+
+            flush_duration = PHSEN_PUMP_DURATION_REAGENT_50ML
+            flush_duration_str = self._param_dict.format(Parameter.REAGENT_FLUSH_DURATION, flush_duration)
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute_50ml(): flush duration param = %s, seconds = %s',
+                      flush_duration, flush_duration_seconds)
+
+            # Add offset to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
+
+            self._wakeup()
+
+            for cycle_num in xrange(flush_cycles):
+                self._do_cmd_resp_no_wakeup(InstrumentCommand.PHSEN_PUMP_REAGENT,
+                                            flush_duration_str,
+                                            timeout=flush_timeout,
+                                            response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+                self._do_cmd_resp_no_wakeup(InstrumentCommand.PSHEN_PUMP_50ML_STAGE2,
+                                            flush_duration_str,
+                                            timeout=flush_timeout,
+                                            response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+                time.sleep(PHSEN_PUMP_SLEEP_REAGENT_50ML)
+
+            # Make sure pump is off
+            self._do_cmd_resp_no_wakeup(InstrumentCommand.SAMI_PUMP_OFF, timeout=SAMI_DEFAULT_TIMEOUT,
+                                        response_regex=SAMI_NEW_LINE_REGEX_MATCHER)
+
+            log.debug('Protocol._handler_reagent_flush_enter_50ml(): SUCCESS')
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Protocol._handler_reagent_flush_enter_50ml(): TIMEOUT')
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Seawater flush ml handlers.
+    ########################################################################
+
+    def _handler_seawater_flush_execute(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            param = Parameter.SEAWATER_FLUSH_DURATION
+            flush_duration = self._param_dict.get(param)
+            flush_duration_str = self._param_dict.format(param, flush_duration)
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
+
+            log.debug('Protocol._handler_seawater_flush_execute(): flush duration param = %s, seconds = %s',
+                      flush_duration, flush_duration_seconds)
+
+            # Add offset to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
+
+            self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_SEAWATER,
+                                        duration=flush_duration_str,
+                                        timeout=flush_timeout,
+                                        delay=0,
+                                        command_count=1,
+                                        cycles=1)
+
+            log.debug('Protocol._handler_seawater_flush_execute(): SUCCESS')
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Protocol._handler_seawater_flush_execute(): TIMEOUT')
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Reagent flush handlers.
+    ########################################################################
+
+    def _handler_reagent_flush_execute(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+
+            param = Parameter.REAGENT_FLUSH_DURATION
+            flush_duration = self._param_dict.get(param)
+            flush_duration_str = self._param_dict.format(param, flush_duration)
+            flush_duration_seconds = flush_duration * SAMI_PUMP_DURATION_UNITS
+
+            log.debug('Protocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s',
+                      flush_duration, flush_duration_seconds)
+
+            # Add offset to timeout to make sure pump completes.
+            flush_timeout = flush_duration_seconds + SAMI_PUMP_TIMEOUT_OFFSET
+
+            self._execute_pump_sequence(command=InstrumentCommand.PHSEN_PUMP_REAGENT,
+                                        duration=flush_duration_str,
+                                        timeout=flush_timeout,
+                                        delay=0,
+                                        command_count=1,
+                                        cycles=1)
+
+            log.debug('SamiProtocol._handler_reagent_flush_execute(): SUCCESS')
+            self._async_raise_fsm_event(SamiProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('SamiProtocol._handler_reagent_flush_execute(): TIMEOUT')
+            self._async_raise_fsm_event(SamiProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+
+        return [x for x in events if Capability.has(x)]
+
     @staticmethod
     def sieve_function(raw_data):
         """
         The method that splits samples
+        :param raw_data: data to filter
         """
 
         return_list = []
 
-        sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
-                          CONTROL_RECORD_REGEX_MATCHER,
-                          SAMI_SAMPLE_REGEX_MATCHER,
-                          CONFIGURATION_REGEX_MATCHER,
-                          ERROR_REGEX_MATCHER]
+        sieve_matchers = [SAMI_REGULAR_STATUS_REGEX_MATCHER,
+                          SAMI_CONTROL_RECORD_REGEX_MATCHER,
+                          PHSEN_SAMPLE_REGEX_MATCHER,
+                          PHSEN_CONFIGURATION_REGEX_MATCHER,
+                          SAMI_ERROR_REGEX_MATCHER]
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -489,30 +834,39 @@ class Protocol(SamiProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
-    #########################################################################
-    ## General (for POLLED and SCHEDULED states) Sample handlers.
-    #########################################################################
+        if any([self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER,
+                                     chunk, timestamp),
+                self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER,
+                                     chunk, timestamp),
+                self._extract_sample(PhsenConfigDataParticle, PHSEN_CONFIGURATION_REGEX_MATCHER,
+                                     chunk, timestamp)]):
+            return
 
-    def _handler_sample_success(self, *args, **kwargs):
-        next_state = None
-        result = None
+        sample = self._extract_sample(PhsenSamiSampleDataParticle, PHSEN_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        return (next_state, result)
+        log.debug('Protocol._got_chunk(): get_current_state() == %s', self.get_current_state())
 
-    def _handler_sample_timeout(self, ):
-        next_state = None
-        result = None
+        if sample:
+            self._verify_checksum(chunk, PHSEN_SAMPLE_REGEX_MATCHER)
 
-        return (next_state, result)
+    ########################################################################
+    # Build Command
+    ########################################################################
 
-    ####################################################################
-    # Build Parameter dictionary
-    ####################################################################
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+
+        SamiProtocol._build_command_dict(self)
+        self._cmd_dict.add(Capability.SEAWATER_FLUSH_2750ML, display_name="Seawater Flush 2750 ml")
+        self._cmd_dict.add(Capability.REAGENT_FLUSH_50ML, display_name="Reagent Flush 50 ml")
+        self._cmd_dict.add(Capability.SEAWATER_FLUSH, display_name="Seawater Flush")
+
+        ####################################################################
+        # Build Parameter dictionary
+        ####################################################################
 
     def _build_param_dict(self):
         """
@@ -521,360 +875,298 @@ class Protocol(SamiProtocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
-        self._param_dict = ProtocolParameterDict()
+        SamiProtocol._build_param_dict(self)
 
-        self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(1), 16),
-                             lambda x: self._int_to_hexstring(x, 8),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='launch time')
+        configuration_string_regex = self._get_configuration_string_regex()
 
-        self._param_dict.add(Parameter.START_TIME_FROM_LAUNCH, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(2), 16),
-                             lambda x: self._int_to_hexstring(x, 8),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x02C7EA00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='start time after launch time')
-
-        self._param_dict.add(Parameter.STOP_TIME_FROM_START, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(3), 16),
-                             lambda x: self._int_to_hexstring(x, 8),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x01E13380,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='stop time after start time')
-
-        self._param_dict.add(Parameter.MODE_BITS, CONFIGURATION_REGEX,
+        # Changed from 0x0A to 0x02 to indicate there is no external device
+        self._param_dict.add(Parameter.MODE_BITS, configuration_string_regex,
                              lambda match: int(match.group(4), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x0A,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='mode bits (set to 00001010)')
-
-        self._param_dict.add(Parameter.SAMI_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(5), 16),
-                             lambda x: self._int_to_hexstring(x, 6),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x000E10,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='sami sample interval')
-
-        self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(6), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x04,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='sami driver version')
-
-        self._param_dict.add(Parameter.SAMI_PARAMS_POINTER, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(7), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x02,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='sami parameter pointer')
+                             display_name='Mode Bits')
 
-        self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+        # PCO2 0x04, PHSEN 0x0A
+        self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, configuration_string_regex,
+                             lambda match: int(match.group(6), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x0A,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='Sami Driver Version')
+
+        self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, configuration_string_regex,
                              lambda match: int(match.group(8), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x000E10,
+                             default_value=0x000000,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 sample interval')
+                             display_name='Device 1 Sample Interval')
 
-        self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, configuration_string_regex,
                              lambda match: int(match.group(9), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x01,
+                             default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 driver version')
+                             display_name='Device 1 Driver Version')
 
-        self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, configuration_string_regex,
                              lambda match: int(match.group(10), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x0B,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 1 parameter pointer')
-
-        self._param_dict.add(Parameter.DEVICE2_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(11), 16),
-                             lambda x: self._int_to_hexstring(x, 6),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 2 sample interval')
-
-        self._param_dict.add(Parameter.DEVICE2_DRIVER_VERSION, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(12), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 2 driver version')
+                             display_name='Device 1 Parameter Pointer')
 
-        self._param_dict.add(Parameter.DEVICE2_PARAMS_POINTER, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(13), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x0D,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 2 parameter pointer')
-
-        self._param_dict.add(Parameter.DEVICE3_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(14), 16),
-                             lambda x: self._int_to_hexstring(x, 6),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 3 sample interval')
-
-        self._param_dict.add(Parameter.DEVICE3_DRIVER_VERSION, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(15), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 3 driver version')
-
-        self._param_dict.add(Parameter.DEVICE3_PARAMS_POINTER, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(16), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x0D,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='device 3 parameter pointer')
-
-        self._param_dict.add(Parameter.PRESTART_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(17), 16),
-                             lambda x: self._int_to_hexstring(x, 6),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='prestart sample interval')
-
-        self._param_dict.add(Parameter.PRESTART_DRIVER_VERSION, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(18), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='prestart driver version')
-
-        self._param_dict.add(Parameter.PRESTART_PARAMS_POINTER, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(19), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x0D,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='prestart parameter pointer')
-
-        self._param_dict.add(Parameter.GLOBAL_CONFIGURATION, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(20), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='global bits (set to 00000111)')
-
-        self._param_dict.add(Parameter.NUMBER_SAMPLES_AVERAGED, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.NUMBER_SAMPLES_AVERAGED, configuration_string_regex,
                              lambda match: int(match.group(21), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x01,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Number of Samples Averaged')
 
-        self._param_dict.add(Parameter.NUMBER_FLUSHES, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.NUMBER_FLUSHES, configuration_string_regex,
                              lambda match: int(match.group(22), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x37,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Number of Flushes')
 
-        self._param_dict.add(Parameter.PUMP_ON_FLUSH, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.PUMP_ON_FLUSH, configuration_string_regex,
                              lambda match: int(match.group(23), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x04,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Pump On Flush')
 
-        self._param_dict.add(Parameter.PUMP_OFF_FLUSH, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.PUMP_OFF_FLUSH, configuration_string_regex,
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x20,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Pump Off Flush')
 
-        self._param_dict.add(Parameter.NUMBER_REAGENT_PUMPS, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.NUMBER_REAGENT_PUMPS, configuration_string_regex,
                              lambda match: int(match.group(25), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x01,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Number of Reagent Pumps')
 
-        self._param_dict.add(Parameter.VALVE_DELAY, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.VALVE_DELAY, configuration_string_regex,
                              lambda match: int(match.group(26), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x08,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Valve Delay')
 
-        self._param_dict.add(Parameter.PUMP_ON_IND, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.PUMP_ON_IND, configuration_string_regex,
                              lambda match: int(match.group(27), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x08,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Pump On Ind')
 
-        self._param_dict.add(Parameter.PV_OFF_IND, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.PV_OFF_IND, configuration_string_regex,
                              lambda match: int(match.group(28), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x10,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='P/V Off Ind')
 
-        self._param_dict.add(Parameter.NUMBER_BLANKS, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.NUMBER_BLANKS, configuration_string_regex,
                              lambda match: int(match.group(29), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x04,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Number of Blanks')
 
-        self._param_dict.add(Parameter.PUMP_MEASURE_T, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.PUMP_MEASURE_T, configuration_string_regex,
                              lambda match: int(match.group(30), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x08,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Pump Measure T')
 
-        self._param_dict.add(Parameter.PUMP_OFF_TO_MEASURE, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.PUMP_OFF_TO_MEASURE, configuration_string_regex,
                              lambda match: int(match.group(31), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x10,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Pump Off to Measure')
 
-        self._param_dict.add(Parameter.MEASURE_TO_PUMP_ON, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.MEASURE_TO_PUMP_ON, configuration_string_regex,
                              lambda match: int(match.group(32), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x08,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Measure to Pump On')
 
-        self._param_dict.add(Parameter.NUMBER_MEASUREMENTS, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.NUMBER_MEASUREMENTS, configuration_string_regex,
                              lambda match: int(match.group(33), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             default_value=0x17,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Number of Measurements')
 
-        self._param_dict.add(Parameter.SALINITY_DELAY, CONFIGURATION_REGEX,
+        self._param_dict.add(Parameter.SALINITY_DELAY, configuration_string_regex,
                              lambda match: int(match.group(34), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Salinity Delay')
+
+        self._param_dict.add(Parameter.FLUSH_CYCLES, r'flush cycles = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Seawater 2750ml and Reagent 50ml Flush Cycles')
+
+        self._param_dict.add(Parameter.REAGENT_FLUSH_DURATION, r'Reagent flush duration = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x4,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Flush Duration')
+
+        self._param_dict.add(Parameter.SEAWATER_FLUSH_DURATION, r'Seawater flush duration = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=0x2,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='Flush Duration')
+
+    def _get_specific_configuration_string_parameters(self):
+
+        # An ordered list of parameters, can not use unordered dict
+        # PCO2W driver extends the base class (SamiParameter)
+        parameter_list = [Parameter.START_TIME_FROM_LAUNCH,
+                          Parameter.STOP_TIME_FROM_START,
+                          Parameter.MODE_BITS,
+                          Parameter.SAMI_SAMPLE_INTERVAL,
+                          Parameter.SAMI_DRIVER_VERSION,
+                          Parameter.SAMI_PARAMS_POINTER,
+                          Parameter.DEVICE1_SAMPLE_INTERVAL,
+                          Parameter.DEVICE1_DRIVER_VERSION,
+                          Parameter.DEVICE1_PARAMS_POINTER,
+                          Parameter.DEVICE2_SAMPLE_INTERVAL,
+                          Parameter.DEVICE2_DRIVER_VERSION,
+                          Parameter.DEVICE2_PARAMS_POINTER,
+                          Parameter.DEVICE3_SAMPLE_INTERVAL,
+                          Parameter.DEVICE3_DRIVER_VERSION,
+                          Parameter.DEVICE3_PARAMS_POINTER,
+                          Parameter.PRESTART_SAMPLE_INTERVAL,
+                          Parameter.PRESTART_DRIVER_VERSION,
+                          Parameter.PRESTART_PARAMS_POINTER,
+                          Parameter.GLOBAL_CONFIGURATION,
+                          Parameter.NUMBER_SAMPLES_AVERAGED,
+                          Parameter.NUMBER_FLUSHES,
+                          Parameter.PUMP_ON_FLUSH,
+                          Parameter.PUMP_OFF_FLUSH,
+                          Parameter.NUMBER_REAGENT_PUMPS,
+                          Parameter.VALVE_DELAY,
+                          Parameter.PUMP_ON_IND,
+                          Parameter.PV_OFF_IND,
+                          Parameter.NUMBER_BLANKS,
+                          Parameter.PUMP_MEASURE_T,
+                          Parameter.PUMP_OFF_TO_MEASURE,
+                          Parameter.MEASURE_TO_PUMP_ON,
+                          Parameter.NUMBER_MEASUREMENTS,
+                          Parameter.SALINITY_DELAY]
+
+        return parameter_list
+
+    def _get_configuration_string_regex(self):
+        """
+        Get configuration string regex.
+        @retval configuration string regex.
+        """
+        return PHSEN_CONFIGURATION_REGEX
+
+    def _get_configuration_string_regex_matcher(self):
+        """
+        Get config string regex matcher.
+        @retval configuration string regex matcher
+        """
+        return PHSEN_CONFIGURATION_REGEX_MATCHER
+
+    def _get_sample_timeout(self):
+        """
+        Get sample timeout.
+        @retval sample timeout in seconds.
+        """
+        return PHSEN_SAMPLE_TIMEOUT
+
+    def _get_sample_regex(self):
+        """
+        Get sample regex
+        @retval sample regex
+        """
+        return PHSEN_SAMPLE_REGEX_MATCHER
 
 # End of File driver.py

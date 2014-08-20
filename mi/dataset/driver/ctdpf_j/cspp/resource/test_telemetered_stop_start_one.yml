@@ -1,0 +1,55 @@
+header:
+ particle_object: 'MULTIPLE'
+ particle_type: 'MULTIPLE'
+data:
+ - _index: 1
+   particle_object: CtdpfJCsppMetadataTelemeteredDataParticle
+   particle_type: ctdpf_j_cspp_metadata
+   internal_timestamp: 3606762493.683000
+   last_character_controller_id: '1'
+   day_of_year_number: 107
+   fraction_of_day: 9364
+   processing_time: '07/18/2014 12:23:16'
+   source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.PPD'
+   preprocessing_software_version: '1.11'
+   start_date: '04/17/2014'
+ - _index: 2
+   particle_object: CtdpfJCsppInstrumentTelemeteredDataParticle
+   particle_type: ctdpf_j_cspp_instrument
+   internal_timestamp: 3606762493.683000
+   profiler_timestamp: 1397773693.6830000877380371
+   suspect_timestamp: 1
+   temperature: 9.8142999999999994
+   conductivity: 3.6078399999999999
+   pressure: 19.3870000000000005
+   salinity: 33.1099999999999994
+ - _index: 3
+   particle_object: CtdpfJCsppInstrumentTelemeteredDataParticle
+   particle_type: ctdpf_j_cspp_instrument
+   internal_timestamp: 3606762494.687000
+   profiler_timestamp: 1397773694.6870000362396240
+   suspect_timestamp: 0
+   temperature: 9.8123000000000005
+   conductivity: 3.6074999999999999
+   pressure: 19.2429999999999986
+   salinity: 33.1084999999999994
+ - _index: 4
+   particle_object: CtdpfJCsppInstrumentTelemeteredDataParticle
+   particle_type: ctdpf_j_cspp_instrument
+   internal_timestamp: 3606762495.718000
+   profiler_timestamp: 1397773695.7179999351501465
+   suspect_timestamp: 0
+   temperature: 9.8109000000000002
+   conductivity: 3.6073900000000001
+   pressure: 19.1239999999999988
+   salinity: 33.1086999999999989
+ - _index: 5
+   particle_object: CtdpfJCsppInstrumentTelemeteredDataParticle
+   particle_type: ctdpf_j_cspp_instrument
+   internal_timestamp: 3606762496.688000
+   profiler_timestamp: 1397773696.6879999637603760
+   suspect_timestamp: 0
+   temperature: 9.8088999999999995
+   conductivity: 3.6075699999999999
+   pressure: 19.1310000000000002
+   salinity: 33.1122999999999976

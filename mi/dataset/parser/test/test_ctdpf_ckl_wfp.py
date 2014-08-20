@@ -10,48 +10,62 @@ import os
 import struct
 import ntplib
 from StringIO import StringIO
-import binascii
+
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 from mi.core.exceptions import SampleException
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.idk.config import Config
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.dataset.parser.ctdpf_ckl_wfp import CtdpfCklWfpParser, DataParticleType
-from mi.dataset.parser.ctdpf_ckl_wfp import CtdpfCklWfpParserDataParticle, CtdpfCklWfpMetadataParserDataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp import CtdpfCklWfpParser
+from mi.dataset.parser.ctdpf_ckl_wfp_particles import CtdpfCklWfpRecoveredDataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp_particles import CtdpfCklWfpTelemeteredDataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp_particles import CtdpfCklWfpRecoveredMetadataParticle
+from mi.dataset.parser.ctdpf_ckl_wfp_particles import CtdpfCklWfpTelemeteredMetadataParticle
 from mi.dataset.parser.wfp_c_file_common import StateKey
+from mi.dataset.driver.ctdpf_ckl.wfp.driver import DataTypeKey
 
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
-			     'dataset', 'driver', 'ctdpf_ckl',
-			     'wfp', 'resource')
+                             'dataset', 'driver', 'ctdpf_ckl',
+                             'wfp', 'resource')
 
 @attr('UNIT', group='mi')
 class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
-    TEST_DATA = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8\x00\x1a\x8c\x03\xe2" + \
-    "\xc0\x00\x03\xeb\x0a\x81\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65\xff\xff" + \
-    "\xff\xff\xff\xff\xff\xff\xff\xff\xff\x52\x4e\x75\x82\x52\x4e\x76\x9a"
+    TEST_DATA = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8" \
+                 "\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81" \
+                 "\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65" \
+                 "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" \
+                 "\x52\x4e\x75\x82\x52\x4e\x76\x9a"
 
-    TEST_DATA_PAD = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8\x00\x1a\x8c\x03\xe2" + \
-    "\xc0\x00\x03\xeb\x0a\x81\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65\xff\xff" + \
-    "\xff\xff\xff\xff\xff\xff\xff\xff\xff\x52\x4e\x75\x82\x52\x4e\x76\x9a\x0a"
+    TEST_DATA_PAD = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8" \
+                     "\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81" \
+                     "\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65" \
+                     "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" \
+                     "\x52\x4e\x75\x82\x52\x4e\x76\x9a\x0a"
 
     # not enough bytes for final timestamps
-    TEST_DATA_BAD_TIME = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8\x00\x1a\x8c\x03\xe2" + \
-    "\xc0\x00\x03\xeb\x0a\x81\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65\xff\xff" + \
-    "\xff\xff\xff\xff\xff\xff\xff\xff\xff\x52\x4e\x75\x82\x52\x4e"
+    TEST_DATA_BAD_TIME = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8" \
+                          "\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81" \
+                          "\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65" \
+                          "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" \
+                          "\x52\x4e\x75\x82\x52\x4e"
 
-    TEST_DATA_BAD_SIZE = b"\x00\x1a\x88\x03\xe3\x3b\xc8\x00\x1a\x8c\x03\xe2" + \
-    "\xc0\x00\x03\xeb\x0a\x81\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65\xff\xff" + \
-    "\xff\xff\xff\xff\xff\xff\xff\xff\xff\x52\x4e\x75\x82\x52\x4e\x76\x9a"
+    TEST_DATA_BAD_SIZE = b"\x00\x1a\x88\x03\xe3\x3b\xc8\x00\x1a\x8c\x03" \
+                          "\xe2\xc0\x00\x03\xeb\x0a\x81\x00\x1a\x90\x03" \
+                          "\xe1\x5b\x00\x03\xeb\x0a\x65\xff\xff\xff\xff" \
+                          "\xff\xff\xff\xff\xff\xff\xff\x52\x4e\x75\x82" \
+                          "\x52\x4e\x76\x9a"
 
-    TEST_DATA_BAD_EOP = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8\x00\x1a\x8c\x03\xe2" + \
-    "\xc0\x00\x03\xeb\x0a\x81\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65" + \
-    "\xff\xff\xff\xff\x52\x4e\x75\x82\x52\x4e\x76\x9a"
+    TEST_DATA_BAD_EOP = b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8" \
+                         "\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81" \
+                         "\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65" \
+                         "\xff\xff\xff\xff\x52\x4e\x75\x82\x52\x4e\x76" \
+                         "\x9a"
 
     """
     ctdpf_ckl_wfp Parser unit test suite
@@ -72,13 +86,35 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: ['CtdpfCklWfpParserDataParticle',
-                                                     'CtdpfCklWfpMetadataParserDataParticle']
+            DataTypeKey.CTDPF_CKL_WFP_RECOVERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    'instrument_data_particle_class': CtdpfCklWfpRecoveredDataParticle,
+                    'metadata_particle_class': CtdpfCklWfpRecoveredMetadataParticle
+                },
+            },
+            DataTypeKey.CTDPF_CKL_WFP_TELEMETERED: {
+                DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf_ckl_wfp',
+                DataSetDriverConfigKeys.PARTICLE_CLASS: None,
+                DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
+                    'instrument_data_particle_class': CtdpfCklWfpTelemeteredDataParticle,
+                    'metadata_particle_class': CtdpfCklWfpTelemeteredMetadataParticle
+                }
             }
-        self.start_state = {StateKey.POSITION: 0,
-                            StateKey.RECORDS_READ: 0,
-                            StateKey.METADATA_SENT: False}
+        }
+
+        self.recovered_start_state = {StateKey.POSITION: 0,
+                                      StateKey.RECORDS_READ: 0,
+                                      StateKey.METADATA_SENT: False}
+
+        self.telemetered_start_state = {StateKey.POSITION: 0,
+                                        StateKey.RECORDS_READ: 0,
+                                        StateKey.METADATA_SENT: False}
+
+        # Initialize this for later use.
+        self.parser = None
+
         # Define test data particles and their associated timestamps which will be
         # compared with returned results
         timefields = struct.unpack('>II', '\x52\x4e\x75\x82\x52\x4e\x76\x9a')
@@ -89,35 +125,29 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         time_increment_3 = float(end_time - start_time) / 3.0
         time_increment_270 = float(end_time - start_time) / 270.0
 
-        self.start_timestamp = self.calc_timestamp(start_time, time_increment_3, 0)
-        self.particle_meta = CtdpfCklWfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 3.0),
-            internal_timestamp=self.start_timestamp)
-        self.start_timestamp_long = self.calc_timestamp(start_time, time_increment_270, 0)
-        self.particle_meta_long = CtdpfCklWfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 270.0),
-            internal_timestamp=self.start_timestamp_long)
-
-        self.particle_a = CtdpfCklWfpParserDataParticle(b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8",
-                                                          internal_timestamp=self.start_timestamp)
-        self.particle_a_long = CtdpfCklWfpParserDataParticle(b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8",
-                                                               internal_timestamp=self.start_timestamp_long)
-        self.timestamp_2 = self.calc_timestamp(start_time, time_increment_3, 1)
-        self.particle_b = CtdpfCklWfpParserDataParticle(b"\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81",
-                                                          internal_timestamp=self.timestamp_2)
-        self.timestamp_2_long = self.calc_timestamp(start_time, time_increment_270, 1)
-        self.particle_b_long = CtdpfCklWfpParserDataParticle(b"\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81",
-                                                          internal_timestamp=self.timestamp_2_long)
+        start_timestamp = self.calc_timestamp(start_time, time_increment_3, 0)
+        start_timestamp_long = self.calc_timestamp(start_time, time_increment_270, 0)
+        timestamp_2 = self.calc_timestamp(start_time, time_increment_3, 1)
+        timestamp_2_long = self.calc_timestamp(start_time, time_increment_270, 1)
         timestamp_3 = self.calc_timestamp(start_time, time_increment_3, 2)
-        self.particle_c = CtdpfCklWfpParserDataParticle(b"\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65",
-                                                          internal_timestamp=timestamp_3)
         timestamp_last = self.calc_timestamp(start_time, time_increment_270, 269)
-        self.particle_last = CtdpfCklWfpParserDataParticle(b"\x00\x1a\x8f\x03\xe5\x91\x00\x03\xeb\x0bS",
-                                                            internal_timestamp=timestamp_last)
 
-	# uncomment to generate yml
-	#self.particle_to_yml(self.particle_meta)
-	#self.particle_to_yml(self.particle_a)
-	#self.particle_to_yml(self.particle_b)
-	#self.particle_to_yml(self.particle_c)
+        self.particle_meta = CtdpfCklWfpRecoveredMetadataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 3.0),
+                                                                  internal_timestamp=start_timestamp)
+        self.particle_meta_long = CtdpfCklWfpRecoveredMetadataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 270.0),
+                                                                       internal_timestamp=start_timestamp_long)
+        self.particle_a = CtdpfCklWfpRecoveredDataParticle(b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8",
+                                                           internal_timestamp=start_timestamp)
+        self.particle_a_long = CtdpfCklWfpRecoveredDataParticle(b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8",
+                                                                internal_timestamp=start_timestamp_long)
+        self.particle_b = CtdpfCklWfpRecoveredDataParticle(b"\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81",
+                                                           internal_timestamp=timestamp_2)
+        self.particle_b_long = CtdpfCklWfpRecoveredDataParticle(b"\x00\x1a\x8c\x03\xe2\xc0\x00\x03\xeb\x0a\x81",
+                                                                internal_timestamp=timestamp_2_long)
+        self.particle_c = CtdpfCklWfpRecoveredDataParticle(b"\x00\x1a\x90\x03\xe1\x5b\x00\x03\xeb\x0a\x65",
+                                                           internal_timestamp=timestamp_3)
+        self.particle_last = CtdpfCklWfpRecoveredDataParticle(b"\x00\x1a\x8f\x03\xe5\x91\x00\x03\xeb\x0bS",
+                                                              internal_timestamp=timestamp_last)
 
         self.file_ingested_value = None
         self.state_callback_value = None
@@ -143,49 +173,63 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], particle)
 
-    def particle_to_yml(self, particle):
-        """
-        This is added as a testing helper, not actually as part of the parser tests. Since the same particles
-        will be used for the driver test it is helpful to write them to .yml in the same form they need in the
-        results.yml files here.
-        """
-        particle_dict = particle.generate_dict()
-        # open write append, if you want to start from scratch manually delete this file
-        fid = open('particle.yml', 'a')
-        fid.write('  - _index: 1\n')
-        fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
-        fid.write('    particle_object: %s\n' % particle.__class__.__name__)
-        fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
-        for val in particle_dict.get('values'):
-            if isinstance(val.get('value'), float):
-                fid.write('    %s: %16.20f\n' % (val.get('value_id'), val.get('value')))
-            else:
-                fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
-        fid.close()
-
     def test_simple(self):
         """
         Read test data and pull out data particles one at a time.
         Assert that the results are those we expected.
         """
         stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
-        self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback, self.exception_callback,
-                                        len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
+        recovered_parser = CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+        self.parser = recovered_parser
+
         # next get records
-        result = self.parser.get_records(1)
-        self.assert_result(result, 0, self.particle_meta, False, 0, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 11, self.particle_a, False, 1, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 22, self.particle_b, False, 2, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 33, self.particle_c, True, 3, True)
+        recovered_result = recovered_parser.get_records(1)
+        self.assert_result(recovered_result, 0, self.particle_meta, False, 0, True)
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 11, self.particle_a, False, 1, True)
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 22, self.particle_b, False, 2, True)
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 33, self.particle_c, True, 3, True)
 
         # no data left, dont move the position
-        result = self.parser.get_records(1)
-        self.assertEqual(result, [])
-        self.assertEqual(self.parser._state[StateKey.POSITION], 33)
+        recovered_result = recovered_parser.get_records(1)
+        self.assertEqual(recovered_result, [])
+        self.assertEqual(recovered_parser._state[StateKey.POSITION], 33)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 33)
+        self.assert_(isinstance(self.publish_callback_value, list))
+        self.assertEqual(self.publish_callback_value[0], self.particle_c)
+
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        telemetered_parser = CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_TELEMETERED), self.telemetered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+        self.parser = telemetered_parser
+
+        # next get records
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assert_result(telemetered_result, 0, self.particle_meta, False, 0, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 11, self.particle_a, False, 1, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 22, self.particle_b, False, 2, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 33, self.particle_c, True, 3, True)
+
+        # no data left, dont move the position
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assertEqual(telemetered_result, [])
+        self.assertEqual(telemetered_parser._state[StateKey.POSITION], 33)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 33)
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], self.particle_c)
@@ -196,23 +240,58 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_PAD)
-        self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback, self.exception_callback,
-                                        len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_PAD))
+
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
+        recovered_parser = CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_PAD))
+        self.parser = recovered_parser
+
         # next get records
-        result = self.parser.get_records(1)
-        self.assert_result(result, 0, self.particle_meta, False, 0, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 11, self.particle_a, False, 1, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 22, self.particle_b, False, 2, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 33, self.particle_c, True, 3, True)
+        recovered_result = recovered_parser.get_records(1)
+        self.assert_result(recovered_result, 0, self.particle_meta, False, 0, True)
+
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 11, self.particle_a, False, 1, True)
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 22, self.particle_b, False, 2, True)
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 33, self.particle_c, True, 3, True)
 
         # no data left, dont move the position
-        result = self.parser.get_records(1)
-        self.assertEqual(result, [])
-        self.assertEqual(self.parser._state[StateKey.POSITION], 33)
+        recovered_result = recovered_parser.get_records(1)
+        self.assertEqual(recovered_result, [])
+        self.assertEqual(recovered_parser._state[StateKey.POSITION], 33)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 33)
+        self.assert_(isinstance(self.publish_callback_value, list))
+        self.assertEqual(self.publish_callback_value[0], self.particle_c)
+
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        telemetered_parser = CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_TELEMETERED), self.telemetered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_PAD))
+        self.parser = telemetered_parser
+
+        # next get records
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assert_result(telemetered_result, 0, self.particle_meta, False, 0, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 11, self.particle_a, False, 1, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 22, self.particle_b, False, 2, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 33, self.particle_c, True, 3, True)
+
+        # no data left, dont move the position
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assertEqual(telemetered_result, [])
+        self.assertEqual(telemetered_parser._state[StateKey.POSITION], 33)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 33)
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], self.particle_c)
@@ -222,42 +301,98 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        self.stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
-        self.parser =  CtdpfCklWfpParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback, self.exception_callback,
-                                        len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+        stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
+        recovered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+        self.parser = recovered_parser
         # next get records
-        result = self.parser.get_records(4)
-        self.assertEqual(result, [self.particle_meta, self.particle_a, self.particle_b, self.particle_c])
-        self.assertEqual(self.parser._state[StateKey.POSITION], 33)
+        # NOTE - while we ask for 4 records, the metadata is a special case
+        # the number of records read is actually 3. See the IDD for details.
+        recovered_result = recovered_parser.get_records(4)
+        self.assertEqual(recovered_result, [self.particle_meta, self.particle_a,
+                                            self.particle_b, self.particle_c])
+        self.assertEqual(recovered_parser._state[StateKey.POSITION], 33)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 33)
         self.assertEqual(self.publish_callback_value[0], self.particle_meta)
         self.assertEqual(self.publish_callback_value[1], self.particle_a)
         self.assertEqual(self.publish_callback_value[2], self.particle_b)
         self.assertEqual(self.publish_callback_value[3], self.particle_c)
         self.assertEqual(self.file_ingested_value, True)
-        self.assertEqual(self.parser._state[StateKey.RECORDS_READ], 3)
+        self.assertEqual(recovered_parser._state[StateKey.RECORDS_READ], 3)
         self.assertEqual(self.state_callback_value[StateKey.RECORDS_READ], 3)
-        self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
+        self.assertEqual(recovered_parser._state[StateKey.METADATA_SENT], True)
+        self.assertEqual(self.state_callback_value[StateKey.METADATA_SENT], True)
+
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        telemetered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_TELEMETERED), self.telemetered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+        self.parser = telemetered_parser
+        # next get records
+        telemetered_result = telemetered_parser.get_records(4)
+        self.assertEqual(telemetered_result, [self.particle_meta, self.particle_a,
+                                            self.particle_b, self.particle_c])
+        self.assertEqual(telemetered_parser._state[StateKey.POSITION], 33)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 33)
+        self.assertEqual(self.publish_callback_value[0], self.particle_meta)
+        self.assertEqual(self.publish_callback_value[1], self.particle_a)
+        self.assertEqual(self.publish_callback_value[2], self.particle_b)
+        self.assertEqual(self.publish_callback_value[3], self.particle_c)
+        self.assertEqual(self.file_ingested_value, True)
+        self.assertEqual(telemetered_parser._state[StateKey.RECORDS_READ], 3)
+        self.assertEqual(self.state_callback_value[StateKey.RECORDS_READ], 3)
+        self.assertEqual(telemetered_parser._state[StateKey.METADATA_SENT], True)
         self.assertEqual(self.state_callback_value[StateKey.METADATA_SENT], True)
 
     def test_long_stream(self):
         """
         Test a long stream
         """
-        filepath = os.path.join(RESOURCE_PATH, 'C0000038.dat')
+        filepath = os.path.join(RESOURCE_PATH, 'C0000038.DAT')
         filesize = os.path.getsize(filepath)
         stream_handle = open(filepath)
-        self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback, self.exception_callback,
-                                        filesize)
-        result = self.parser.get_records(271)
-        self.assertEqual(result[0], self.particle_meta_long)
-        self.assertEqual(result[1], self.particle_a_long)
-        self.assertEqual(result[2], self.particle_b_long)
-        self.assertEqual(result[-1], self.particle_last)
-        self.assertEqual(self.parser._state[StateKey.POSITION], 2970)
-        self.assertEqual(self.parser._state[StateKey.RECORDS_READ], 270)
+        
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
+        recovered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback, filesize)
+        self.parser = recovered_parser
+        # next get records
+        recovered_result = self.parser.get_records(271)
+        self.assertEqual(recovered_result[0], self.particle_meta_long)
+        self.assertEqual(recovered_result[1], self.particle_a_long)
+        self.assertEqual(recovered_result[2], self.particle_b_long)
+        self.assertEqual(recovered_result[-1], self.particle_last)
+        self.assertEqual(recovered_parser._state[StateKey.POSITION], 2970)
+        self.assertEqual(recovered_parser._state[StateKey.RECORDS_READ], 270)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 2970)
+        self.assertEqual(self.state_callback_value[StateKey.RECORDS_READ], 270)
+        self.assertEqual(self.publish_callback_value[-1], self.particle_last)
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        telemetered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_TELEMETERED), self.telemetered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback, filesize)
+        self.parser = telemetered_parser
+        # next get records
+        telemetered_result = self.parser.get_records(271)
+        self.assertEqual(telemetered_result[0], self.particle_meta_long)
+        self.assertEqual(telemetered_result[1], self.particle_a_long)
+        self.assertEqual(telemetered_result[2], self.particle_b_long)
+        self.assertEqual(telemetered_result[-1], self.particle_last)
+        self.assertEqual(telemetered_parser._state[StateKey.POSITION], 2970)
+        self.assertEqual(telemetered_parser._state[StateKey.RECORDS_READ], 270)
         self.assertEqual(self.state_callback_value[StateKey.POSITION], 2970)
         self.assertEqual(self.state_callback_value[StateKey.RECORDS_READ], 270)
         self.assertEqual(self.publish_callback_value[-1], self.particle_last)
@@ -266,19 +401,46 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         """
         Test starting the parser in a state in the middle of processing
         """
-        # set the state after the metadata and first record
-        new_state = {StateKey.POSITION: 11,
-                     StateKey.RECORDS_READ: 1,
-                     StateKey.METADATA_SENT: True}
-        self.stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
-        self.parser =  CtdpfCklWfpParser(self.config, new_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback, self.exception_callback,
-                                        len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+        stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
 
-        result = self.parser.get_records(1)
-        self.assert_result(result, 22, self.particle_b, False, 2, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 33, self.particle_c, True, 3, True)
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
+        # set the state after the metadata and first record
+        recovered_new_state = {StateKey.POSITION: 11,
+                               StateKey.RECORDS_READ: 1,
+                               StateKey.METADATA_SENT: True}
+
+        recovered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), recovered_new_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+
+        self.parser = recovered_parser
+
+        recovered_result = recovered_parser.get_records(1)
+        self.assert_result(recovered_result, 22, self.particle_b, False, 2, True)
+        recovered_result = self.parser.get_records(1)
+        self.assert_result(recovered_result, 33, self.particle_c, True, 3, True)
+
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        # set the state after the metadata and first record
+        telemetered_new_state = {StateKey.POSITION: 11,
+                                 StateKey.RECORDS_READ: 1,
+                                 StateKey.METADATA_SENT: True}
+        telemetered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), telemetered_new_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+
+        self.parser = telemetered_parser
+
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assert_result(telemetered_result, 22, self.particle_b, False, 2, True)
+        telemetered_result = self.parser.get_records(1)
+        self.assert_result(telemetered_result, 33, self.particle_c, True, 3, True)
 
     def test_set_state(self):
         """
@@ -286,49 +448,120 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        new_state = {StateKey.POSITION: 11,
-                     StateKey.RECORDS_READ: 1,
-                     StateKey.METADATA_SENT: True}
         stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
-        self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback, self.exception_callback,
-                                        len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
-        result = self.parser.get_records(1)
-        self.assert_result(result, 0, self.particle_meta, False, 0, True)
+
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
+        recovered_new_state = {StateKey.POSITION: 11,
+                               StateKey.RECORDS_READ: 1,
+                               StateKey.METADATA_SENT: True}
+        
+        recovered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+
+        self.parser = recovered_parser
+
+        recovered_result = recovered_parser.get_records(1)
+        self.assert_result(recovered_result, 0, self.particle_meta, False, 0, True)
 
         # essentially skips particle a
-        self.parser.set_state(new_state)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 22, self.particle_b, False, 2, True)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 33, self.particle_c, True, 3, True)
+        recovered_parser.set_state(recovered_new_state)
+        recovered_result = recovered_parser.get_records(1)
+        self.assert_result(recovered_result, 22, self.particle_b, False, 2, True)
+        recovered_result = recovered_parser.get_records(1)
+        self.assert_result(recovered_result, 33, self.particle_c, True, 3, True)
+
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        telemetered_new_state = {StateKey.POSITION: 11,
+                                 StateKey.RECORDS_READ: 1,
+                                 StateKey.METADATA_SENT: True}
+        
+        telemetered_parser =  CtdpfCklWfpParser(
+            self.config.get(DataTypeKey.CTDPF_CKL_WFP_TELEMETERED), self.telemetered_start_state, stream_handle,
+            self.state_callback, self.pub_callback, self.exception_callback,
+            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
+
+        self.parser = telemetered_parser
+
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assert_result(telemetered_result, 0, self.particle_meta, False, 0, True)
+
+        # essentially skips particle a
+        telemetered_parser.set_state(telemetered_new_state)
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assert_result(telemetered_result, 22, self.particle_b, False, 2, True)
+        telemetered_result = telemetered_parser.get_records(1)
+        self.assert_result(telemetered_result, 33, self.particle_c, True, 3, True)
 
     def test_bad_time_data(self):
         """
-        Ensure that missing timestamps causes us to sample exception and not parse the file
+        If the timestamps are missing, raise a sample exception and do not parse the file
         """
+        stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME)
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
         with self.assertRaises(SampleException):
-            stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME)
-            self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback, self.exception_callback,
-                                            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME))
+            recovered_parser =  CtdpfCklWfpParser(
+                self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+                self.state_callback, self.pub_callback, self.exception_callback,
+                len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME))
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        with self.assertRaises(SampleException):
+            telemetered_parser =  CtdpfCklWfpParser(
+                self.config.get(DataTypeKey.CTDPF_CKL_WFP_TELEMETERED), self.telemetered_start_state, stream_handle,
+                self.state_callback, self.pub_callback, self.exception_callback,
+                len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME))
 
     def test_bad_size_data(self):
         """
-        Ensure that missing timestamps causes us to sample exception and not parse the file
+        If any of the data records in the file are not 11 bytes long, raise a sample exception
+        and do not parse the file.
         """
+        stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE)
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
         with self.assertRaises(SampleException):
-            stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE)
-            self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback, self.exception_callback,
-                                            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE))
+            recovered_parser =  CtdpfCklWfpParser(
+                self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+                self.state_callback, self.pub_callback, self.exception_callback,
+                len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE))
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        with self.assertRaises(SampleException):
+            telemetered_parser =  CtdpfCklWfpParser(
+                self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.telemetered_start_state, stream_handle,
+                self.state_callback, self.pub_callback, self.exception_callback,
+                len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE))
 
     def test_bad_eop_data(self):
         """
-        Ensure that missing timestamps causes us to sample exception and not parse the file
+        If the last "data" record in the file is not 11 byes of 0xFF, raise a sample exception
+        and do not parse the file.
         """
+        stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP)
+        #********************************************
+        # Test the "recovered" version of the parser
+        #********************************************
         with self.assertRaises(SampleException):
-            stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP)
-            self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback, self.exception_callback,
-                                            len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP))
+            recovered_parser =  CtdpfCklWfpParser(
+                self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.recovered_start_state, stream_handle,
+                self.state_callback, self.pub_callback, self.exception_callback,
+                len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP))
+        #**********************************************
+        # Test the "telemetered" version of the parser
+        #**********************************************
+        with self.assertRaises(SampleException):
+            telemetered_parser =  CtdpfCklWfpParser(
+                self.config.get(DataTypeKey.CTDPF_CKL_WFP_RECOVERED), self.telemetered_start_state, stream_handle,
+                self.state_callback, self.pub_callback, self.exception_callback,
+                len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP))

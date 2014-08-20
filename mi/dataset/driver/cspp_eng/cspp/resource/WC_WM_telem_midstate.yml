@@ -1,0 +1,74 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.371
+    profiler_timestamp: 1397773523.371
+    pressure_depth: 0.546
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.02
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 2
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.433
+    profiler_timestamp: 1397773523.433
+    pressure_depth: 0.540
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.02
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.50
+    rope_on_drum: 9.55
+  - _index: 3
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.496
+    profiler_timestamp: 1397773523.496
+    pressure_depth: 0.529
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.01
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 4
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.558
+    profiler_timestamp: 1397773523.558
+    pressure_depth: 0.526
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.02
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 5
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.621
+    profiler_timestamp: 1397773523.621
+    pressure_depth: 0.518
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.01
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55

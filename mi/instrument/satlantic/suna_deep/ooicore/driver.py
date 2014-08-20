@@ -1,26 +1,23 @@
 """
 @package mi.instrument.satlantic.suna_deep.ooicore.driver
 @file marine-integrations/mi/instrument/satlantic/suna_deep/ooicore/driver.py
-@author Anton Kueltz
+@author Rachel Manoni
 @brief Driver for the ooicore
 Release notes:
 
 initial_rev
 """
 
-__author__ = 'Anton Kueltz'
+
+__author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
-from mi.core.log import get_logger
-log = get_logger()
-
 import re
-import json
-import time
-import pprint
+import functools
 
-from mi.core.common import BaseEnum
-from mi.core.common import InstErrorCode
+from mi.core.common import BaseEnum, Units
+from mi.core.log import get_logger, get_logging_metaclass
+log = get_logger()
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -42,12 +39,20 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentException
 
+from mi.core.time import get_timestamp_delayed
 
 # newline.
 NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 15
+POLL_TIMEOUT = 100
+
+MIN_TIME_SAMPLE = 0
+MIN_LIGHT_SAMPLE = 1
+
+MAX_TIME_SAMPLE = 30
+MAX_LIGHT_SAMPLE = 40
 
 # default number of retries for a command
 RETRY = 3
@@ -68,27 +73,27 @@ SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 11. Dark value used for fit (int)
 SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 12. Integration time factor (int)
 SUNA_SAMPLE_PATTERN += r'('                 # 13. Spectrum channels (open group)
 for i in range(255):
-    SUNA_SAMPLE_PATTERN += r'[+-]?\d*,'     # 13. Spectrum channels (255 x int)
-SUNA_SAMPLE_PATTERN += r'[+-]?\d*),'        # 13. Spectrum channels (close group, last int = 256th)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 14. Internal temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 15. Spectrometer temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 16. Lamp temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 17. Cumulative lamp on-time [s] (int)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 18. Relative Humidity [%] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 19. Main Voltage [V] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 20. Lamp Voltage [V] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 21. Internal Voltage [V] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 22. Main Current [mA] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 23. Fit Aux 1 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 24. Fit Aux 2 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 25. Fit Base 1 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 26. Fit Base 2 (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 27. Fit RMSE (float)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*),'       # 28. CTD Time [seconds since 1970] (int)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*.\d*),'   # 29. CTD Salinity [PSU] (float)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*.\d*),'   # 30. CTD Temperature [C] (float)
-SUNA_SAMPLE_PATTERN += r','  # r'([+-]?\d*.\d*),'   # 31. CTD Pressure [dBar] (float)
-SUNA_SAMPLE_PATTERN += r'([+-]?\d*)'        # 32. Check Sum (int)
+    SUNA_SAMPLE_PATTERN += r'[+-]?\d*,'     # 14. Spectrum channels (255 x int)
+SUNA_SAMPLE_PATTERN += r'[+-]?\d*),'        # 15. Spectrum channels (close group, last int = 256th)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 16. Internal temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 17. Spectrometer temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 18. Lamp temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*),'       # 19. Cumulative lamp on-time [s] (int)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 20. Relative Humidity [%] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 21. Main Voltage [V] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 22. Lamp Voltage [V] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 23. Internal Voltage [V] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 24. Main Current [mA] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 25. Fit Aux 1 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 26. Fit Aux 2 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 27. Fit Base 1 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 28. Fit Base 2 (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*.\d*),'   # 29. Fit RMSE (float)
+SUNA_SAMPLE_PATTERN += r','                 # 30. CTD Time [seconds since 1970] (int)
+SUNA_SAMPLE_PATTERN += r','                 # 31. CTD Salinity [PSU] (float)
+SUNA_SAMPLE_PATTERN += r','                 # 32. CTD Temperature [C] (float)
+SUNA_SAMPLE_PATTERN += r','                 # 33. CTD Pressure [dBar] (float)
+SUNA_SAMPLE_PATTERN += r'([+-]?\d*)'        # 34. Check Sum (int)
 SUNA_SAMPLE_PATTERN += r'\r\n'              # <Carriage Return> <Line Feed>
 
 SUNA_SAMPLE_REGEX = re.compile(SUNA_SAMPLE_PATTERN)
@@ -187,8 +192,9 @@ SUNA_STATUS_PATTERN += r'INTADMAX\s+(\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_LOW\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'WFIT_HGH\s+([+-]?\d+.\d+)\s+'
 SUNA_STATUS_PATTERN += r'LAMPTIME\s+(\d+)\s+'
+SUNA_STATUS_PATTERN += r'.*?Ok\s+(\S*\.cal)'
 
-SUNA_STATUS_REGEX = re.compile(SUNA_STATUS_PATTERN)
+SUNA_STATUS_REGEX = re.compile(SUNA_STATUS_PATTERN, re.DOTALL)
 
 # SUNA TEST REGEX
 SUNA_TEST_PATTERN = r'Extrn Disk Size; Free , (\d+); (\d+)\s+'
@@ -208,15 +214,19 @@ SUNA_TEST_REGEX = re.compile(SUNA_TEST_PATTERN)
 ###
 #    Driver Constant Definitions
 ###
+class ParameterUnit(BaseEnum):
+    DECISIEMENS = 'dS'
+    MEGABYTE = 'MB'
+
 
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
-    SUNA_SAMPLE = "suna_sample"
-    SUNA_STATUS = "suna_status"
-    SUNA_TEST = "suna_test"
+    SUNA_SAMPLE = "nutnr_a_sample"
+    SUNA_STATUS = "nutnr_a_status"
+    SUNA_TEST = "nutnr_a_test"
 
 
 class ProtocolState(BaseEnum):
@@ -226,7 +236,6 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    POLL = DriverProtocolState.POLL
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
 
 
@@ -244,14 +253,11 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    RESET = DriverEvent.RESET
-
     START_POLL = "DRIVER_EVENT_START_POLL"
     STOP_POLL = "DRIVER_EVENT_STOP_POLL"
     MEASURE_N = "DRIVER_EVENT_MEASURE_N"
     MEASURE_0 = "DRIVER_EVENT_MEASURE_0"
     TIMED_N = "DRIVER_EVENT_TIMED_N"
-
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
@@ -281,6 +287,8 @@ class Capability(BaseEnum):
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
 
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+
 
 class Parameter(DriverParameter):
     #Data Acquisition
@@ -294,9 +302,9 @@ class Parameter(DriverParameter):
 
     #Data Processing
     TEMP_COMPENSATION = "tempcomp"
-    FIT_WAVELENGTH_LOW = "wfit_low"  # read only
-    FIT_WAVELENGTH_HIGH = "wfit_hgh"  # read only
-    FIT_WAVELENGTH_BOTH = "wfitboth"
+    FIT_WAVELENGTH_LOW = "wfit_low"     # read/get only
+    FIT_WAVELENGTH_HIGH = "wfit_hgh"    # read/get only
+    FIT_WAVELENGTH_BOTH = "wfitboth"    # set only
     CONCENTRATIONS_IN_FIT = "fitconcs"
     BASELINE_ORDER = "bl_order"
     DARK_CORRECTION_METHOD = "drkcormt"
@@ -311,24 +319,23 @@ class Parameter(DriverParameter):
     #Driver Parameters
     NUM_LIGHT_SAMPLES = "nmlgtspl"
     TIME_LIGHT_SAMPLE = "tlgtsmpl"
-    #ACTIVECALFILE_NAME = "actvcalf"
 
     #Data Acquisition
     REF_MIN_AT_LAMP_ON = "reflimit"  # read only
     SPECTROMETER_INTEG_PERIOD = "spintper"  # read only
 
     #Data Acquisition
-    POLLED_TIMEOUT = "polltout"  # startup
-    SKIP_SLEEP_AT_START = "skpsleep"  # startup
-    LAMP_STABIL_TIME = "stbltime"  # startup
-    LAMP_SWITCH_OFF_TEMPERATURE = "lamptoff"  # startup
+    POLLED_TIMEOUT = "polltout"
+    SKIP_SLEEP_AT_START = "skpsleep"
+    LAMP_STABIL_TIME = "stbltime"
+    LAMP_SWITCH_OFF_TEMPERATURE = "lamptoff"
 
     #I/O
-    MESSAGE_LEVEL = "msglevel"  # startup
-    MESSAGE_FILE_SIZE = "msgfsize"  # startup
-    DATA_FILE_SIZE = "datfsize"  # startup
-    OUTPUT_FRAME_TYPE = "outfrtyp"  # startup
-    OUTPUT_DARK_FRAME = "outdrkfr"  # startup
+    MESSAGE_LEVEL = "msglevel"
+    MESSAGE_FILE_SIZE = "msgfsize"
+    DATA_FILE_SIZE = "datfsize"
+    OUTPUT_FRAME_TYPE = "outfrtyp"
+    OUTPUT_DARK_FRAME = "outdrkfr"
 
 PARAM_TYPE_FUNC = {Parameter.OPERATION_MODE: str, Parameter.OPERATION_CONTROL: str, Parameter.LIGHT_SAMPLES: int,
                    Parameter.DARK_SAMPLES: int, Parameter.LIGHT_DURATION: int, Parameter.DARK_DURATION: int,
@@ -347,15 +354,18 @@ PARAM_TYPE_FUNC = {Parameter.OPERATION_MODE: str, Parameter.OPERATION_CONTROL: s
 
 class Prompt(BaseEnum):
     """
-    Device i/o prompts..
+    Device I/O prompts..
     """
     COMMAND = "SUNA>"
     POLLED = "CMD?"
-
-    SET_OK = r'.*\r\n(\$Ok)\s+'
-    OK = r'.*\r\n\$Ok ([\w.]+)\s+'
-    ERROR = r'.*\r\n\$Error: (\d+)\s+'
+    OK = '$Ok'
+    ERROR = '$Error:'
     WAKEUP = "Charging power loss protector."
+    SAMPLING = 'SAT'
+
+
+OK_GET = r'.*\r\n\$Ok ([\w.]+)\s+'
+OK_GET_REGEX = re.compile(OK_GET, re.DOTALL)
 
 
 class InstrumentCommand(BaseEnum):
@@ -364,28 +374,15 @@ class InstrumentCommand(BaseEnum):
     """
     #Status and Maintenance
     CMD_LINE = "$"
-    GET_CLOCK = "get clock"
     SET_CLOCK = "set clock"
-    UPGRADE = "upgrade"
-    REBOOT = "reboot"
     EXIT = "exit"
-    GET_LAMPTIME = "get lamptime"
-    GET_ACTIVECALFILE = "get activecalfile"
     SELFTEST = "selftest"
     STATUS = "get cfg"
-
-    #File Commands
-    LIST = "List"
-    OUTPUT = "Output"
-    SEND = "Send"
-    DELETE = "Delete"
-    RECEIVE = "Receive"
+    GET_CAL_FILE = "get activecalfile"
 
     # Polled Mode
-    START = "Start"
-    MEASURE = "Measure"     # takes param n indicating amount of light frames
-    TIMED = "Timed"         # takes param n indicating duration in seconds to take light frames for
-    CTD = "CTD"
+    MEASURE = "Measure"  # takes param n indicating amount of light frames
+    TIMED = "Timed"      # takes param n indicating duration in seconds to take light frames for
     SLEEP = "Sleep"
 
     # Command Line Commands
@@ -393,9 +390,42 @@ class InstrumentCommand(BaseEnum):
     SET = "set"         # takes params that indicate which field to set and what value to set it to
 
 
-class LastSampleState(BaseEnum):
-    POLL = "poll"
-    AUTO = "auto"
+class InstrumentCommandArgs(BaseEnum):
+    POLLED = 'Polled'
+    CONTINUOUS = 'Continuous'
+    ON = 'On'
+    OFF = 'Off'
+
+
+class SUNASampleDataParticleKey(BaseEnum):
+    FRAME_TYPE = "frame_type"
+    SERIAL_NUM = "serial_number"
+    SAMPLE_DATE = "date_of_sample"
+    SAMPLE_TIME = "time_of_sample"
+    NITRATE_CONCEN = "nitrate_concentration"
+    NITROGEN = "nutnr_nitrogen_in_nitrate"
+    ABSORB_254 = "nutnr_absorbance_at_254_nm"
+    ABSORB_350 = "nutnr_absorbance_at_350_nm"
+    BROMIDE_TRACE = "nutnr_bromide_trace"
+    SPECTRUM_AVE = "nutnr_spectrum_average"
+    FIT_DARK_VALUE = "nutnr_dark_value_used_for_fit"
+    TIME_FACTOR = "nutnr_integration_time_factor"
+    SPECTRAL_CHANNELS = "spectral_channels"
+    TEMP_SPECTROMETER = "temp_spectrometer"
+    TEMP_INTERIOR = "temp_interior"
+    TEMP_LAMP = "temp_lamp"
+    LAMP_TIME = "lamp_time"
+    HUMIDITY = "humidity"
+    VOLTAGE_MAIN = "voltage_main"
+    VOLTAGE_LAMP = "voltage_lamp"
+    VOLTAGE_INT = "nutnr_voltage_int"
+    CURRENT_MAIN = "nutnr_current_main"
+    FIT_1 = "aux_fitting_1"
+    FIT_2 = "aux_fitting_2"
+    FIT_BASE_1 = "nutnr_fit_base_1"
+    FIT_BASE_2 = "nutnr_fit_base_2"
+    FIT_RMSE = "nutnr_fit_rmse"
+    CHECKSUM = "checksum"
 
 
 ###############################################################################
@@ -408,65 +438,143 @@ class SUNASampleDataParticle(DataParticle):
         matched = SUNA_SAMPLE_REGEX.match(self.raw_data)
 
         if not matched:
-            raise SampleException("No regex match for sample [%s]" %
-                                  self.raw_data)
+            raise SampleException("No regex match for sample [%s]" % self.raw_data)
+
         try:
             parsed_data_list = [
-                str(matched.group(1)),      # frame type
-                str(matched.group(2)),      # serial number
-                int(matched.group(3)),      # date year day-of-year
-                float(matched.group(4)),    # time, hours of day
-                float(matched.group(5)),    # nitrogen concentration
-                float(matched.group(6)),    # nitrogen in nitrate
-                float(matched.group(7)),    # absorbance at 254nm
-                float(matched.group(8)),    # absorbance at 350nm
-                float(matched.group(9)),    # bromide trace
-                int(matched.group(10)),     # spectrum average
-                int(matched.group(11)),     # dark value used for fit
-                int(matched.group(12)),     # integration time factor
-                [int(s) for s in matched.group(13).split(',')],    # spectrum channels
-                float(matched.group(14)),   # internal temperature
-                float(matched.group(15)),   # spectrometer temperature
-                float(matched.group(16)),   # lamp temperature
-                int(matched.group(17)),     # cumulative lamp-on time
-                float(matched.group(18)),   # relative humidity
-                float(matched.group(19)),   # main voltage
-                float(matched.group(20)),   # lamp voltage
-                float(matched.group(21)),   # internal voltage
-                float(matched.group(22)),   # main current
-                float(matched.group(23)),   # fit aux 1
-                float(matched.group(24)),   # fit aux 2
-                float(matched.group(25)),   # fit base 1
-                float(matched.group(26)),   # fit base 2
-                float(matched.group(27)),   # fit RMSE
-                #int(matched.group(28)),     # CTD time
-                #float(matched.group(29)),   # CTD salinity
-                #float(matched.group(30)),   # CTD temperature
-                #float(matched.group(31)),   # CTD pressure
-                int(matched.group(28))]     # check sum
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(1))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: str(matched.group(2))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SAMPLE_DATE, DataParticleKey.VALUE: int(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SAMPLE_TIME, DataParticleKey.VALUE: float(matched.group(4))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.NITRATE_CONCEN, DataParticleKey.VALUE: float(matched.group(5))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.NITROGEN, DataParticleKey.VALUE: float(matched.group(6))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.ABSORB_254, DataParticleKey.VALUE: float(matched.group(7))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.ABSORB_350, DataParticleKey.VALUE: float(matched.group(8))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.BROMIDE_TRACE, DataParticleKey.VALUE: float(matched.group(9))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SPECTRUM_AVE, DataParticleKey.VALUE: int(matched.group(10))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_DARK_VALUE, DataParticleKey.VALUE: int(matched.group(11))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TIME_FACTOR, DataParticleKey.VALUE: int(matched.group(12))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.SPECTRAL_CHANNELS, DataParticleKey.VALUE: [int(s) for s in matched.group(13).split(',')]},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TEMP_SPECTROMETER, DataParticleKey.VALUE: float(matched.group(14))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TEMP_INTERIOR, DataParticleKey.VALUE: float(matched.group(15))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.TEMP_LAMP, DataParticleKey.VALUE: float(matched.group(16))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(17))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.HUMIDITY, DataParticleKey.VALUE: float(matched.group(18))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.VOLTAGE_MAIN, DataParticleKey.VALUE: float(matched.group(19))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.VOLTAGE_LAMP, DataParticleKey.VALUE: float(matched.group(20))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.VOLTAGE_INT, DataParticleKey.VALUE: float(matched.group(21))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.CURRENT_MAIN, DataParticleKey.VALUE: float(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_1, DataParticleKey.VALUE: float(matched.group(23))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_2, DataParticleKey.VALUE: float(matched.group(24))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_BASE_1, DataParticleKey.VALUE: float(matched.group(25))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_BASE_2, DataParticleKey.VALUE: float(matched.group(26))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.FIT_RMSE, DataParticleKey.VALUE: float(matched.group(27))},
+                {DataParticleKey.VALUE_ID: SUNASampleDataParticleKey.CHECKSUM, DataParticleKey.VALUE: int(matched.group(28))}]
 
         except ValueError:
-            raise SampleException("ValueError while parsing data [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
-        data_names = [
-            "frame_type", "serial_number", "date_of_sample",
-            "time_of_sample", "nitrate_concentration", "nutnr_nitrogen_in_nitrate",
-            "nutnr_absorbance_at_254_nm", "nutnr_absorbance_at_350_nm", "nutnr_bromide_trace",
-            "nutnr_spectrum_average", "nutnr_dark_value_used_for_fit", "nutnr_integration_time_factor",
-            "spectral_channels", "temp_interior", "temp_spectrometer",
-            "temp_lamp", "lamp_time", "humidity",
-            "voltage_main", "voltage_lamp", "nutnr_voltage_int", "nutnr_current_main",
-            "aux_fitting_1", "aux_fitting_2", "nutnr_fit_base_1", "nutnr_fit_base_2", "nutnr_fit_rmse",
-            #"ctd_time", "ctd_salinity", "ctd_temp", "ctd_pressure",
-            "checksum"]
+        log.debug('SUNASampleDataParticle raw data: %r', self.raw_data)
+        log.debug('SUNASampleDataParticle parsed data: %r', parsed_data_list)
 
-        result = []
-        for (data_name, parsed_data) in zip(data_names, parsed_data_list):
-            result.append({DataParticleKey.VALUE_ID: data_name,
-                           DataParticleKey.VALUE: parsed_data})
+        return parsed_data_list
 
-        return result
+
+class SUNAStatusDataParticleKey(BaseEnum):
+    SENSOR_TYPE = "nutnr_sensor_type"
+    SENSOR_VERSION = "nutnr_sensor_version"
+    SERIAL_NUMBER = "serial_number"
+    INTEGRATED_WIPER = "nutnr_integrated_wiper"
+    EXT_POWER_PORT = "nutnr_ext_power_port"
+    LAMP_SHUTTER = "nutnr_lamp_shutter"
+    REF_DETECTOR = "nutnr_reference_detector"
+    PROTECTR = "nutnr_wiper_protector"
+    SUPER_CAPACITORS = "nutnr_super_capacitors"
+    PSB_SUPERVISOR = "nutnr_psb_supervisor"
+    USB_COMM = "nutnr_usb_communication"
+    RELAY_MODULE = "nutnr_relay_module"
+    SDII2_INTERFACE = "nutnr_sdi12_interface"
+    ANALOG_OUTPUT = "nutnr_analog_output"
+    DATA_LOGGING = "nutnr_int_data_logging"
+    APF_INTERFACE = "nutnr_apf_interface"
+    SCHEDULING = "nutnr_scheduling"
+    LAMP_FAN = "nutnr_lamp_fan"
+    ADDR_LAMP_TEMP = "nutnr_sensor_address_lamp_temp"
+    ADDR_SPEC_TEMP = "nutnr_sensor_address_spec_temp"
+    SENSOR_ADDR_HOUS_TEMP = "nutnr_sensor_address_hous_temp"
+    SERIAL_NUM_SPECT = "nutnr_serial_number_spec"
+    SERIAL_NUM_LAMP = "nutnr_serial_number_lamp"
+    STUPSTUS = "nutnr_stupstus"
+    BRNHOURS = "nutnr_brnhours"
+    BRNNUMBER = "nutnr_brnnumbr"
+    DARK_HOURS = "nutnr_drkhours"
+    DARK_NUM = "nutnr_drknumbr"
+    CHRLDURA = "nutnr_chrldura"
+    CHRDDURA = "nutnr_chrddura"
+    BAUD_RATE = "baud_rate"
+    MSG_LEVEL = "nutnr_msg_level"
+    MSG_FILE_SIZE = "nutnr_msg_file_size"
+    DATA_FILE_SIZE = "nutnr_data_file_size"
+    OUTPUT_FRAME_TYPE = "nutnr_output_frame_type"
+    LOGGING_FRAME_TYPE = "nutnr_logging_frame_type"
+    OUTPUT_DARK_FRAME = "nutnr_output_dark_frame"
+    LOGGING_DARK_FRAME = "nutnr_logging_dark_frame"
+    TIMERESL = "nutnr_timeresl"
+    LOG_FILE_TYPE = "nutnr_log_file_type"
+    ACQCOUNT = "nutnr_acqcount"
+    CNTCOUNT = "nutnr_cntcount"
+    NITRATE_MIN = "nutnr_dac_nitrate_min"
+    NITRATE_MAX = "nutnr_dac_nitrate_max"
+    WAVELENGTH_LOW = "nutnr_data_wavelength_low"
+    WAVELENGTH_HIGH = "nutnr_data_wavelength_high"
+    SDI12_ADDR = "nutnr_sdi12_address"
+    DATAMODE = "nutnr_data_mode"
+    OPERATING_MODE = "nutnr_operating_mode"
+    OPERATION_CTRL = "nutnr_operation_ctrl"
+    EXTL_DEV = "nutnr_extl_dev"
+    PRERUN_TIME = "nutnr_ext_dev_prerun_time"
+    DEV_DURING_ACQ = "nutnr_ext_dev_during_acq"
+    WATCHDOG_TIME = "nutnr_watchdog_timer"
+    COUNTDOWN = "nutnr_countdown"
+    FIXED_TIME = "nutnr_fixed_time_duration"
+    PERIODIC_INTERVAL = "nutnr_periodic_interval"
+    PERIODIC_OFFSET = "nutnr_periodic_offset"
+    PERIODIC_DURATION = "nutnr_periodic_duration"
+    PERIODIC_SAMPLES = "nutnr_periodic_samples"
+    POLLED_TIMEOUT = "nutnr_polled_timeout"
+    APF_TIMEOUT = "nutnr_apf_timeout"
+    STABILITY_TIME = "nutnr_lamp_stability_time"
+    MIN_LAMP_ON = "nutnr_ref_min_lamp_on"
+    SKIP_SLEEP = "nutnr_skip_sleep"
+    SWITCHOFF_TEMP = "nutnr_lamp_switchoff_temp"
+    SPEC_PERIOD = "nutnr_spec_integration_period"
+    DRKAVERS = "nutnr_dark_avg"
+    LGTAVERS = "nutnr_light_avg"
+    REFSAMPLES = "nutnr_reference_samples"
+    DARK_SAMPLES = "nutnr_dark_samples"
+    LIGHT_SAMPLES = "nutnr_light_samples"
+    DARK_DURATION = "nutnr_dark_duration"
+    LIGHT_DURATION = "nutnr_light_duration"
+    TEMP_COMP = "nutnr_temp_comp"
+    SALINITY_FIT = "nutnr_salinity_fit"
+    BROMIDE_TRACING = "nutnr_bromide_tracing"
+    BASELINE_ORDER = "nutnr_baseline_order"
+    CONCENTRATIONS_FIT = "nutnr_concentrations_fit"
+    DARK_CORR_METHOD = "nutnr_dark_corr_method"
+    DRKCOEFS = "nutnr_dark_coefs"
+    DAVGPRM_0 = "nutnr_davgprm0"
+    DAVGPRM_1 = "nutnr_davgprm1"
+    DAVGPRM_2 = "nutnr_davgprm2"
+    DAVGPRM_3 = "nutnr_davgprm3"
+    ABSORBANCE_CUTOFF = "nutnr_absorbance_cutoff"
+    TIME_ADJ = "nutnr_int_time_adj"
+    TIME_FACTOR = "nutnr_int_time_factor"
+    TIME_STEP = "nutnr_int_time_step"
+    TIME_MAX = "nutnr_int_time_max"
+    FIT_WAVE_LOW = "nutnr_fit_wavelength_low"
+    FIT_WAVE_HIGH = "nutnr_fit_wavelength_high"
+    LAMP_TIME = "nutnr_lamp_time"
+    CALIBRATION_FILE = "nutnr_activecalfile"
 
 
 class SUNAStatusDataParticle(DataParticle):
@@ -476,70 +584,137 @@ class SUNAStatusDataParticle(DataParticle):
         matched = SUNA_STATUS_REGEX.match(self.raw_data)
 
         if not matched:
-            raise SampleException("No regex match for status [%s]" %
-                                  self.raw_data)
+            raise SampleException("No regex match for status [%s]" % self.raw_data)
         try:
             parsed_data_list = [
-                str(matched.group(1)), str(matched.group(2)), int(matched.group(3)), str(matched.group(4)),
-                str(matched.group(5)), str(matched.group(6)), str(matched.group(7)), str(matched.group(8)),
-                str(matched.group(9)), str(matched.group(10)), str(matched.group(11)), str(matched.group(12)),
-                str(matched.group(13)), str(matched.group(14)), str(matched.group(15)), str(matched.group(16)),
-                str(matched.group(17)), str(matched.group(18)), str(matched.group(19)), str(matched.group(20)),
-                str(matched.group(21)), int(matched.group(22)), str(matched.group(23)), str(matched.group(24)),
-                int(matched.group(25)), int(matched.group(26)), int(matched.group(27)), int(matched.group(28)),
-                int(matched.group(29)), int(matched.group(30)), int(matched.group(31)),
-                str(matched.group(32)), int(matched.group(33)), int(matched.group(34)), str(matched.group(35)),
-                str(matched.group(36)), str(matched.group(37)), str(matched.group(38)), str(matched.group(39)),
-                str(matched.group(40)), int(matched.group(41)), int(matched.group(42)), float(matched.group(43)),
-                float(matched.group(44)), float(matched.group(45)), float(matched.group(46)), int(matched.group(47)),
-                str(matched.group(48)), str(matched.group(49)), str(matched.group(50)), str(matched.group(51)),
-                int(matched.group(52)), str(matched.group(53)), str(matched.group(54)), int(matched.group(55)),
-                int(matched.group(56)), str(matched.group(57)), int(matched.group(58)), int(matched.group(59)),
-                int(matched.group(60)), int(matched.group(61)), float(matched.group(62)), int(matched.group(63)),
-                int(matched.group(64)), str(matched.group(65)), int(matched.group(66)), int(matched.group(67)),
-                int(matched.group(68)), int(matched.group(69)), int(matched.group(70)), int(matched.group(71)),
-                int(matched.group(72)), int(matched.group(73)), int(matched.group(74)), str(matched.group(75)),
-                str(matched.group(76)), str(matched.group(77)), int(matched.group(78)), int(matched.group(79)),
-                str(matched.group(80)), str(matched.group(81)), float(matched.group(82)), float(matched.group(83)),
-                float(matched.group(84)), float(matched.group(85)), float(matched.group(86)), str(matched.group(87)),
-                int(matched.group(88)), int(matched.group(89)), int(matched.group(90)), float(matched.group(91)),
-                float(matched.group(92)), int(matched.group(93))
-            ]
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_TYPE, DataParticleKey.VALUE: str(matched.group(1))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_VERSION, DataParticleKey.VALUE: str(matched.group(2))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUMBER, DataParticleKey.VALUE: str(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.INTEGRATED_WIPER, DataParticleKey.VALUE: str(matched.group(4))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXT_POWER_PORT, DataParticleKey.VALUE: str(matched.group(5))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_SHUTTER, DataParticleKey.VALUE: str(matched.group(6))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.REF_DETECTOR, DataParticleKey.VALUE: str(matched.group(7))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PROTECTR, DataParticleKey.VALUE: str(matched.group(8))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SUPER_CAPACITORS, DataParticleKey.VALUE: str(matched.group(9))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PSB_SUPERVISOR, DataParticleKey.VALUE: str(matched.group(10))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.USB_COMM, DataParticleKey.VALUE: str(matched.group(11))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.RELAY_MODULE, DataParticleKey.VALUE: str(matched.group(12))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SDII2_INTERFACE, DataParticleKey.VALUE: str(matched.group(13))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ANALOG_OUTPUT, DataParticleKey.VALUE: str(matched.group(14))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DATA_LOGGING, DataParticleKey.VALUE: str(matched.group(15))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.APF_INTERFACE, DataParticleKey.VALUE: str(matched.group(16))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SCHEDULING, DataParticleKey.VALUE: str(matched.group(17))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_FAN, DataParticleKey.VALUE: str(matched.group(18))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ADDR_LAMP_TEMP, DataParticleKey.VALUE: str(matched.group(19))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ADDR_SPEC_TEMP, DataParticleKey.VALUE: str(matched.group(20))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SENSOR_ADDR_HOUS_TEMP, DataParticleKey.VALUE: str(matched.group(21))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_SPECT, DataParticleKey.VALUE: str(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SERIAL_NUM_LAMP, DataParticleKey.VALUE: str(matched.group(23))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.STUPSTUS, DataParticleKey.VALUE: str(matched.group(24))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BRNHOURS, DataParticleKey.VALUE: int(matched.group(25))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BRNNUMBER, DataParticleKey.VALUE: int(matched.group(26))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_HOURS, DataParticleKey.VALUE: int(matched.group(27))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_NUM, DataParticleKey.VALUE: int(matched.group(28))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CHRLDURA, DataParticleKey.VALUE: int(matched.group(29))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CHRDDURA, DataParticleKey.VALUE: int(matched.group(30))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BAUD_RATE, DataParticleKey.VALUE: int(matched.group(31))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.MSG_LEVEL, DataParticleKey.VALUE: str(matched.group(32))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.MSG_FILE_SIZE, DataParticleKey.VALUE: int(matched.group(33))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DATA_FILE_SIZE, DataParticleKey.VALUE: int(matched.group(34))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OUTPUT_FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(35))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LOGGING_FRAME_TYPE, DataParticleKey.VALUE: str(matched.group(36))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OUTPUT_DARK_FRAME, DataParticleKey.VALUE: str(matched.group(37))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LOGGING_DARK_FRAME, DataParticleKey.VALUE: str(matched.group(38))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIMERESL, DataParticleKey.VALUE: str(matched.group(39))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LOG_FILE_TYPE, DataParticleKey.VALUE: str(matched.group(40))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ACQCOUNT, DataParticleKey.VALUE: int(matched.group(41))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CNTCOUNT, DataParticleKey.VALUE: int(matched.group(42))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.NITRATE_MIN, DataParticleKey.VALUE: float(matched.group(43))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.NITRATE_MAX, DataParticleKey.VALUE: float(matched.group(44))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.WAVELENGTH_LOW, DataParticleKey.VALUE: float(matched.group(45))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.WAVELENGTH_HIGH, DataParticleKey.VALUE: float(matched.group(46))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SDI12_ADDR, DataParticleKey.VALUE: int(matched.group(47))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DATAMODE, DataParticleKey.VALUE: str(matched.group(48))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OPERATING_MODE, DataParticleKey.VALUE: str(matched.group(49))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.OPERATION_CTRL, DataParticleKey.VALUE: str(matched.group(50))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.EXTL_DEV, DataParticleKey.VALUE: str(matched.group(51))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PRERUN_TIME, DataParticleKey.VALUE: int(matched.group(52))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DEV_DURING_ACQ, DataParticleKey.VALUE: str(matched.group(53))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.WATCHDOG_TIME, DataParticleKey.VALUE: str(matched.group(54))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.COUNTDOWN, DataParticleKey.VALUE: int(matched.group(55))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIXED_TIME, DataParticleKey.VALUE: int(matched.group(56))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_INTERVAL, DataParticleKey.VALUE: str(matched.group(57))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_OFFSET, DataParticleKey.VALUE: int(matched.group(58))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_DURATION, DataParticleKey.VALUE: int(matched.group(59))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.PERIODIC_SAMPLES, DataParticleKey.VALUE: int(matched.group(60))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.POLLED_TIMEOUT, DataParticleKey.VALUE: int(matched.group(61))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.APF_TIMEOUT, DataParticleKey.VALUE: float(matched.group(62))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.STABILITY_TIME, DataParticleKey.VALUE: int(matched.group(63))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.MIN_LAMP_ON, DataParticleKey.VALUE: int(matched.group(64))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SKIP_SLEEP, DataParticleKey.VALUE: str(matched.group(65))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SWITCHOFF_TEMP, DataParticleKey.VALUE: int(matched.group(66))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SPEC_PERIOD, DataParticleKey.VALUE: int(matched.group(67))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DRKAVERS, DataParticleKey.VALUE: int(matched.group(68))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LGTAVERS, DataParticleKey.VALUE: int(matched.group(69))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.REFSAMPLES, DataParticleKey.VALUE: int(matched.group(70))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_SAMPLES, DataParticleKey.VALUE: int(matched.group(71))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LIGHT_SAMPLES, DataParticleKey.VALUE: int(matched.group(72))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_DURATION, DataParticleKey.VALUE: int(matched.group(73))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LIGHT_DURATION, DataParticleKey.VALUE: int(matched.group(74))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TEMP_COMP, DataParticleKey.VALUE: str(matched.group(75))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.SALINITY_FIT, DataParticleKey.VALUE: str(matched.group(76))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BROMIDE_TRACING, DataParticleKey.VALUE: str(matched.group(77))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.BASELINE_ORDER, DataParticleKey.VALUE: int(matched.group(78))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CONCENTRATIONS_FIT, DataParticleKey.VALUE: int(matched.group(79))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DARK_CORR_METHOD, DataParticleKey.VALUE: str(matched.group(80))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DRKCOEFS, DataParticleKey.VALUE: str(matched.group(81))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_0, DataParticleKey.VALUE: float(matched.group(82))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_1, DataParticleKey.VALUE: float(matched.group(83))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_2, DataParticleKey.VALUE: float(matched.group(84))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.DAVGPRM_3, DataParticleKey.VALUE: float(matched.group(85))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.ABSORBANCE_CUTOFF, DataParticleKey.VALUE: float(matched.group(86))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_ADJ, DataParticleKey.VALUE: str(matched.group(87))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_FACTOR, DataParticleKey.VALUE: int(matched.group(88))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_STEP, DataParticleKey.VALUE: int(matched.group(89))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.TIME_MAX, DataParticleKey.VALUE: int(matched.group(90))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_LOW, DataParticleKey.VALUE: float(matched.group(91))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.FIT_WAVE_HIGH, DataParticleKey.VALUE: float(matched.group(92))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: int(matched.group(93))},
+                {DataParticleKey.VALUE_ID: SUNAStatusDataParticleKey.CALIBRATION_FILE, DataParticleKey.VALUE: str(matched.group(94))}]
 
         except ValueError:
-            raise SampleException("ValueError while parsing data [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
-        data_names = [
-            "nutnr_sensor_type", "nutnr_sensor_version", "serial_number", "nutnr_integrated_wiper",
-            "nutnr_ext_power_port", "nutnr_lamp_shutter", "nutnr_reference_detector", "protectr",
-            "nutnr_super_capacitors", "nutnr_psb_supervisor", "nutnr_usb_communication", "nutnr_relay_module",
-            "nutnr_sdi12_interface", "nutnr_analog_output", "nutnr_int_data_logging", "nutnr_apf_interface",
-            "nutnr_scheduling", "nutnr_lamp_fan", "nutnr_sensor_address_lamp_temp", "nutnr_sensor_address_spec_temp",
-            "nutnr_sensor_address_hous_temp", "nutnr_serial_number_spec", "nutnr_serial_number_lamp", "stupstus",
-            "brnhours", "brnnumbr", "drkhours", "drknumbr", "chrldura", "chrddura", "baud_rate", "nutnr_msg_level",
-            "nutnr_msg_file_size", "nutnr_data_file_size", "nutnr_output_frame_type", "nutnr_logging_frame_type",
-            "nutnr_output_dark_frame", "nutnr_logging_dark_frame", "timeresl", "nutnr_log_file_type", "acqcount",
-            "cntcount", "nutnr_dac_nitrate_min", "nutnr_dac_nitrate_max", "nutnr_data_wavelength_low",
-            "nutnr_data_wavelength_high", "nutnr_sdi12_address", "datamode", "operating_mode", "nutnr_operation_ctrl",
-            "nutnr_extl_dev", "nutnr_ext_dev_prerun_time", "nutnr_ext_dev_during_acq", "nutnr_watchdog_timer",
-            "nutnr_countdown", "nutnr_fixed_time_duration", "nutnr_periodic_interval", "nutnr_periodic_offset",
-            "nutnr_periodic_duration", "nutnr_periodic_samples", "nutnr_polled_timeout", "nutnr_apf_timeout",
-            "nutnr_satbility_time",  "nutnr_ref_min_lamp_on", "nutnr_skip_sleep", "nutnr_lamp_switchoff_temp",
-            "nutnr_spec_integration_period", "drkavers", "lgtavers", "refsmpls", "nutnr_dark_samples",
-            "nutnr_light_samples", "nutnr_dark_duration", "nutnr_light_duration", "nutnr_temp_comp",
-            "nutnr_salinity_fit", "nutnr_bromide_tracing", "nutnr_baseline_order", "nutnr_concentrations_fit",
-            "nutnr_dark_corr_method", "drkcoefs", "davgprm0", "davgprm1", "davgprm2", "davgprm3",
-            "nutnr_absorbance_cutoff", "nutnr_int_time_adj", "nutnr_int_time_factor", "nutnr_int_time_step",
-            "nutnr_int_time_max", "nutnr_fit_wavelength_low", "nutnr_fit_wavelength_high", "lamp_time"
-        ]
+        log.debug('SUNAStatusDataParticle raw data: %r', self.raw_data)
+        log.debug('SUNAStatusDataParticle parsed data: %r', parsed_data_list)
 
-        result = []
-        for (data_name, parsed_data) in zip(data_names, parsed_data_list):
-            result.append({DataParticleKey.VALUE_ID: data_name,
-                           DataParticleKey.VALUE: parsed_data})
+        return parsed_data_list
 
-        return result
+
+class SUNATestDataParticleKey(BaseEnum):
+    EXT_DISK_SIZE = "nutnr_external_disk_size"
+    EXT_DISK_FREE = "nutnr_external_disk_free"
+    INT_DISK_SIZE = "nutnr_internal_disk_size"
+    INT_DISK_FREE = "nutnr_internal_disk_free"
+    TEMP_HS = "temp_interior"
+    TEMP_SP = "temp_spectrometer"
+    TEMP_LM = "lamp_temp"
+    LAMP_TIME = "lamp_time"
+    HUMIDITY = "humidity"
+    ELECTRICAL_MN = "nutnr_electrical_mn"
+    ELECTRICAL_BD = "nutnr_electrical_bd"
+    ELECTRICAL_PR = "nutnr_electrical_pr"
+    ELECTRICAL_C = "nutnr_electrical_c"
+    LAMP_POWER = "nutnr_lamp_power"
+    SPEC_DARK_AV = "nutnr_spec_dark_av"
+    SPEC_DARK_SD = "nutnr_spec_dark_sd"
+    SPEC_DARK_MI = "nutnr_spec_dark_mi"
+    SPEC_DARK_MA = "nutnr_spec_dark_ma"
+    SPEC_LIGHT_AV = "nutnr_spec_lght_av"
+    SPEC_LIGHT_SD = "nutnr_spec_lght_sd"
+    SPEC_LIGHT_MI = "nutnr_spec_lght_mi"
+    SPEC_LIGHT_MA = "nutnr_spec_lght_ma"
+    TEST_RESULT = "nutnr_test_result"
 
 
 class SUNATestDataParticle(DataParticle):
@@ -549,41 +724,47 @@ class SUNATestDataParticle(DataParticle):
         matched = SUNA_TEST_REGEX.match(self.raw_data)
 
         if not matched:
-            raise SampleException("No regex match for test [%s]" %
-                                  self.raw_data)
+            raise SampleException("No regex match for test [%s]" % self.raw_data)
         try:
+
+            time_str = str(matched.group(5)).split(":")
+            hours = int(time_str[0])
+            minutes = int(time_str[1])
+            seconds = int(time_str[2])
+            time_in_seconds = (hours * 3600) + (minutes * 60) + seconds
+
             parsed_data_list = [
-                int(matched.group(1)), int(matched.group(2)),
-                int(matched.group(3)), int(matched.group(4)),
-                str(matched.group(5)),
-                float(matched.group(6)), float(matched.group(7)), float(matched.group(8)),
-                float(matched.group(9)),
-                float(matched.group(10)), float(matched.group(11)), float(matched.group(12)), float(matched.group(13)),
-                int(matched.group(14)),
-                int(matched.group(15)), int(matched.group(16)), int(matched.group(17)), int(matched.group(18)),
-                int(matched.group(19)), int(matched.group(20)), int(matched.group(21)), int(matched.group(22)),
-                str(matched.group(23))
-            ]
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(1))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.EXT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(2))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_SIZE, DataParticleKey.VALUE: int(matched.group(3))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.INT_DISK_FREE, DataParticleKey.VALUE: int(matched.group(4))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.LAMP_TIME, DataParticleKey.VALUE: time_in_seconds},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_HS, DataParticleKey.VALUE: float(matched.group(6))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_SP, DataParticleKey.VALUE: float(matched.group(7))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEMP_LM, DataParticleKey.VALUE: float(matched.group(8))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.HUMIDITY, DataParticleKey.VALUE: float(matched.group(9))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_MN, DataParticleKey.VALUE: float(matched.group(10))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_BD, DataParticleKey.VALUE: float(matched.group(11))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_PR, DataParticleKey.VALUE: float(matched.group(12))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.ELECTRICAL_C, DataParticleKey.VALUE: float(matched.group(13))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.LAMP_POWER, DataParticleKey.VALUE: int(matched.group(14))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_AV, DataParticleKey.VALUE: int(matched.group(15))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_SD, DataParticleKey.VALUE: int(matched.group(16))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_MI, DataParticleKey.VALUE: int(matched.group(17))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_DARK_MA, DataParticleKey.VALUE: int(matched.group(18))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_AV, DataParticleKey.VALUE: int(matched.group(19))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_SD, DataParticleKey.VALUE: int(matched.group(20))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_MI, DataParticleKey.VALUE: int(matched.group(21))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.SPEC_LIGHT_MA, DataParticleKey.VALUE: int(matched.group(22))},
+                {DataParticleKey.VALUE_ID: SUNATestDataParticleKey.TEST_RESULT, DataParticleKey.VALUE: str(matched.group(23))}]
 
         except ValueError:
-            raise SampleException("ValueError while parsing data [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while parsing data [%s]" % self.raw_data)
 
-        data_names = [
-            "nutnr_external_disk_size", "nutnr_external_disk_free", "nutnr_internal_disk_size",
-            "nutnr_internal_disk_free", "nutnr_fiberlite_odometer", "nutnr_temperatures_hs", "nutnr_temperatures_sp",
-            "nutnr_temperatures_lm", "nutnr_humidity",  "nutnr_electrical_mn", "nutnr_electrical_bd",
-            "nutnr_electrical_pr", "nutnr_electrical_c", "nutnr_lamp_power", "nutnr_spec_dark_av", "nutnr_spec_dark_sd",
-            "nutnr_spec_dark_mi", "nutnr_spec_dark_ma", "nutnr_spec_lght_av", "nutnr_spec_lght_sd",
-            "nutnr_spec_lght_mi", "nutnr_spec_lght_ma", "nutnr_test_result"
-        ]
+        log.debug('SUNATestDataParticle raw data: %r', self.raw_data)
+        log.debug('SUNATestDataParticle parsed data: %r', parsed_data_list)
 
-        result = []
-        for (data_name, parsed_data) in zip(data_names, parsed_data_list):
-            result.append({DataParticleKey.VALUE_ID: data_name,
-                           DataParticleKey.VALUE: parsed_data})
-
-        return result
+        return parsed_data_list
 
 
 ###############################################################################
@@ -600,13 +781,11 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
-
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -616,7 +795,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
-
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -627,12 +805,14 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+     #logging level
+    __metaclass__ = get_logging_metaclass(log_level='debug')
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -640,76 +820,46 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-        # Construct protocol superclass.
+
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Set attributes
-        self.write_delay = 0.2
-        self.num_samples = 1  # number of light samples
-        self.time_samples = 5  # seconds of light samples
+        self._newline = NEWLINE
 
-        # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        # UNKNOWN State
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_generic_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_generic_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
         # COMMAND State
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_POLL, self._handler_command_start_poll)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_generic_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
+        # POLL Commands in the COMMAND State
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
 
         # DIRECT ACCESS State
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-
-        # POLL State
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.ENTER, self._handler_poll_enter)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.MEASURE_N, self._handler_poll_measure_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.MEASURE_0, self._handler_poll_measure_0)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.TIMED_N, self._handler_poll_timed_n)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.RESET, self._handler_poll_reset)
-        self._protocol_fsm.add_handler(ProtocolState.POLL,
-                                       ProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_generic_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # AUTOSAMPLE State
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.RESET, self._handler_autosample_reset)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_generic_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_generic_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -724,24 +874,25 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.MEASURE, self._build_measure_command)
         self._add_build_handler(InstrumentCommand.TIMED, self._build_timed_command)
         self._add_build_handler(InstrumentCommand.SELFTEST, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.REBOOT, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.SET_CLOCK, self._build_clock_command)
+        self._add_build_handler(InstrumentCommand.GET_CAL_FILE, self._build_simple_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.GET, self._parse_get_response)
-        self._add_response_handler(InstrumentCommand.SET, self._parse_set_response)
+        self._add_response_handler(InstrumentCommand.GET, self._parse_generic_response)
+        self._add_response_handler(InstrumentCommand.SET, self._parse_generic_response)
+        self._add_response_handler(InstrumentCommand.SET_CLOCK, self._parse_generic_response)
+        self._add_response_handler(InstrumentCommand.CMD_LINE, self._parse_cmd_line_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
-
-        # Add sample handlers.
+        self._build_cmd_dict()
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
+        self._wakeup = functools.partial(self._wakeup, delay=.1)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -750,187 +901,434 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return_list = []
 
-        # look for samples
-        for matches in SUNA_SAMPLE_REGEX.finditer(raw_data):
-            return_list.append((matches.start(), matches.end()))
+        sieve_match = [SUNA_SAMPLE_REGEX,
+                       SUNA_STATUS_REGEX,
+                       SUNA_TEST_REGEX]
 
-        # look for status
-        for matches in SUNA_STATUS_REGEX.finditer(raw_data):
-            return_list.append((matches.start(), matches.end()))
+        for matcher in sieve_match:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
-        # look for test
-        for matches in SUNA_TEST_REGEX.finditer(raw_data):
-            return_list.append((matches.start(), matches.end()))
-
-        # returns a list of (start, end) tuples for all matches found
         return return_list
 
-    # pretty particle printing
-    def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
-        sample = None
-        if regex.match(line):
-            particle = particle_class(line, port_timestamp=timestamp)
-            parsed_sample = particle.generate()
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
-                log.info("Parsed sample %r", pprint.pformat(parsed_sample))
-            sample = json.loads(parsed_sample)
-        return sample
+    def _build_cmd_dict(self):
+        """
+        Populate the command dictionary with commands
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire a single sample')
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='Run all status commands')
+        self._cmd_dict.add(Capability.MEASURE_N, display_name='Take N light samples following one dark sample')
+        self._cmd_dict.add(Capability.MEASURE_0, display_name='Take one dark sample ')
+        self._cmd_dict.add(Capability.TIMED_N, display_name='Take light data frames for N seconds')
+        self._cmd_dict.add(Capability.TEST, display_name='Run test commands')
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='Start instrument sampling')
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='Stop instrument sampling')
+        self._cmd_dict.add(Capability.START_POLL, display_name='Begin continuous data acquisition')
+        self._cmd_dict.add(Capability.STOP_POLL, display_name='Stop continuous data acquisition')
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='Synchronize the clock')
 
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-        log.debug("_param_dict is %s: %s", self._param_dict, self._param_dict.get_all())
-
-        ''' TODO!!! WITHOUT STARTUP CONFIG NO REGEX TO MATCH VAL IN CONFIG POSSIBLE (Hence arg 2 is r'') '''
 
         # DATA ACQUISITION
-        # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.OPERATION_MODE, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Polled", visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="opermode")
-        # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.OPERATION_CONTROL, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Samples", visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="operctrl")
+        self._param_dict.add(Parameter.OPERATION_MODE,
+                             r'OPERMODE\s(\S*)',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Operation Mode",
+                             description='Operation mode: Continuous or Polled')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.LIGHT_SAMPLES, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="lgtsmpls")
+        self._param_dict.add(Parameter.OPERATION_CONTROL,
+                             r'OPERCTRL\s(\S*)',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Operation Control",
+                             description='Operation control: Samples or Duration')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.DARK_SAMPLES, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="drksmpls")
+        self._param_dict.add(Parameter.LIGHT_SAMPLES,
+                             r'LGTSMPLS\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Light Samples",
+                             description='Number of light samples')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.LIGHT_DURATION, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=10,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="lgtdurat", units="s")
+        self._param_dict.add(Parameter.DARK_SAMPLES,
+                             r'DRKSMPLS\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Dark Samples",
+                             description='Number of dark samples')
 
-        # TODO default value (current default is what was on device, no default in IOS)????
-        self._param_dict.add(Parameter.DARK_DURATION, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="drkdurat", units="s")
+        self._param_dict.add(Parameter.LIGHT_DURATION,
+                             r'LGTDURAT\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Light Duration",
+                             description='Light duration in seconds',
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.POLLED_TIMEOUT, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=65535,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="polltout", units="s")
+        self._param_dict.add(Parameter.DARK_DURATION,
+                             r'DRKDURAT\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Dark Duration",
+                             description='Dark duration in seconds',
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.SKIP_SLEEP_AT_START, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="ON",
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="skpsleep")
+        self._param_dict.add(Parameter.POLLED_TIMEOUT,
+                             r'POLLTOUT\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=65535,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Polled Timeout",
+                             description='Instrument will go to sleep if not polled within time interval',
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.COUNTDOWN, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=15,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="countdwn", units="s")
+        self._param_dict.add(Parameter.SKIP_SLEEP_AT_START,
+                             r'SKPSLEEP\s(\S*)',
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
+                             type=ParameterDictType.BOOL,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Skip Sleep at Start",
+                             description='Skip putting instrument to sleep at start')
 
-        self._param_dict.add(Parameter.REF_MIN_AT_LAMP_ON, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="reflimit")
+        self._param_dict.add(Parameter.COUNTDOWN,
+                             r'COUNTDWN\s(\S*)',
+                             lambda match:
+                             int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=15,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Countdown",
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.LAMP_STABIL_TIME, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="stbltime", units="ds")
+        self._param_dict.add(Parameter.REF_MIN_AT_LAMP_ON,
+                             r'REFLIMIT\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Reference Minute at Lamp-On")
 
-        self._param_dict.add(Parameter.LAMP_SWITCH_OFF_TEMPERATURE, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=35,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="lamptoff")
+        self._param_dict.add(Parameter.LAMP_STABIL_TIME,
+                             r'STBLTIME\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=5,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Lamp Stability Time",
+                             units=ParameterUnit.DECISIEMENS)
 
-        self._param_dict.add(Parameter.SPECTROMETER_INTEG_PERIOD, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="spintper", units="ms")
+        self._param_dict.add(Parameter.LAMP_SWITCH_OFF_TEMPERATURE,
+                             r'LAMPTOFF\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=35,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Lamp Switch-Off Temperature",
+                             description='Temperature at which lamp will turn off',
+                             units=Units.DEGREE_CELSIUS)
+
+        self._param_dict.add(Parameter.SPECTROMETER_INTEG_PERIOD,
+                             r'SPINTPER\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Spectrometer Integration Period",
+                             units=Units.MILLISECOND)
 
         # INPUT / OUTPUT
-        self._param_dict.add(Parameter.MESSAGE_LEVEL, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Info", visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="msglevel")
+        self._param_dict.add(Parameter.MESSAGE_LEVEL,
+                             r'MSGLEVEL\s(\S*)',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Info",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Message Level",
+                             description="Level of logging: Error, Warn, Info, Debug")
 
-        self._param_dict.add(Parameter.MESSAGE_FILE_SIZE, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=0,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="msgfsize", units="MB")
+        self._param_dict.add(Parameter.MESSAGE_FILE_SIZE,
+                             r'MSGFSIZE\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Message File Size",
+                             units=ParameterUnit.MEGABYTE)
 
-        self._param_dict.add(Parameter.DATA_FILE_SIZE, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=5,
-                             visibility=ParameterDictVisibility.IMMUTABLE, display_name="datfsize", units="MB")
+        self._param_dict.add(Parameter.DATA_FILE_SIZE,
+                             r'DATFSIZE\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=5,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Data File Size",
+                             units=ParameterUnit.MEGABYTE)
 
-        self._param_dict.add(Parameter.OUTPUT_FRAME_TYPE, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Full_ASCII", visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="outfrtyp")
+        self._param_dict.add(Parameter.OUTPUT_FRAME_TYPE,
+                             r'OUTFRTYP\s(\S*)',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Full_ASCII",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Output Frame Type")
 
-        self._param_dict.add(Parameter.OUTPUT_DARK_FRAME, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="Output", visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name="outdrkfr")
+        self._param_dict.add(Parameter.OUTPUT_DARK_FRAME,
+                             r'OUTDRKFR\s(\S*)',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="Output",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="Output Dark Frame")
 
         # DATA PROCESSING
-        self._param_dict.add(Parameter.TEMP_COMPENSATION, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="Off",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="tempcomp")
+        self._param_dict.add(Parameter.TEMP_COMPENSATION,
+                             r'TEMPCOMP\s(\S*)',
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
+                             type=ParameterDictType.BOOL,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Temperature Compensation",
+                             description="Temperature compensation")
 
-        self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW, r'', lambda match: float(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="wfit_low", units="nm")
+        self._param_dict.add(Parameter.FIT_WAVELENGTH_LOW,
+                             r'WFIT_LOW\s(\S*)',
+                             lambda match: float(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Fit Wavelength Low",
+                             units=Units.NANOMETER)
 
-        self._param_dict.add(Parameter.FIT_WAVELENGTH_HIGH, r'', lambda match: float(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=False, direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY, display_name="wfit_hgh", units="nm")
+        self._param_dict.add(Parameter.FIT_WAVELENGTH_HIGH,
+                             r'WFIT_HGH\s(\S*)',
+                             lambda match: float(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Fit Wavelength High",
+                             units=Units.NANOMETER)
 
-        self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH, r'', lambda match: str(match.group(1)), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="217,240", visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="wfitboth", units="nm")
+        self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH,
+                             r'thereisnothingtomatchforthis',
+                             lambda match: str(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="217,240",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Fit Wavelength Both",
+                             units=Units.NANOMETER)
 
-        self._param_dict.add(Parameter.CONCENTRATIONS_IN_FIT, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="fitconcs")
+        self._param_dict.add(Parameter.CONCENTRATIONS_IN_FIT,
+                             r'FITCONCS\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Concentrations to Fit")
 
-        self._param_dict.add(Parameter.BASELINE_ORDER, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="bl_order")
+        self._param_dict.add(Parameter.BASELINE_ORDER,
+                             r'BL_ORDER\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             value=1,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name="Baseline Order")
 
-        self._param_dict.add(Parameter.DARK_CORRECTION_METHOD, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True,
-                             default_value="SpecAverage", visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name="drkcormt")
+        self._param_dict.add(Parameter.DARK_CORRECTION_METHOD,
+                             r'DRKCORMT\s(\S*)',
+                             lambda match: match.group(1),
+                             str,
+                             type=ParameterDictType.STRING,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value="SpecAverage",
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Dark Correction Method")
 
-        self._param_dict.add(Parameter.SALINITY_FITTING, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="On",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="salinfit")
+        self._param_dict.add(Parameter.SALINITY_FITTING,
+                             r'SALINFIT\s(\S*)',
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
+                             type=ParameterDictType.BOOL,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Salinity Fitting")
 
-        self._param_dict.add(Parameter.BROMIDE_TRACING, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="Off",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="brmtrace")
+        self._param_dict.add(Parameter.BROMIDE_TRACING,
+                             r'BRMTRACE\s(\S*)',
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
+                             type=ParameterDictType.BOOL,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=False,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Bromide Tracing")
 
-        self._param_dict.add(Parameter.ABSORBANCE_CUTOFF, r'', lambda match: float(match.group(1)), str,
-                             type=ParameterDictType.FLOAT, startup_param=True, direct_access=True, default_value=1.3,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="a_cutoff")
+        self._param_dict.add(Parameter.ABSORBANCE_CUTOFF,
+                             r'A_CUTOFF\s(\S*)',
+                             lambda match: float(match.group(1)),
+                             str,
+                             type=ParameterDictType.FLOAT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1.3,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Absorbance Cutoff")
 
-        self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT, r'', lambda match: match.group(1), str,
-                             type=ParameterDictType.STRING, startup_param=True, direct_access=True, default_value="On",
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intpradj")
+        self._param_dict.add(Parameter.INTEG_TIME_ADJUSTMENT,
+                             r'INTPRADJ\s(\S*)',
+                             lambda match: True if match.group(1) == InstrumentCommandArgs.ON else False,
+                             lambda x: InstrumentCommandArgs.ON if x else InstrumentCommandArgs.OFF,
+                             type=ParameterDictType.BOOL,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=True,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Integration Time Adjustment")
 
-        self._param_dict.add(Parameter.INTEG_TIME_FACTOR, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=1,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intprfac")
+        self._param_dict.add(Parameter.INTEG_TIME_FACTOR,
+                             r'INTPRFAC\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Integration Time Factor",
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.INTEG_TIME_STEP, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=20,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intadstp")
+        self._param_dict.add(Parameter.INTEG_TIME_STEP,
+                             r'INTADSTP\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=20,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Integration Time Step",
+                             units=Units.SECOND)
 
-        self._param_dict.add(Parameter.INTEG_TIME_MAX, r'', lambda match: int(match.group(1)), str,
-                             type=ParameterDictType.INT, startup_param=True, direct_access=True, default_value=20,
-                             visibility=ParameterDictVisibility.READ_WRITE, display_name="intadmax")
+        self._param_dict.add(Parameter.INTEG_TIME_MAX,
+                             r'INTADMAX\s(\S*)',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=20,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Integration Time Max",
+                             units=Units.SECOND)
 
-        log.debug("PARAM DICT %s", self._param_dict.get_all())
+        #DRIVER PARAMETERS
+        self._param_dict.add(Parameter.NUM_LIGHT_SAMPLES,
+                             r'donotmatch',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Number of Light Samples",
+                             description="Number of light samples taken in polled mode")
+
+        self._param_dict.add(Parameter.TIME_LIGHT_SAMPLE,
+                             r'donotmatch',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="Time to Take Light Sample",
+                             description="Number of seconds to take light samples in polled mode ",
+                             units=Units.SECOND)
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -940,20 +1338,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         try:
             if self._extract_sample(SUNASampleDataParticle, SUNA_SAMPLE_REGEX, chunk, timestamp):
                 return
-        except SampleException:
-            log.debug("==== ERROR WITH SAMPLE")
-
-        try:
             if self._extract_sample(SUNAStatusDataParticle, SUNA_STATUS_REGEX, chunk, timestamp):
                 return
-        except SampleException:
-            log.debug("==== ERROR WITH STATUS")
-
-        try:
             if self._extract_sample(SUNATestDataParticle, SUNA_TEST_REGEX, chunk, timestamp):
                 return
         except SampleException:
-            log.debug("==== ERROR WITH TEST")
+            raise SampleException('Error extracting DataParticle')
 
     def _filter_capabilities(self, events):
         """
@@ -961,436 +1351,292 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return [x for x in events if Capability.has(x)]
 
-    def _do_cmd_no_resp(self, cmd, *args, **kwargs):
+    def _handler_generic_exit(self, *args, **kwargs):
         """
-        Issue a command to the instrument after clearing of
-        buffers. No response is handled as a result of the command.
-
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup timeout.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built.
+        Generic exit handler, do nothing
         """
-        timeout = kwargs.get('timeout', 15)
-        write_delay = kwargs.get('write_delay', 0)
 
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
-        cmd_line = build_handler(cmd, *args)
-        log.debug("AK DEBUG SENDING CMD LINE %s", cmd_line)
-
-        # Clear line and prompt buffers for result.
-        #self._linebuf = ''
-        #self._promptbuf = ''
-
-        # Send command.
-        log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
-        if write_delay == 0:
-            self._connection.send(cmd_line)
-        else:
-            for char in cmd_line:
-                self._connection.send(char)
-                time.sleep(write_delay)
+    def _handler_generic_enter(self, *args, **kwargs):
+        """
+        Generic enter handler, raise STATE CHANGE
+        """
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
-    def _handler_unknown_enter(self):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
     def _handler_unknown_discover(self):
         """
         Discover current state
+        Always starts in command state
         @retval (next_state, result)
         """
         self._wakeup(20)
-        self._send_dollar()
+        ret_prompt = self._send_dollar()
 
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        #came from autosampling/polling, need to resend '$' one more time to get it into command mode
+        if ret_prompt == Prompt.POLLED:
+            self._send_dollar()
 
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+        return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
     # Command handlers.
     ########################################################################
-
     def _handler_command_enter(self):
         """
         Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to initialize parameters and send a config change event.
         self._init_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_acquire_sample(self):
         """
         Start acquire sample
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        #self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Polled")
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
-        self._send_dollar()
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 1, expected_prompt=[Prompt.POLLED, Prompt.COMMAND],
+                          timeout=POLL_TIMEOUT)
 
-        return (next_state, (next_agent_state, result))
+        ret_prompt = self._send_dollar()
+
+        #came from autosampling/polling, need to resend '$' one more time to get it into command mode
+        if ret_prompt == Prompt.POLLED:
+            self._send_dollar()
+
+        return None, (None, None)
 
     def _handler_command_acquire_status(self):
         """
         Start acquire status
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.STATUS)
-
-        return (next_state, (next_agent_state, result))
+        self._do_cmd_no_resp(InstrumentCommand.GET_CAL_FILE)
+        return None, (None, None)
 
     def _handler_command_start_direct(self):
         """
         Start direct access
         """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_start_poll(self):
-        """
-        Start polling
-        """
-        next_state = ProtocolState.POLL
-        next_agent_state = None
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Polled")
-        self._do_cmd_no_resp(InstrumentCommand.EXIT)
-
-        return (next_state, (next_agent_state, result))
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_start_autosample(self):
         """
         Start autosampling
         """
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Continuous")
+        self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
 
-        return (next_state, (next_agent_state,  result))
+        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
-    def _handler_command_get(self, params=None):
+    def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter(s)
         @param params List of parameters to get
         """
-        next_state = None
-        result = {}
-
-        log.debug("GET FOR: %s", params)
-
-        if params == Parameter.ALL:
-            result = self._param_dict.get_all()
-
-        elif not params or not isinstance(params, list):
-            raise InstrumentParameterException()
-
-        else:
-            for param in params:
-                if not Parameter.has(param):
-                    raise InstrumentParameterException("%s is not a parameter" % param)
-
-                # handle driver parameters
-                if param == Parameter.NUM_LIGHT_SAMPLES:
-                    result[param] = self.num_samples
-                elif param == Parameter.TIME_LIGHT_SAMPLE:
-                    result[param] = self.time_samples
-
-                # handle instrument parameters
-                else:
-                    type_func = PARAM_TYPE_FUNC.get(param)
-                    result[param] = type_func(self._get_from_instrument(param))  # we always get str type from instrument
-
-        log.debug("Get finished, next: %s, result: %s,", next_state, result)
-        return (next_state, result)
+        return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, params, *args):
         """
         Set parameter
         """
-        next_state = None
-        result = {}
+        self._set_params(params, *args)
+        return None, None
 
-        if params is None or not isinstance(params, dict):
-            raise InstrumentParameterException()
+    def _set_params(self, *args, **kwargs):
+        """
+        Used to set the parameters when startup config is set by _init_params call
+        """
+        try:
+            params = args[0]
 
-        self._verify_not_readonly(params)
+            if params is None or not isinstance(params, dict):
+                raise InstrumentParameterException('Params is empty or is not a dictionary')
 
-        for key in params.keys():
-            if not Parameter.has(key):
-                raise InstrumentParameterException("%s is not a parameter" % key)
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
 
+        self._verify_not_readonly(*args, **kwargs)
+
+        old_config = self._param_dict.get_config()
+        log.debug("OLD CONFIG: %s", self._param_dict.get_config())
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = %s VALUE = %s", key, val)
             # check for driver parameters
-            if key == Parameter.NUM_LIGHT_SAMPLES:
-                self.num_samples = params[key]
-            elif key == Parameter.TIME_LIGHT_SAMPLE:
-                self.time_samples = params[key]
+            if key in [Parameter.NUM_LIGHT_SAMPLES, Parameter.TIME_LIGHT_SAMPLE]:
+                if key == Parameter.NUM_LIGHT_SAMPLES:
+                    if key >= MIN_LIGHT_SAMPLE or key <= MAX_LIGHT_SAMPLE:
+                        self._param_dict.set_value(key, params[key])
+                    else:
+                        raise InstrumentParameterException('Parameter value is outside constraints!')
 
-            # process instrument parameters
-            elif self._param_dict.get(key) != params[key]:    # if already set to "new" value we are done
+                if key == Parameter.TIME_LIGHT_SAMPLE:
+                    if key >= MIN_TIME_SAMPLE or key <= MAX_TIME_SAMPLE:
+                        self._param_dict.set_value(key, params[key])
+                    else:
+                        raise InstrumentParameterException('Parameter value is outside constraints!')
+            else:
                 try:
                     str_val = self._param_dict.format(key, params[key])
                 except KeyError:
-                    raise InstrumentParameterException()
+                    raise InstrumentParameterException('Could not format param %s' % key)
 
-                result[key] = self._do_cmd_resp(InstrumentCommand.SET, key, str_val,
-                                                timeout=100,
-                                                response_regex=re.compile(Prompt.SET_OK),
-                                                write_delay=0)
+                self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT, expected_prompt=[Prompt.OK, Prompt.ERROR])
+                self._param_dict.set_value(key, params[key])
 
-                # Populate with actual value instead of success flag
-                if result[key]:
-                    self._param_dict.set_value(key, params[key])
-                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        new_config = self._param_dict.get_config()
+        log.debug("NEW CONFIG: %s", self._param_dict.get_config())
 
-            else:
-                log.debug("Parameter %s already set to %s", key, params[key])
-
-        log.debug("Set finished, next: %s, result: %s", next_state, result)
-        return (next_state, None)
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _handler_command_test(self):
         """
         Test the instrument state
         """
-        next_state = None
-        next_state_agent = None
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.SELFTEST)
-
-        return (next_state, (next_state_agent, result))
+        return None, (None, None)
 
     def _handler_command_exit(self):
         """
         Exit the command state
         """
-
         self._do_cmd_no_resp(InstrumentCommand.EXIT)
         self._do_cmd_no_resp(InstrumentCommand.SLEEP)
 
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        return ProtocolState.UNKNOWN, (None, None)
 
-        return (ProtocolState.UNKNOWN, (None, None))
+    def _handler_command_clock_sync(self, *args, **kwargs):
+        """
+        Sync clock close to a second edge
+        set clock YYYY/MM/DD hh:mm:ss
+        """
+        str_time = get_timestamp_delayed("%Y/%m/%d %H:%M:%S")
+        log.debug('syncing clock to: %s', str_time)
+
+        self._do_cmd_resp(InstrumentCommand.SET_CLOCK, str_time, timeout=TIMEOUT,
+                          expected_prompt=[Prompt.OK, Prompt.ERROR])
+
+        return None, (None, None)
 
     ########################################################################
     # Direct access handlers.
     ########################################################################
-
     def _handler_direct_access_enter(self):
         """
         Enter direct access state.
         """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        Send commands from operator directly to the instrument
         """
-        next_state = None
-        result = None
-        next_agent_state = None
-
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return (next_state, (next_agent_state, result))
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
-        @throw InstrumentProtocolException on invalid command
+        Stoping DA, restore the DA parameters to their previous value
         """
-        result = None
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return (next_state, (next_agent_state, result))
+        self._init_params()
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Poll handlers.
     ########################################################################
-
-    def _handler_poll_enter(self):
+    def _start_poll(self):
         """
-        Enter poll state
+        Start polling
         """
-        next_state = None
-        result = None
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return (next_state, result)
+        self._do_cmd_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, InstrumentCommandArgs.POLLED,
+                          expected_prompt=[Prompt.OK, Prompt.ERROR, Prompt.POLLED])
+        self._do_cmd_resp(InstrumentCommand.EXIT, expected_prompt=Prompt.POLLED)
 
     def _handler_poll_acquire_sample(self):
         """
         Get a sample from the SUNA
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, 1)
-
-        return (next_state, (next_agent_state, result))
+        self._start_poll()
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 1, expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
+        return None, (None, None)
 
     def _handler_poll_measure_n(self):
         """
         Measure N Light Samples
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, self.num_samples, timeout=100)
-
-        return (next_state, (next_agent_state, result))
+        self._start_poll()
+        self._do_cmd_resp(InstrumentCommand.MEASURE, self._param_dict.get(Parameter.NUM_LIGHT_SAMPLES),
+                          expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
+        return None, (None, None)
 
     def _handler_poll_measure_0(self):
         """
-        Measure 1 Dark Sample
+        Measure 0 Dark Sample
         """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.MEASURE, 0)
-
-        return (next_state, (next_agent_state, result))
+        self._start_poll()
+        self._do_cmd_resp(InstrumentCommand.MEASURE, 0, expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
+        return None, (None, None)
 
     def _handler_poll_timed_n(self):
         """
         Timed Sampling for N time
         """
-        next_state = None
-        next_agent_state = None
-        result = None
+        self._start_poll()
+        self._do_cmd_resp(InstrumentCommand.TIMED, self._param_dict.get(Parameter.TIME_LIGHT_SAMPLE),
+                             expected_prompt=Prompt.POLLED, timeout=POLL_TIMEOUT)
+        self._stop_poll()
+        return None, (None, None)
 
-        self._do_cmd_no_resp(InstrumentCommand.TIMED, self.time_samples, timeout=100)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_poll_reset(self):
-        """
-        reset the device
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)  # go to cmd line
-        self._do_cmd_no_resp(InstrumentCommand.REBOOT, timeout=100)  # reboot the device
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_poll_stop_poll(self):
+    def _stop_poll(self):
         """
         Exit the poll state
         """
-        result = None
-
         try:
             self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-            self._send_dollar()     # send a "$" to get the device back to command mode
-            next_state = ProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.COMMAND
-        except InstrumentException:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Could not interrupt hardware!")
+            ret_prompt = self._send_dollar()
 
-        return (next_state, (next_agent_state, result))
+            #came from autosampling/polling, need to resend '$' one more time to get it into command mode
+            if ret_prompt == Prompt.POLLED:
+                self._send_dollar()
+
+        except InstrumentException:
+            raise InstrumentProtocolException("Could not interrupt hardware!")
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
-
-    def _handler_autosample_enter(self):
-        """
-        Enter autosample state
-        """
-        next_state = None
-        result = None
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return (next_state, result)
-
-    def _handler_autosample_reset(self):
-        """
-        reset the device
-        """
-        next_state = ProtocolState.POLL
-        next_agent_state = ResourceAgentState.COMMAND
-        result = None
-
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
-        self._wakeup(20)        # if device is already awake and in polled mode this won't do anything
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)  # go to cmd line
-        self._do_cmd_no_resp(InstrumentCommand.SET, Parameter.OPERATION_MODE, "Polled")  # DONT RETURN TO AUTOSAMPLING
-        self._do_cmd_no_resp(InstrumentCommand.REBOOT, timeout=100)  # reboot the device
-
-        return (next_state, (next_agent_state, result))
-
     def _handler_autosample_stop_autosample(self):
         """
         Exit the autosample state
         """
-        result = None
-
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
-        #time.sleep(15)      # anything done in these 15 seconds can cause undefined behavior in the instrument
         self._wakeup(20)
         self._do_cmd_no_resp(InstrumentCommand.CMD_LINE)
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # Build handlers
     ########################################################################
-    def _build_simple_command(self, cmd, *args):
+    def _build_clock_command(self, cmd, value):
         """
-        Builder for simple commands
+        Build a command to get the desired argument.
 
-        @param cmd The command to build
-        @param args Unused arguments
+        @param cmd The command being used (Command.CLOCK_SYNC in this case)
+        @param value string containing the date/time to set
         @retval Returns string ready for sending to instrument
         """
-        return "%s%s" % (cmd, NEWLINE)
+        return "%s %s%s" % (InstrumentCommand.SET_CLOCK, value, NEWLINE)
 
     def _build_get_command(self, cmd, param):
         """
@@ -1400,9 +1646,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param param The name of the parameter to get
         @retval Returns string ready for sending to instrument
         """
-        assert Parameter.has(param)
-        assert cmd == InstrumentCommand.GET
-        log.debug("Building command %s %s", cmd, param)
+        if not Parameter.has(param):
+            raise InstrumentParameterException("%s is not a parameter" % param)
         return "%s %s%s" % (InstrumentCommand.GET, param, NEWLINE)
 
     def _build_set_command(self, cmd, param, value):
@@ -1414,8 +1659,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @value The value to set the parameter to
         @retval Returns string ready for sending to instrument
         """
-        assert Parameter.has(param)
-        assert cmd == InstrumentCommand.SET
+        if not Parameter.has(param):
+            raise InstrumentParameterException("%s is not a parameter" % param)
         return "%s %s %s%s" % (InstrumentCommand.SET, param, value, NEWLINE)
 
     def _build_measure_command(self, cmd, samples):
@@ -1426,9 +1671,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param samples The number of light samples to take
         @retval Returns string ready for sending to instrument
         """
-        assert samples >= 0  # negative samples is not valid
-        assert cmd == InstrumentCommand.MEASURE
-        return "%s %s%s" % (InstrumentCommand.MEASURE, str(samples), NEWLINE)
+        if samples < 0:
+            raise InstrumentParameterException("Sample count cannot be less than 0: (%s)" % samples)
+        return "%s %s%s" % (InstrumentCommand.MEASURE, samples, NEWLINE)
 
     def _build_timed_command(self, cmd, time_amount):
         """
@@ -1438,106 +1683,81 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param time_amount The amount of time to sample for
         @retval Returns string ready for sending to instrument
         """
-        assert time_amount > 0  # sampling for no/negative time is not valid
-        assert cmd == InstrumentCommand.TIMED
-        return "%s %s%s" % (InstrumentCommand.TIMED, str(time_amount), NEWLINE)
+        if time_amount < 0:
+            raise InstrumentParameterException("Time to sample cannot be less than 0: " % time_amount)
+        return "%s %s%s" % (InstrumentCommand.TIMED, time_amount, NEWLINE)
 
     ########################################################################
     # Response handlers
     ########################################################################
-    def _parse_set_response(self, response, prompt):
-        """Determine if a set was successful or not
+    def _parse_generic_response(self, response, prompt):
+        if prompt == Prompt.ERROR:
+            raise InstrumentProtocolException("Error occurred for command: (%r)" % response)
+        return response
 
-        @param response What was sent back from the command that was sent
+    def _parse_cmd_line_response(self, response, prompt):
         """
-        log.debug("SET response %s", response)
-        if re.match(Prompt.ERROR, response):
-            return InstErrorCode.SET_DEVICE_ERR
-        elif not response:
-            return InstErrorCode.HARDWARE_ERROR
-        else:
-            return True
-
-    def _parse_get_response(self, response, prompt):
-        """ Parse the response from the instrument for a couple of different
-        query responses.
+        Parse the response from the instrument for a $ command.
 
         @param response The response string from the instrument
-        @retval return The numerical value of the parameter in the known units
-        @raise InstrumentProtocolException When a bad response is encountered
+        @param prompt The prompt received from the instrument
+        @retval return The response as is, None is there is no response
         """
-        if re.match(Prompt.ERROR, response):
-            return InstErrorCode.GET_DEVICE_ERR
-        elif not response:
-            return InstErrorCode.HARDWARE_ERROR
-
-        return response
+        for search_prompt in (Prompt.POLLED, Prompt.COMMAND):
+            start = response.find(search_prompt)
+            if start != -1:
+                log.debug("_parse_cmd_line_response: response=%r", response[start:start + len(search_prompt)])
+                return response[start:start + len(search_prompt)]
+        return None
 
     ########################################################################
     # Helpers
     ########################################################################
+    def _update_params(self):
+        """
+        Update the parameter dictionary by getting new values from the instrument. The response
+        is saved to the param dictionary.
+        """
+        params = self._param_dict.get_keys()
+        for param in params:
+            if param in [Parameter.NUM_LIGHT_SAMPLES, Parameter.TIME_LIGHT_SAMPLE]:
+                #do nothing, cannot update this parameter via the instrument
+                pass
+            else:
+                val = _get_from_instrument(param)
+                self._param_dict.set_value(param, val)
+
     def _get_from_instrument(self, param):
         """
-        instruct the instrument to get a parameter value from the instrument
+        Instruct the instrument to get a parameter value from the instrument
         @param param: name of the parameter
         @return: value read from the instrument.  None otherwise.
         @raise: InstrumentProtocolException when fail to get a response from the instrument
         """
-        for attempt in range(RETRY):
-            # retry up to RETRY times
+        for attempt in xrange(RETRY):
+            #try up to RETRY times
             try:
                 val = self._do_cmd_resp(InstrumentCommand.GET, param,
-                                        timeout=100,
-                                        response_regex=re.compile(Prompt.OK),
-                                        write_delay=0)
+                                        timeout=TIMEOUT,
+                                        response_regex=OK_GET_REGEX)
                 return val
-            except InstrumentProtocolException as ex:
+            except InstrumentProtocolException:
                 pass   # GET failed, so retry again
         else:
             # retries exhausted, so raise exception
-            raise ex
-
-    def _get_from_param_dict(self, param):
-        return self._param_dict.get(param, 0)
+            raise InstrumentProtocolException('Unable to GET parameter %s from instrument') % param
 
     def _send_wakeup(self):
-        """Send a wakeup to this instrument...one that wont hurt if it is awake
-        already."""
+        """
+        Send a wakeup to this instrument...one that wont hurt if it is awake
+        already.
+        """
         self._connection.send(NEWLINE)
 
-    def _send_dollar(self, timeout=15):
+    def _send_dollar(self):
         """
         Send a blind $ command to the device
         """
-        log.debug("Sending $ char")
-
-        self._do_cmd_no_resp(InstrumentCommand.CMD_LINE, timeout=timeout,
-                             expected_prompt=Prompt.COMMAND)
-
-    def _set_params(self, *args, **kwargs):
-        """
-        Used to set the parameters when startup config is set by _init_params call
-        """
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        self._verify_not_readonly(*args, **kwargs)
-
-        old_config = self._param_dict.get_config()
-        log.debug("OLD CONFIG: %s", self._param_dict.get_config())
-
-        for (key, val) in params.iteritems():
-            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-            self._do_cmd_resp(InstrumentCommand.SET, key, val,
-                              timeout=100,
-                              response_regex=re.compile(Prompt.SET_OK),
-                              write_delay=0)
-            self._param_dict.set_value(key, params[key])
-
-        new_config = self._param_dict.get_config()
-        log.debug("NEW CONFIG: %s", self._param_dict.get_config())
-
-        if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        ret_prompt = self._do_cmd_resp(InstrumentCommand.CMD_LINE, timeout=TIMEOUT,
+                                       expected_prompt=[Prompt.COMMAND, Prompt.POLLED])
+        return ret_prompt

@@ -1,0 +1,245 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:09:09Z'
+    dcl_controller_timestamp: '2003/02/08 05:09:09.340'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:       0.00
+    sample_delay: -32768
+    channel_array: [0, 1, 2, 3, 4, 5, 6]
+    vin_sense: 0
+    va_sense: 0
+    internal_temperature: 0
+    frame_counter: 0
+    passed_checksum: 1
+  - _index:  2
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:09:22Z'
+    dcl_controller_timestamp: '2003/02/08 05:09:22.919'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:       8.00
+    sample_delay: -28399
+    channel_array: [286331152, 286331153, 286331154, 286331155, 286331156, 286331157, 286331158]
+    vin_sense: 4369
+    va_sense: 4369
+    internal_temperature: 4369
+    frame_counter: 17
+    passed_checksum: 1
+  - _index:  3
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:09:36Z'
+    dcl_controller_timestamp: '2003/02/08 05:09:36.498'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      16.00
+    sample_delay: -24030
+    channel_array: [572662304, 572662305, 572662306, 572662307, 572662308, 572662309, 572662310]
+    vin_sense: 8738
+    va_sense: 8738
+    internal_temperature: 8738
+    frame_counter: 34
+    passed_checksum: 1
+  - _index:  4
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:09:50Z'
+    dcl_controller_timestamp: '2003/02/08 05:09:50.077'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      24.00
+    sample_delay: -19661
+    channel_array: [858993456, 858993457, 858993458, 858993459, 858993460, 858993461, 858993462]
+    vin_sense: 13107
+    va_sense: 13107
+    internal_temperature: 13107
+    frame_counter: 51
+    passed_checksum: 1
+  - _index:  5
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:10:03Z'
+    dcl_controller_timestamp: '2003/02/08 05:10:03.656'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      32.00
+    sample_delay: -15292
+    channel_array: [1145324608, 1145324609, 1145324610, 1145324611, 1145324612, 1145324613, 1145324614]
+    vin_sense: 17476
+    va_sense: 17476
+    internal_temperature: 17476
+    frame_counter: 68
+    passed_checksum: 1
+  - _index:  6
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:10:17Z'
+    dcl_controller_timestamp: '2003/02/08 05:10:17.235'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      40.00
+    sample_delay: -10923
+    channel_array: [1431655760, 1431655761, 1431655762, 1431655763, 1431655764, 1431655765, 1431655766]
+    vin_sense: 21845
+    va_sense: 21845
+    internal_temperature: 21845
+    frame_counter: 85
+    passed_checksum: 1
+  - _index:  7
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:10:30Z'
+    dcl_controller_timestamp: '2003/02/08 05:10:30.814'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      48.00
+    sample_delay: -6554
+    channel_array: [1717986912, 1717986913, 1717986914, 1717986915, 1717986916, 1717986917, 1717986918]
+    vin_sense: 26214
+    va_sense: 26214
+    internal_temperature: 26214
+    frame_counter: 102
+    passed_checksum: 1
+  - _index:  8
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:10:44Z'
+    dcl_controller_timestamp: '2003/02/08 05:10:44.393'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      56.00
+    sample_delay: -2185
+    channel_array: [2004318064, 2004318065, 2004318066, 2004318067, 2004318068, 2004318069, 2004318070]
+    vin_sense: 30583
+    va_sense: 30583
+    internal_temperature: 30583
+    frame_counter: 119
+    passed_checksum: 0
+  - _index:  9
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:11:52Z'
+    dcl_controller_timestamp: '2003/02/08 05:11:52.288'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      64.00
+    sample_delay: 2184
+    channel_array: [2290649216, 2290649217, 2290649218, 2290649219, 2290649220, 2290649221, 2290649222]
+    vin_sense: 34952
+    va_sense: 34952
+    internal_temperature: 34952
+    frame_counter: 136
+    passed_checksum: 1
+  - _index:  10
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:12:05Z'
+    dcl_controller_timestamp: '2003/02/08 05:12:05.867'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      72.00
+    sample_delay: 6553
+    channel_array: [2576980368, 2576980369, 2576980370, 2576980371, 2576980372, 2576980373, 2576980374]
+    vin_sense: 39321
+    va_sense: 39321
+    internal_temperature: 39321
+    frame_counter: 153
+    passed_checksum: 1
+  - _index:  11
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:12:19Z'
+    dcl_controller_timestamp: '2003/02/08 05:12:19.446'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      80.00
+    sample_delay: 10922
+    channel_array: [2863311520, 2863311521, 2863311522, 2863311523, 2863311524, 2863311525, 2863311526]
+    vin_sense: 43690
+    va_sense: 43690
+    internal_temperature: 43690
+    frame_counter: 170
+    passed_checksum: 1
+  - _index:  12
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:12:33Z'
+    dcl_controller_timestamp: '2003/02/08 05:12:33.025'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      88.00
+    sample_delay: 15291
+    channel_array: [3149642672, 3149642673, 3149642674, 3149642675, 3149642676, 3149642677, 3149642678]
+    vin_sense: 48059
+    va_sense: 48059
+    internal_temperature: 48059
+    frame_counter: 187
+    passed_checksum: 1
+  - _index:  13
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:12:46Z'
+    dcl_controller_timestamp: '2003/02/08 05:12:46.604'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:      96.00
+    sample_delay: 19660
+    channel_array: [3435973824, 3435973825, 3435973826, 3435973827, 3435973828, 3435973829, 3435973830]
+    vin_sense: 52428
+    va_sense: 52428
+    internal_temperature: 52428
+    frame_counter: 204
+    passed_checksum: 1
+  - _index:  14
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:13:00Z'
+    dcl_controller_timestamp: '2003/02/08 05:13:00.183'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:     104.00
+    sample_delay: 24029
+    channel_array: [3722304976, 3722304977, 3722304978, 3722304979, 3722304980, 3722304981, 3722304982]
+    vin_sense: 56797
+    va_sense: 56797
+    internal_temperature: 56797
+    frame_counter: 221
+    passed_checksum: 1
+  - _index:  15
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:13:13Z'
+    dcl_controller_timestamp: '2003/02/08 05:13:13.762'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:     112.00
+    sample_delay: 28398
+    channel_array: [4008636128, 4008636129, 4008636130, 4008636131, 4008636132, 4008636133, 4008636134]
+    vin_sense: 61166
+    va_sense: 61166
+    internal_temperature: 61166
+    frame_counter: 238
+    passed_checksum: 1
+  - _index:  16
+    particle_object: SpkirAbjDclRecoveredInstrumentDataParticle
+    particle_type: spkir_abj_dcl_instrument_recovered
+    internal_timestamp: '2003-02-08T05:13:27Z'
+    dcl_controller_timestamp: '2003/02/08 05:13:27.341'
+    instrument_id: 'SATDI2'
+    serial_number: '0022'
+    timer:     120.00
+    sample_delay: 32767
+    channel_array: [4294967280, 4294967281, 4294967282, 4294967283, 4294967284, 4294967285, 4294967286]
+    vin_sense: 65535
+    va_sense: 65535
+    internal_temperature: 65535
+    frame_counter: 255
+    passed_checksum: 0

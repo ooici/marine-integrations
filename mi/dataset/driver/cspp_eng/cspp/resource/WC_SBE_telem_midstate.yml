@@ -1,0 +1,52 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.048000
+    profiler_timestamp: 1397773523.0480000972747803
+    pressure_depth: 0.5669999999999999
+    suspect_timestamp: 0
+    velocity_flt32: 0.0150000000000000
+  - _index: 2
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.057000
+    profiler_timestamp: 1397773523.0569999217987061
+    pressure_depth: 0.5639999999999999
+    suspect_timestamp: 0
+    velocity_flt32: 0.0070000000000000
+  - _index: 3
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.065000
+    profiler_timestamp: 1397773523.0650000572204590
+    pressure_depth: 0.5639999999999999
+    suspect_timestamp: 0
+    velocity_flt32: 0.0070000000000000
+  - _index: 4
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.074000
+    profiler_timestamp: 1397773523.0739998817443848
+    pressure_depth: 0.5659999999999999
+    suspect_timestamp: 0
+    velocity_flt32: 0.0120000000000000
+  - _index: 5
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.117000
+    profiler_timestamp: 1397773523.1170001029968262
+    pressure_depth: 0.5629999999999999
+    suspect_timestamp: 0
+    velocity_flt32: 0.0020000000000000
+  - _index: 6
+    particle_object: WcSbeEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_sbe_eng
+    internal_timestamp: 3606762323.173000
+    profiler_timestamp: 1397773523.1730000972747803
+    pressure_depth: 0.5600000000000001
+    suspect_timestamp: 0
+    velocity_flt32: -0.0050000000000000

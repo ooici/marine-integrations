@@ -1,0 +1,32 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762515.885000
+    profiler_timestamp: 1397773715.8849999904632568
+    pressure_depth: 18.7280000000000015
+    suspect_timestamp: 0
+    timer: 23.7899999999999991
+    sample_delay: -133
+    channel_array: [2147965824, 2147665920, 2148562176, 2148448576, 2150130240, 2147352512, 2147461824]
+    vin_sense: 276
+    va_sense: 175
+    internal_temperature: 175
+    frame_counter: 144
+  - _index: 2
+    particle_object: SpkirAbjCsppInstrumentTelemeteredDataParticle
+    particle_type: spkir_abj_cspp_instrument
+    internal_timestamp: 3606762526.157000
+    profiler_timestamp: 1397773726.1570000648498535
+    pressure_depth: 17.7109999999999985
+    suspect_timestamp: 0
+    timer: 34.0700000000000003
+    sample_delay: -133
+    channel_array: [2147983744, 2147677312, 2148627840, 2148582848, 2150414976, 2147356480, 2147467072]
+    vin_sense: 282
+    va_sense: 176
+    internal_temperature: 176
+    frame_counter: 219

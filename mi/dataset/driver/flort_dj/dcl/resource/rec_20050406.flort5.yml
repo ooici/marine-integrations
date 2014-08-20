@@ -1,0 +1,341 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:23Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:23.095'
+    date_string: '04/06/04'
+    time_string: '23:13:23'
+    measurement_wavelength_beta: 0
+    raw_signal_beta: 1
+    measurement_wavelength_chl: 2
+    raw_signal_chl: 3
+    measurement_wavelength_cdom: 4
+    raw_signal_cdom: 5
+    raw_internal_temp: 6
+  - _index:  2
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:25Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:25.453'
+    date_string: '04/06/04'
+    time_string: '23:13:25'
+    measurement_wavelength_beta: 2849
+    raw_signal_beta: 2850
+    measurement_wavelength_chl: 2851
+    raw_signal_chl: 2852
+    measurement_wavelength_cdom: 2853
+    raw_signal_cdom: 2854
+    raw_internal_temp: 2855
+  - _index:  3
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:27Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:27.811'
+    date_string: '04/06/04'
+    time_string: '23:13:27'
+    measurement_wavelength_beta: 5698
+    raw_signal_beta: 5699
+    measurement_wavelength_chl: 5700
+    raw_signal_chl: 5701
+    measurement_wavelength_cdom: 5702
+    raw_signal_cdom: 5703
+    raw_internal_temp: 5704
+  - _index:  4
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:30Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:30.169'
+    date_string: '04/06/04'
+    time_string: '23:13:30'
+    measurement_wavelength_beta: 8547
+    raw_signal_beta: 8548
+    measurement_wavelength_chl: 8549
+    raw_signal_chl: 8550
+    measurement_wavelength_cdom: 8551
+    raw_signal_cdom: 8552
+    raw_internal_temp: 8553
+  - _index:  5
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:32Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:32.527'
+    date_string: '04/06/04'
+    time_string: '23:13:32'
+    measurement_wavelength_beta: 11396
+    raw_signal_beta: 11397
+    measurement_wavelength_chl: 11398
+    raw_signal_chl: 11399
+    measurement_wavelength_cdom: 11400
+    raw_signal_cdom: 11401
+    raw_internal_temp: 11402
+  - _index:  6
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:34Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:34.885'
+    date_string: '04/06/04'
+    time_string: '23:13:34'
+    measurement_wavelength_beta: 14245
+    raw_signal_beta: 14246
+    measurement_wavelength_chl: 14247
+    raw_signal_chl: 14248
+    measurement_wavelength_cdom: 14249
+    raw_signal_cdom: 14250
+    raw_internal_temp: 14251
+  - _index:  7
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:44Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:44.317'
+    date_string: '04/06/04'
+    time_string: '23:13:44'
+    measurement_wavelength_beta: 17094
+    raw_signal_beta: 17095
+    measurement_wavelength_chl: 17096
+    raw_signal_chl: 17097
+    measurement_wavelength_cdom: 17098
+    raw_signal_cdom: 17099
+    raw_internal_temp: 17100
+  - _index:  8
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:46Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:46.675'
+    date_string: '04/06/04'
+    time_string: '23:13:46'
+    measurement_wavelength_beta: 19943
+    raw_signal_beta: 19944
+    measurement_wavelength_chl: 19945
+    raw_signal_chl: 19946
+    measurement_wavelength_cdom: 19947
+    raw_signal_cdom: 19948
+    raw_internal_temp: 19949
+  - _index:  9
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:49Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:49.033'
+    date_string: '04/06/04'
+    time_string: '23:13:49'
+    measurement_wavelength_beta: 22792
+    raw_signal_beta: 22793
+    measurement_wavelength_chl: 22794
+    raw_signal_chl: 22795
+    measurement_wavelength_cdom: 22796
+    raw_signal_cdom: 22797
+    raw_internal_temp: 22798
+  - _index:  10
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:51Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:51.391'
+    date_string: '04/06/04'
+    time_string: '23:13:51'
+    measurement_wavelength_beta: 25641
+    raw_signal_beta: 25642
+    measurement_wavelength_chl: 25643
+    raw_signal_chl: 25644
+    measurement_wavelength_cdom: 25645
+    raw_signal_cdom: 25646
+    raw_internal_temp: 25647
+  - _index:  11
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:53Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:53.749'
+    date_string: '04/06/04'
+    time_string: '23:13:53'
+    measurement_wavelength_beta: 28490
+    raw_signal_beta: 28491
+    measurement_wavelength_chl: 28492
+    raw_signal_chl: 28493
+    measurement_wavelength_cdom: 28494
+    raw_signal_cdom: 28495
+    raw_internal_temp: 28496
+  - _index:  12
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:13:56Z'
+    dcl_controller_timestamp: '2005/04/06 11:13:56.107'
+    date_string: '04/06/04'
+    time_string: '23:13:56'
+    measurement_wavelength_beta: 31339
+    raw_signal_beta: 31340
+    measurement_wavelength_chl: 31341
+    raw_signal_chl: 31342
+    measurement_wavelength_cdom: 31343
+    raw_signal_cdom: 31344
+    raw_internal_temp: 31345
+  - _index:  13
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:05Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:05.539'
+    date_string: '04/06/04'
+    time_string: '23:14:05'
+    measurement_wavelength_beta: 34188
+    raw_signal_beta: 34189
+    measurement_wavelength_chl: 34190
+    raw_signal_chl: 34191
+    measurement_wavelength_cdom: 34192
+    raw_signal_cdom: 34193
+    raw_internal_temp: 34194
+  - _index:  14
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:07Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:07.897'
+    date_string: '04/06/04'
+    time_string: '23:14:07'
+    measurement_wavelength_beta: 37037
+    raw_signal_beta: 37038
+    measurement_wavelength_chl: 37039
+    raw_signal_chl: 37040
+    measurement_wavelength_cdom: 37041
+    raw_signal_cdom: 37042
+    raw_internal_temp: 37043
+  - _index:  15
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:10Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:10.255'
+    date_string: '04/06/04'
+    time_string: '23:14:10'
+    measurement_wavelength_beta: 39886
+    raw_signal_beta: 39887
+    measurement_wavelength_chl: 39888
+    raw_signal_chl: 39889
+    measurement_wavelength_cdom: 39890
+    raw_signal_cdom: 39891
+    raw_internal_temp: 39892
+  - _index:  16
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:12Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:12.613'
+    date_string: '04/06/04'
+    time_string: '23:14:12'
+    measurement_wavelength_beta: 42735
+    raw_signal_beta: 42736
+    measurement_wavelength_chl: 42737
+    raw_signal_chl: 42738
+    measurement_wavelength_cdom: 42739
+    raw_signal_cdom: 42740
+    raw_internal_temp: 42741
+  - _index:  17
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:14Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:14.971'
+    date_string: '04/06/04'
+    time_string: '23:14:14'
+    measurement_wavelength_beta: 45584
+    raw_signal_beta: 45585
+    measurement_wavelength_chl: 45586
+    raw_signal_chl: 45587
+    measurement_wavelength_cdom: 45588
+    raw_signal_cdom: 45589
+    raw_internal_temp: 45590
+  - _index:  18
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:17Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:17.329'
+    date_string: '04/06/04'
+    time_string: '23:14:17'
+    measurement_wavelength_beta: 48433
+    raw_signal_beta: 48434
+    measurement_wavelength_chl: 48435
+    raw_signal_chl: 48436
+    measurement_wavelength_cdom: 48437
+    raw_signal_cdom: 48438
+    raw_internal_temp: 48439
+  - _index:  19
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:26Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:26.761'
+    date_string: '04/06/04'
+    time_string: '23:14:26'
+    measurement_wavelength_beta: 51282
+    raw_signal_beta: 51283
+    measurement_wavelength_chl: 51284
+    raw_signal_chl: 51285
+    measurement_wavelength_cdom: 51286
+    raw_signal_cdom: 51287
+    raw_internal_temp: 51288
+  - _index:  20
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:29Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:29.119'
+    date_string: '04/06/04'
+    time_string: '23:14:29'
+    measurement_wavelength_beta: 54131
+    raw_signal_beta: 54132
+    measurement_wavelength_chl: 54133
+    raw_signal_chl: 54134
+    measurement_wavelength_cdom: 54135
+    raw_signal_cdom: 54136
+    raw_internal_temp: 54137
+  - _index:  21
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:31Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:31.477'
+    date_string: '04/06/04'
+    time_string: '23:14:31'
+    measurement_wavelength_beta: 56980
+    raw_signal_beta: 56981
+    measurement_wavelength_chl: 56982
+    raw_signal_chl: 56983
+    measurement_wavelength_cdom: 56984
+    raw_signal_cdom: 56985
+    raw_internal_temp: 56986
+  - _index:  22
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:33Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:33.835'
+    date_string: '04/06/04'
+    time_string: '23:14:33'
+    measurement_wavelength_beta: 59829
+    raw_signal_beta: 59830
+    measurement_wavelength_chl: 59831
+    raw_signal_chl: 59832
+    measurement_wavelength_cdom: 59833
+    raw_signal_cdom: 59834
+    raw_internal_temp: 59835
+  - _index:  23
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:36Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:36.193'
+    date_string: '04/06/04'
+    time_string: '23:14:36'
+    measurement_wavelength_beta: 62678
+    raw_signal_beta: 62679
+    measurement_wavelength_chl: 62680
+    raw_signal_chl: 62681
+    measurement_wavelength_cdom: 62682
+    raw_signal_cdom: 62683
+    raw_internal_temp: 62684
+  - _index:  24
+    particle_object: FlortDjDclRecoveredInstrumentDataParticle
+    particle_type: flort_dj_dcl_instrument_recovered
+    internal_timestamp: '2005-04-06T11:14:38Z'
+    dcl_controller_timestamp: '2005/04/06 11:14:38.551'
+    date_string: '04/06/04'
+    time_string: '23:14:38'
+    measurement_wavelength_beta: 65527
+    raw_signal_beta: 65528
+    measurement_wavelength_chl: 65529
+    raw_signal_chl: 65530
+    measurement_wavelength_cdom: 65531
+    raw_signal_cdom: 65532
+    raw_internal_temp: 65533
