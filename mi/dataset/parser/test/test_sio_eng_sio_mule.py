@@ -89,7 +89,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
-        
+
         self.telem_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.sio_eng_sio_mule',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioMuleDataParticle'
@@ -100,10 +100,10 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioRecoveredDataParticle'
         }
 
-        # Define test data particles and their associated timestamps which will be 
+        # Define test data particles for the mule file and their associated timestamps which will be
         # compared with returned results
 
-        # using the particle class constuctor and the Engineering data matcher to retain as
+        # using the particle class constructor and the Engineering data matcher to retain as
         # as much of the old test structure as possible JAR
         posix_time = int('51EC763C', 16)
         self._timestamp1 = ntplib.system_to_ntp_time(float(posix_time))
@@ -150,6 +150,43 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         posix_time = int('51ED10ED', 16)
         self._timestamp12 = ntplib.system_to_ntp_time(float(posix_time))
         self.particle_12 = SioEngSioMuleDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51ED10ED_67_EDD2\x02\n18.93 14.0 1947 418 -3\n\x03'),
+            internal_timestamp=self._timestamp12)
+
+        # Define test data particles for the recovered file and their associated timestamps which will be
+        # compared with returned results
+
+        # using the particle class constructor and the Engineering data matcher to retain as
+        # as much of the old test structure as possible JAR
+        self.particle_ar = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51EC763C_04_8D91\x02\n18.95 15.9 1456 308 -2\n\x03'),
+            internal_timestamp=self._timestamp1)
+
+        self.particle_br = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51EC844C_0D_9AE3\x02\n18.96 15.7 1499 318 -2\n\x03'),
+            internal_timestamp=self._timestamp2)
+
+        self.particle_cr = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51EC925D_16_BD7E\x02\n18.95 15.8 1542 328 -2\n\x03'),
+            internal_timestamp=self._timestamp3)
+
+        self.particle_dr = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51ECA06D_1F_B90E\x02\n18.94 16.0 1586 338 -2\n\x03'),
+            internal_timestamp=self._timestamp4)
+
+        self.particle_er = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51ECAE7E_28_46EC\x02\n18.96 15.6 1629 348 -2\n\x03'),
+            internal_timestamp=self._timestamp5)
+
+        self.particle_fr = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51ECBC8D_31_8DAA\x02\n18.94 15.1 1674 358 -2\n\x03'),
+            internal_timestamp=self._timestamp6)
+
+        self.particle_11r = SioEngSioRecoveredDataParticle(
+            ENG_MATCHER.match('\x01CS1236501_0018u51ED02DD_5E_2B7D\x02\n18.93 14.0 1902 408 -3\n\x03'),
+            internal_timestamp=self._timestamp11)
+
+        self.particle_12r = SioEngSioRecoveredDataParticle(
             ENG_MATCHER.match('\x01CS1236501_0018u51ED10ED_67_EDD2\x02\n18.93 14.0 1947 418 -3\n\x03'),
             internal_timestamp=self._timestamp12)
 
@@ -223,9 +260,9 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle = fid
         parser = SioEngSioRecoveredParser(self.recov_config, None, stream_handle,
-                                                self.state_callback_recovered,
-                                                self.pub_callback,
-                                                self.exception_callback)
+                                          self.state_callback_recovered,
+                                          self.pub_callback,
+                                          self.exception_callback)
 
         particles = parser.get_records(30)
 
@@ -247,7 +284,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.IN_PROCESS_DATA: [],
                  StateKey.FILE_SIZE: 7}
         self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
-                                     self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
         self.assert_result(result,
@@ -293,21 +330,21 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result,
                            [[58, 116, 1, 0], [116, 174, 1, 0]],
                            [[58, 200]],
-                           self.particle_a,
+                           self.particle_ar,
                            recov_flag=True)
 
         result = self._parser.get_records(1)
         self.assert_result(result,
                            [[116, 174, 1, 0]],
                            [[116, 200]],
-                           self.particle_b,
+                           self.particle_br,
                            recov_flag=True)
 
         result = self._parser.get_records(1)
         self.assert_result(result,
                            [],
                            [[174, 200]],
-                           self.particle_c,
+                           self.particle_cr,
                            recov_flag=True)
 
         stream_handle.close()
@@ -332,7 +369,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.FILE_SIZE: 7}
 
         self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
-                                     self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
 
@@ -375,7 +412,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.FILE_SIZE: 7}
 
         self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
-                                     self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(6)
 
@@ -421,12 +458,12 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         self.assert_state([[348, 406, 1, 0], [406, 464, 1, 0], [464, 522, 1, 0], [522, 580, 1, 0]],
                           [[348, 600]], recov_flag=True)
 
-        self.assert_particle(result[0], self.particle_a)
-        self.assert_particle(result[1], self.particle_b)
-        self.assert_particle(result[2], self.particle_c)
-        self.assert_particle(result[3], self.particle_d)
-        self.assert_particle(result[4], self.particle_e)
-        self.assert_particle(result[5], self.particle_f)
+        self.assert_particle(result[0], self.particle_ar)
+        self.assert_particle(result[1], self.particle_br)
+        self.assert_particle(result[2], self.particle_cr)
+        self.assert_particle(result[3], self.particle_dr)
+        self.assert_particle(result[4], self.particle_er)
+        self.assert_particle(result[5], self.particle_fr)
 
         stream_handle.close()
 
@@ -445,7 +482,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.FILE_SIZE: 7}
 
         self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(12)
 
@@ -484,15 +521,15 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         result = self._parser.get_records(12)
 
-        self.assert_particle(result[0], self.particle_a)
-        self.assert_particle(result[1], self.particle_b)
-        self.assert_particle(result[2], self.particle_c)
-        self.assert_particle(result[3], self.particle_d)
-        self.assert_particle(result[4], self.particle_e)
-        self.assert_particle(result[5], self.particle_f)
+        self.assert_particle(result[0], self.particle_ar)
+        self.assert_particle(result[1], self.particle_br)
+        self.assert_particle(result[2], self.particle_cr)
+        self.assert_particle(result[3], self.particle_dr)
+        self.assert_particle(result[4], self.particle_er)
+        self.assert_particle(result[5], self.particle_fr)
 
-        self.assert_particle(result[-2], self.particle_11)
-        self.assert_particle(result[-1], self.particle_12)
+        self.assert_particle(result[-2], self.particle_11r)
+        self.assert_particle(result[-1], self.particle_12r)
 
         self.assert_state([], [[696, 700]], recov_flag=True)
 
@@ -512,7 +549,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                                           'STA15908.DAT'))
 
         self._parser = SioEngSioMuleParser(self.telem_config, new_state, stream_handle,
-                                     self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
 
@@ -546,11 +583,11 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         result = self._parser.get_records(1)
 
         self.assert_result(result, [[232, 290, 1, 0]],
-                           [[232, 290]], self.particle_d, recov_flag=True)
+                           [[232, 290]], self.particle_dr, recov_flag=True)
 
         result = self._parser.get_records(1)
 
-        self.assert_result(result, [], [], self.particle_e, recov_flag=True)
+        self.assert_result(result, [], [], self.particle_er, recov_flag=True)
 
         stream_handle.close()
 
@@ -569,7 +606,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                                           'STA15908.DAT'))
 
         self._parser = SioEngSioMuleParser(self.telem_config, new_state, stream_handle,
-                                     self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
 
@@ -607,12 +644,12 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
         result = self._parser.get_records(1)
 
         self.assert_result(result, [[232, 290, 1, 0], [290, 348, 1, 0]],
-                           [[232, 600]], self.particle_d, recov_flag=True)
+                           [[232, 600]], self.particle_dr, recov_flag=True)
 
         result = self._parser.get_records(2)
 
-        self.assert_particle(result[0], self.particle_e)
-        self.assert_particle(result[1], self.particle_f)
+        self.assert_particle(result[0], self.particle_er)
+        self.assert_particle(result[1], self.particle_fr)
 
         self.assert_state([], [[348, 600]], recov_flag=True)
 
@@ -638,7 +675,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
                  StateKey.FILE_SIZE: 7}
 
         self._parser = SioEngSioMuleParser(self.telem_config, state, stream_handle,
-                                     self.state_callback, self.pub_callback, self.exception_callback)
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self._parser.get_records(1)
 
@@ -685,7 +722,7 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         result = self._parser.get_records(1)
 
-        self.assert_particle(result[0], self.particle_a)
+        self.assert_particle(result[0], self.particle_ar)
 
         new_state2 = {StateKey.IN_PROCESS_DATA: [[174, 232, 1, 0], [232, 290, 1, 0], [290, 348, 1, 0]],
                       StateKey.UNPROCESSED_DATA: [[174, 600]],

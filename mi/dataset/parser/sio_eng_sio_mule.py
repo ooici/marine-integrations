@@ -61,7 +61,7 @@ class SioEngSioMuleParserDataParticleKey(BaseEnum):
 
 class SioEngSioDataParticle(DataParticle):
     """
-    Class for parsing data from the sio_eng_sio_mule data set
+    Abstract Class for particles from the sio_eng_sio_mule data set
     """
 
     @staticmethod
@@ -73,8 +73,9 @@ class SioEngSioDataParticle(DataParticle):
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
         with the appropriate tag.
-        @throws SampleException If there is a problem with sample creation
         """
+
+        # raw_data will contain the match results of the ENG_REGEX
         match = self.raw_data
 
         result = [self._encode_value(SioEngSioMuleParserDataParticleKey.SIO_CONTROLLER_ID, match.group(1), int),
@@ -91,7 +92,7 @@ class SioEngSioDataParticle(DataParticle):
 
 class SioEngSioMuleDataParticle(SioEngSioDataParticle):
     """
-    Class for parsing data from the sio_eng_sio_mule data set
+    Concrete Class for particles from the sio_eng_sio_mule data set
     """
 
     _data_particle_type = DataParticleType.TELEMETERED
@@ -99,13 +100,16 @@ class SioEngSioMuleDataParticle(SioEngSioDataParticle):
 
 class SioEngSioRecoveredDataParticle(SioEngSioDataParticle):
     """
-    Class for parsing data from the sio_eng_sio_mule data set
+    Concrete Class for particles from the sio_eng_sio recovered data set
     """
 
     _data_particle_type = DataParticleType.RECOVERED
 
 
 class SioEngSioCommonParser(Parser):
+    """
+    Abstract Class for parsing Sio Eng Sio files
+    """
 
     def parse_chunks(self):
         """
@@ -148,6 +152,10 @@ class SioEngSioCommonParser(Parser):
 
 
 class SioEngSioMuleParser(SioEngSioCommonParser, SioMuleParser):
+    """
+    Class for parsing Sio Eng Sio Mule files.  This derives functionality from both the
+    SioEngSioCommonParser class above and the SioMuleParser class in sio_mule_common.py
+    """
 
     def __init__(self,
                  config,
@@ -168,6 +176,10 @@ class SioEngSioMuleParser(SioEngSioCommonParser, SioMuleParser):
 
 class SioEngSioRecoveredParser(SioEngSioCommonParser, SioParser):
 
+    """
+    Class for parsing Sio Eng Sio recovered files.  This derives functionality from both the
+    SioEngSioCommonParser class above and the SioParser class in sio_mule_common.py
+    """
     def __init__(self,
                  config,
                  state,

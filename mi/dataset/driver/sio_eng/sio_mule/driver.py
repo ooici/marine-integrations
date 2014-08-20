@@ -57,7 +57,8 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
                  exception_callback):
 
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED, DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
+        data_keys = [DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED,
+                     DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
 
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: HarvesterType.SINGLE_FILE,
@@ -104,6 +105,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioMuleDataParticle'
         })
         log.debug("My Config in _build_telemetered_parser: %s", config)
+
         parser = SioEngSioMuleParser(
             config,
             parser_state,
@@ -112,7 +114,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
             self._data_callback,
             self._sample_exception_callback
         )
-        log.debug("_build_parser::::   Built parser, returning %s", type(parser))
+
         return parser
 
     def _build_recovered_parser(self, parser_state, stream_in):
@@ -127,6 +129,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'SioEngSioRecoveredDataParticle'
         })
         log.debug("My Config: %s", config)
+
         parser = SioEngSioRecoveredParser(
             config,
             parser_state,

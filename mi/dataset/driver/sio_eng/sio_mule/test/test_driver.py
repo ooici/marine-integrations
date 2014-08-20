@@ -27,7 +27,7 @@ log = get_logger()
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-from mi.dataset.dataset_driver import\
+from mi.dataset.dataset_driver import \
     DriverParameter, \
     DriverStateKey, \
     DataSourceConfigKey, \
@@ -66,13 +66,13 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.PATTERN: MULE_FILE_NAME,
                 DataSetDriverConfigKeys.FREQUENCY: 1,
                 DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
-                },
+            },
             DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED: {
                 DataSetDriverConfigKeys.DIRECTORY: RECOV_DIR,
                 DataSetDriverConfigKeys.PATTERN: SIO_ENG_PATTERN,
                 DataSetDriverConfigKeys.FREQUENCY: 1,
                 DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
-                }
+            }
         },
         DataSourceConfigKey.PARSER: {
             DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: {},
@@ -86,6 +86,7 @@ DataSetTestCase.initialize(
 # Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
+
 
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
@@ -148,7 +149,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         mule_path = self.create_sample_data_set_dir("node59p1_test_get.dat", TELEM_DIR, MULE_FILE_NAME,
-                                        copy_metadata=False)
+                                                    copy_metadata=False)
 
         recov_path = self.create_sample_data_set_dir(RECOV_FILE_NAME, RECOV_DIR)
         recov_mod_time = os.path.getmtime(recov_path)
@@ -185,14 +186,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
             }
         }
 
-        self.driver = self._get_driver_object(memento=memento)
+        driver = self._get_driver_object(memento=memento)
 
         ## create some data to parse
         self.clear_async_data()
         self.create_sample_data_set_dir("test_stop_resume2.dat", TELEM_DIR, MULE_FILE_NAME,
                                         copy_metadata=False)
 
-        self.driver.start_sampling()
+        driver.start_sampling()
 
         ## verify data is produced
         self.assert_data(SioEngSioMuleDataParticle, 'test_stop_resume.yml',
@@ -216,7 +217,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                         copy_metadata=False)
         self.assert_data(SioEngSioMuleDataParticle, 'test_back_fill.yml',
                          count=1)
-
 
         # Now fill in the zeroed section, and this file also has 2 more CS SIO headers appended
         #   along with other data at the end. 
@@ -318,9 +318,11 @@ class QualificationTest(DataSetQualificationTestCase):
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.info("CONFIG: %s", self._agent_config())
+
         self.create_sample_data_set_dir('node59p1_test_get.dat', TELEM_DIR, MULE_FILE_NAME,
                                         copy_metadata=False)
+
+        self.create_sample_data_set_dir(RECOV_FILE_NAME, RECOV_DIR)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -333,23 +335,35 @@ class QualificationTest(DataSetQualificationTestCase):
 
             result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED, 2)
             log.debug("RESULT: %s", result)
-            # Verify values
+
+            # Verify Telemetered values
             self.assert_data_values(result, 'test_get_particle.yml')
             self.assert_sample_queue_size(DataParticleType.TELEMETERED, 0)
 
+            # Verify Recovered values
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED, 5, 60)
+            self.assert_data_values(result, 'test_stop_start1_recov.yml')
+
             self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, MULE_FILE_NAME,
                                             copy_metadata=False)
+
             # Now read the first records of the second file then stop
             self.assert_stop_sampling()
             self.assert_sample_queue_size(DataParticleType.TELEMETERED, 0)
 
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
+
             result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED, 2)
             log.debug("RESULT 2: %s", result2)
 
+            # Verify Telemetered values
             self.assert_data_values(result2, 'test_stop_resume.yml')
             self.assert_sample_queue_size(DataParticleType.TELEMETERED, 0)
+
+            # Verify Recovered values
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED, 6, 60)
+            self.assert_data_values(result, 'test_stop_resume_recov.yml')
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
@@ -360,9 +374,11 @@ class QualificationTest(DataSetQualificationTestCase):
         Test a full stop of the dataset agent, then restart the agent 
         and confirm it restarts at the correct spot.
         """
-        log.info("CONFIG: %s", self._agent_config())
+
         self.create_sample_data_set_dir('node59p1_test_get.dat', TELEM_DIR, MULE_FILE_NAME,
                                         copy_metadata=False)
+
+        self.create_sample_data_set_dir(RECOV_FILE_NAME, RECOV_DIR)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -376,9 +392,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
             result = self.data_subscribers.get_samples(DataParticleType.TELEMETERED, 2)
             log.debug("RESULT: %s", result)
-            # Verify values
+
+            # Verify Telemetered values
             self.assert_data_values(result, 'test_get_particle.yml')
             self.assert_sample_queue_size(DataParticleType.TELEMETERED, 0)
+
+            # Verify Recovered values
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED, 5, 60)
+            self.assert_data_values(result, 'test_stop_start1_recov.yml')
 
             self.create_sample_data_set_dir('test_stop_resume2.dat', TELEM_DIR, MULE_FILE_NAME,
                                             copy_metadata=False)
@@ -390,10 +411,14 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_initialize()
 
             # Restart sampling and ensure we get the last 2 records of the file
+            # Verify Telemetered values
             result2 = self.data_subscribers.get_samples(DataParticleType.TELEMETERED, 2)
             log.debug("RESULT 2: %s", result2)
             self.assert_data_values(result2, 'test_stop_resume.yml')
             self.assert_sample_queue_size(DataParticleType.TELEMETERED, 0)
+            # Verify Recovered values
+            result = self.data_subscribers.get_samples(DataParticleType.RECOVERED, 6, 60)
+            self.assert_data_values(result, 'test_stop_resume_recov.yml')
 
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
@@ -404,6 +429,8 @@ class QualificationTest(DataSetQualificationTestCase):
         Test an exception is raised after the driver is started during
         record parsing.
         """
+
+        # Test telemetered parser
         # file contains invalid sample values
         self.create_sample_data_set_dir('node59p1_test_get_bad.dat', TELEM_DIR,
                                         MULE_FILE_NAME)
@@ -415,6 +442,18 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+        # clear the event queue to make sure we log a new event
+        self.event_subscribers.clear_events()
+
+        # Test telemetered parser
+        self.create_sample_data_set_dir('STA15908_BAD.DAT', RECOV_DIR)
+
+        self.data_subscribers.get_samples(DataParticleType.RECOVERED, 20)
+
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
 
 
 
