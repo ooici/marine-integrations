@@ -242,6 +242,7 @@ class OptaaDjDclRecoveredInstrumentDataParticle(OptaaDjDclInstrumentDataParticle
     Class for generating Offset Data Particles from Recovered data.
     """
     _data_particle_type = DataParticleType.REC_INSTRUMENT_PARTICLE
+    log.debug('GENERATING OptaaDjDclRecoveredInstrumentDataParticle')
 
 
 class OptaaDjDclTelemeteredInstrumentDataParticle(OptaaDjDclInstrumentDataParticle):
@@ -249,6 +250,7 @@ class OptaaDjDclTelemeteredInstrumentDataParticle(OptaaDjDclInstrumentDataPartic
     Class for generating Offset Data Particles from Telemetered data.
     """
     _data_particle_type = DataParticleType.TEL_INSTRUMENT_PARTICLE
+    log.debug('GENERATING OptaaDjDclTelemeteredInstrumentDataParticle')
 
 
 class OptaaDjDclMetadataDataParticle(DataParticle):
@@ -290,6 +292,7 @@ class OptaaDjDclRecoveredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
     Class for generating Metadata Data Particles from Recovered data.
     """
     _data_particle_type = DataParticleType.REC_METADATA_PARTICLE
+    log.debug('GENERATING OptaaDjDclRecoveredMetadataDataParticle')
 
 
 class OptaaDjDclTelemeteredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
@@ -297,13 +300,14 @@ class OptaaDjDclTelemeteredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
     Class for generating Metadata Data Particles from Telemetered data.
     """
     _data_particle_type = DataParticleType.TEL_METADATA_PARTICLE
+    log.debug('GENERATING OptaaDjDclRecoveredMetadataDataParticle')
 
 
 class OptaaDjDclParser(BufferLoadingParser):
     """
     Parser for Optaa_dj_dcl data.
-    In addition to the standard constructor parameters,
-    this constructor takes the following additional parameters:
+    In addition to the standard parser constructor parameters,
+    this constructor needs the following additional parameters:
       filename - Name of file being parsed
       instrument particle class
       metadata particle class.
@@ -345,17 +349,19 @@ class OptaaDjDclParser(BufferLoadingParser):
         if state is not None:
             self.set_state(state)
 
-        # Save the names of the particle classes to be generated.
-
-        self.instrument_particle_class = instrument_particle_class
-        self.metadata_particle_class = metadata_particle_class
-
-        # Extract the start date and time from the filename.
+        # Extract the start date and time from the filename and convert
+        # it to the format expected for the output particle.
         # Calculate the ntp_time timestamp, the number of seconds since Jan 1, 1900.
 
         filename_match = FILENAME_MATCHER.match(filename)
         if filename_match is not None:
-            self.start_date = filename_match.group(0)
+            self.start_date = \
+                filename_match.group(GROUP_YEAR) + '-' + \
+                filename_match.group(GROUP_MONTH) + '-' + \
+                filename_match.group(GROUP_DAY) + ' ' + \
+                filename_match.group(GROUP_HOUR) + ':' + \
+                filename_match.group(GROUP_MINUTE) + ':' + \
+                filename_match.group(GROUP_SECOND)
             timestamp = (
                 int(filename_match.group(GROUP_YEAR)),
                 int(filename_match.group(GROUP_MONTH)),
@@ -373,6 +379,11 @@ class OptaaDjDclParser(BufferLoadingParser):
             error_message = 'Invalid filename %s' % filename
             log.warn(error_message)
             raise DatasetParserException(error_message)
+
+        # Save the names of the particle classes to be generated.
+
+        self.instrument_particle_class = instrument_particle_class
+        self.metadata_particle_class = metadata_particle_class
 
     def handle_non_data(self, non_data, non_end, start):
         """
