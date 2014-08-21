@@ -92,7 +92,7 @@ BATTERY_DATA_PATTERN = r'([\x00-\xFF][\x13-\x46])\x06\x06'
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
 
 # [\x00, \x01, \x02, \x04, and \x05]
-MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)\x06\x06'
+MODE_DATA_PATTERN = r'([\x00-\x02,\x04,\x05]\x00)(\x06\x06)'
 MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
 
 # ["VEC 8181", "AQD 8493      "]
@@ -233,10 +233,14 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
@@ -273,7 +277,7 @@ class NortekHardwareConfigDataParticleKey(BaseEnum):
     """
     Particle key for the hw config
     """
-    SERIAL_NUM = 'instmt_type_serial_number'
+    SERIAL_NUM = 'instrmt_type_serial_number'
     RECORDER_INSTALLED = 'recorder_installed'
     COMPASS_INSTALLED = 'compass_installed'
     BOARD_FREQUENCY = 'board_frequency'
@@ -779,7 +783,7 @@ class NortekEngBatteryDataParticleKey(BaseEnum):
     """
     Particles for the battery data
     """
-    BATTERY_VOLTAGE = "battery_voltage"
+    BATTERY_VOLTAGE = "battery_voltage_mv"
 
 
 class NortekEngBatteryDataParticle(DataParticle):
@@ -1320,12 +1324,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         output = self._create_set_output(self._param_dict)
 
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+        self._linebuf = ''
+
         log.debug('_set_params: writing instrument configuration to instrument')
         self._connection.send(InstrumentCmds.CONFIGURE_INSTRUMENT)
         self._connection.send(output)
 
-        # Clear the prompt buffer.
-        self._promptbuf = ''
         result = self._get_response(timeout=30,
                                     expected_prompt=[InstrumentPrompts.Z_ACK, InstrumentPrompts.Z_NACK])
 
@@ -1564,11 +1570,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         try:
             self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
             time.sleep(.1)
-            result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, timeout=0.6)
+            result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, timeout=0.6, response_regex=MODE_DATA_REGEX)
         except InstrumentTimeoutException:
             log.debug('_handler_unknown_read_mode: no response to "I", sending "II"')
             # if there is no response, catch timeout exception and issue 'II' command instead
-            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, response_regex=MODE_DATA_REGEX)
 
         return next_state, (next_agent_state, result)
 
@@ -1839,10 +1845,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         from a file if present.
         """
         self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.SET, display_name='set')
+        self._cmd_dict.add(Capability.GET, display_name='get')
         self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire sample')
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='start autosample')
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='stop autosample')
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='clock sync')
+        self._cmd_dict.add(Capability.START_DIRECT, display_name='start direct access')
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct access')
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
 
     def _build_param_dict(self):
