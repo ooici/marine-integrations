@@ -90,10 +90,6 @@ REC_PARTICLES = (OptaaDjCsppMetadataRecoveredDataParticle,
 TEL_PARTICLES = (OptaaDjCsppMetadataTelemeteredDataParticle,
                  OptaaDjCsppInstrumentTelemeteredDataParticle)
 
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -187,7 +183,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         driver = self._get_driver_object(memento=state)
 
-        # create some data to parse
         self.clear_async_data()
 
         driver.start_sampling()
@@ -208,7 +203,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir(recovered_file_one, DIR_OPTAA_RECOVERED)
         self.create_sample_data_set_dir(telemetered_file_one, DIR_OPTAA_TELEMETERED)
 
-        # create some data to parse
         self.clear_async_data()
 
         self.driver.start_sampling()
@@ -240,7 +234,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         self.clear_async_data()
 
-        # test that everything works for the telemetered harvester
+        # test that everything works for the recovered harvester
         self.create_sample_data_set_dir('11079364_BAD_ACS_ACS.txt', DIR_OPTAA_RECOVERED)
 
         # an event catches the sample exception
@@ -269,7 +263,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the telemetered metadata particle
         result1 = self.data_subscribers.get_samples(DataParticleType.METADATA_TELEMETERED, 1, 10)
-        #get the telemetered instrument particles
+        # get the telemetered instrument particles
         result2 = self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_TELEMETERED, 19, 620)
 
         # combine the results
@@ -307,7 +301,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # get the recovered metadata particle
         self.data_subscribers.get_samples(DataParticleType.METADATA_RECOVERED, 1, 60)
-        # get the recovered metadata particle
+        # get the recovered instrument particle
         self.data_subscribers.get_samples(DataParticleType.INSTRUMENT_RECOVERED, 200, 10000)
 
     def test_stop_start(self):

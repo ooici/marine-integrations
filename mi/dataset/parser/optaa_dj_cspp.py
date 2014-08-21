@@ -15,37 +15,19 @@ Initial Release
 __author__ = 'Joe Padula'
 __license__ = 'Apache 2.0'
 
-import copy
 import numpy
 import re
-from functools import partial
-import string
 
 from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.exceptions import \
-    DatasetParserException, \
-    UnexpectedDataException, \
-    RecoverableSampleException, \
-    ConfigurationException
-
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.dataset.dataset_parser import BufferLoadingParser
-from mi.core.instrument.chunker import StringChunker
+    RecoverableSampleException
 
 from mi.dataset.parser.cspp_base import \
-    DefaultHeaderKey, \
-    DEFAULT_HEADER_KEY_LIST, \
-    DATA_PARTICLE_CLASS_KEY, \
-    METADATA_PARTICLE_CLASS_KEY, \
-    SIEVE_MATCHER, \
-    StateKey, \
-    HeaderPartMatchesGroupNumber, \
-    TIMESTAMP_LINE_MATCHER, \
+    CsppParser, \
     HEADER_PART_MATCHER, \
-    HEX_ASCII_LINE_MATCHER, \
     FLOAT_REGEX, \
     INT_REGEX, \
     Y_OR_N_REGEX, \
@@ -68,6 +50,7 @@ BEGIN_MATCHER = re.compile(BEGIN_REGEX)
 class DataMatchesGroupNumber(BaseEnum):
     """
     An enum for group match indices for a data record chunk.
+    These indices are into match.group(INDEX).
     Used to access the match groups in the particle raw data
     """
     PROFILER_TIMESTAMP = 1
@@ -239,9 +222,8 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                                               int))
 
             # Array of raw c-channel reference counts
-            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_REF_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_REFERENCE_COUNTS,
-                                              counts,
+                                              self._build_list_for_encoding(DataMatchesGroupNumber.C_REF_COUNTS),
                                               list))
 
             # C-signal reference dark counts, used for diagnostic purposes.
@@ -250,9 +232,8 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                                               int))
 
             # Array of raw c-channel signal counts
-            counts = self._build_list_for_encoding(DataMatchesGroupNumber.C_SIG_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.C_SIGNAL_COUNTS,
-                                              counts,
+                                              self._build_list_for_encoding(DataMatchesGroupNumber.C_SIG_COUNTS),
                                               list))
 
             # A-channel reference dark counts, used for diagnostic purposes.
@@ -261,9 +242,8 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                                               int))
 
             # Array of raw a-channel reference counts
-            counts = self._build_list_for_encoding(DataMatchesGroupNumber.A_REF_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.A_REFERENCE_COUNTS,
-                                              counts,
+                                              self._build_list_for_encoding(DataMatchesGroupNumber.A_REF_COUNTS),
                                               list))
 
             # A-signal reference dark counts, used for diagnostic purposes.
@@ -272,9 +252,8 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
                                               int))
 
             # Array of raw a-channel signal counts
-            counts = self._build_list_for_encoding(DataMatchesGroupNumber.A_SIG_COUNTS)
             results.append(self._encode_value(OptaaDjCsppParserDataParticleKey.A_SIGNAL_COUNTS,
-                                              counts,
+                                              self._build_list_for_encoding(DataMatchesGroupNumber.A_SIG_COUNTS),
                                               list))
 
             # Process each of the non-list instrument particle parameters that occur last
@@ -307,10 +286,8 @@ class OptaaDjCsppInstrumentDataParticle(DataParticle):
         tab_str_stripped = tab_str.strip('\t')
         counts_list = tab_str_stripped.split('\t')
 
-        # Load the counts array by getting value from counts_list as x is incremented
-        # in the for loop
-        counts = [int(counts_list[x], 10) for x in range(len(counts_list))]
-        return counts
+        # return a list of integers
+        return map(int, counts_list)
 
 
 class OptaaDjCsppInstrumentRecoveredDataParticle(OptaaDjCsppInstrumentDataParticle):
@@ -329,10 +306,7 @@ class OptaaDjCsppInstrumentTelemeteredDataParticle(OptaaDjCsppInstrumentDataPart
     _data_particle_type = DataParticleType.INSTRUMENT_TELEMETERED
 
 
-class OptaaDjCsppParser(BufferLoadingParser):
-    """
-    Class for a optaa_dj_cspp data file parser
-    """
+class OptaaDjCsppParser(CsppParser):
 
     def __init__(self,
                  config,
@@ -340,7 +314,8 @@ class OptaaDjCsppParser(BufferLoadingParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
-                 exception_callback):
+                 exception_callback,
+                 *args, **kwargs):
         """
         This method is a constructor that will instantiate an OptaaDjCsppParser object.
         @param config The configuration for this OptaaDjCsppParser parser
@@ -349,175 +324,17 @@ class OptaaDjCsppParser(BufferLoadingParser):
         @param state_callback The function to call upon detecting state changes
         @param publish_callback The function to call to provide particles
         @param exception_callback The function to call to report exceptions
-        @throws ConfigurationException if the header state dictionary cannot be built
         """
-
-        # Build up the header state dictionary using the default her key list ot one that was provided
-        self._header_state = {}
-
-        header_key_list = DEFAULT_HEADER_KEY_LIST
-
-        for header_key in header_key_list:
-            self._header_state[header_key] = None
-
-        # Build up the header state dictionary using the default header key list
-        if DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT in config:
-            particle_classes_dict = config.get(DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT)
-            # Set the metadata and data particle classes to be used later
-            if METADATA_PARTICLE_CLASS_KEY in particle_classes_dict and \
-                    DATA_PARTICLE_CLASS_KEY in particle_classes_dict:
-                self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
-                self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
-            else:
-                log.warning(
-                    'Configuration missing metadata or data particle class key in particle classes dict')
-                raise ConfigurationException(
-                    'Configuration missing metadata or data particle class key in particle classes dict')
-        else:
-            log.warning('Configuration missing particle classes dict')
-            raise ConfigurationException('Configuration missing particle classes dict')
-
-        # Initialize the record buffer to an empty list
-        self._record_buffer = []
-
-        # Initialize the read state
-        self._read_state = {StateKey.POSITION: 0, StateKey.METADATA_EXTRACTED: False}
 
         # Call the superclass constructor
         super(OptaaDjCsppParser, self).__init__(config,
-                                                stream_handle,
                                                 state,
-                                                partial(StringChunker.regex_sieve_function,
-                                                        regex_list=[SIEVE_MATCHER]),
+                                                stream_handle,
                                                 state_callback,
                                                 publish_callback,
-                                                exception_callback)
-
-       # If provided a state, set it.  This needs to be done post superclass __init__
-        if state:
-            self.set_state(state)
-
-    def set_state(self, state_obj):
-        """
-        Set the value of the state object for this parser
-        @param state_obj The object to set the state to.
-        @throws DatasetParserException if there is a bad state structure
-        """
-        if not isinstance(state_obj, dict):
-            raise DatasetParserException("Invalid state structure")
-        if not (StateKey.POSITION in state_obj and StateKey.METADATA_EXTRACTED in state_obj):
-            raise DatasetParserException("Provided state is missing position or metadata extracted")
-
-        self._state = state_obj
-        self._read_state = state_obj
-
-        # Clear the record buffer
-        self._record_buffer = []
-
-        # Need to seek the correct position in the file stream using the read state position.
-        self._stream_handle.seek(self._read_state[StateKey.POSITION])
-
-        # make sure we have cleaned the chunker out of old data
-        self._chunker.clean_all_chunks()
-
-    def _increment_read_state(self, increment):
-        """
-        Increment the parser state
-        @param increment The offset for the file position
-        """
-        self._read_state[StateKey.POSITION] += increment
-
-    def _process_data_match(self, particle_class, data_match, result_particles):
-        """
-        This method processes a data match. It will extract a metadata particle and insert it into
-        result_particles when we have not already extracted the metadata and all header values exist.
-        This method will also extract a data particle and append it to the result_particles.
-        @param particle_class is the class of particle to be created
-        @param data_match A regular expression match object for a cspp data record
-        @param result_particles A list which should be updated to include any particles extracted
-        """
-
-        # Extract the data record particle
-        data_particle = self._extract_sample(particle_class,
-                                             None,
-                                             data_match,
-                                             None)
-
-        # If we created a data particle, let's append the particle to the result particles
-        # to return and increment the state data positioning
-        if data_particle:
-
-            if not self._read_state[StateKey.METADATA_EXTRACTED]:
-                # Once the first data particle is read, all available header lines will
-                # have been read and inserted into the header state dictionary.
-                # Only the source file is required to create a metadata particle.
-
-                if self._header_state[DefaultHeaderKey.SOURCE_FILE] is not None:
-                    metadata_particle = self._extract_sample(self._metadata_particle_class,
-                                                             None,
-                                                             (copy.copy(self._header_state),
-                                                              data_match),
-                                                             None)
-                    if metadata_particle:
-                        # We're going to insert the metadata particle so that it is
-                        # the first in the list and set the position to 0, as it cannot
-                        # have the same position as the non-metadata particle
-                        result_particles.insert(0, (metadata_particle, {StateKey.POSITION: 0,
-                                                                        StateKey.METADATA_EXTRACTED: True}))
-                    else:
-                        # metadata particle was not created successfully
-                        log.warn('Unable to create metadata particle')
-                        self._exception_callback(RecoverableSampleException(
-                            'Unable to create metadata particle'))
-                else:
-                    # no source file path, don't create metadata particle
-                    log.warn('No source file, not creating metadata particle')
-                    self._exception_callback(RecoverableSampleException(
-                        'No source file, not creating metadata particle'))
-
-                # need to set metadata extracted to true so we don't keep creating
-                # the metadata, even if it failed
-                self._read_state[StateKey.METADATA_EXTRACTED] = True
-
-            result_particles.append((data_particle, copy.copy(self._read_state)))
-
-    def _process_header_part_match(self, header_part_match):
-        """
-        This method processes a header part match. It will process one row within a cspp header
-        that matched a provided regex. The match groups should be processed and the _header_state
-        will be updated with the obtained header values.
-        @param header_part_match A regular expression match object for a header row
-        """
-        header_part_key = header_part_match.group(
-            HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_KEY)
-
-        if header_part_key in self._header_state.keys():
-            header_part_value = header_part_match.group(
-                HeaderPartMatchesGroupNumber.HEADER_PART_MATCH_GROUP_VALUE)
-            self._header_state[header_part_key] = string.rstrip(header_part_value)
-
-    def _process_chunk_not_containing_data_record_or_header_part(self, chunk):
-        """
-        This method processes a chunk that does not contain a data record or header. This case is
-        not applicable to "non_data". For cspp file streams, we expect some lines in the file that
-        we do not care about, and we will not consider them "non_data".
-        @param chunk A regular expression match object for a header row
-        """
-
-        if HEX_ASCII_LINE_MATCHER.match(chunk):
-            # we found a line starting with the timestamp, depth, and
-            # suspect timestamp, followed by all hex ascii chars
-            log.warn('got hex ascii corrupted data %s at position %s', chunk,
-                     self._read_state[StateKey.POSITION])
-            self._exception_callback(RecoverableSampleException(
-                "Found hex ascii corrupted data: %s" % chunk))
-
-        # ignore the expected timestamp line and any lines matching the ignore regex,
-        # otherwise data is unexpected
-        elif not TIMESTAMP_LINE_MATCHER.match(chunk):
-            # Unexpected data was found
-            log.warn('got unrecognized row %s at position %s', chunk, self._read_state[StateKey.POSITION])
-            self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
+                                                exception_callback,
+                                                BEGIN_REGEX,
+                                                *args, **kwargs)
 
     def parse_chunks(self):
         """
@@ -557,7 +374,7 @@ class OptaaDjCsppParser(BufferLoadingParser):
                 fields = re.match(data_regex, chunk)
 
                 if fields is not None:
-                    self._process_data_match(self._data_particle_class, fields, result_particles)
+                    self._process_data_match(fields, result_particles)
                 else:  # did not match the regex
                     log.warn("chunk did not match regex %s", chunk)
                     self._exception_callback(RecoverableSampleException("Found an invalid chunk: %s" % chunk))
@@ -612,14 +429,3 @@ class OptaaDjCsppParser(BufferLoadingParser):
         data_regex += r'\t*' + END_OF_LINE_REGEX
 
         return data_regex
-
-    def handle_non_data(self, non_data, non_end, start):
-        """
-        Handle any non-data that is found in the file
-        """
-        # non-data is not expected, if found it is an error
-        if non_data is not None and non_end <= start:
-            # send an UnexpectedDataException and increment the state
-            self._increment_read_state(len(non_data))
-            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" %
-                                                             (len(non_data), non_data)))

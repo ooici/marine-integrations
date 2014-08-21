@@ -17,7 +17,8 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.core.exceptions import RecoverableSampleException
+from mi.core.exceptions import RecoverableSampleException, \
+    DatasetParserException
 
 from mi.idk.config import Config
 
@@ -335,7 +336,7 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
 
     def test_set_state(self):
         """
-        Test changing to a new state after initializing the parser and 
+        Test changing to a new state after initializing the parser and
         reading data, as if new data has been found and the state has
         changed
         """
@@ -376,6 +377,45 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle.close()
 
+    def test_bad_state(self):
+        """
+        Test that setting state to a "bad" state will cause DatasetParserException
+        to be raised
+        """
+        file_path = os.path.join(RESOURCE_PATH, RECOVERED_SAMPLE_DATA)
+        stream_handle = open(file_path, 'r')
+
+        # State is missing Position
+        state = {StateKey.METADATA_EXTRACTED: True}
+
+        with self.assertRaises(DatasetParserException):
+
+            OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                              state, stream_handle,
+                              self.state_callback, self.pub_callback,
+                              self.exception_callback)
+
+        # State is missing StateKey.METADATA_EXTRACTED
+        state = {StateKey.POSITION: 33765}
+
+        with self.assertRaises(DatasetParserException):
+
+            OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                              state, stream_handle,
+                              self.state_callback, self.pub_callback,
+                              self.exception_callback)
+
+        # State is a list instead of dict
+        state = [{StateKey.POSITION: 33765, StateKey.METADATA_EXTRACTED: True}]
+
+        with self.assertRaises(DatasetParserException):
+            OptaaDjCsppParser(self.config.get(DataTypeKey.OPTAA_DJ_CSPP_RECOVERED),
+                              state, stream_handle,
+                              self.state_callback, self.pub_callback,
+                              self.exception_callback)
+
+        stream_handle.close()
+
     def test_bad_data(self):
         """
         Ensure that bad data is skipped when it exists and a RecoverableSampleException is thrown.
@@ -401,6 +441,9 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
         # Data Record 35: fields separated by multiple spaces instead of tab
         #   (between depth and Suspect Timestamp)
         # Data Record 37: record ends with space then line feed
+        # Data Record 39: line starting with the timestamp, depth, and
+        #   suspect timestamp, followed by all hex ascii chars
+        # Data Record 41: a line that is not data and does not start with Timestamp
 
         file_path = os.path.join(RESOURCE_PATH, '11079364_BAD_ACS_ACS.txt')
 
@@ -423,7 +466,7 @@ class OptaaDjCsppParserUnitTestCase(ParserUnitTestCase):
             self.assert_(isinstance(self.exception_callback_value[i], RecoverableSampleException))
 
         # bad records
-        self.assertEqual(self.count, 19)
+        self.assertEqual(self.count, 21)
         stream_handle.close()
 
     def test_missing_source_file(self):
