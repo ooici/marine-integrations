@@ -226,7 +226,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=3)
 
     def test_bad_data(self):
-        # Put bad data into the file and make sure an exemption is raised
+        # Put bad data into the file and make sure an exception is raised
 
         ## This file has had a section of CS data replaced with letters
         self.clear_async_data()
@@ -237,7 +237,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
 
     def test_bad_data_recov(self):
-        # Put bad data into the file and make sure an exemption is raised
+        # Put bad data into the file and make sure an exception is raised
 
         ## This file has had a section of CS data replaced with letters
         self.clear_async_data()

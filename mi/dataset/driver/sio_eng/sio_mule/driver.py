@@ -37,8 +37,8 @@ class DataSourceKey(BaseEnum):
     """
     These are the possible harvester/parser pairs for this driver
     """
-    SIO_ENG_SIO_MULE_TELEMETERED = 'sio_eng_control_status'
-    SIO_ENG_SIO_MULE_RECOVERED = 'sio_eng_control_status_recovered'
+    SIO_ENG_SIO_MULE_TELEMETERED = 'sio_eng_sio_telemetered'
+    SIO_ENG_SIO_MULE_RECOVERED = 'sio_eng_sio_recovered'
 
 
 class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
@@ -56,10 +56,6 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
                  event_callback,
                  exception_callback):
 
-        # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED,
-                     DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED]
-
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {DataSourceKey.SIO_ENG_SIO_MULE_TELEMETERED: HarvesterType.SINGLE_FILE,
                           DataSourceKey.SIO_ENG_SIO_MULE_RECOVERED: HarvesterType.SINGLE_DIRECTORY}
@@ -70,7 +66,7 @@ class SioEngSioMuleDataSetDriver(SioMuleDataSetDriver):
                                                          state_callback,
                                                          event_callback,
                                                          exception_callback,
-                                                         data_keys,
+                                                         DataSourceKey.list(),
                                                          harvester_type=harvester_type)
 
     def _build_parser(self, parser_state, stream_in, data_key):

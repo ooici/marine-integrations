@@ -67,8 +67,12 @@ class SioEngSioMuleParserUnitTestCase(ParserUnitTestCase):
 
     def assert_result(self, result, in_process_data, unprocessed_data, particle, recov_flag=False):
         """
-        print(result.raw_data)
-        print(particle.raw_data)
+        This method is used to verify the results of the parser
+        @param result is a list of particles to be checked, only the first element is checked
+        @param in_process_data is part of the parser state
+        @param unprocessed_data is part of the parser state
+        @param particle is the expected results of the first element of result
+        @param recov_flag is true if it is a recovered particle, else it is telemetered.
         """
 
         # verify the raw data and timestamp of the result against expected particle data

@@ -125,7 +125,7 @@ class SioEngSioCommonParser(Parser):
         while chunk is not None:
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            log.debug('parsing header %s', header_match.group(0)[1:32])
+
             if header_match.group(SIO_HEADER_GROUP_ID) == 'CS':
                 log.debug('\n\nCS Header detected:::  %s\n\n', header_match.group(0)[1:32])
                 data_match = ENG_MATCHER.match(chunk)
