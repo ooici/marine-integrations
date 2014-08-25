@@ -46,8 +46,8 @@ from mi.core.instrument.data_particle import \
 
 from mi.dataset.dataset_parser import BufferLoadingParser
 
-SIZE_CHECKSUM = 2
-SIZE_PAD = 1
+SIZE_CHECKSUM = 2                    # number of bytes for checksum in the input
+SIZE_PAD = 1                         # number of bytes for trailing pad in the input
 
 # Basic patterns
 START_GROUP = '('
@@ -73,8 +73,8 @@ GROUP_MINUTE = 5
 GROUP_SECOND = 6
 
 # Define a regex up to and including the packet length.
-LENGTH_REGEX = r'\xFF\x00\xFF\x00'  # all packets start with 0xFF00FF00
-LENGTH_REGEX += BINARY_SHORT        # packet length not incl checksum or pad
+LENGTH_REGEX = r'\xFF\x00\xFF\x00'        # all packets start with 0xFF00FF00
+LENGTH_REGEX += BINARY_SHORT              # packet length not including checksum or pad
 LENGTH_MATCHER = re.compile(START_GROUP + LENGTH_REGEX + END_GROUP)
 
 # Define a regex for the fixed part of the packet
@@ -117,6 +117,7 @@ GROUP_CHECKSUM = 16
 BYTES_PER_MEASUREMENT = 2
 MEASUREMENTS_PER_SET = 4    # number of signal measurements per set
 BYTES_PER_SET = BYTES_PER_MEASUREMENT * MEASUREMENTS_PER_SET
+NO_PRESSURE_SENSOR_INSTALLED = 0xFFFF    # indicates no pressure sensor installed
 
 # Indices into raw_data for Instrument particles.
 RAW_INDEX_A_REFERENCE_DARK = 0
@@ -230,11 +231,10 @@ class OptaaDjDclInstrumentDataParticle(DataParticle):
         # Generate a particle by calling encode_value for each entry
         # in the Instrument Particle Mapping table,
         # where each entry is a tuple containing the particle field name,
-        # an index into match.group (which is what has been stored in raw_data),
-        # and a function to use for data conversion.
+        # an index into raw_data and a function to use for data conversion.
 
-        return [self._encode_value(name, self.raw_data[group], function)
-            for name, group, function in INSTRUMENT_PARTICLE_MAP]
+        return [self._encode_value(name, self.raw_data[raw_index], function)
+            for name, raw_index, function in INSTRUMENT_PARTICLE_MAP]
 
 
 class OptaaDjDclRecoveredInstrumentDataParticle(OptaaDjDclInstrumentDataParticle):
@@ -242,7 +242,6 @@ class OptaaDjDclRecoveredInstrumentDataParticle(OptaaDjDclInstrumentDataParticle
     Class for generating Offset Data Particles from Recovered data.
     """
     _data_particle_type = DataParticleType.REC_INSTRUMENT_PARTICLE
-    log.debug('GENERATING OptaaDjDclRecoveredInstrumentDataParticle')
 
 
 class OptaaDjDclTelemeteredInstrumentDataParticle(OptaaDjDclInstrumentDataParticle):
@@ -250,7 +249,6 @@ class OptaaDjDclTelemeteredInstrumentDataParticle(OptaaDjDclInstrumentDataPartic
     Class for generating Offset Data Particles from Telemetered data.
     """
     _data_particle_type = DataParticleType.TEL_INSTRUMENT_PARTICLE
-    log.debug('GENERATING OptaaDjDclTelemeteredInstrumentDataParticle')
 
 
 class OptaaDjDclMetadataDataParticle(DataParticle):
@@ -280,11 +278,10 @@ class OptaaDjDclMetadataDataParticle(DataParticle):
         # Generate a particle by calling encode_value for each entry
         # in the Metadata Particle Mapping table,
         # where each entry is a tuple containing the particle field name,
-        # an index into match.group (which is what has been stored in raw_data),
-        # and a function to use for data conversion.
+        # an index into raw_data and a function to use for data conversion.
 
-        return [self._encode_value(name, self.raw_data[group], function)
-            for name, group, function in METADATA_PARTICLE_MAP]
+        return [self._encode_value(name, self.raw_data[raw_index], function)
+            for name, raw_index, function in METADATA_PARTICLE_MAP]
 
 
 class OptaaDjDclRecoveredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
@@ -292,7 +289,6 @@ class OptaaDjDclRecoveredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
     Class for generating Metadata Data Particles from Recovered data.
     """
     _data_particle_type = DataParticleType.REC_METADATA_PARTICLE
-    log.debug('GENERATING OptaaDjDclRecoveredMetadataDataParticle')
 
 
 class OptaaDjDclTelemeteredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
@@ -300,7 +296,6 @@ class OptaaDjDclTelemeteredMetadataDataParticle(OptaaDjDclMetadataDataParticle):
     Class for generating Metadata Data Particles from Telemetered data.
     """
     _data_particle_type = DataParticleType.TEL_METADATA_PARTICLE
-    log.debug('GENERATING OptaaDjDclRecoveredMetadataDataParticle')
 
 
 class OptaaDjDclParser(BufferLoadingParser):
@@ -351,7 +346,10 @@ class OptaaDjDclParser(BufferLoadingParser):
 
         # Extract the start date and time from the filename and convert
         # it to the format expected for the output particle.
-        # Calculate the ntp_time timestamp, the number of seconds since Jan 1, 1900.
+        # Calculate the ntp_time timestamp, the number of seconds since Jan 1, 1900,
+        # based on the date and time from the filename.
+        # This is the start time.  Timestamps for each particle are derived from
+        # the start time.
 
         filename_match = FILENAME_MATCHER.match(filename)
         if filename_match is not None:
@@ -370,6 +368,10 @@ class OptaaDjDclParser(BufferLoadingParser):
                 int(filename_match.group(GROUP_MINUTE)),
                 int(filename_match.group(GROUP_SECOND)),
                 0, 0, 0)
+
+            # The timestamp for each particle is:
+            # timestamp = start_time_from_file_name + (tn - t0)
+            # where t0 is the time since power-up in the first record.
 
             elapsed_seconds = calendar.timegm(timestamp)
             self.ntp_time = ntplib.system_to_ntp_time(elapsed_seconds) - \
@@ -474,18 +476,17 @@ class OptaaDjDclParser(BufferLoadingParser):
                         # metadata particle.
                         # Order is important and must follow the RAW_INDEX
                         # values for metadata particles.
+                        # Serial number is a 3-byte field, so a zero byte
+                        # must be prepended to the serial number string in order
+                        # to unpack it as a 32-bit number.
 
                         fields = (
                             self.start_date,
-                            struct.unpack('>B',
-                                packet_match.group(GROUP_PACKET_TYPE))[0],
-                            struct.unpack('>B',
-                                packet_match.group(GROUP_METER_TYPE))[0],
+                            struct.unpack('>B', packet_match.group(GROUP_PACKET_TYPE))[0],
+                            struct.unpack('>B', packet_match.group(GROUP_METER_TYPE))[0],
                             struct.unpack('>I',
                                 '\x00' + packet_match.group(GROUP_SERIAL_NUMBER))[0]
                         )
-
-                        #log.debug('META %f', self.ntp_time)
 
                         particle = self._extract_sample(self.metadata_particle_class,
                             None, fields, self.ntp_time)
@@ -518,26 +519,28 @@ class OptaaDjDclParser(BufferLoadingParser):
                     #   c_sig1 c_sig2 c_sig3 ... c_sigN
                     #   a_ref1 a_ref2 a_ref3 ... a_refN
                     #   a_sig1 a_sig2 a_sig3 ... a_sigN
+                    #
+                    # So we bounce through the measurements (as a string)
+                    # unpacking 2 bytes for each measurement in the set.
 
                     measurements = packet_match.group(GROUP_MEASUREMENTS)
 
+                    # Set the pressure count to 0 if there's no pressure sensor
+                    # installed.
+
+                    pressure_count = struct.unpack('>H', packet_match.group(GROUP_PRESSURE_COUNT))[0]
+                    if pressure_count == NO_PRESSURE_SENSOR_INSTALLED:
+                        pressure_count = 0
+
                     fields = (
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_A_REFERENCE))[0],
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_PRESSURE_COUNT))[0],
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_A_SIGNAL))[0],
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_EXTERNAL_TEMP))[0],
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_INTERNAL_TEMP))[0],
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_C_REFERENCE))[0],
-                        struct.unpack('>H',
-                            packet_match.group(GROUP_C_SIGNAL))[0],
-                        struct.unpack('>I',
-                            packet_match.group(GROUP_POWER_UP_TIME))[0],
+                        struct.unpack('>H', packet_match.group(GROUP_A_REFERENCE))[0],
+                        pressure_count,
+                        struct.unpack('>H', packet_match.group(GROUP_A_SIGNAL))[0],
+                        struct.unpack('>H', packet_match.group(GROUP_EXTERNAL_TEMP))[0],
+                        struct.unpack('>H', packet_match.group(GROUP_INTERNAL_TEMP))[0],
+                        struct.unpack('>H', packet_match.group(GROUP_C_REFERENCE))[0],
+                        struct.unpack('>H', packet_match.group(GROUP_C_SIGNAL))[0],
+                        struct.unpack('>I', packet_match.group(GROUP_POWER_UP_TIME))[0],
                         wavelengths,
                         [struct.unpack('>H', measurements[x : x+2])[0]
                             for x in range(0, len(measurements), BYTES_PER_SET)],
@@ -552,16 +555,16 @@ class OptaaDjDclParser(BufferLoadingParser):
                             for x in range(6, len(measurements), BYTES_PER_SET)]
                     )
 
-                    # log.debug('INST %f, %s',
-                    #           self.ntp_time + time_since_power_up,
-                    #           fields)
-
                     particle = self._extract_sample(self.instrument_particle_class,
                         None, fields, self.ntp_time + time_since_power_up)
 
                     if particle is not None:
                         result_particles.append((particle,
                                                  copy.copy(self._read_state)))
+
+                # If checksums don't match, generate a RecoverableSampleException
+                # through the exception callback.
+
                 else:
                     self._exception_callback(RecoverableSampleException(
                         'Checksum error.  Actual %d vs Expected %d' %
@@ -580,19 +583,15 @@ class OptaaDjDclParser(BufferLoadingParser):
         @throws DatasetParserException if there is a bad state structure
         """
         if not isinstance(state_obj, dict):
-            raise DatasetParserException("Invalid state structure")
+            error_message = 'Invalid state structure'
+            log.warn(error_message)
+            raise DatasetParserException(error_message)
 
-        if not (OptaaStateKey.POSITION in state_obj):
-            raise DatasetParserException('%s missing in state keys' %
-                                         OptaaStateKey.POSITION)
-
-        if not (OptaaStateKey.METADATA_GENERATED in state_obj):
-            raise DatasetParserException('%s missing in state keys' %
-                                         OptaaStateKey.METADATA_GENERATED)
-
-        if not (OptaaStateKey.TIME_SINCE_POWER_UP in state_obj):
-            raise DatasetParserException('%s missing in state keys' %
-                                         OptaaStateKey.TIME_SINCE_POWER_UP)
+        for key in OptaaStateKey.list():
+            if not key in state_obj:
+                error_message = '%s missing in state keys' % key
+                log.warn(error_message)
+                raise DatasetParserException(error_message)
 
         self._record_buffer = []
         self._state = state_obj
@@ -614,16 +613,14 @@ class OptaaDjDclParser(BufferLoadingParser):
 
             # Search for the start of a packet.
 
-            length_found = False
-            while not length_found and start_index < len(input_buffer):
+            length_match = None
+            while length_match is None and start_index < len(input_buffer):
                 length_match = LENGTH_MATCHER.match(input_buffer[start_index : ])
 
-                if length_match is not None:
-                    length_found = True
-                else:
+                if length_match is None:
                     start_index += 1
 
-            if length_found:
+            if length_match is not None:
 
                 # Extract the packet length.
                 # This is the number of bytes in the packet except for

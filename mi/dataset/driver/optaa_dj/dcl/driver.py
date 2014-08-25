@@ -27,7 +27,9 @@ from mi.dataset.parser.optaa_dj_dcl import \
     OptaaDjDclRecoveredParser, \
     OptaaDjDclTelemeteredParser, \
     OptaaDjDclRecoveredInstrumentDataParticle, \
-    OptaaDjDclTelemeteredInstrumentDataParticle
+    OptaaDjDclRecoveredMetadataDataParticle, \
+    OptaaDjDclTelemeteredInstrumentDataParticle, \
+    OptaaDjDclTelemeteredMetadataDataParticle
 
 MODULE_NAME = 'mi.dataset.parser.optaa_dj_dcl'
 
@@ -67,7 +69,9 @@ class OptaaDjDclDataSetDriver(MultipleHarvesterDataSetDriver):
     def stream_config(cls):
         return [
             OptaaDjDclRecoveredInstrumentDataParticle.type(),
-            OptaaDjDclTelemeteredInstrumentDataParticle.type()
+            OptaaDjDclRecoveredMetadataDataParticle.type(),
+            OptaaDjDclTelemeteredInstrumentDataParticle.type(),
+            OptaaDjDclTelemeteredMetadataDataParticle.type()
         ]
 
     def _build_harvester(self, driver_state):
