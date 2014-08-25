@@ -36,7 +36,7 @@ class DataParticleType(BaseEnum):
     INSTRUMENT = 'flord_l_wfp_instrument_recovered'
 
 
-class FlordLWfpParserDataParticleKey(BaseEnum):
+class FlordLWfpInstrumentParserDataParticleKey(BaseEnum):
     TIME = 'time'
     RAW_SIGNAL_CHL = 'raw_signal_chl'           # corresponds to 'chl' from E file
     RAW_SIGNAL_BETA = 'raw_signal_beta'         # corresponds to 'ntu' from E file
@@ -44,7 +44,7 @@ class FlordLWfpParserDataParticleKey(BaseEnum):
     WFP_TIMESTAMP = 'wfp_timestamp'
 
 
-class FlordLWfpParserDataParticle(DataParticle):
+class FlordLWfpInstrumentParserDataParticle(DataParticle):
     """
     Class for parsing data from the flord_l_wfp data set
     """
@@ -59,12 +59,11 @@ class FlordLWfpParserDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
 
-        log.debug("_build_parsed_values entered")
         fields_prof = struct.unpack('>I f f f f f h h h', self.raw_data)
-        result = [self._encode_value(FlordLWfpParserDataParticleKey.RAW_SIGNAL_CHL, fields_prof[6], int),
-                  self._encode_value(FlordLWfpParserDataParticleKey.RAW_SIGNAL_BETA, fields_prof[7], int),
-                  self._encode_value(FlordLWfpParserDataParticleKey.RAW_INTERNAL_TEMP, fields_prof[8], int),
-                  self._encode_value(FlordLWfpParserDataParticleKey.WFP_TIMESTAMP, fields_prof[0], int)]
+        result = [self._encode_value(FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL, fields_prof[6], int),
+                  self._encode_value(FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA, fields_prof[7], int),
+                  self._encode_value(FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP, fields_prof[8], int),
+                  self._encode_value(FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP, fields_prof[0], int)]
         log.debug("_build_parsed_values returning result: %s", result)
         return result
 
@@ -141,6 +140,7 @@ class FlordLWfpParser(WfpEFileParser):
         processing.  This is needed instead of a regex because blocks are identified by
         position in this binary file.
         """
+        log.debug("sieve_function entered")
         form_list = []
         raw_data_len = len(raw_data)
 
@@ -185,7 +185,7 @@ class FlordLWfpParser(WfpEFileParser):
                 raise SampleException("File size is invalid or improper positioning")
 
         return_list = form_list[::-1]
-
+        log.debug("leaving sieve_function")
         return return_list
 
     def parse_chunks(self):
@@ -212,7 +212,7 @@ class FlordLWfpParser(WfpEFileParser):
                 fields_prof = struct.unpack_from('>I', data_match.group(1))
                 timestamp = fields_prof[0]
                 self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
-
+                log.debug("_timestamp: %s", self._timestamp)
                 # particle-ize the data block received, return the record
                 sample = self._extract_sample(self._particle_class,
                                               None,
@@ -228,7 +228,7 @@ class FlordLWfpParser(WfpEFileParser):
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
             self.handle_non_data(non_data, non_end, start)
-        log.debug("parse_chunks leaving")
+        log.debug("parse_chunks leaving, result_particles: %s", result_particles)
         return result_particles
 
     def handle_non_data(self, non_data, non_end, start):

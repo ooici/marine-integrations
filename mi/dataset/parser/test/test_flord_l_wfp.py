@@ -22,7 +22,7 @@ from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, StateKey
 from mi.dataset.parser.flord_l_wfp import FlordLWfpParser
-from mi.dataset.parser.flord_l_wfp import FlordLWfpParserDataParticle
+from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticleKey
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flord_l', 'wfp', 'resource')
 
@@ -49,9 +49,9 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flord_l_wfp',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordLWfpParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordLWfpInstrumentParserDataParticle'
         }
-        # Define test data particles and their associated timestamps which will be 
+         # Define test data particles and their associated timestamps which will be
         # compared with returned results
 
         self.start_state = {StateKey.POSITION: 0}
@@ -59,6 +59,40 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
+
+        self.test_particle1 = {}
+        self.test_particle1['internal_timestamp'] = 3583638177.0
+        self.test_particle1[StateKey.POSITION] = 204
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 112
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 571
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649377
+
+        # self.test_particle2 = {}
+        # self.test_particle2['internal_timestamp'] = 3583638247
+        # self.test_particle2[StateKey.POSITION] = 414
+        # self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION] = \
+        #     153.7899932861328
+        # self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.OPTODE_TEMPERATURE] = 1.4950000047683716
+        # self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649447
+        #
+        # self.test_particle3 = {}
+        # self.test_particle3['internal_timestamp'] = 3583638317
+        # self.test_particle3[StateKey.POSITION] = 624
+        # self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION] = \
+        #     153.41099548339844
+        # self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.OPTODE_TEMPERATURE] = 1.5
+        # self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649517
+        #
+        # self.test_particle4 = {}
+        # self.test_particle4['internal_timestamp'] = 3583638617
+        # self.test_particle4[StateKey.POSITION] = 1524
+        # self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION] = \
+        #     152.13600158691406
+        # self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.OPTODE_TEMPERATURE] = 1.5019999742507935
+        # self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649817
+
+
 
     def test_simple(self):
         """
@@ -76,13 +110,13 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
         log.debug("particles: %s", particles)
         for particle in particles:
-            log.info(particle.generate_dict())
-        #
-        # # Make sure the fifth particle has the correct values
-        # self.assert_result(self.test_particle1, particles[5])
-        #
-        # test_data = self.get_dict_from_yml('good.yml')
-        # self.assert_result(test_data['data'][0], particles[5])
+            log.info("*** test particle: %s", particle.generate_dict())
+
+        # Make sure the sixth particle has the correct values
+        self.assert_result(self.test_particle1, particles[5])
+
+        test_data = self.get_dict_from_yml('good.yml')
+        self.assert_result(test_data['data'][0], particles[5])
 
         self.stream_handle.close()
 
@@ -119,3 +153,65 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
         pass
+
+    def assert_result(self, test, particle):
+        """
+        Suite of tests to run against each returned particle and expected
+        results of the same.  The test parameter should be a dictionary
+        that contains the keys to be tested in the particle
+        the 'internal_timestamp' and 'position' keys are
+        treated differently than others but can be verified if supplied
+        """
+
+        particle_dict = particle.generate_dict()
+
+        #for efficiency turn the particle values list of dictionaries into a dictionary
+        particle_values = {}
+        for param in particle_dict.get('values'):
+            particle_values[param['value_id']] = param['value']
+
+        # compare each key in the test to the data in the particle
+        for key in test:
+            test_data = test[key]
+
+            #get the correct data to compare to the test
+            if key == 'internal_timestamp':
+                particle_data = particle.get_value('internal_timestamp')
+                #the timestamp is in the header part of the particle
+
+                log.info("internal_timestamp %d", particle_data)
+
+            elif key == 'position':
+                particle_data = self.state_callback_value['position']
+                #position corresponds to the position in the file
+
+                log.info("position %d", particle_data)
+
+            else:
+                particle_data = particle_values.get(key)
+                #others are all part of the parsed values part of the particle
+
+            if particle_data is None:
+                #generally OK to ignore index keys in the test data, verify others
+
+                log.warning("\nWarning: assert_result ignoring test key %s, does not exist in particle", key)
+            else:
+                if isinstance(test_data, float):
+                    # slightly different test for these values as they are floats.
+                    compare = numpy.abs(test_data - particle_data) <= 1e-5
+                    self.assertTrue(compare)
+                else:
+                    # otherwise they are all ints and should be exactly equal
+                    self.assertEqual(test_data, particle_data)
+
+    def get_dict_from_yml(self, filename):
+        """
+        This utility routine loads the contents of a yml file
+        into a dictionary
+        """
+
+        fid = open(os.path.join(RESOURCE_PATH, filename), 'r')
+        result = yaml.load(fid)
+        fid.close()
+
+        return result

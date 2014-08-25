@@ -5,9 +5,9 @@ header:
 data:
   - _index: 1
     internal_timestamp: 3583638177.0
-    particle_object: DostaLnWfpInstrumentParserDataParticle
-    particle_type: dosta_ln_wfp_instrument_recovered
-    estimated_oxygen_concentration: 154.23699951171875
-    optode_temperature: 1.4819999933242798
-    wfp_timestamp: 1374649377
-
+    particle_object: FlordLWfpParserDataParticle
+    particle_type: flord_l_wfp_instrument_recovered
+    raw_signal_chl: 54
+    raw_signal_beta: 112
+    raw_internal_temp: 571
+    wfp_timestamp: 1374649377.0
