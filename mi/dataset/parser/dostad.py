@@ -90,8 +90,8 @@ class DostadParserDataParticle(DataParticle):
         super(DostadParserDataParticle, self).__init__(raw_data,
                                                        port_timestamp,
                                                        internal_timestamp,
-                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                                       quality_flag=DataParticleValue.OK,
+                                                       preferred_timestamp,
+                                                       quality_flag,
                                                        new_sequence)
         
         # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
@@ -160,8 +160,8 @@ class DostadMetadataDataParticle(DataParticle):
         super(DostadMetadataDataParticle, self).__init__(raw_data,
                                                          port_timestamp,
                                                          internal_timestamp,
-                                                         preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                                         quality_flag=DataParticleValue.OK,
+                                                         preferred_timestamp,
+                                                         quality_flag,
                                                          new_sequence)
         
         # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes

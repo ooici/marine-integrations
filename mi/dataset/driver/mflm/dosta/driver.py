@@ -19,12 +19,16 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.harvester import SingleFileHarvester, SingleDirectoryHarvester
 from mi.dataset.dataset_driver import HarvesterType, DataSetDriverConfigKeys
 from mi.dataset.driver.sio_mule.sio_mule_driver import SioMuleDataSetDriver
-from mi.dataset.parser.dostad import DostadParser, DostadRecoveredParser
-from mi.dataset.parser.dostad import StateKey, METADATA_PARTICLE_CLASS_KEY, DATA_PARTICLE_CLASS_KEY
-from mi.dataset.parser.dostad import DostadParserRecoveredDataParticle
-from mi.dataset.parser.dostad import DostadParserTelemeteredDataParticle
-from mi.dataset.parser.dostad import DostadParserRecoveredMetadataDataParticle
-from mi.dataset.parser.dostad import DostadParserTelemeteredMetadataDataParticle
+from mi.dataset.parser.dostad import \
+    DostadParser, \
+    DostadRecoveredParser, \
+    StateKey, \
+    METADATA_PARTICLE_CLASS_KEY, \
+    DATA_PARTICLE_CLASS_KEY, \
+    DostadParserRecoveredDataParticle, \
+    DostadParserTelemeteredDataParticle, \
+    DostadParserRecoveredMetadataDataParticle, \
+    DostadParserTelemeteredMetadataDataParticle
 
 class DataTypeKey(BaseEnum):
     """

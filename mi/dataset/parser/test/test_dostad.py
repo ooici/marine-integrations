@@ -30,7 +30,11 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
 @attr('UNIT', group='mi')
 class DostadParserUnitTestCase(ParserUnitTestCase):
 
-    def state_callback(self, state, file_ingested):
+    def state_callback(self, state):
+        """ Call back method to watch what comes in via the position callback """
+        self.state_callback_value = state
+
+    def state_callback_recovered(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
         self.file_ingested_value = file_ingested
@@ -231,7 +235,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -326,7 +330,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -387,7 +391,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    None,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -464,7 +468,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    new_state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -547,7 +551,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    new_state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -648,7 +652,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -734,7 +738,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of data that was missing in the previous file
         stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    next_state,
 	    stream_handle,
             self.state_callback,
@@ -786,7 +790,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
@@ -827,7 +831,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    next_state,
 	    stream_handle,
-            self.state_callback,
+            self.state_callback_recovered,
 	    self.pub_callback,
 	    self.exception_callback
 	)
