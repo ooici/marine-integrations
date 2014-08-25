@@ -106,9 +106,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir("node59p1_step4.dat", TELEM_DIR, "node59p1.dat",
                                         copy_metadata=False)
         self.assert_data(DostadParserTelemeteredDataParticle, count=4)
-
-        # Test that we can get data from files.  Verify that the driver
-        # sampling can be started and stopped
         
         
     def test_get_recovered(self):

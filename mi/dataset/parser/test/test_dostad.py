@@ -8,12 +8,19 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
-from mi.dataset.parser.dostad import DostadParserRecoveredDataParticle, DostadParserTelemeteredDataParticle
-from mi.dataset.parser.dostad import DostadParserRecoveredMetadataDataParticle, DostadParserTelemeteredMetadataDataParticle
-from mi.dataset.parser.dostad import DostadParser, DostadParserRecovered
-from mi.dataset.parser.dostad import StateKey
+from mi.dataset.parser.dostad import \
+    DostadParserRecoveredDataParticle, \
+    DostadParserTelemeteredDataParticle, \
+    DostadParserRecoveredMetadataDataParticle, \
+    DostadParserTelemeteredMetadataDataParticle, \
+    DostadParser, \
+    DostadRecoveredParser, \
+    StateKey, \
+    METADATA_PARTICLE_CLASS_KEY, \
+    DATA_PARTICLE_CLASS_KEY
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.dataset.driver.mflm.dosta.driver import DataTypeKey
 
 from mi.idk.config import Config
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
@@ -37,9 +44,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
-	
 	self.config = {
-            DataSourceKey.OSTA_ABCDJM_SIO_TELEMETERED: {
+            DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED: {
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dostad',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
@@ -47,7 +53,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                     DATA_PARTICLE_CLASS_KEY: DostadParserTelemeteredDataParticle,
                 }
             },
-            DataSourceKey.DOSTA_ABCDJM_SIO_RECOVERED: {
+            DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED: {
                 DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dostad',
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
@@ -56,12 +62,6 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                 }
             },
         }
-
-	
-
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dostad',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostadParserDataParticle'
-            }
 
         # first DO tag
         self.particle_a = DostadParserTelemeteredDataParticle('51EF0E75\xff\x11\x25\x11' \
@@ -147,10 +147,20 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # NOTE: using the unprocessed data state of 0,6300 limits the file to reading
         # just 6300 bytes, so even though the file is longer it only reads the first
         # 6300
-        state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
-        self.parser = DostadParser(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 6300]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: False,
+	    StateKey.FILE_SIZE: 9400
+	}
+        self.parser = DostadParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         # the metadata particle and first particle come from the same block of data, first get
         # the metadata particle (this is why there are 2 particles parsed in the first in process state)
@@ -162,22 +172,28 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	# the final \x03
 	result = self.parser.get_records(1)
 	in_process = [[197,314,2,1], [390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]]
-	unprocessed = [[0,69], [197,314], [390,507], [637,754], [1329,1332], [2294,2363],
-			    [4092,4161], [4351, 4927], [6131,6300]]
+	unprocessed = [
+	    [0,69], [197,314], [390,507], [637,754], [1329,1332], [2294,2363],
+	    [4092,4161], [4351, 4927], [6131,6300]
+	]
 	self.assert_result(result, in_process, unprocessed, self.particle_metadata)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
 	# then get the first dosta data particle, this clears out the block from 197-314
 	result = self.parser.get_records(1)
 	in_process = [[390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]]
-	unprocessed = [[0,69], [390,507], [637,754], [1329,1332], [2294,2363],
-			    [4092,4161], [4351, 4927], [6131,6300]]
+	unprocessed = [
+	    [0,69], [390,507], [637,754], [1329,1332], [2294,2363],
+	    [4092,4161], [4351, 4927], [6131,6300]
+	]
 	self.assert_result(result, in_process, unprocessed, self.particle_a)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
 
 	result = self.parser.get_records(1)
 	in_process = [[637, 754, 1, 0], [6131, 6248, 1, 0]]
-	unprocessed = [[0,69], [637,754], [1329,1332], [2294,2363],
-			    [4092,4161], [4351, 4927], [6131,6300]]
+	unprocessed = [
+	    [0,69], [637,754], [1329,1332], [2294,2363],
+	    [4092,4161], [4351, 4927], [6131,6300]
+	]
 	self.assert_result(result, in_process, unprocessed, self.particle_b)
 
 	result = self.parser.get_records(1)
@@ -193,35 +209,50 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	stream_handle.close()
 	self.assertEqual(self.exception_callback_value, None)
 
-
     def test_simple_recovered(self):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'DOS15908_1st7.DAT'))
         # NOTE: using the unprocessed data state of 0,6300 limits the file to reading
         # just 6300 bytes, so even though the file is longer it only reads the first
         # 6300
-        state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
-        self.parser = DostadParserRecovered(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 6300]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: False,
+	    StateKey.FILE_SIZE: 9400
+	}
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
 	result = self.parser.get_records(1)
-	in_process = [[0, 117, 2, 1], [117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0],
-	    [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
+	in_process = [
+	    [0, 117, 2, 1], [117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0],
+	    [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]
+	]
 	unprocessed = [[0, 6300]]	
 	self.assert_result(result, in_process, unprocessed, self.particle_rmetadata)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
 	
 	# then get the first dosta data particle, this clears out the block from 197-314
 	result = self.parser.get_records(1)
-	in_process = [[117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],
-	    [585, 702, 1, 0], [702, 819, 1, 0]]
+	in_process = [
+	    [117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],
+	    [585, 702, 1, 0], [702, 819, 1, 0]
+	]
 	unprocessed = [[117, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_ra)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
 
 	result = self.parser.get_records(1)
-	in_process = [[234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
+	in_process = [
+	    [234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]
+	]
 	unprocessed = [[234, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rb)
 
@@ -243,20 +274,30 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         Read test data from the file and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 1000]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: False,
+	    StateKey.FILE_SIZE: 9400
+	}
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         result = self.parser.get_records(4)
         stream_handle.close()
-        self.assertEqual(result,
-                         [self.particle_metadata, self.particle_a, self.particle_b, self.particle_c])
+        self.assertEqual(
+	    result,
+            [self.particle_metadata, self.particle_a, self.particle_b, self.particle_c]
+	)
         # 0-69 contains an incomplete block (end of a sample)
-        self.assert_state([],
-                        [[0,69],[944,1000]])
+        self.assert_state([],[[0,69],[944,1000]])
         self.assertEqual(self.publish_callback_value[0], self.particle_metadata)
         self.assertEqual(self.publish_callback_value[1], self.particle_a)
         self.assertEqual(self.publish_callback_value[2], self.particle_b)
@@ -268,32 +309,49 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         Read test data from the file and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'DOS15908_1st7.DAT'))
-        self.parser = DostadParserRecovered(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 1000]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: False,
+	    StateKey.FILE_SIZE: 9400
+	}
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         result = self.parser.get_records(4)
         stream_handle.close()
-        self.assertEqual(result,
-                         [self.particle_rmetadata, self.particle_ra, self.particle_rb, self.particle_rc])
+        self.assertEqual(
+	    result,
+            [self.particle_rmetadata, self.particle_ra, self.particle_rb, self.particle_rc]
+	)
  
-        self.assert_state([[351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
-                        [[351, 1000]])
+        self.assert_state([
+	    [351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
+            [[351, 1000]
+	])
         self.assertEqual(self.publish_callback_value[0], self.particle_rmetadata)
         self.assertEqual(self.publish_callback_value[1], self.particle_ra)
         self.assertEqual(self.publish_callback_value[2], self.particle_rb)
         self.assertEqual(self.publish_callback_value[3], self.particle_rc)
         self.assertEqual(self.exception_callback_value, None)
 
-
     def test_long_stream(self):
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, None, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    None,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         result = self.parser.get_records(7)
         stream_handle.close()
@@ -309,17 +367,24 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
         # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
         # the final \x03
-        self.assert_state([],
-            [[0, 69], [1329,1332], [2294,2363], [4092,4161], [4351, 4927], [9020, 9374]])
+        self.assert_state(
+	    [],
+            [[0, 69], [1329,1332], [2294,2363], [4092,4161], [4351, 4927], [9020, 9374]]
+	)
         self.assertEqual(self.publish_callback_value[5], self.particle_e)
         self.assertEqual(self.publish_callback_value[6], self.particle_f)
         self.assertEqual(self.exception_callback_value, None)
 
     def test_long_stream_recovered(self):
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'DOS15908_1st7.DAT'))
-        self.parser = DostadParserRecovered(self.config, None, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    None,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         result = self.parser.get_records(7)
         stream_handle.close()
@@ -330,8 +395,9 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[4], self.particle_rd)
         self.assertEqual(result[5], self.particle_re)
         self.assertEqual(result[6], self.particle_rf)
-        self.assert_state([[702, 819, 1, 0]],
-            [[702, 819]])
+        self.assert_state(
+	    [[702, 819, 1, 0]],[[702, 819]]
+	)
         self.assertEqual(self.publish_callback_value[5], self.particle_re)
         self.assertEqual(self.publish_callback_value[6], self.particle_rf)
         self.assertEqual(self.exception_callback_value, None)
@@ -340,29 +406,40 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         """
         test starting a parser with a state in the middle of processing
         """
-        new_state = {StateKey.IN_PROCESS_DATA:[],
+        new_state = {
+	    StateKey.IN_PROCESS_DATA:[],
             StateKey.UNPROCESSED_DATA:[[0,69], [314,6300]],
             StateKey.METADATA_SENT: True,
-            StateKey.FILE_SIZE: 9400}
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, new_state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+            StateKey.FILE_SIZE: 9400
+	}
+        stream_handle = open(os.path.join(RESOURCE_PATH,'node59p1_shorter.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    new_state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
         result = self.parser.get_records(1)
         # 0-69 contains an incomplete block (end of a sample)
         # 1329-1332 there are 3 extra \n's between sio blocks
         # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
         # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
         # the final \x03
-        self.assert_result(result, [[637, 754, 1, 0],[6131, 6248, 1, 0]],
-                           [[0,69],[637,754],[1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6131,6300]],
-                           self.particle_b)
+        self.assert_result(
+	    result,
+	    [[637, 754, 1, 0],[6131, 6248, 1, 0]],
+            [[0,69],[637,754],[1329,1332], [2294,2363],[4092,4161], [4351, 4927], [6131,6300]],
+            self.particle_b
+	)
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_c)
         self.assertEqual(result[1], self.particle_d)
-        self.assert_state([], [[0,69],[1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6248,6300]])
+        self.assert_state(
+	    [],
+	    [[0,69],[1329,1332], [2294,2363],[4092,4161], [4351, 4927], [6248,6300]]
+	)
         stream_handle.close()
         self.assertEqual(self.exception_callback_value, None)
 
@@ -370,27 +447,38 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         """
         test starting a parser with a state in the middle of processing
         """
-        new_state = {StateKey.IN_PROCESS_DATA:[],
+        new_state = {
+	    StateKey.IN_PROCESS_DATA:[],
             StateKey.UNPROCESSED_DATA:[[117,6300]],
             StateKey.METADATA_SENT: True,
-            StateKey.FILE_SIZE: 9400}
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'DOS15908_1st7.DAT'))
-        self.parser = DostadParserRecovered(self.config, new_state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+            StateKey.FILE_SIZE: 9400
+	}
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    new_state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
         result = self.parser.get_records(1)
 
-        self.assert_result(result, [[234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],
-	    [585, 702, 1, 0], [702, 819, 1, 0]],
+        self.assert_result(
+	    result,
+	    [[234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],[585, 702, 1, 0], [702, 819, 1, 0]],
             [[234, 6300]],
-            self.particle_rb)
+            self.particle_rb
+	)
 	
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_rc)
         self.assertEqual(result[1], self.particle_rd)
 
-        self.assert_state([[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
-	    [[468, 6300]])
+        self.assert_state(
+	    [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
+	    [[468, 6300]]
+	)
         stream_handle.close()
         self.assertEqual(self.exception_callback_value, None)
 
@@ -398,19 +486,29 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         """
         test starting a parser with a state in the middle of processing
         """
-        new_state = {StateKey.IN_PROCESS_DATA:[[390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]],
+        new_state = {
+	    StateKey.IN_PROCESS_DATA:[[390, 507, 1, 0], [637, 754, 1, 0], [6131, 6248, 1, 0]],
             StateKey.UNPROCESSED_DATA:[ [390,6300]],
             StateKey.METADATA_SENT: True,
-            StateKey.FILE_SIZE: 9400}
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, new_state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+            StateKey.FILE_SIZE: 9400
+	}
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    new_state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
         result = self.parser.get_records(1)
 
-        self.assert_result(result, [[637, 754, 1, 0], [6131, 6248, 1, 0]],
-                           [[507,6300]],
-                           self.particle_b)
+        self.assert_result(
+	    result,
+	    [[637, 754, 1, 0], [6131, 6248, 1, 0]],
+            [[507,6300]],
+            self.particle_b
+	)
 
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_c)
@@ -420,25 +518,44 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.publish_callback_value[-1], self.particle_d)
         self.assertEqual(self.exception_callback_value, None)
 
+	stream_handle.close()
+	self.assertEqual(self.exception_callback_value, None)
+
     def test_in_process_start_recovered(self):
         """
         test starting a parser with a state in the middle of processing
         """
-        new_state = {StateKey.IN_PROCESS_DATA:[[117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0],
-	    [468, 585, 1, 0],[585, 702, 1, 0], [702, 819, 1, 0]],
+        new_state = {
+	    StateKey.IN_PROCESS_DATA:[
+		[117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0],
+		[468, 585, 1, 0],[585, 702, 1, 0], [702, 819, 1, 0]
+	    ],
             StateKey.UNPROCESSED_DATA:[[117, 6300]],
             StateKey.METADATA_SENT: True,
-            StateKey.FILE_SIZE: 9400}
+            StateKey.FILE_SIZE: 9400
+	}
 
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'DOS15908_1st7.DAT'))
-        self.parser = DostadParserRecovered(self.config, new_state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    new_state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
         result = self.parser.get_records(1)
 
-        self.assert_result(result, [[234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],
-	    [585, 702, 1, 0], [702, 819, 1, 0]],[[234, 6300]],
-            self.particle_rb)
+        self.assert_result(
+	    result,
+	    [
+		[234, 351, 1, 0],[351, 468, 1, 0], [468, 585, 1, 0],
+		[585, 702, 1, 0], [702, 819, 1, 0]
+	    ],
+	    [[234, 6300]],
+            self.particle_rb
+	)
 
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_rc)
@@ -447,27 +564,42 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.publish_callback_value[-1], self.particle_rd)
         self.assertEqual(self.exception_callback_value, None)
 
+	stream_handle.close()
+	self.assertEqual(self.exception_callback_value, None)
 
     def test_set_state(self):
         """
         test changing the state after initializing
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 1000]], StateKey.IN_PROCESS_DATA:[],
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 1000]],
+	    StateKey.IN_PROCESS_DATA:[],
             StateKey.METADATA_SENT: False,
-            StateKey.FILE_SIZE: 9400}
-        new_state = {StateKey.UNPROCESSED_DATA:[[0,69],[944,6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: True,
-            StateKey.FILE_SIZE: 9400}
+            StateKey.FILE_SIZE: 9400
+	}
+        new_state = {
+	    StateKey.UNPROCESSED_DATA:[[0,69],[944,6300]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: True,
+            StateKey.FILE_SIZE: 9400
+	}
 
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
         # there should only be 4 records, make sure we stop there
         result = self.parser.get_records(4)
         # 0-69 contains an incomplete block (end of a sample)
-        self.assert_state([],
-            [[0,69],[944,1000]])
+        self.assert_state(
+	    [],
+            [[0,69],[944,1000]]
+	)
         result = self.parser.get_records(1)
         self.assertEqual(result, [])
 
@@ -479,28 +611,41 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
         # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
         # the final \x03
-        self.assert_result(result, [],
-                           [[0,69],[1329,1332], [2294,2363], [4092,4161], [4351, 4927],
-                           [6248,6300]],
-                           self.particle_d)
+        self.assert_result(
+	    result,
+	    [],
+            [[0,69],[1329,1332], [2294,2363], [4092,4161], [4351, 4927],
+            [6248,6300]],
+            self.particle_d
+	)
         self.assertEqual(self.exception_callback_value, None)
-
 
     def test_set_state_recovered(self):
         """
         test changing the state after initializing
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 351]], StateKey.IN_PROCESS_DATA:[],
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 351]],
+	    StateKey.IN_PROCESS_DATA:[],
             StateKey.METADATA_SENT: False,
-            StateKey.FILE_SIZE: 9400}
-        new_state = {StateKey.UNPROCESSED_DATA:[[351,6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: True,
-            StateKey.FILE_SIZE: 9400}
+            StateKey.FILE_SIZE: 9400
+	}
+        new_state = {
+	    StateKey.UNPROCESSED_DATA:[[351,6300]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: True,
+            StateKey.FILE_SIZE: 9400
+	}
 
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'DOS15908_1st7.DAT'))
-        self.parser = DostadParserRecovered(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
         # there should only be 4 records, make sure we stop there
         result = self.parser.get_records(4)
 
@@ -512,30 +657,34 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         stream_handle.close()
 
-	print "IN"
-	print self.parser._state[StateKey.IN_PROCESS_DATA]
-	print "UN"
-	print self.parser._state[StateKey.UNPROCESSED_DATA]
-
-
-        self.assert_result(result, [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
-                           [[468, 6300]],
-                           self.particle_rd)
+        self.assert_result(result,
+	    [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
+            [[468, 6300]],
+            self.particle_rd
+	)
         self.assertEqual(self.exception_callback_value, None)
-
 
     def test_update(self):
         """
         Test a file which has had a section of data replaced by 0s, as if a block of data has not been received yet,
         then using the returned state make a new parser with the test data that has the 0s filled in
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 6300]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: False,
+	    StateKey.FILE_SIZE: 9400
+	}
         # this file has a block of DO data replaced by 0s
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_replaced.dat'))
-        self.parser = DostadParser(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_replaced.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         result = self.parser.get_records(1)
         # 0-69 contains an incomplete block (end of a sample)
@@ -544,71 +693,116 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # 2294-2363, and 4092-4161 contains an error text string in between two sio blocks
         # 4351-4927 has a bad AD then CT message where the size from the header does not line up with
         # the final \x03
-        self.assert_result(result, [[197,314,2,1], [637,754,1,0], [6131,6248,1,0]],
-                           [[0,69], [197,314], [390,507], [637,754], [1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6131,6300]],
-                            self.particle_metadata)
+        self.assert_result(
+	    result,
+	    [[197,314,2,1], [637,754,1,0], [6131,6248,1,0]],
+            [
+		[0,69], [197,314], [390,507], [637,754], [1329,1332], [2294,2363],
+                [4092,4161], [4351, 4927], [6131,6300]
+	    ],
+            self.particle_metadata
+	)
         result = self.parser.get_records(1)
-        self.assert_result(result, [[637,754,1,0], [6131,6248,1,0]],
-                           [[0,69], [390,507], [637,754], [1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6131,6300]],
-                            self.particle_a)
+        self.assert_result(
+	    result,
+	    [[637,754,1,0], [6131,6248,1,0]],
+            [
+		[0,69], [390,507], [637,754], [1329,1332], [2294,2363],
+                [4092,4161], [4351, 4927], [6131,6300]
+	    ],
+            self.particle_a
+	)
         result = self.parser.get_records(1)
-        self.assert_result(result, [[6131,6248,1,0]],
-                           [[0,69], [390,507], [1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6131,6300]],
-                            self.particle_c)
+        self.assert_result(
+	    result,
+	    [[6131,6248,1,0]],
+            [
+		[0,69], [390,507], [1329,1332], [2294,2363],
+                [4092,4161], [4351, 4927], [6131,6300]
+	    ],
+            self.particle_c
+	)
         stream_handle.close()
 
         next_state = self.parser._state
         # this file has the block of data that was missing in the previous file
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, next_state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
+        self.parser = DostadParser(
+	    self.config,
+	    next_state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         # first get the old 'in process' records from 6131-6248
         # Once those are done, the un processed data will be checked
         result = self.parser.get_records(1)
-        self.assert_result(result, [],
-                           [[0,69], [390,507], [1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6248,6300]],
-                            self.particle_d)
+        self.assert_result(
+	    result,
+	    [],
+            [
+		[0,69], [390,507], [1329,1332], [2294,2363],
+                [4092,4161], [4351, 4927], [6248,6300]
+	    ],
+            self.particle_d
+	)
 
         # this should be the first of the newly filled in particles from 390-507
         result = self.parser.get_records(1)
-        self.assert_result(result, [],
-                           [[0,69], [1329,1332], [2294,2363],
-                            [4092,4161], [4351, 4927], [6248,6300]],
-                           self.particle_b)
+        self.assert_result(
+	    result,
+	    [],
+            [
+		[0,69], [1329,1332], [2294,2363],
+                [4092,4161], [4351, 4927], [6248,6300]
+	    ],
+            self.particle_b
+	)
         stream_handle.close()
         self.assertEqual(self.exception_callback_value, None)
-
 
     def test_update_recovered(self):
         """
         Test a file which has had a section of data replaced by 0s, as if a block of data has not been received yet,
         then using the returned state make a new parser with the test data that has the 0s filled in
         """
-        state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.METADATA_SENT: False, StateKey.FILE_SIZE: 9400}
+        state = {
+	    StateKey.UNPROCESSED_DATA:[[0, 6300]],
+            StateKey.IN_PROCESS_DATA:[],
+	    StateKey.METADATA_SENT: False,
+	    StateKey.FILE_SIZE: 9400
+	}
         # this file has a block of DO data replaced by 0s
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'DOS15908_1st7_replaced.DAT'))
-        self.parser = DostadParserRecovered(self.config, state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7_replaced.DAT'))
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
 	result = self.parser.get_records(1)
-	in_process = [[0, 117, 2, 1], [234, 351, 1, 0], [351, 468, 1, 0],
-	    [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
+	in_process = [
+	    [0, 117, 2, 1], [234, 351, 1, 0], [351, 468, 1, 0],
+	    [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]
+	]
 	unprocessed = [[0, 6300]]	
 	self.assert_result(result, in_process, unprocessed, self.particle_rmetadata)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
 	
 	# then get the first dosta data particle, this clears out the block from 197-314
 	result = self.parser.get_records(1)
-	in_process = [[234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],
-	    [585, 702, 1, 0], [702, 819, 1, 0]]
+	in_process = [
+	    [234, 351, 1, 0],
+	    [351, 468, 1, 0],
+	    [468, 585, 1, 0],
+	    [585, 702, 1, 0],
+	    [702, 819, 1, 0]
+	]
 	unprocessed = [[117, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_ra)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
@@ -622,10 +816,15 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
         next_state = self.parser._state
         # this file has the block of data that was missing in the previous file
-        stream_handle = open(os.path.join(RESOURCE_PATH,
-                                               'DOS15908_1st7.DAT'))
-        self.parser = DostadParserRecovered(self.config, next_state, stream_handle,
-                                  self.state_callback, self.pub_callback, self.exception_callback)
+        stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
+        self.parser = DostadRecoveredParser(
+	    self.config,
+	    next_state,
+	    stream_handle,
+            self.state_callback,
+	    self.pub_callback,
+	    self.exception_callback
+	)
 
         # first get the old 'in process' records from 6131-6248
         # Once those are done, the un processed data will be checked

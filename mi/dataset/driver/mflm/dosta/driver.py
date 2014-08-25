@@ -44,7 +44,6 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
                 DostadParserRecoveredMetadataDataParticle.type(),
                 DostadParserTelemeteredMetadataDataParticle.type()]
 
-
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # link the data keys to the harvester type, multiple or single file harvester
         harvester_type = {
@@ -60,7 +59,6 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
             exception_callback,
             DataTypeKey.list(),
             harvester_type=harvester_type)
-
 
     def _build_parser(self, parser_state, stream_in, data_key=None):
         """
@@ -120,8 +118,6 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
         #
         else:
             raise ConfigurationException("Invalid data_key supplied to build parser")
-
-
 
     def _build_harvester(self, driver_state):
         """
