@@ -30,9 +30,10 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
 @attr('UNIT', group='mi')
 class DostadParserUnitTestCase(ParserUnitTestCase):
 
-    def state_callback(self, state):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
+        self.file_ingested_value = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
@@ -50,7 +51,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: DostadParserTelemeteredMetadataDataParticle,
-                    DATA_PARTICLE_CLASS_KEY: DostadParserTelemeteredDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: DostadParserTelemeteredDataParticle
                 }
             },
             DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED: {
@@ -58,10 +59,15 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
                 DataSetDriverConfigKeys.PARTICLE_CLASS: None,
                 DataSetDriverConfigKeys.PARTICLE_CLASSES_DICT: {
                     METADATA_PARTICLE_CLASS_KEY: DostadParserRecoveredMetadataDataParticle,
-                    DATA_PARTICLE_CLASS_KEY: DostadParserRecoveredDataParticle,
+                    DATA_PARTICLE_CLASS_KEY: DostadParserRecoveredDataParticle
                 }
             },
         }
+        self.file_ingested_value = None
+        self.state_callback_value = None
+        self.publish_callback_value = None
+        self.exception_callback_value = None
+
 
         # first DO tag
         self.particle_a = DostadParserTelemeteredDataParticle('51EF0E75\xff\x11\x25\x11' \
@@ -154,7 +160,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    StateKey.FILE_SIZE: 9400
 	}
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -222,7 +228,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    StateKey.FILE_SIZE: 9400
 	}
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -282,7 +288,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	}
         stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -317,7 +323,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	}
         stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -345,7 +351,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
     def test_long_stream(self):
         stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    None,
 	    stream_handle,
             self.state_callback,
@@ -378,7 +384,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
     def test_long_stream_recovered(self):
         stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    None,
 	    stream_handle,
             self.state_callback,
@@ -414,7 +420,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	}
         stream_handle = open(os.path.join(RESOURCE_PATH,'node59p1_shorter.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    new_state,
 	    stream_handle,
             self.state_callback,
@@ -455,7 +461,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	}
         stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    new_state,
 	    stream_handle,
             self.state_callback,
@@ -494,7 +500,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	}
         stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    new_state,
 	    stream_handle,
             self.state_callback,
@@ -538,7 +544,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'DOS15908_1st7.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    new_state,
 	    stream_handle,
             self.state_callback,
@@ -586,7 +592,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_shorter.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -639,7 +645,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
         stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -678,7 +684,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of DO data replaced by 0s
         stream_handle = open(os.path.join(RESOURCE_PATH, 'node59p1_replaced.dat'))
         self.parser = DostadParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_TELEMETERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -777,7 +783,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of DO data replaced by 0s
         stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7_replaced.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    state,
 	    stream_handle,
             self.state_callback,
@@ -818,7 +824,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of data that was missing in the previous file
         stream_handle = open(os.path.join(RESOURCE_PATH, 'DOS15908_1st7.DAT'))
         self.parser = DostadRecoveredParser(
-	    self.config,
+	    self.config.get(DataTypeKey.DOSTA_ABCDJM_SIO_RECOVERED),
 	    next_state,
 	    stream_handle,
             self.state_callback,

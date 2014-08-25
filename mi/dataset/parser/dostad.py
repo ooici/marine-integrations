@@ -24,10 +24,7 @@ from mi.dataset.parser.sio_mule_common import \
     SioParser, \
     SioMuleParser, \
     SIO_HEADER_MATCHER
-from mi.core.exceptions import \
-    SampleException, \
-    DatasetParserException, \
-    RecoverableSampleException
+from mi.core.exceptions import RecoverableSampleException
 from mi.dataset.dataset_parser import Parser
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
@@ -46,8 +43,6 @@ class StateKey(BaseEnum):
     FILE_SIZE = "file_size"
     METADATA_SENT = "metadata_sent" # store if the metadata particle has been sent
 
-
-
 class DostadParserDataParticleKey(BaseEnum):
     CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
     ESTIMATED_OXYGEN = 'estimated_oxygen_concentration'
@@ -65,13 +60,11 @@ class DostadMetadataDataParticleKey(BaseEnum):
     PRODUCT_NUMBER = 'product_number'
     SERIAL_NUMBER = 'serial_number'
 
-
 # The following two keys are keys to be used with the PARTICLE_CLASSES_DICT
 # The key for the metadata particle class
 METADATA_PARTICLE_CLASS_KEY = 'metadata_particle_class'
 # The key for the data particle class
-DATA_PARTICLE_CLASS_KEY = 'data_particle_class'
-    
+DATA_PARTICLE_CLASS_KEY = 'data_particle_class'   
 
 # regex to match the dosta data, header ID 0xff112511, 2 integers for product and serial number,
 # followed by 10 floating point numbers all separated by tabs
@@ -82,7 +75,6 @@ DATA_MATCHER = re.compile(DATA_REGEX)
 # regex to match the timestamp from the sio header
 TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
 TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
-
 
 class DostadParserDataParticle(DataParticle):
     """
@@ -96,11 +88,12 @@ class DostadParserDataParticle(DataParticle):
                  quality_flag=DataParticleValue.OK,
                  new_sequence=None):
         super(DostadParserDataParticle, self).__init__(raw_data,
-                                                      port_timestamp=None,
-                                                      internal_timestamp=None,
-                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                                      quality_flag=DataParticleValue.OK,
-                                                      new_sequence=None)
+                                                       port_timestamp,
+                                                       internal_timestamp,
+                                                       preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                                                       quality_flag=DataParticleValue.OK,
+                                                       new_sequence)
+        
         # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
         timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
         if not timestamp_match:
@@ -110,7 +103,7 @@ class DostadParserDataParticle(DataParticle):
         self._data_match = DATA_MATCHER.match(self.raw_data[8:])
         if not self._data_match:
             raise RecoverableSampleException("DostaParserDataParticle: No regex match of " \
-                                              "parsed sample data [%s]" % self.raw_data[8:])
+                                             "parsed sample data [%s]" % self.raw_data[8:])
 
         posix_time = int(timestamp_match.group(0), 16)
         self.set_internal_timestamp(unix_time=float(posix_time))
@@ -119,7 +112,6 @@ class DostadParserDataParticle(DataParticle):
         """
         Take something in the binary data values and turn it into a
         particle with the appropriate tag.
-        throws SampleException If there is a problem with sample creation
         """
         result = []
         if self._data_match:
@@ -153,8 +145,6 @@ class DostadParserDataParticle(DataParticle):
     def encode_int_16(hex_str):
         return int(hex_str, 16)
     
-       
-    
 
 class DostadMetadataDataParticle(DataParticle):
     """
@@ -168,11 +158,12 @@ class DostadMetadataDataParticle(DataParticle):
                  quality_flag=DataParticleValue.OK,
                  new_sequence=None):
         super(DostadMetadataDataParticle, self).__init__(raw_data,
-                                                      port_timestamp=None,
-                                                      internal_timestamp=None,
-                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                                                      quality_flag=DataParticleValue.OK,
-                                                      new_sequence=None)
+                                                         port_timestamp,
+                                                         internal_timestamp,
+                                                         preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                                                         quality_flag=DataParticleValue.OK,
+                                                         new_sequence)
+        
         # the raw data has the timestamp from the sio header pre-pended to it, match the first 8 bytes
         timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
         if not timestamp_match:
@@ -182,7 +173,7 @@ class DostadMetadataDataParticle(DataParticle):
         self._data_match = DATA_MATCHER.match(self.raw_data[8:])
         if not self._data_match:
             raise RecoverableSampleException("DostaMetadataDataParticle: No regex match of " \
-                                              "parsed sample data [%s]" % self.raw_data[8:])
+                                             "parsed sample data [%s]" % self.raw_data[8:])
 
         posix_time = int(timestamp_match.group(0), 16)
         self.set_internal_timestamp(unix_time=float(posix_time))
@@ -191,7 +182,6 @@ class DostadMetadataDataParticle(DataParticle):
         """
         Take something in the binary data values and turn it into a
         particle with the appropriate tag.
-        throws SampleException If there is a problem with sample creation
         """
         result = []
         if self._data_match:
@@ -200,8 +190,6 @@ class DostadMetadataDataParticle(DataParticle):
                       self._encode_value(DostadMetadataDataParticleKey.SERIAL_NUMBER,
                                          self._data_match.group(2), int)]
         return result
-
-
 
 
 class DostadParserRecoveredDataParticle(DostadParserDataParticle):
@@ -236,9 +224,6 @@ class DostadParserTelemeteredMetadataDataParticle(DostadMetadataDataParticle):
     _data_particle_type = DataParticleType.METADATA_TELEMETERED
 
     
- 
-
-
 class DostadParserCommon(Parser):
     def __init__(self,
                  config,
@@ -250,14 +235,15 @@ class DostadParserCommon(Parser):
                  exception_callback,
                  *args, **kwargs):
         super(DostadParserCommon, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          sieve_function,
-                                          state_callback,
-                                          publish_callback,
-                                          exception_callback,
-                                          *args,
-                                          **kwargs)
+                                                 stream_handle,
+                                                 state,
+                                                 sieve_function,
+                                                 state_callback,
+                                                 publish_callback,
+                                                 exception_callback,
+                                                 *args,
+                                                 **kwargs)
+        
         # initialize the metadata since sio mule common doesn't initialize this field
         if not StateKey.METADATA_SENT in self._read_state:
             self._read_state[StateKey.METADATA_SENT] = False
@@ -269,11 +255,7 @@ class DostadParserCommon(Parser):
         self._metadata_particle_class = particle_classes_dict.get(METADATA_PARTICLE_CLASS_KEY)
         self._data_particle_class = particle_classes_dict.get(DATA_PARTICLE_CLASS_KEY)
 
-
     def parse_chunks(self):
-        
-
-        
         """
         Parse out any pending data chunks in the chunker. If
         it is a valid data piece, build a particle, update the position and
@@ -300,9 +282,9 @@ class DostadParserCommon(Parser):
                         # prepend the timestamp from sio mule header to the dosta raw data,
                         # which is stored in header_match.group(3)
                         metadata_sample = self._extract_sample(self._metadata_particle_class,
-                                                None,
-                                                header_match.group(3) + data_match.group(0),
-                                                None)
+                                                               None,
+                                                               header_match.group(3) + data_match.group(0),
+                                                               None)
                         if metadata_sample:
                             result_particles.append(metadata_sample)
                             sample_count += 1
@@ -327,11 +309,7 @@ class DostadParserCommon(Parser):
         return result_particles
 
 
-
-
-
 class DostadParser(DostadParserCommon, SioMuleParser):
-
     def __init__(self,
                  config,
                  state,
@@ -340,19 +318,20 @@ class DostadParser(DostadParserCommon, SioMuleParser):
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
-        super(DostadParser, self).__init__(config,
+        super(DostadParser, self).__init__(
+                                config,
                                 state,
                                 self.sieve_function,
                                 stream_handle,
                                 state_callback,
                                 publish_callback,
                                 exception_callback,
-                                *args, **kwargs)
+                                *args, **kwargs
+        )
 
 
 
 class DostadRecoveredParser(DostadParserCommon, SioParser):
-
     def __init__(self,
                  config,
                  state,
@@ -361,12 +340,14 @@ class DostadRecoveredParser(DostadParserCommon, SioParser):
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
-        super(DostadRecoveredParser, self).__init__(config,
+        super(DostadRecoveredParser, self).__init__(
+                                config,
                                 state,
                                 self.sieve_function,
                                 stream_handle,
                                 state_callback,
                                 publish_callback,
                                 exception_callback,
-                                *args, **kwargs)
+                                *args, **kwargs
+        )
 
