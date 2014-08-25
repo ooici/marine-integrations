@@ -1,0 +1,70 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: SioEngSioRecoveredDataParticle
+    particle_type: sio_eng_control_status_recovered
+    internal_timestamp: 3583458061.000000
+    sio_controller_id: 12365
+    sio_controller_timestamp: 1374469261
+    sio_eng_voltage: 18.94
+    sio_eng_temperature: 15.10
+    sio_eng_on_time: 1674
+    sio_eng_number_of_wakeups: 358
+    sio_eng_clock_drift: -2
+  - _index: 2
+    particle_object: SioEngSioRecoveredDataParticle
+    particle_type: sio_eng_control_status_recovered
+    internal_timestamp: 3583461661.000000
+    sio_controller_id: 12365
+    sio_controller_timestamp: 1374472861
+    sio_eng_voltage: 18.95
+    sio_eng_temperature: 14.70
+    sio_eng_on_time: 1723
+    sio_eng_number_of_wakeups: 368
+    sio_eng_clock_drift: -2
+  - _index: 3
+    particle_object: SioEngSioRecoveredDataParticle
+    particle_type: sio_eng_control_status_recovered
+    internal_timestamp: 3583465262.000000
+    sio_controller_id: 12365
+    sio_controller_timestamp: 1374476462
+    sio_eng_voltage: 18.95
+    sio_eng_temperature: 14.50
+    sio_eng_on_time: 1766
+    sio_eng_number_of_wakeups: 378
+    sio_eng_clock_drift: -2
+  - _index: 4
+    particle_object: SioEngSioRecoveredDataParticle
+    particle_type: sio_eng_control_status_recovered
+    internal_timestamp: 3583468861.000000
+    sio_controller_id: 12365
+    sio_controller_timestamp: 1374480061
+    sio_eng_voltage: 18.94
+    sio_eng_temperature: 14.30
+    sio_eng_on_time: 1811
+    sio_eng_number_of_wakeups: 388
+    sio_eng_clock_drift: -2
+  - _index: 5
+    particle_object: SioEngSioRecoveredDataParticle
+    particle_type: sio_eng_control_status_recovered
+    internal_timestamp: 3583472460.000000
+    sio_controller_id: 12365
+    sio_controller_timestamp: 1374483660
+    sio_eng_voltage: 18.94
+    sio_eng_temperature: 14.20
+    sio_eng_on_time: 1854
+    sio_eng_number_of_wakeups: 398
+    sio_eng_clock_drift: -3
+  - _index: 6
+    particle_object: SioEngSioRecoveredDataParticle
+    particle_type: sio_eng_control_status_recovered
+    internal_timestamp: 3583476061.000000
+    sio_controller_id: 12365
+    sio_controller_timestamp: 1374487261
+    sio_eng_voltage: 18.93
+    sio_eng_temperature: 14.00
+    sio_eng_on_time: 1902
+    sio_eng_number_of_wakeups: 408
+    sio_eng_clock_drift: -3
