@@ -7,6 +7,7 @@
 @brief Test code for a nutnr_j_cspp data parser
 """
 import os
+import re
 
 from nose.plugins.attrib import attr
 
@@ -28,8 +29,7 @@ from mi.dataset.parser.nutnr_j_cspp import NutnrJCsppParser, \
                                            NutnrJCsppTelemeteredDataParticle, \
                                            NutnrJCsppMetadataRecoveredDataParticle, \
                                            NutnrJCsppRecoveredDataParticle, \
-                                           DATA_MATCHER
-
+                                           DATA_REGEX
 
 RESOURCE_PATH = os.path.join(Config().base_dir(),
 			     'mi', 'dataset', 'driver', 'nutnr_j', 'cspp', 'resource')
@@ -40,6 +40,8 @@ PARTICLE_C_POS = 7828
 PARTICLE_D_POS = 9055
 PARTICLE_E_POS = 10282
 END_LONG_POS = 226490
+
+DATA_MATCHER = re.compile(DATA_REGEX)
 
 
 @attr('UNIT', group='mi')
