@@ -149,9 +149,22 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
     def test_long_stream(self):
         """
-        Test a long stream 
+        Test a long stream
         """
-        pass
+        file_path = os.path.join(RESOURCE_PATH, 'E0000001.DAT')
+        self.stream_handle = open(file_path, 'rb')
+
+        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
+                                      self.state_callback, self.pub_callback, self.exception_callback)
+
+        particles = self.parser.get_records(1000)
+        # File is 20,530 bytes
+        #   minus 24 header
+        #   minus 16 footer
+        #   each particle is 30 bytes
+        # Should end up with 683 particles
+        self.assertTrue(len(particles) == 683)
+        self.stream_handle.close()
 
     def test_mid_state_start(self):
         """
