@@ -140,7 +140,6 @@ class FlordLWfpParser(WfpEFileParser):
         processing.  This is needed instead of a regex because blocks are identified by
         position in this binary file.
         """
-        log.debug("sieve_function entered")
         form_list = []
         raw_data_len = len(raw_data)
 
@@ -185,7 +184,6 @@ class FlordLWfpParser(WfpEFileParser):
                 raise SampleException("File size is invalid or improper positioning")
 
         return_list = form_list[::-1]
-        log.debug("leaving sieve_function")
         return return_list
 
     def parse_chunks(self):
@@ -203,7 +201,7 @@ class FlordLWfpParser(WfpEFileParser):
         self.handle_non_data(non_data, non_end, start)
 
         while chunk is not None:
-            log.debug('chunk: %s', chunk)
+            #log.debug('chunk: %s', chunk)
             data_match = WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_MATCHER.match(chunk)
             #log.debug('data_match: %s', data_match)
             if data_match:

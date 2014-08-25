@@ -68,31 +68,29 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 571
         self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649377
 
-        # self.test_particle2 = {}
-        # self.test_particle2['internal_timestamp'] = 3583638247
-        # self.test_particle2[StateKey.POSITION] = 414
-        # self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION] = \
-        #     153.7899932861328
-        # self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.OPTODE_TEMPERATURE] = 1.4950000047683716
-        # self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649447
-        #
-        # self.test_particle3 = {}
-        # self.test_particle3['internal_timestamp'] = 3583638317
-        # self.test_particle3[StateKey.POSITION] = 624
-        # self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION] = \
-        #     153.41099548339844
-        # self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.OPTODE_TEMPERATURE] = 1.5
-        # self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649517
-        #
-        # self.test_particle4 = {}
-        # self.test_particle4['internal_timestamp'] = 3583638617
-        # self.test_particle4[StateKey.POSITION] = 1524
-        # self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.ESTIMATED_OXYGEN_CONCENTRATION] = \
-        #     152.13600158691406
-        # self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.OPTODE_TEMPERATURE] = 1.5019999742507935
-        # self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649817
+        self.test_particle2 = {}
+        self.test_particle2['internal_timestamp'] = 3583638247
+        self.test_particle2[StateKey.POSITION] = 414
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 112
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 571
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649377
 
+        self.test_particle3 = {}
+        self.test_particle3['internal_timestamp'] = 3583638317
+        self.test_particle3[StateKey.POSITION] = 624
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 56
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 114
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 570
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649517
 
+        self.test_particle4 = {}
+        self.test_particle4['internal_timestamp'] = 3583638617
+        self.test_particle4[StateKey.POSITION] = 1524
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 110
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 239
+        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649817
 
     def test_simple(self):
         """
@@ -120,13 +118,34 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle.close()
 
-
     def test_get_many(self):
-	"""
-	Read test data and pull out multiple data particles at one time.
-	Assert that the results are those we expected.
-	"""
-        pass
+        """
+        Read test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        """
+        file_path = os.path.join(RESOURCE_PATH, 'E0000001.DAT')
+        self.stream_handle = open(file_path, 'rb')
+
+        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
+                                      self.state_callback, self.pub_callback, self.exception_callback)
+
+        particles = self.parser.get_records(20)
+
+        # Should end up with 20 particles
+        self.assertTrue(len(particles) == 20)
+
+        # Compare test_particle3 with the 20th particle from sample data
+        self.assert_result(self.test_particle3, particles[19])
+
+        particles = self.parser.get_records(30)
+
+        # Should end up with 30 particles
+        self.assertTrue(len(particles) == 30)
+
+        # Compare test_particle4 with the 30th particle from sample data
+        self.assert_result(self.test_particle4, particles[29])
+
+        self.stream_handle.close()
 
     def test_long_stream(self):
         """
