@@ -11,7 +11,7 @@ data:
     estimated_oxygen_concentration: 308.673
     estimated_oxygen_saturation: 97.333
     optode_temperature: 14.68
-    calibrated_phase: 31.305
+    calibrated_phase: -31.305
     temp_compensated_phase: 31.305
     blue_phase: 36.447
     red_phase: 5.142

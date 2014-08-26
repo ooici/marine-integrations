@@ -112,7 +112,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    '\t5.180\t1336.5\t1171.2\t324.6\r\n')
 
 	self.particle_rb = DostadParserRecoveredDataParticle('51EC7985\xff\x11%\x11' \
-	    '4831\t128\t308.673\t97.333\t14.680\t31.305\t31.305\t36.447\t5.142' \
+	    '4831\t128\t308.673\t97.333\t14.680\t-31.305\t31.305\t36.447\t5.142' \
 	    '\t1349.9\t1186.4\t353.9\r\n')
 
 	self.particle_rc = DostadParserRecoveredDataParticle('51EC7D09\xff\x11%\x11' \
@@ -242,8 +242,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
 	result = self.parser.get_records(1)
 	in_process = [
-	    [0, 117, 2, 1], [117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0],
-	    [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]
+	    [0, 117, 2, 1], [117, 235, 1, 0], [235, 352, 1, 0], [352, 469, 1, 0],
+	    [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]
 	]
 	unprocessed = [[0, 6300]]	
 	self.assert_result(result, in_process, unprocessed, self.particle_rmetadata)
@@ -252,8 +252,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	# then get the first dosta data particle, this clears out the block from 197-314
 	result = self.parser.get_records(1)
 	in_process = [
-	    [117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],
-	    [585, 702, 1, 0], [702, 819, 1, 0]
+	    [117, 235, 1, 0], [235, 352, 1, 0], [352, 469, 1, 0],
+	    [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]
 	]
 	unprocessed = [[117, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_ra)
@@ -261,19 +261,20 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
 	result = self.parser.get_records(1)
 	in_process = [
-	    [234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]
+	    [235, 352, 1, 0], [352, 469, 1, 0],
+	    [469, 586, 1, 0], [586, 703, 1, 0],[703, 820, 1, 0]
 	]
-	unprocessed = [[234, 6300]]
+	unprocessed = [[235, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rb)
 
 	result = self.parser.get_records(1)
-	in_process = [[351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
-	unprocessed = [[351, 6300]]
+	in_process = [[352, 469, 1, 0], [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]]
+	unprocessed = [[352, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rc)
 
 	result = self.parser.get_records(1)
-	in_process = [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
-	unprocessed = [[468, 6300]]
+	in_process = [[469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]]
+	unprocessed = [[469, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rd)
 
 	stream_handle.close()
@@ -342,10 +343,10 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
             [self.particle_rmetadata, self.particle_ra, self.particle_rb, self.particle_rc]
 	)
  
-        self.assert_state([
-	    [351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
-            [[351, 1000]
-	])
+        self.assert_state(
+	    [[352, 469, 1, 0], [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]],
+            [[352, 1000]]
+	)
         self.assertEqual(self.publish_callback_value[0], self.particle_rmetadata)
         self.assertEqual(self.publish_callback_value[1], self.particle_ra)
         self.assertEqual(self.publish_callback_value[2], self.particle_rb)
@@ -406,7 +407,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[5], self.particle_re)
         self.assertEqual(result[6], self.particle_rf)
         self.assert_state(
-	    [[702, 819, 1, 0]],[[702, 819]]
+	    [[703, 820, 1, 0]], [[703, 822]]
 	)
         self.assertEqual(self.publish_callback_value[5], self.particle_re)
         self.assertEqual(self.publish_callback_value[6], self.particle_rf)
@@ -476,8 +477,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
         self.assert_result(
 	    result,
-	    [[234, 351, 1, 0], [351, 468, 1, 0], [468, 585, 1, 0],[585, 702, 1, 0], [702, 819, 1, 0]],
-            [[234, 6300]],
+	    [[235, 352, 1, 0], [352, 469, 1, 0], [469, 586, 1, 0],[586, 703, 1, 0], [703, 820, 1, 0]],
+            [[235, 6300]],
             self.particle_rb
 	)
 	
@@ -486,8 +487,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[1], self.particle_rd)
 
         self.assert_state(
-	    [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
-	    [[468, 6300]]
+	    [[469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]],
+	    [[469, 6300]]
 	)
         stream_handle.close()
         self.assertEqual(self.exception_callback_value, None)
@@ -537,8 +538,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {
 	    StateKey.IN_PROCESS_DATA:[
-		[117, 234, 1, 0], [234, 351, 1, 0], [351, 468, 1, 0],
-		[468, 585, 1, 0],[585, 702, 1, 0], [702, 819, 1, 0]
+		[117, 235, 1, 0],[235, 352, 1, 0], [352, 469, 1, 0],
+		[469, 586, 1, 0],[586, 703, 1, 0], [703, 820, 1, 0]
 	    ],
             StateKey.UNPROCESSED_DATA:[[117, 6300]],
             StateKey.METADATA_SENT: True,
@@ -560,17 +561,17 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(
 	    result,
 	    [
-		[234, 351, 1, 0],[351, 468, 1, 0], [468, 585, 1, 0],
-		[585, 702, 1, 0], [702, 819, 1, 0]
+		[235, 352, 1, 0], [352, 469, 1, 0],
+		[469, 586, 1, 0],[586, 703, 1, 0], [703, 820, 1, 0]
 	    ],
-	    [[234, 6300]],
+	    [[235, 6300]],
             self.particle_rb
 	)
 
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_rc)
         self.assertEqual(result[1], self.particle_rd)
-        self.assert_state([[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],[[468, 6300]])
+        self.assert_state([[469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]],[[469, 6300]])
         self.assertEqual(self.publish_callback_value[-1], self.particle_rd)
         self.assertEqual(self.exception_callback_value, None)
 
@@ -635,13 +636,13 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         test changing the state after initializing
         """
         state = {
-	    StateKey.UNPROCESSED_DATA:[[0, 351]],
+	    StateKey.UNPROCESSED_DATA:[[0, 352]],
 	    StateKey.IN_PROCESS_DATA:[],
             StateKey.METADATA_SENT: False,
             StateKey.FILE_SIZE: 9400
 	}
         new_state = {
-	    StateKey.UNPROCESSED_DATA:[[351,6300]],
+	    StateKey.UNPROCESSED_DATA:[[352,6300]],
             StateKey.IN_PROCESS_DATA:[],
 	    StateKey.METADATA_SENT: True,
             StateKey.FILE_SIZE: 9400
@@ -668,8 +669,8 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         stream_handle.close()
 
         self.assert_result(result,
-	    [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]],
-            [[468, 6300]],
+	    [[469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]],
+            [[469, 6300]],
             self.particle_rd
 	)
         self.assertEqual(self.exception_callback_value, None)
@@ -796,9 +797,9 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	)
 
 	result = self.parser.get_records(1)
-	in_process = [
-	    [0, 117, 2, 1], [234, 351, 1, 0], [351, 468, 1, 0],
-	    [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]
+	in_process = [	    
+	    [0, 117, 2, 1], [235, 352, 1, 0], [352, 469, 1, 0],
+	    [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]
 	]
 	unprocessed = [[0, 6300]]	
 	self.assert_result(result, in_process, unprocessed, self.particle_rmetadata)
@@ -807,19 +808,17 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	# then get the first dosta data particle, this clears out the block from 197-314
 	result = self.parser.get_records(1)
 	in_process = [
-	    [234, 351, 1, 0],
-	    [351, 468, 1, 0],
-	    [468, 585, 1, 0],
-	    [585, 702, 1, 0],
-	    [702, 819, 1, 0]
+	    [235, 352, 1, 0], [352, 469, 1, 0],
+	    [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]
 	]
 	unprocessed = [[117, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_ra)
 	self.assertEqual(self.parser._state[StateKey.METADATA_SENT], True)
 
 	result = self.parser.get_records(1)
-	in_process = [[351, 468, 1, 0], [468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
-	unprocessed = [[117, 234], [351, 6300]]
+	in_process = [[352, 469, 1, 0],
+	    [469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]]
+	unprocessed = [[117, 235], [352, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rc)
 
         stream_handle.close()
@@ -839,15 +838,15 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # first get the old 'in process' records from 6131-6248
         # Once those are done, the un processed data will be checked
  	result = self.parser.get_records(1)
-	in_process = [[468, 585, 1, 0], [585, 702, 1, 0], [702, 819, 1, 0]]
-	unprocessed = [[117, 234], [468, 6300]]
+	in_process = [[469, 586, 1, 0], [586, 703, 1, 0], [703, 820, 1, 0]]
+	unprocessed = [[117, 235], [469, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rd)
 
         #  3 records remain, then the subsequent read should find the previously missing record
 	result = self.parser.get_records(3)
 	result = self.parser.get_records(1)
 	in_process = []
-	unprocessed = [[819, 6300]]
+	unprocessed = [[820, 6300]]
 	self.assert_result(result, in_process, unprocessed, self.particle_rb)
 
         stream_handle.close()

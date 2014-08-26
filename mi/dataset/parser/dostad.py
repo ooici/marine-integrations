@@ -68,8 +68,24 @@ DATA_PARTICLE_CLASS_KEY = 'data_particle_class'
 
 # regex to match the dosta data, header ID 0xff112511, 2 integers for product and serial number,
 # followed by 10 floating point numbers all separated by tabs
-DATA_REGEX = b'\xff\x11\x25\x11(\d+)\t(\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t' \
-             '(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\x0d\x0a'
+
+FLOAT_REGEX_NON_CAPTURE = r'[+-]?[0-9]*\.[0-9]+'
+FLOAT_TAB_REGEX = FLOAT_REGEX_NON_CAPTURE + '\t'
+
+DATA_REGEX = '\xff\x11\x25\x11'
+DATA_REGEX += '(\d+)\t' # product number
+DATA_REGEX += '(\d+)\t' # serial number
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # oxygen content
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # relative air saturation
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # ambient temperature
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # calibrated phase
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # temperature compensated phase
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # phase measurement with blue excitation
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # phase measurement with red excitation  
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # amplitude measurement with blue excitation
+DATA_REGEX += '(' + FLOAT_TAB_REGEX + ')' # amplitude measurement with red excitation 
+DATA_REGEX += '(' + FLOAT_REGEX_NON_CAPTURE + ')' # raw temperature, voltage from thermistor ( no following tab )
+DATA_REGEX += '\x0d\x0a'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 # regex to match the timestamp from the sio header
@@ -138,7 +154,7 @@ class DostadParserDataParticle(DataParticle):
                                          self._data_match.group(11), float),
                       self._encode_value(DostadParserDataParticleKey.RAW_TEMP,
                                          self._data_match.group(12), float)]
-
+            
         return result
 
     @staticmethod
