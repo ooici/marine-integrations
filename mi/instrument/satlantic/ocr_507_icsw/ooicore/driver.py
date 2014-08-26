@@ -9,13 +9,12 @@ with the Satlantic OCR507 ICSW w/ Midrange Bioshutter
 import time
 import re
 import struct
-import decimal
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, RE_PATTERN, DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.protocol_param_dict import ParameterDictType, ParameterDictVisibility
-from mi.core.util import dict_equal
+
 from mi.core.common import BaseEnum, Units
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverProtocolState, DriverEvent, \
     DriverAsyncEvent, ResourceAgentState
@@ -158,7 +157,7 @@ class Prompt(BaseEnum):
     """
     USAGE = 'Usage'
     INVALID_COMMAND = 'unknown command'
-    COMMAND = '[Auto]$'
+    COMMAND = ']$'
 
 
 ###############################################################################
@@ -633,8 +632,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         response_regex = kwargs.get('response_regex', None)
         expected_prompt = None
         if response_regex is None:
-            expected_prompt = kwargs.get('expected_prompt', [Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND, '\r\n['])
-            # expected_prompt = kwargs.get('expected_prompt', [Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND])
+            expected_prompt = kwargs.get('expected_prompt', [Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND])
 
         if response_regex and not isinstance(response_regex, RE_PATTERN):
             raise InstrumentProtocolException('Response regex is not a compiled pattern!')
@@ -904,7 +902,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param response What was sent back from the command that was sent
         @param prompt The prompt that was returned from the device
         """
-        if prompt == Prompt.COMMAND or prompt == '\r\n[':
+        if prompt == Prompt.COMMAND:
             return True
         return False
 
