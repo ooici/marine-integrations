@@ -16,7 +16,6 @@ import os
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.config import Config
 from mi.core.exceptions import SampleException
-from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -52,7 +51,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.flord_l_wfp',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordLWfpInstrumentParserDataParticle'
         }
-         # Define test data particles and their associated timestamps which will be
+
+        # Define test data particles and their associated timestamps which will be
         # compared with returned results
 
         self.start_state = {StateKey.POSITION: 0}
@@ -239,6 +239,33 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
         with self.assertRaises(SampleException):
             self.parser.get_records(1)
+
+        self.stream_handle.close()
+
+    def test_bad_header(self):
+        """
+        Ensure that bad data is skipped when it exists.
+        """
+
+        # This case tests against a header that does not match
+        # 0000 0000 0000 0100 0000 0000 0000 0151
+        file_path = os.path.join(RESOURCE_PATH, 'E0000001-BAD-HEADER1.DAT')
+        self.stream_handle = open(file_path, 'rb')
+
+        with self.assertRaises(SampleException):
+            self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
+                                          self.state_callback, self.pub_callback, self.exception_callback)
+
+        self.stream_handle.close()
+
+        # This case tests against a header that does not match global, but matches coastal
+        # 0001 0000 0000 0000 0001 0001 0000 0000
+        file_path = os.path.join(RESOURCE_PATH, 'E0000001-BAD-HEADER2.DAT')
+        self.stream_handle = open(file_path, 'rb')
+
+        with self.assertRaises(SampleException):
+            self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
+                                          self.state_callback, self.pub_callback, self.exception_callback)
 
         self.stream_handle.close()
 
