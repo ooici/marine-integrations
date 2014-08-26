@@ -1089,7 +1089,7 @@ class Protocol(SamiProtocol):
                              direct_access=False,
                              default_value=0x4,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='Flush Duration')
+                             display_name='Reagent Flush Duration')
 
         self._param_dict.add(Parameter.SEAWATER_FLUSH_DURATION, r'Seawater flush duration = ([0-9]+)',
                              lambda match: match.group(1),
@@ -1099,7 +1099,7 @@ class Protocol(SamiProtocol):
                              direct_access=False,
                              default_value=0x2,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='Flush Duration')
+                             display_name='Seawater Flush Duration')
 
     def _get_specific_configuration_string_parameters(self):
 
