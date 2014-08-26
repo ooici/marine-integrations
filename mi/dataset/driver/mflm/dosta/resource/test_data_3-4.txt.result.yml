@@ -1,7 +1,7 @@
 # Result data after parsing test_data_1.txt
 
 header:
-  particle_object: DostadParserDataParticle
+  particle_object: DostadParserTelemeteredDataParticle
   particle_type: dosta_abcdjm_sio_instrument
 
 data:
