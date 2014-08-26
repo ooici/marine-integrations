@@ -158,7 +158,7 @@ class Prompt(BaseEnum):
     """
     USAGE = 'Usage'
     INVALID_COMMAND = 'unknown command'
-    COMMAND = ']$'
+    COMMAND = '[Auto]$'
 
 
 ###############################################################################
@@ -630,8 +630,11 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @raises InstrumentProtocolException if command could not be built or if response was not recognized.
         """
         timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
-        expected_prompt = kwargs.get('expected_prompt', [Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND])
         response_regex = kwargs.get('response_regex', None)
+        expected_prompt = None
+        if response_regex is None:
+            expected_prompt = kwargs.get('expected_prompt', [Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND, '\r\n['])
+            # expected_prompt = kwargs.get('expected_prompt', [Prompt.INVALID_COMMAND, Prompt.USAGE, Prompt.COMMAND])
 
         if response_regex and not isinstance(response_regex, RE_PATTERN):
             raise InstrumentProtocolException('Response regex is not a compiled pattern!')
@@ -756,8 +759,11 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         result = None
 
-        self._do_cmd_no_resp(Command.EXIT_AND_RESET)
-        time.sleep(RESET_DELAY)
+        self._do_cmd_resp(Command.EXIT, response_regex=SAMPLE_REGEX, timeout=30)
+        time.sleep(0.115)
+        # Ensure the instrument is free running sampling mode.
+        self._do_cmd_resp(Command.SWITCH_TO_AUTOSAMPLE, response_regex=SAMPLE_REGEX, timeout=30)
+
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         next_state = SatlanticProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -785,8 +791,8 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        self._do_cmd_no_resp(Command.ID)
-        self._do_cmd_no_resp(Command.SHOW_ALL)
+        self._do_cmd_resp(Command.ID)
+        self._do_cmd_resp(Command.SHOW_ALL)
 
         return next_state, (next_agent_state, result)
 
@@ -827,8 +833,12 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             next_state = SatlanticProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Could not break from autosample!")
+            # Before raising an error, check if the instrument is already in Command state
+            next_state, next_agent_state = self._handler_unknown_discover()
+
+            if next_state != SatlanticProtocolState.COMMAND:
+                raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
+                                                  msg="Could not break from autosample!")
 
         return next_state, (next_agent_state, result)
 
@@ -894,7 +904,7 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param response What was sent back from the command that was sent
         @param prompt The prompt that was returned from the device
         """
-        if prompt == Prompt.COMMAND:
+        if prompt == Prompt.COMMAND or prompt == '\r\n[':
             return True
         return False
 
@@ -954,11 +964,15 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             if key == Parameter.MAX_RATE and float(params[key]) not in VALID_MAXRATES:
                 exception = InstrumentParameterException("Maxrate %s out of range" % val)
                 break
-            # Check for existance in dict (send only on change)
-            if not self._do_cmd_resp(Command.SET, key, val):
-                exception = InstrumentCommandException('Error setting: %s = %s' % (key, val))
-                break
-            self._param_dict.set_value(key, params[key])
+            # Check for existence in dict (send only on change)
+            if self._param_dict.get(key) is None or val != self._param_dict.format(key):
+                if not self._do_cmd_resp(Command.SET, key, val):
+                    exception = InstrumentCommandException('Error setting: %s = %s' % (key, val))
+                    break
+                self._param_dict.set_value(key, params[key])
+
+            time.sleep(0.5)
+
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
