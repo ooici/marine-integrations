@@ -1,17 +1,11 @@
 # Result data after parsing test_data_1.txt
 
 header:
-  particle_object: MULTIPLE
-  particle_type: MULTIPLE
+    particle_object: DostadParserTelemeteredDataParticle
+    particle_type: dosta_abcdjm_sio_instrument
 
 data:
   - _index: 1
-    internal_timestamp: '2013-07-23T23:15:01'
-    particle_object: DostadParserTelemeteredMetadataDataParticle
-    particle_type: dosta_abcdjm_sio_metadata
-    product_number: 4831
-    serial_number: 128
-  - _index: 2
     internal_timestamp: '2013-07-23T23:15:01'
     particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument

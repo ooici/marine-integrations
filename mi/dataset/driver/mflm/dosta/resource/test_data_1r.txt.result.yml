@@ -1,0 +1,28 @@
+# Result data after parsing test_data_1.txt
+
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index: 1
+    internal_timestamp: 3583440001.000000000
+    particle_object: DostadParserRecoveredMetadataDataParticle
+    particle_type: dosta_abcdjm_sio_metadata_recovered
+    product_number: 4831
+    serial_number: 128
+  - _index: 2
+    internal_timestamp: 3583440001.000000000
+    particle_object: DostadParserRecoveredDataParticle
+    particle_type: dosta_abcdjm_sio_instrument_recovered
+    sio_controller_timestamp: 1374451201
+    estimated_oxygen_concentration: 302.576
+    estimated_oxygen_saturation: 97.289
+    optode_temperature: 15.584
+    calibrated_phase: 31.126
+    temp_compensated_phase: 31.126
+    blue_phase: 36.306
+    red_phase: 5.18
+    blue_amplitude: 1336.5
+    red_amplitude: 1171.2
+    raw_temperature: 324.6 

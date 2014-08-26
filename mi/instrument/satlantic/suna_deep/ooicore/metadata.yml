@@ -4,5 +4,5 @@ driver_metadata:
   driver_model: suna_deep
   driver_name: ooicore
   email: Rachel.E.Manoni@Raytheon.com
-  release_notes: jira_fix cannot get out of polled state
-  version: 0.0.6
+  release_notes: NUTNR firmware upgrade
+  version: 0.0.7

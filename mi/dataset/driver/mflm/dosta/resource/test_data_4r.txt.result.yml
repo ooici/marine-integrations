@@ -1,0 +1,61 @@
+# Result data after parsing test_data_1.txt
+
+header:
+  particle_object: DostadParserRecoveredDataParticle
+  particle_type: dosta_abcdjm_sio_instrument_recovered
+
+data:
+  - _index: 1
+    internal_timestamp: '2013-07-22T00:45:01.000000Z'
+    sio_controller_timestamp: 1374453901
+    estimated_oxygen_concentration: 307.609
+    estimated_oxygen_saturation: 97.181
+    optode_temperature: 14.767
+    calibrated_phase: 31.307
+    temp_compensated_phase: 31.307
+    blue_phase: 36.425
+    red_phase: 5.119
+    blue_amplitude: 1349.9
+    red_amplitude: 1186.2
+    raw_temperature: 351.1
+  - _index: 2
+    internal_timestamp: '2013-07-22T01:00:01.000000Z'
+    sio_controller_timestamp: 1374454801
+    estimated_oxygen_concentration: 305.89
+    estimated_oxygen_saturation: 97.154
+    optode_temperature: 15.013
+    calibrated_phase: 31.259
+    temp_compensated_phase: 31.259
+    blue_phase: 36.379
+    red_phase: 5.12
+    blue_amplitude: 1346.7
+    red_amplitude: 1182.9
+    raw_temperature: 343.2
+  - _index: 3
+    internal_timestamp: '2013-07-22T01:15:01.000000Z'
+    sio_controller_timestamp: 1374455701
+    estimated_oxygen_concentration: 304.306
+    estimated_oxygen_saturation: 97.139
+    optode_temperature: 15.247
+    calibrated_phase: 31.213
+    temp_compensated_phase: 31.213
+    blue_phase: 36.347
+    red_phase: 5.133
+    blue_amplitude: 1343.3
+    red_amplitude: 1179.1
+    raw_temperature: 335.6
+  - _index: 4
+    internal_timestamp: '2013-07-22T01:30:01.000000Z'
+    sio_controller_timestamp: 1374456601
+    estimated_oxygen_concentration: 302.686
+    estimated_oxygen_saturation: 97.229
+    optode_temperature: 15.538
+    calibrated_phase: 31.143
+    temp_compensated_phase: 31.143
+    blue_phase: 36.297
+    red_phase: 5.154
+    blue_amplitude: 1339.0
+    red_amplitude: 1174.4
+    raw_temperature: 326.1
+
+
