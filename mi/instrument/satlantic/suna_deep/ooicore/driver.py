@@ -867,6 +867,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCommand.GET, self._parse_generic_response)
         self._add_response_handler(InstrumentCommand.SET, self._parse_generic_response)
         self._add_response_handler(InstrumentCommand.SET_CLOCK, self._parse_generic_response)
+        self._add_response_handler(InstrumentCommand.STATUS, self._parse_generic_response)
         self._add_response_handler(InstrumentCommand.CMD_LINE, self._parse_cmd_line_response)
 
         # Construct the parameter dictionary containing device parameters,
@@ -1168,8 +1169,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              units=Units.NANOMETER)
 
         self._param_dict.add(Parameter.FIT_WAVELENGTH_BOTH,
-                             r'thereisnothingtomatchforthis',
-                             lambda match: str(match.group(1)),
+                             r'WFIT_LOW\s(\S*)\s+WFIT_HGH\s(\S*)',
+                             lambda match: str(match.group(1) + ',' + match.group(2)),
                              str,
                              type=ParameterDictType.STRING,
                              startup_param=True,
@@ -1396,8 +1397,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Start acquire status
         """
-        self._do_cmd_no_resp(InstrumentCommand.STATUS)
+        status_output = self._do_cmd_resp(InstrumentCommand.STATUS, expected_prompt=[Prompt.OK])
         self._do_cmd_no_resp(InstrumentCommand.GET_CAL_FILE)
+
+        old_config = self._param_dict.get_config()
+        self._param_dict.update(status_output)
+        new_config = self._param_dict.get_config()
+
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
         return None, (None, None)
 
     def _handler_command_start_direct(self):
@@ -1468,8 +1477,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                 except KeyError:
                     raise InstrumentParameterException('Could not format param %s' % key)
 
-                self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT, expected_prompt=[Prompt.OK, Prompt.ERROR])
-                self._param_dict.set_value(key, params[key])
+                self._do_cmd_resp(InstrumentCommand.SET, key, str_val, timeout=TIMEOUT, expected_prompt=[Prompt.OK,
+                                                                                                         Prompt.ERROR])
+
+        status_output = self._do_cmd_resp(InstrumentCommand.STATUS, expected_prompt=[Prompt.OK])
+        self._param_dict.update(status_output)
 
         new_config = self._param_dict.get_config()
         log.debug("NEW CONFIG: %s", self._param_dict.get_config())
