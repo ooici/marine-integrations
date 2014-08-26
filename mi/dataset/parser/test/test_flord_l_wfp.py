@@ -231,7 +231,16 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         """
         Ensure that bad data is skipped when it exists.
         """
-        pass
+        file_path = os.path.join(RESOURCE_PATH, 'E0000001-BAD-DATA.DAT')
+        self.stream_handle = open(file_path, 'rb')
+
+        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
+                                      self.state_callback, self.pub_callback, self.exception_callback)
+
+        with self.assertRaises(SampleException):
+            self.parser.get_records(1)
+
+        self.stream_handle.close()
 
     def assert_result(self, test, particle):
         """
