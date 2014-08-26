@@ -4,7 +4,7 @@
 @package mi.dataset.parser.test.test_flord_l_wfp
 @file marine-integrations/mi/dataset/parser/test/test_flord_l_wfp.py
 @author Joe Padula
-@brief Test code for a flord_l_wfp data parser
+@brief Test code for a flord_l_wfp data parser (which uses the GlobalWfpEFileParser)
 """
 
 from nose.plugins.attrib import attr
@@ -13,15 +13,18 @@ import yaml
 import numpy
 import os
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.idk.config import Config
 from mi.core.exceptions import SampleException
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, StateKey
-from mi.dataset.parser.flord_l_wfp import FlordLWfpParser, \
-    FlordLWfpInstrumentParserDataParticleKey, \
+from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticleKey
+
+from mi.dataset.parser.global_wfp_e_file_parser import GlobalWfpEFileParser, \
     WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flord_l', 'wfp', 'resource')
@@ -30,7 +33,7 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'fl
 @attr('UNIT', group='mi')
 class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
     """
-    flord_l_wfp Parser unit test suite
+    Parser unit test suite
     """
     def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
@@ -102,8 +105,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'small.DAT')
         self.stream_handle = open(file_path, 'rb')
 
-        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, self.start_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         particles = self.parser.get_records(6)
 
@@ -127,8 +130,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'E0000001.DAT')
         self.stream_handle = open(file_path, 'rb')
 
-        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, self.start_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         particles = self.parser.get_records(20)
 
@@ -155,8 +158,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'E0000001.DAT')
         self.stream_handle = open(file_path, 'rb')
 
-        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, self.start_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         particles = self.parser.get_records(1000)
         # File is 20,530 bytes
@@ -177,8 +180,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         # Moving the file position past the header and two records
         new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*2)}
 
-        self.parser = FlordLWfpParser(self.config, new_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, new_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         particles = self.parser.get_records(4)
 
@@ -202,8 +205,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         # Moving the file position past the header and two records
         new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*2)}
 
-        self.parser = FlordLWfpParser(self.config, new_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, new_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         particles = self.parser.get_records(4)
 
@@ -215,8 +218,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         # Moving the file position past the header and three records
         new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*3)}
 
-        self.parser = FlordLWfpParser(self.config, new_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, new_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         particles = self.parser.get_records(10)
 
@@ -234,8 +237,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         file_path = os.path.join(RESOURCE_PATH, 'E0000001-BAD-DATA.DAT')
         self.stream_handle = open(file_path, 'rb')
 
-        self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
-                                      self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser = GlobalWfpEFileParser(self.config, self.start_state, self.stream_handle,
+                                           self.state_callback, self.pub_callback, self.exception_callback)
 
         with self.assertRaises(SampleException):
             self.parser.get_records(1)
@@ -253,8 +256,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(file_path, 'rb')
 
         with self.assertRaises(SampleException):
-            self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
-                                          self.state_callback, self.pub_callback, self.exception_callback)
+            self.parser = GlobalWfpEFileParser(self.config, self.start_state, self.stream_handle,
+                                               self.state_callback, self.pub_callback, self.exception_callback)
 
         self.stream_handle.close()
 
@@ -264,8 +267,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(file_path, 'rb')
 
         with self.assertRaises(SampleException):
-            self.parser = FlordLWfpParser(self.config, self.start_state, self.stream_handle,
-                                          self.state_callback, self.pub_callback, self.exception_callback)
+            self.parser = GlobalWfpEFileParser(self.config, self.start_state, self.stream_handle,
+                                               self.state_callback, self.pub_callback, self.exception_callback)
 
         self.stream_handle.close()
 
@@ -320,7 +323,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
                     log.debug("test_data %s, particle_data %s", test_data, particle_data)
                     self.assertEqual(test_data, particle_data)
 
-    def get_dict_from_yml(self, filename):
+    @staticmethod
+    def get_dict_from_yml(filename):
         """
         This utility routine loads the contents of a yml file
         into a dictionary
