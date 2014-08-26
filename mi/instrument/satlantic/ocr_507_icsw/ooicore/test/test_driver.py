@@ -15,6 +15,8 @@ USAGE:
 """
 
 import time
+import random
+
 import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -431,6 +433,45 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SatlanticMixin)
         self.assert_state_change(SatlanticProtocolState.COMMAND, 5)
         log.debug('leaving direct access')
 
+    # @unittest.skip('temp disable')  # Keep: This is a useful stress test
+    def test_command_autosample_multiple(self):
+        """
+        Similar to the test_command_autosample above, but this will test getting in & out of sampling at
+        all possible maxrate values with a random amount of sample wait time between
+        """
+        timeout = 1*60
+        count = 0
+        starttime = time.time()
+        startstamp = time.strftime("%H:%M:%S", time.gmtime())
+        maxrates = [[0, 1], [0.125, 9], [0.5, 3], [1, 2], [2, 1], [4, 1], [8, 1], [10, 1], [12, 1]]
+        # maxrates = [[1, 2], [2, 1]]
+
+        self.assert_initialize_driver(SatlanticProtocolState.COMMAND)
+
+        while True:
+            random.shuffle(maxrates)
+            for maxrate, min_sleep in maxrates:
+                sleep_time = random.uniform(min_sleep, 15)
+                count += 1
+                log.debug('START test_command_autosample: #%s maxrate=%s, %s, sleep=%s',
+                          count, maxrate, time.strftime("%H:%M:%S", time.gmtime()), sleep_time)
+                self.assert_set(Parameter.MAX_RATE, maxrate)
+
+                self.assert_driver_command(SatlanticProtocolEvent.ACQUIRE_STATUS, state=SatlanticProtocolState.COMMAND, delay=5)
+                self.assert_async_particle_generation(DataParticleType.CONFIG, self.assert_particle_config, timeout=30)
+
+                self.assert_driver_command(SatlanticProtocolEvent.START_AUTOSAMPLE, state=SatlanticProtocolState.AUTOSAMPLE, delay=10)
+
+                time.sleep(sleep_time)
+                self.assert_async_particle_generation(DataParticleType.PARSED, self.assert_particle_sample, timeout=30)
+                self.assert_driver_command(SatlanticProtocolEvent.STOP_AUTOSAMPLE, state=SatlanticProtocolState.COMMAND, delay=3)
+
+            if time.time() > starttime + timeout:
+                break
+
+        # self.assert_set(Parameter.MAX_RATE, 4, no_get=True)
+        log.debug('FINISHED test_command_autosample: #%s, start:%s/end:%s, timeout=%s',
+                  count, startstamp, time.strftime("%H:%M:%S", time.gmtime()), timeout)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
