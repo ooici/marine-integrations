@@ -72,10 +72,10 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         self.test_particle2 = {}
         self.test_particle2['internal_timestamp'] = 3583638247
         self.test_particle2[StateKey.POSITION] = 414
-        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 55
         self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 112
-        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 571
-        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649377
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 570
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649447
 
         self.test_particle3 = {}
         self.test_particle3['internal_timestamp'] = 3583638317
@@ -192,11 +192,40 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
     def test_set_state(self):
         """
-        Test changing to a new state after initializing the parser and 
+        Test changing to a new state after initializing the parser and
         reading data, as if new data has been found and the state has
         changed
         """
-        pass
+        filepath = os.path.join(RESOURCE_PATH, 'E0000001.DAT')
+        self.stream_handle = open(filepath, 'rb')
+
+        # Moving the file position past the header and two records
+        new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*2)}
+
+        self.parser = FlordLWfpParser(self.config, new_state, self.stream_handle,
+                                      self.state_callback, self.pub_callback, self.exception_callback)
+
+        particles = self.parser.get_records(4)
+
+        # Should end up with 4 particles
+        self.assertTrue(len(particles) == 4)
+
+        self.assert_result(self.test_particle1, particles[3])
+
+        # Moving the file position past the header and three records
+        new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*3)}
+
+        self.parser = FlordLWfpParser(self.config, new_state, self.stream_handle,
+                                      self.state_callback, self.pub_callback, self.exception_callback)
+
+        particles = self.parser.get_records(10)
+
+        # Should end up with 10 particles
+        self.assertTrue(len(particles) == 10)
+        # 13th data record in test file
+        self.assert_result(self.test_particle2, particles[9])
+
+        self.stream_handle.close()
 
     def test_bad_data(self):
         """
