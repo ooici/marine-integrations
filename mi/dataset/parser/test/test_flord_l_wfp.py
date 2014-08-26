@@ -21,8 +21,9 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, StateKey
-from mi.dataset.parser.flord_l_wfp import FlordLWfpParser
-from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticleKey
+from mi.dataset.parser.flord_l_wfp import FlordLWfpParser, \
+    FlordLWfpInstrumentParserDataParticleKey, \
+    WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flord_l', 'wfp', 'resource')
 
@@ -71,26 +72,26 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         self.test_particle2 = {}
         self.test_particle2['internal_timestamp'] = 3583638247
         self.test_particle2[StateKey.POSITION] = 414
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 112
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 571
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649377
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 112
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 571
+        self.test_particle2[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649377
 
         self.test_particle3 = {}
         self.test_particle3['internal_timestamp'] = 3583638317
         self.test_particle3[StateKey.POSITION] = 624
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 56
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 114
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 570
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649517
+        self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 56
+        self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 114
+        self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 570
+        self.test_particle3[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649517
 
         self.test_particle4 = {}
         self.test_particle4['internal_timestamp'] = 3583638617
         self.test_particle4[StateKey.POSITION] = 1524
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 110
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 239
-        self.test_particle1[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649817
+        self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_CHL] = 54
+        self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA] = 110
+        self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP] = 569
+        self.test_particle4[FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP] = 1374649817
 
     def test_simple(self):
         """
@@ -170,7 +171,24 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         """
         Test starting the parser in a state in the middle of processing
         """
-        pass
+        file_path = os.path.join(RESOURCE_PATH, 'E0000001.DAT')
+        self.stream_handle = open(file_path, 'rb')
+
+        # Moving the file position past the header and two records
+        new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*2)}
+
+        self.parser = FlordLWfpParser(self.config, new_state, self.stream_handle,
+                                      self.state_callback, self.pub_callback, self.exception_callback)
+
+        particles = self.parser.get_records(4)
+
+        # Should end up with 4 particles
+        self.assertTrue(len(particles) == 4)
+
+        # Compare with 6th data record
+        self.assert_result(self.test_particle1, particles[3])
+
+        self.stream_handle.close()
 
     def test_set_state(self):
         """
@@ -194,9 +212,9 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         the 'internal_timestamp' and 'position' keys are
         treated differently than others but can be verified if supplied
         """
-
+        log.debug("test arg: %s", test)
         particle_dict = particle.generate_dict()
-
+        log.debug("particle_dict: %s", particle_dict)
         #for efficiency turn the particle values list of dictionaries into a dictionary
         particle_values = {}
         for param in particle_dict.get('values'):
@@ -234,6 +252,7 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
                     self.assertTrue(compare)
                 else:
                     # otherwise they are all ints and should be exactly equal
+                    log.debug("test_data %s, particle_data %s", test_data, particle_data)
                     self.assertEqual(test_data, particle_data)
 
     def get_dict_from_yml(self, filename):

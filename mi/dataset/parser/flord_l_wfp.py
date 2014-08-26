@@ -64,7 +64,7 @@ class FlordLWfpInstrumentParserDataParticle(DataParticle):
                   self._encode_value(FlordLWfpInstrumentParserDataParticleKey.RAW_SIGNAL_BETA, fields_prof[7], int),
                   self._encode_value(FlordLWfpInstrumentParserDataParticleKey.RAW_INTERNAL_TEMP, fields_prof[8], int),
                   self._encode_value(FlordLWfpInstrumentParserDataParticleKey.WFP_TIMESTAMP, fields_prof[0], int)]
-        log.debug("_build_parsed_values returning result: %s", result)
+        #log.debug("_build_parsed_values returning result: %s", result)
         return result
 
 
@@ -210,7 +210,7 @@ class FlordLWfpParser(WfpEFileParser):
                 fields_prof = struct.unpack_from('>I', data_match.group(1))
                 timestamp = fields_prof[0]
                 self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
-                log.debug("_timestamp: %s", self._timestamp)
+
                 # particle-ize the data block received, return the record
                 sample = self._extract_sample(self._particle_class,
                                               None,
@@ -226,7 +226,7 @@ class FlordLWfpParser(WfpEFileParser):
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
             self.handle_non_data(non_data, non_end, start)
-        log.debug("parse_chunks leaving, result_particles: %s", result_particles)
+        #log.debug("parse_chunks leaving, result_particles: %s", result_particles)
         return result_particles
 
     def handle_non_data(self, non_data, non_end, start):
