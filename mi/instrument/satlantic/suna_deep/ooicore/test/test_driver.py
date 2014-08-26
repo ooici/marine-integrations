@@ -106,13 +106,13 @@ SUNA_ASCII_SAMPLE = "SATSDF0344,2014125,21.278082,0.00,0.0000,0.0000,0.0000,0.00
                     "0.000000,0.000000,,,,,203\r\n"
 
 
-SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nINTWIPER Available\r\nEXTPPORT Missing\r\n" \
+SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nTHEBRAND Missing\r\nPATHLGTH Missing\r\n" \
+                    "INTWIPER Available\r\nEXTPPORT Missing\r\n" \
                     "LMPSHUTR Missing\r\nREFDTECT Missing\r\nPROTECTR Available\r\nSUPRCAPS Available\r\n" \
                     "PWRSVISR Available\r\nUSBSWTCH Available\r\nRELAYBRD Available\r\nSDI12BRD Available\r\n" \
                     "ANALGBRD Available\r\nINTDATLG Available\r\nAPFIFACE Available\r\nSCHDLING Available\r\n" \
                     "FANATLMP Available\r\nOWIRETLP 10d0fda4020800eb\r\nOWIRETSP 1086818d020800d8\r\n" \
                     "OWIRETHS 10707b6a020800cc\r\nZSPEC_SN 86746\r\nFIBERLSN C3.D01.1590\r\nSTUPSTUS Done\r\n" \
-                    "BRNHOURS 0\r\nBRNNUMBR 0\r\nDRKHOURS 0\r\nDRKNUMBR 0\r\nCHRLDURA 600\r\nCHRDDURA 0\r\n" \
                     "BAUDRATE 57600\r\nMSGLEVEL Info\r\nMSGFSIZE 2\r\nDATFSIZE 5\r\nOUTFRTYP Full_ASCII\r\n" \
                     "LOGFRTYP Full_ASCII\r\nOUTDRKFR Output\r\nLOGDRKFR Output\r\nTIMERESL Fractsec\r\n" \
                     "LOGFTYPE Acquisition\r\nACQCOUNT 10\r\nCNTCOUNT 130\r\nDCMINNO3 -5.000\r\nDCMAXNO3 100.000\r\n" \
@@ -243,12 +243,6 @@ class DriverTestMixinSub(DriverTestMixin):
         SUNAStatusDataParticleKey.SERIAL_NUM_SPECT: {'type': unicode, 'value': '86746'},
         SUNAStatusDataParticleKey.SERIAL_NUM_LAMP: {'type': unicode, 'value': "C3.D01.1590"},
         SUNAStatusDataParticleKey.STUPSTUS: {'type': unicode, 'value': "Done"},
-        SUNAStatusDataParticleKey.BRNHOURS: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.BRNNUMBER: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.DARK_HOURS: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.DARK_NUM: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.CHRLDURA: {'type': int, 'value': 600},
-        SUNAStatusDataParticleKey.CHRDDURA: {'type': int, 'value': 0},
         SUNAStatusDataParticleKey.BAUD_RATE: {'type': int, 'value': 57600},
         SUNAStatusDataParticleKey.MSG_LEVEL: {'type': unicode, 'value': "Info"},
         SUNAStatusDataParticleKey.MSG_FILE_SIZE: {'type': int, 'value': 2},
@@ -600,7 +594,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.SUNA_STATUS,
-                                         self.assert_data_particle_status, delay=TIMEOUT)
+                                        self.assert_data_particle_status, delay=TIMEOUT)
 
     def test_selftest(self):
         """
@@ -618,7 +612,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
-                                         self.assert_data_particle_sample, delay=TIMEOUT)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_N, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=TIMEOUT)
@@ -661,7 +655,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
 
         #Assert set fails with bad parameter and bad value
-        self.assert_set_exception('I am a bogus param.', value='bogus value', exception_class=InstrumentParameterException)
+        self.assert_set_exception('I am a bogus param.', value='bogus value',
+                                  exception_class=InstrumentParameterException)
 
         # put driver in disconnected state.
         self.driver_client.cmd_dvr('disconnect')
@@ -865,15 +860,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_SAMPLE,
-                                          ProtocolEvent.ACQUIRE_STATUS,
-                                          ProtocolEvent.START_AUTOSAMPLE,
-                                          ProtocolEvent.GET,
-                                          ProtocolEvent.SET,
-                                          ProtocolEvent.TEST,
-                                          ProtocolEvent.CLOCK_SYNC,
-                                          ProtocolEvent.MEASURE_N,
-                                          ProtocolEvent.MEASURE_0,
-                                          ProtocolEvent.TIMED_N],
+                                                   ProtocolEvent.ACQUIRE_STATUS,
+                                                   ProtocolEvent.START_AUTOSAMPLE,
+                                                   ProtocolEvent.GET,
+                                                   ProtocolEvent.SET,
+                                                   ProtocolEvent.TEST,
+                                                   ProtocolEvent.CLOCK_SYNC,
+                                                   ProtocolEvent.MEASURE_N,
+                                                   ProtocolEvent.MEASURE_0,
+                                                   ProtocolEvent.TIMED_N],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: ['a_cutoff', 'bl_order', 'brmtrace', 'countdwn', 'datfsize',
                                                      'drkcormt', 'drkdurat', 'drksmpls', 'fitconcs', 'intadmax',
