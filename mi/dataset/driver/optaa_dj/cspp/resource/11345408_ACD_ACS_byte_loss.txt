@@ -1,0 +1,7 @@
+Source File: D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11345408.ACD
+Processed: 07/18/2014 13:52:59
+Using Version: 1.11
+Device: ACS
+Start Date: 05/14/2014
+Timestamp (s)	Depth (dbar)	Suspect Timestamp	serial #	on secs	num wvl	C ref dark	C ref counts*num wvl	C sig dark	C sig counts*num wvl	A ref dark	A ref counts*num wvl	A sig dark	A sig counts*num wvl	ext temp counts	int temp counts	pressure counts
+1400072267.711	0.000	y	m\10\F97\B3:a\05\0F\1014\997@\04\AE\0FU1\8442\04N\0Eg.\8C1<\03\EB\0Dq+\B4.Q\03\8A\0Cl(\F6+\A3O\E2I\DA\06\CE\10aR\D5J\C7\07 \10\B9U,M\15\07^\11kWmOV\07\99\12\18Y\89Q\97\07\CC\12\C7[mS\B1\07\FB\13g]&U\9F\08$\13\FA^\A3Wm\08M\14\7F_\ECY\08\08u\14\F6a\05Zi\08\98\15ca\C8[\9D\08\BC\15\CCbH\\\9C\08\D0\16,b\81]L\08\E7\16{bu]\C2\08\F3\16\C4b\1D]\EE\08\F8\16\FEa}]\D2\08\F7\17%`\90]n\08\F0\17=_i\\\C4\08\DC\17=^\12[\CF\08\C5\17\19\\\84Z\B1\08\A5\16\D5Z\B4Y`\08z\16cX\AEW\D9\08H\15\C2VsV\15\08\13\15\0AS\F8T\1B\07\D6\14TQLQ\E2\07\99\13\B7N^Ow\07V\13CKCL\D2\07\0E\12\F6H\0AI\F3\06\C2\12\BBD\BEF\F5\06s\12|ApC\D8\06!\12 >!@\A9\05\C9\11\A0:\D9=\7F\05o\10\FA7\A2:Q\05\10\1034\8672\04\B2\0FS1t4&\04P\0Ef.~1.\03\ED\0Do+\A4.C\03\8C\0Cl(\E7+{\03-\0Be&B(\C4\02\D3\0AY#\BD&+\02\7F\09R!R#\AC\02>\08]\1F\09!N\02\02\07\85\1C\DB\1F\0B\01\D3\06\CF\19\91\1C\DE\01\AC\068\DC\BF\00SSsh\\e\DF\02
