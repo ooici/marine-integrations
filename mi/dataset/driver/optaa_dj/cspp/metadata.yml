@@ -1,7 +1,7 @@
 driver_metadata:
   author: Joe Padula
   constructor: OptaaDjCsppDataSetDriver
-  driver_name: optaa_dg_cspp
+  driver_name: optaa_dj_cspp
   driver_path: optaa_dj/cspp
   email: Joseph_J_Padula@raytheon.com
   release_notes: Initial Release
