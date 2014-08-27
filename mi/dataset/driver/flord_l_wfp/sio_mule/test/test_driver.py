@@ -12,18 +12,18 @@ USAGE:
        $ bin/dsa/test_driver -q [-t testname]
 """
 
-__author__ = 'Maria Lutz'
+__author__ = 'Maria Lutz, Joe Padula'
 __license__ = 'Apache 2.0'
 
 import os
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
@@ -40,10 +40,10 @@ from mi.dataset.parser.flord_l_wfp_sio_mule import FlordLWfpSioMuleParserDataPar
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.flord_l_wfp.sio_mule.driver',
     driver_class='FlordLWfpSioMuleDataSetDriver',
-    agent_resource_id = '123xyz',
-    agent_name = 'Agent007',
-    agent_packet_config = FlordLWfpSioMuleDataSetDriver.stream_config(),
-    startup_config = {
+    agent_resource_id='123xyz',
+    agent_name='Agent007',
+    agent_packet_config=FlordLWfpSioMuleDataSetDriver.stream_config(),
+    startup_config={
         DataSourceConfigKey.RESOURCE_ID: 'flord_l_wfp_sio_mule',
         DataSourceConfigKey.HARVESTER:
         {
@@ -57,9 +57,6 @@ DataSetTestCase.initialize(
 
 SAMPLE_STREAM = 'flord_l_wfp_instrument'
 
-# The integration and qualification tests generated here are suggested tests,
-# but may not be enough to fully test your driver. Additional tests should be
-# written as needed.
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -93,19 +90,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         
         driver_config = self._driver_config()['startup_config']
         fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
+                                driver_config['harvester']['pattern'])
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
         # note that these values for size, checksum and mod_time are purposely incorrect,
         # to cause the harvester to decide that the target file has changed.
         self.memento = {"TestData.dat": {DriverStateKey.FILE_SIZE: 300,
-                        DriverStateKey.FILE_CHECKSUM: 'b9605fd76ed3aff469fe7a874c5e1681',
-                        DriverStateKey.FILE_MOD_DATE: mod_time,
-                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,300]],
-                                                     'file_size':300 }
-                        }}
+                                         DriverStateKey.FILE_CHECKSUM: 'b9605fd76ed3aff469fe7a874c5e1681',
+                                         DriverStateKey.FILE_MOD_DATE: mod_time,
+                                         DriverStateKey.PARSER_STATE: {'in_process_data': [],
+                                                                       'unprocessed_data': [[0, 300]],
+                                                                       'file_size': 300}
+                                         }
+                        }
 
         self.driver = self._get_driver_object(memento=self.memento)
 
@@ -178,6 +176,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
