@@ -62,7 +62,7 @@ from mi.core.log import get_logging_metaclass
 NEWLINE = '\r\n'
 
 # default timeout.
-TIMEOUT = 15
+TIMEOUT = 30
 
 
 ###
@@ -1191,7 +1191,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="Measurements per Reported Value",
                              description='Number of measurements for each reported value.',
-                             default_value=18,
+                             default_value=1,
                              startup_param=True,
                              direct_access=True)
 
