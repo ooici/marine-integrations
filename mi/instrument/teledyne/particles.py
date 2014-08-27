@@ -600,15 +600,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_START_TIME,
                                   DataParticleKey.VALUE: (rtc_date - rtc_epoch).total_seconds()})
 
-        log.warn("$$$ Here !!")
-        log.warn("RTC: %s" % rtc)
-        log.warn("RTC List: %s" % rtc_list)
-        log.warn("RTC Date: %s" % rtc_date)
-        log.warn("Epoch Date: %s" % rtc_epoch)
-        log.warn("Ensemble Start Time: %s" % (rtc_date - rtc_epoch).total_seconds())
-
-
-
     def parse_velocity_chunk(self, chunk):
         """
         Parse the velocity portion of the particle
