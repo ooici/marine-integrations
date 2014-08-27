@@ -7,13 +7,13 @@ header:
 data:
   - _index: 1
     internal_timestamp: '2013-07-23T23:15:01'
-    particle_object: DostadMetadataDataParticle
+    particle_object: DostadParserTelemeteredMetadataDataParticle
     particle_type: dosta_abcdjm_sio_metadata
     product_number: 4831
     serial_number: 128
   - _index: 2
     internal_timestamp: '2013-07-23T23:15:01'
-    particle_object: DostadParserDataParticle
+    particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374621301
     estimated_oxygen_concentration: 302.636
@@ -28,7 +28,7 @@ data:
     raw_temperature: 299.6
   - _index: 3
     internal_timestamp: '2013-07-24T00:00:01Z'
-    particle_object: DostadParserDataParticle
+    particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374624001
     estimated_oxygen_concentration: 317.073
@@ -43,7 +43,7 @@ data:
     raw_temperature: 375.8
   - _index: 4
     internal_timestamp: '2013-07-24T06:00:01'
-    particle_object: DostadParserDataParticle
+    particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374645601
     estimated_oxygen_concentration: 326.544
@@ -58,7 +58,7 @@ data:
     raw_temperature: 444.4
   - _index: 5
     internal_timestamp: '2013-07-24T12:00:02'
-    particle_object: DostadParserDataParticle
+    particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374667202
     estimated_oxygen_concentration: 332.060
@@ -73,7 +73,7 @@ data:
     raw_temperature: 426.5
   - _index: 6
     internal_timestamp: '2013-07-24T18:00:02'
-    particle_object: DostadParserDataParticle
+    particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374688802
     estimated_oxygen_concentration: 354.515
@@ -88,7 +88,7 @@ data:
     raw_temperature: 490.0
   - _index: 7
     internal_timestamp: '2013-07-25T00:00:02'
-    particle_object: DostadParserDataParticle
+    particle_object: DostadParserTelemeteredDataParticle
     particle_type: dosta_abcdjm_sio_instrument
     sio_controller_timestamp: 1374710402
     estimated_oxygen_concentration: 337.540

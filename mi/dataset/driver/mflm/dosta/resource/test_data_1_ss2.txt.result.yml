@@ -1,0 +1,13 @@
+# Result data after parsing test_data_1.txt
+
+header:
+    particle_object: DostadParserTelemeteredMetadataDataParticle
+    particle_type: dosta_abcdjm_sio_metadata
+
+data:
+  - _index: 1
+    internal_timestamp: '2013-07-23T23:15:01'
+    particle_object: DostadParserTelemeteredMetadataDataParticle
+    particle_type: dosta_abcdjm_sio_metadata
+    product_number: 4831
+    serial_number: 128
