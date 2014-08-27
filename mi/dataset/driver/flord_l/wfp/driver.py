@@ -11,18 +11,19 @@ Initial Release
 __author__ = 'Joe Padula'
 __license__ = 'Apache 2.0'
 
-import string
-
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.flord_l_wfp import FlordLWfpParser, FlordLWfpParserDataParticle
+from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticle
+from mi.dataset.parser.global_wfp_e_file_parser import GlobalWfpEFileParser
+
 
 class FlordLWfpDataSetDriver(SimpleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [FlordLWfpParserDataParticle.type()]
+        return [FlordLWfpInstrumentParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         """
@@ -31,10 +32,10 @@ class FlordLWfpDataSetDriver(SimpleDataSetDriver):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.flord_l_wfp',
-            'particle_class': 'FlordLWfpParserDataParticle'
+            'particle_class': 'FlordLWfpInstrumentParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._parser = FlordLWfpParser(
+        self._parser = GlobalWfpEFileParser(
             config,
             parser_state,
             infile,
