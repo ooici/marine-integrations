@@ -27,7 +27,7 @@ from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticleK
 from mi.dataset.parser.global_wfp_e_file_parser import GlobalWfpEFileParser, \
     WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES
 
-RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flord_l', 'wfp', 'resource')
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flord_l_wfp', 'sio_mule', 'resource')
 
 
 @attr('UNIT', group='mi')
