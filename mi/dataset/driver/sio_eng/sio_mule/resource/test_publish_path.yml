@@ -1,5 +1,5 @@
 header:
-    particle_object: SioEngSioMuleParserDataParticle
+    particle_object: SioEngSioMuleDataParticle
     particle_type: sio_eng_control_status
 
 data:

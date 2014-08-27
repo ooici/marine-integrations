@@ -621,6 +621,31 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneParameter.GET_STATUS_INTERVAL]:
                     result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
+
+        # Handle engineering parameters
+        changed = False
+
+        if TeledyneParameter.CLOCK_SYNCH_INTERVAL in params:
+            if (params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(
+                    TeledyneParameter.CLOCK_SYNCH_INTERVAL)):
+                self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL,
+                                           params[TeledyneParameter.CLOCK_SYNCH_INTERVAL])
+                self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC,
+                                         TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+                changed = True
+
+        if TeledyneParameter.GET_STATUS_INTERVAL in params:
+            if (params[TeledyneParameter.GET_STATUS_INTERVAL] != self._param_dict.get(
+                    TeledyneParameter.GET_STATUS_INTERVAL)):
+                self._param_dict.set_value(TeledyneParameter.GET_STATUS_INTERVAL,
+                                           params[TeledyneParameter.GET_STATUS_INTERVAL])
+                self.start_scheduled_job(TeledyneParameter.GET_STATUS_INTERVAL,
+                                         TeledyneScheduledJob.GET_CONFIGURATION,
+                                         TeledyneProtocolEvent.SCHEDULED_GET_STATUS)
+                changed = True
+        if changed:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
         self._update_params()
         return result
 
@@ -885,6 +910,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        # Generate the adcp_compass_calibration and adcp_system_configuration particles
+        self._handler_command_get_calibration(*args, **kwargs)
+        self._handler_command_get_configuration(*args, **kwargs)
 
         # start scheduled event for clock synch only if the interval is not "00:00:00
         clock_interval = self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)

@@ -1,0 +1,113 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    particle_object: WcWmMetadataTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_metadata
+    internal_timestamp: 3606762322.558
+    last_character_controller_id: '1'
+    day_of_year_number: 107
+    fraction_of_day: 9364
+    processing_time: '07/18/2014 17:47:40'
+    source_file: 'D:\Storage\Programs\OOI\Group 5\Correspondence\07_18_14 sample files\files\11079364.WC'
+    preprocessing_software_version: '1.11'
+    start_date: '04/17/2014'
+  - _index: 2
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762322.558000
+    profiler_timestamp: 1397773522.558
+    pressure_depth: 0.563
+    suspect_timestamp: 1
+    encoder_counts: -1494303
+    current_flt32: -0.0100000000000000
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.7
+    rope_on_drum: 9.55
+  - _index: 3
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.183
+    profiler_timestamp: 1397773523.183
+    pressure_depth: 0.560
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.03
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.550
+  - _index: 4
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.246
+    profiler_timestamp: 1397773523.246
+    pressure_depth: 0.559
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: 0.00
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 5
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.308
+    profiler_timestamp: 1397773523.308
+    pressure_depth: 0.553
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: 0.00
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 6
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.371
+    profiler_timestamp: 1397773523.371
+    pressure_depth: 0.546
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.02
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55
+  - _index: 7
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.433
+    profiler_timestamp: 1397773523.433
+    pressure_depth: 0.540
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.02
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.50
+    rope_on_drum: 9.55
+  - _index: 8
+    particle_object: WcWmEngTelemeteredDataParticle
+    particle_type: cspp_eng_cspp_wc_wm_eng
+    internal_timestamp: 3606762323.496
+    profiler_timestamp: 1397773523.496
+    pressure_depth: 0.529
+    suspect_timestamp: 0
+    encoder_counts: -1494303
+    current_flt32: -0.01
+    device_status: '0000F000'
+    winch_velocity: 0
+    temperature: 12
+    voltage_flt32: 32.40
+    rope_on_drum: 9.55

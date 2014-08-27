@@ -31,11 +31,13 @@ from mi.dataset.parser.cspp_base import CsppParser, CsppMetadataDataParticle, \
                                         encode_y_or_n, \
                                         SAMPLE_START_REGEX
 
-FLOAT_TAB_REGEX = FLOAT_REGEX + '\t'
+FLOAT_REGEX_NON_CAPTURE = r'[+-]?[0-9]*\.[0-9]+'
+FLOAT_TAB_REGEX = FLOAT_REGEX_NON_CAPTURE + '\t'
 
 # can't use groups for each parameter here since this is over the 100 group limit
 # use groups to match repeated regexes, split by tabs to get parameter values instead
-DATA_REGEX = SAMPLE_START_REGEX
+LINE_START_REGEX = FLOAT_TAB_REGEX + FLOAT_TAB_REGEX + Y_OR_N_REGEX + '\t'
+DATA_REGEX = LINE_START_REGEX
 DATA_REGEX += '[a-zA-Z]+\t' # Frame Type
 DATA_REGEX += '\d+\t\d+\t' # year, day of year
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){6}' # match 6 floats separated by tabs
@@ -46,7 +48,6 @@ DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){10}' # match 10 floats separated by tab
 DATA_REGEX += '(\d+)\t' # ctd time
 DATA_REGEX += '(' + FLOAT_TAB_REGEX + '){3}' # match 3 floats separated by tabs
 DATA_REGEX += '[0-9a-fA-F]{2}' + END_OF_LINE_REGEX # checksum and line end
-DATA_MATCHER = re.compile(DATA_REGEX)
 
 NUMBER_CHANNELS = 256
 NUM_FIELDS = 33 + NUMBER_CHANNELS
@@ -58,7 +59,7 @@ GRP_SPECTRAL_END = GRP_SPECTRAL_START + NUMBER_CHANNELS
 
 # ignore lines matching the start (timestamp, depth, suspect timestamp),
 # then any text not containing tabs
-IGNORE_LINE_REGEX = SAMPLE_START_REGEX + '[^\t]*' + END_OF_LINE_REGEX
+IGNORE_LINE_REGEX = LINE_START_REGEX + '[^\t]*' + END_OF_LINE_REGEX
 IGNORE_MATCHER = re.compile(IGNORE_LINE_REGEX)
 
 

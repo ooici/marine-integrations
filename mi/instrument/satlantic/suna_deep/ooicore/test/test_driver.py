@@ -69,14 +69,14 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={DriverConfigKey.PARAMETERS: {
-            Parameter.OPERATION_MODE: InstrumentCommandArgs.POLLED,
-            Parameter.OPERATION_CONTROL: "Samples",
-            Parameter.LIGHT_SAMPLES: 5,
-            Parameter.DARK_SAMPLES: 1,
-            Parameter.LIGHT_DURATION: 10,
-            Parameter.DARK_DURATION: 5,
-            Parameter.NUM_LIGHT_SAMPLES: 1,
-            Parameter.TIME_LIGHT_SAMPLE: 5}}
+                           Parameter.OPERATION_MODE: InstrumentCommandArgs.POLLED,
+                           Parameter.OPERATION_CONTROL: "Samples",
+                           Parameter.LIGHT_SAMPLES: 5,
+                           Parameter.DARK_SAMPLES: 1,
+                           Parameter.LIGHT_DURATION: 10,
+                           Parameter.DARK_DURATION: 5,
+                           Parameter.NUM_LIGHT_SAMPLES: 1,
+                           Parameter.TIME_LIGHT_SAMPLE: 5}}
 )
 
 #################################### RULES ####################################
@@ -106,18 +106,19 @@ SUNA_ASCII_SAMPLE = "SATSDF0344,2014125,21.278082,0.00,0.0000,0.0000,0.0000,0.00
                     "0.000000,0.000000,,,,,203\r\n"
 
 
-SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nINTWIPER Available\r\nEXTPPORT Missing\r\n" \
+SUNA_ASCII_STATUS = "SENSTYPE SUNA\r\nSENSVERS V2\r\nSERIALNO 344\r\nTHEBRAND Missing\r\nPATHLGTH Missing\r\n" \
+                    "INTWIPER Available\r\nEXTPPORT Missing\r\n" \
                     "LMPSHUTR Missing\r\nREFDTECT Missing\r\nPROTECTR Available\r\nSUPRCAPS Available\r\n" \
                     "PWRSVISR Available\r\nUSBSWTCH Available\r\nRELAYBRD Available\r\nSDI12BRD Available\r\n" \
                     "ANALGBRD Available\r\nINTDATLG Available\r\nAPFIFACE Available\r\nSCHDLING Available\r\n" \
                     "FANATLMP Available\r\nOWIRETLP 10d0fda4020800eb\r\nOWIRETSP 1086818d020800d8\r\n" \
                     "OWIRETHS 10707b6a020800cc\r\nZSPEC_SN 86746\r\nFIBERLSN C3.D01.1590\r\nSTUPSTUS Done\r\n" \
-                    "BRNHOURS 0\r\nBRNNUMBR 0\r\nDRKHOURS 0\r\nDRKNUMBR 0\r\nCHRLDURA 600\r\nCHRDDURA 0\r\n" \
                     "BAUDRATE 57600\r\nMSGLEVEL Info\r\nMSGFSIZE 2\r\nDATFSIZE 5\r\nOUTFRTYP Full_ASCII\r\n" \
                     "LOGFRTYP Full_ASCII\r\nOUTDRKFR Output\r\nLOGDRKFR Output\r\nTIMERESL Fractsec\r\n" \
                     "LOGFTYPE Acquisition\r\nACQCOUNT 10\r\nCNTCOUNT 130\r\nDCMINNO3 -5.000\r\nDCMAXNO3 100.000\r\n" \
                     "WDAT_LOW 217.00\r\nWDAT_HGH 250.00\r\nSDI12ADD 48\r\nDATAMODE Real\r\nOPERMODE Polled\r\n" \
-                    "OPERCTRL Duration\r\nEXDEVTYP None\r\nEXDEVPRE 0\r\nEXDEVRUN Off\r\nWATCHDOG On\r\nCOUNTDWN 15\r\n" \
+                    "OPERCTRL Duration\r\nEXDEVTYP None\r\nEXDEVPRE 0\r\n" \
+                    "EXDEVRUN Off\r\nWATCHDOG On\r\nCOUNTDWN 15\r\n" \
                     "FIXDDURA 60\r\nPERDIVAL 1m\r\nPERDOFFS 0\r\nPERDDURA 5\r\nPERDSMPL 5\r\nPOLLTOUT 15\r\n" \
                     "APFATOFF 10.0000\r\nSTBLTIME 5\r\nREFLIMIT 0\r\nSKPSLEEP Off\r\nLAMPTOFF 35\r\nSPINTPER 450\r\n" \
                     "DRKAVERS 1\r\nLGTAVERS 1\r\nREFSMPLS 20\r\nDRKSMPLS 2\r\nLGTSMPLS 58\r\nDRKDURAT 2\r\n" \
@@ -189,18 +190,38 @@ class DriverTestMixinSub(DriverTestMixin):
         SUNASampleDataParticleKey.SPECTRUM_AVE: {'type': int, 'value': 476},
         SUNASampleDataParticleKey.FIT_DARK_VALUE: {'type': int, 'value': 0},
         SUNASampleDataParticleKey.TIME_FACTOR: {'type': int, 'value': 1},
-        SUNASampleDataParticleKey.SPECTRAL_CHANNELS: {'type': list, 'value': [475,483,494,465,487,490,488,
-                    477,465,471,477,476,475,469,477,482,485,485,481,481,474,467,484,472,469,483,489,488,484,497,488,
-                    482,484,474,461,455,485,469,495,481,485,474,487,464,491,477,464,485,492,492,475,485,478,479,477,
-                    465,455,471,482,486,482,480,486,478,484,488,480,485,485,473,480,481,485,462,469,466,455,487,488,
-                    482,485,489,485,478,489,472,475,456,483,450,471,450,487,480,493,490,482,472,485,484,481,494,494,
-                    482,482,468,467,467,477,472,469,487,473,475,475,481,492,468,471,477,464,487,466,487,476,466,461,
-                    469,467,469,461,459,475,481,477,476,467,469,476,484,462,479,464,467,471,485,477,466,471,470,481,
-                    473,493,496,470,487,478,469,471,475,464,485,472,468,462,483,481,489,482,495,481,471,471,456,459,
-                    465,454,475,452,459,472,464,491,488,478,487,465,483,470,465,478,465,487,480,487,474,478,488,480,
-                    469,473,463,477,466,473,485,489,486,476,471,475,470,455,471,456,459,467,457,467,477,467,475,489,
-                    485,484,470,489,482,481,474,471,479,479,468,479,481,484,480,491,468,479,474,474,468,471,477,480,
-                    490,484,493,480,485,464,469,477,276]},
+        SUNASampleDataParticleKey.SPECTRAL_CHANNELS: {'type': list, 'value': [475, 483, 494, 465, 487, 490, 488, 477,
+                                                                              465, 471, 477, 476, 475, 469, 477, 482,
+                                                                              485, 485, 481, 481, 474, 467, 484, 472,
+                                                                              469, 483, 489, 488, 484, 497, 488, 482,
+                                                                              484, 474, 461, 455, 485, 469, 495, 481,
+                                                                              485, 474, 487, 464, 491, 477, 464, 485,
+                                                                              492, 492, 475, 485, 478, 479, 477, 465,
+                                                                              455, 471, 482, 486, 482, 480, 486, 478,
+                                                                              484, 488, 480, 485, 485, 473, 480, 481,
+                                                                              485, 462, 469, 466, 455, 487, 488, 482,
+                                                                              485, 489, 485, 478, 489, 472, 475, 456,
+                                                                              483, 450, 471, 450, 487, 480, 493, 490,
+                                                                              482, 472, 485, 484, 481, 494, 494, 482,
+                                                                              482, 468, 467, 467, 477, 472, 469, 487,
+                                                                              473, 475, 475, 481, 492, 468, 471, 477,
+                                                                              464, 487, 466, 487, 476, 466, 461, 469,
+                                                                              467, 469, 461, 459, 475, 481, 477, 476,
+                                                                              467, 469, 476, 484, 462, 479, 464, 467,
+                                                                              471, 485, 477, 466, 471, 470, 481, 473,
+                                                                              493, 496, 470, 487, 478, 469, 471, 475,
+                                                                              464, 485, 472, 468, 462, 483, 481, 489,
+                                                                              482, 495, 481, 471, 471, 456, 459, 465,
+                                                                              454, 475, 452, 459, 472, 464, 491, 488,
+                                                                              478, 487, 465, 483, 470, 465, 478, 465,
+                                                                              487, 480, 487, 474, 478, 488, 480, 469,
+                                                                              473, 463, 477, 466, 473, 485, 489, 486,
+                                                                              476, 471, 475, 470, 455, 471, 456, 459,
+                                                                              467, 457, 467, 477, 467, 475, 489, 485,
+                                                                              484, 470, 489, 482, 481, 474, 471, 479,
+                                                                              479, 468, 479, 481, 484, 480, 491, 468,
+                                                                              479, 474, 474, 468, 471, 477, 480, 490,
+                                                                              484, 493, 480, 485, 464, 469, 477, 276]},
         SUNASampleDataParticleKey.TEMP_INTERIOR: {'type': float, 'value': 0.0},
         SUNASampleDataParticleKey.TEMP_SPECTROMETER: {'type': float, 'value': 0.0},
         SUNASampleDataParticleKey.TEMP_LAMP: {'type': float, 'value': -99.0},
@@ -243,12 +264,6 @@ class DriverTestMixinSub(DriverTestMixin):
         SUNAStatusDataParticleKey.SERIAL_NUM_SPECT: {'type': unicode, 'value': '86746'},
         SUNAStatusDataParticleKey.SERIAL_NUM_LAMP: {'type': unicode, 'value': "C3.D01.1590"},
         SUNAStatusDataParticleKey.STUPSTUS: {'type': unicode, 'value': "Done"},
-        SUNAStatusDataParticleKey.BRNHOURS: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.BRNNUMBER: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.DARK_HOURS: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.DARK_NUM: {'type': int, 'value': 0},
-        SUNAStatusDataParticleKey.CHRLDURA: {'type': int, 'value': 600},
-        SUNAStatusDataParticleKey.CHRDDURA: {'type': int, 'value': 0},
         SUNAStatusDataParticleKey.BAUD_RATE: {'type': int, 'value': 57600},
         SUNAStatusDataParticleKey.MSG_LEVEL: {'type': unicode, 'value': "Info"},
         SUNAStatusDataParticleKey.MSG_FILE_SIZE: {'type': int, 'value': 2},
@@ -541,7 +556,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         """
         self.assert_initialize_driver()
 
-        #set read/write params
         self.assert_set(Parameter.OPERATION_MODE, InstrumentCommandArgs.CONTINUOUS)
         self.assert_set(Parameter.OPERATION_CONTROL, "Duration")
         self.assert_set(Parameter.LIGHT_SAMPLES, 57)
@@ -550,7 +564,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_set(Parameter.DARK_DURATION, 6)
         self.assert_set(Parameter.COUNTDOWN, 16)
         self.assert_set(Parameter.TEMP_COMPENSATION, True)
-        self.assert_set(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
+        self.assert_set(Parameter.FIT_WAVELENGTH_BOTH, "218.00,241.00")
         self.assert_set(Parameter.CONCENTRATIONS_IN_FIT, 3)
         self.assert_set(Parameter.DARK_CORRECTION_METHOD, "SWAverage")
         self.assert_set(Parameter.SALINITY_FITTING, False)
@@ -600,7 +614,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
         self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.SUNA_STATUS,
-                                         self.assert_data_particle_status, delay=TIMEOUT)
+                                        self.assert_data_particle_status, delay=TIMEOUT)
 
     def test_selftest(self):
         """
@@ -618,7 +632,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver()
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_0, DataParticleType.SUNA_SAMPLE,
-                                         self.assert_data_particle_sample, delay=TIMEOUT)
+                                        self.assert_data_particle_sample, delay=TIMEOUT)
 
         self.assert_particle_generation(ProtocolEvent.MEASURE_N, DataParticleType.SUNA_SAMPLE,
                                         self.assert_data_particle_sample, delay=TIMEOUT)
@@ -661,7 +675,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
 
         #Assert set fails with bad parameter and bad value
-        self.assert_set_exception('I am a bogus param.', value='bogus value', exception_class=InstrumentParameterException)
+        self.assert_set_exception('I am a bogus param.', value='bogus value',
+                                  exception_class=InstrumentParameterException)
 
         # put driver in disconnected state.
         self.driver_client.cmd_dvr('disconnect')
@@ -765,7 +780,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_get_parameter(Parameter.OUTPUT_FRAME_TYPE, "Full_ASCII")
         self.assert_get_parameter(Parameter.OUTPUT_DARK_FRAME, "Output")
         self.assert_get_parameter(Parameter.TEMP_COMPENSATION, False)
-        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_BOTH, "217,240")
+        self.assert_get_parameter(Parameter.FIT_WAVELENGTH_BOTH, "217.00,240.00")
         self.assert_get_parameter(Parameter.CONCENTRATIONS_IN_FIT, 1)
         self.assert_get_parameter(Parameter.BASELINE_ORDER, 1)
         self.assert_get_parameter(Parameter.DARK_CORRECTION_METHOD, "SpecAverage")
@@ -843,7 +858,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
         self.assert_set_parameter(Parameter.DARK_SAMPLES, 3)
         self.assert_set_parameter(Parameter.COUNTDOWN, 16)
         self.assert_set_parameter(Parameter.TEMP_COMPENSATION, True)
-        self.assert_set_parameter(Parameter.FIT_WAVELENGTH_BOTH, "218,241")
+        self.assert_set_parameter(Parameter.FIT_WAVELENGTH_BOTH, "218.00,241.00")
         self.assert_set_parameter(Parameter.CONCENTRATIONS_IN_FIT, 3)
         self.assert_set_parameter(Parameter.DARK_CORRECTION_METHOD, "SWAverage")
         self.assert_set_parameter(Parameter.SALINITY_FITTING, False)
@@ -865,15 +880,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestM
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_SAMPLE,
-                                          ProtocolEvent.ACQUIRE_STATUS,
-                                          ProtocolEvent.START_AUTOSAMPLE,
-                                          ProtocolEvent.GET,
-                                          ProtocolEvent.SET,
-                                          ProtocolEvent.TEST,
-                                          ProtocolEvent.CLOCK_SYNC,
-                                          ProtocolEvent.MEASURE_N,
-                                          ProtocolEvent.MEASURE_0,
-                                          ProtocolEvent.TIMED_N],
+                                                   ProtocolEvent.ACQUIRE_STATUS,
+                                                   ProtocolEvent.START_AUTOSAMPLE,
+                                                   ProtocolEvent.GET,
+                                                   ProtocolEvent.SET,
+                                                   ProtocolEvent.TEST,
+                                                   ProtocolEvent.CLOCK_SYNC,
+                                                   ProtocolEvent.MEASURE_N,
+                                                   ProtocolEvent.MEASURE_0,
+                                                   ProtocolEvent.TIMED_N],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: ['a_cutoff', 'bl_order', 'brmtrace', 'countdwn', 'datfsize',
                                                      'drkcormt', 'drkdurat', 'drksmpls', 'fitconcs', 'intadmax',

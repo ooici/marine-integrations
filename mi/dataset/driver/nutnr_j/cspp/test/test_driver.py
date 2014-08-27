@@ -176,6 +176,22 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(TELEM_PARTICLES, 'short_SNA_telem_part.yml', count=6,
                          timeout=20)
 
+    def test_bad_matches(self):
+        """
+        Test that a file that has a data sample that is causing the regex
+        matcher to hang (which is killing ingestion tests).  This test confirms 
+        the fix doesn't hang and causes exceptions for not matching data
+        """
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        self.create_sample_data_set_dir('11129553_SNA_SNA.txt', TELEM_DIR)
+        # there are 59 data sample lines in the file with 2 bad samples
+        self.assert_data(TELEM_PARTICLES, count=57, timeout=20)
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
