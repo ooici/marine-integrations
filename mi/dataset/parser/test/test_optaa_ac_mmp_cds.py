@@ -75,8 +75,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         particles = parser.get_records(1)
 
-        test_data = self.get_dict_from_yml('simple.yml')
-        self.assert_result(test_data['data'][0], particles[0])
+        self.assert_particle_data_against_yaml_contents(os.path.join(RESOURCE_PATH, 'simple.yml'), particles, None, 0)
 
         stream_handle.close()
 
@@ -97,18 +96,16 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 20 particles
         self.assertTrue(len(particles) == 20)
 
-        test_data = self.get_dict_from_yml('get_many.yml')
+        test_data = self.get_dict_from_yml(os.path.join(RESOURCE_PATH, 'get_many.yml'))
 
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][i], particles[i])
+        self.assert_particle_data_list(test_data['data'], particles)
 
         particles = parser.get_records(30)
 
         # Should end up with 30 particles
         self.assertTrue(len(particles) == 30)
 
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][i+20], particles[i])
+        self.assert_particle_data_list(test_data['data'], particles, None, 20)
 
         stream_handle.close()
 
@@ -129,10 +126,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 500 particles
         self.assertTrue(len(particles) == 500)
 
-        test_data = self.get_dict_from_yml('large_import.yml')
-
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][i], particles[i])
+        self.assert_particle_data_against_yaml_contents(os.path.join(RESOURCE_PATH, 'large_import.yml'), particles)
 
         stream_handle.close()
 
@@ -159,10 +153,8 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        test_data = self.get_dict_from_yml('set_state.yml')
-
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][20+i], particles[i])
+        self.assert_particle_data_against_yaml_contents(os.path.join(RESOURCE_PATH, 'set_state.yml'), particles,
+                                                        None, 20)
 
         stream_handle.close()
 
@@ -187,10 +179,9 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
 
         log.info(parser._state)
 
-        test_data = self.get_dict_from_yml('set_state.yml')
+        test_data = self.get_dict_from_yml(os.path.join(RESOURCE_PATH, 'set_state.yml'))
 
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][i], particles[i])
+        self.assert_particle_data_list(test_data['data'], particles)
 
         state = copy.copy(parser._state)
 
@@ -203,9 +194,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Retrieve the first 4 particles again
         particles = parser.get_records(4)
 
-        # Check the particles again
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][i], particles[i])
+        self.assert_particle_data_list(test_data['data'], particles)
 
         # Set the parser's state
         parser.set_state(state)
@@ -215,8 +204,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][4+i], particles[i])
+        self.assert_particle_data_list(test_data['data'], particles, None, 4)
 
         # Reset the state to 0 particles returned
         parser.set_state({StateKey.PARTICLES_RETURNED: 0})
@@ -245,8 +233,7 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
         # Ensure we got all expected 30
         self.assertTrue(len(particles) == 30)
 
-        for i in range(len(particles)):
-            self.assert_result(test_data['data'][i], particles[i])
+        self.assert_particle_data_list(test_data['data'], particles)
 
         # Provide a bad particles returned
         state = {StateKey.PARTICLES_RETURNED: 80}
@@ -303,70 +290,3 @@ class OptaaAcMmpCdsParserUnitTestCase(ParserUnitTestCase):
             parser.get_records(1)
 
         stream_handle.close()
-
-    def assert_result(self, test, particle):
-        """
-        Suite of tests to run against each returned particle and expected
-        results of the same.  The test parameter should be a dictionary
-        that contains the keys to be tested in the particle
-        the 'internal_timestamp' and 'position' keys are
-        treated differently than others but can be verified if supplied
-        """
-
-        particle_dict = particle.generate_dict()
-
-        #for efficiency turn the particle values list of dictionaries into a dictionary
-        particle_values = {}
-        for param in particle_dict.get('values'):
-            particle_values[param['value_id']] = param['value']
-
-        # compare each key in the test to the data in the particle
-        for key in test:
-            test_data = test[key]
-
-            #get the correct data to compare to the test
-            if key == 'internal_timestamp':
-                particle_data = particle.get_value('internal_timestamp')
-                #the timestamp is in the header part of the particle
-
-                log.info("internal_timestamp %.10f", particle_data)
-
-            elif key == StateKey.PARTICLES_RETURNED:
-                particle_data = self.state_callback_value[StateKey.PARTICLES_RETURNED]
-
-                log.info("particles returned %d", particle_data)
-
-            else:
-                particle_data = particle_values.get(key)
-                #others are all part of the parsed values part of the particle
-
-            if particle_data is None:
-                #generally OK to ignore index keys in the test data, verify others
-
-                log.warning("\nWarning: assert_result ignoring test key %s, does not exist in particle", key)
-            else:
-                # log.info(key)
-                # log.info(type(test_data))
-                # log.info(test_data)
-                # log.info(type(particle_data))
-                # log.info(particle_data)
-                if isinstance(test_data, float):
-                    # slightly different test for these values as they are floats.
-                    compare = numpy.abs(test_data - particle_data) <= 1e-5
-                    self.assertTrue(compare)
-                else:
-                    # otherwise they are all ints and should be exactly equal
-                    self.assertEqual(test_data, particle_data)
-
-    @staticmethod
-    def get_dict_from_yml(filename):
-        """
-        This utility routine loads the contents of a yml file
-        into a dictionary
-        """
-
-        fid = open(os.path.join(RESOURCE_PATH, filename), 'r')
-        result = yaml.load(fid)
-        fid.close()
-
-        return result
