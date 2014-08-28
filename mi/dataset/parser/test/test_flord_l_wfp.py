@@ -115,8 +115,6 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
             log.info("*** test particle: %s", particle.generate_dict())
 
         # Make sure the sixth particle has the correct values
-        self.assert_result(self.test_particle1, particles[5])
-
         test_data = self.get_dict_from_yml('good.yml')
         self.assert_result(test_data['data'][0], particles[5])
 
@@ -205,6 +203,7 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         # Moving the file position past the header and two records
         new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*2)}
 
+        log.debug("new_state: %s", new_state)
         self.parser = GlobalWfpEFileParser(self.config, new_state, self.stream_handle,
                                            self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -213,19 +212,21 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
         # Should end up with 4 particles
         self.assertTrue(len(particles) == 4)
 
+        # particles[3] is the 7th data record in the test file
         self.assert_result(self.test_particle1, particles[3])
 
-        # Moving the file position past the header and three records
+        # Simulate State has changed:
+        #   Move the file position past the header and three records
+        #   Set the state of the existing parser
         new_state = {StateKey.POSITION: HEADER_BYTES+(WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_BYTES*3)}
-
-        self.parser = GlobalWfpEFileParser(self.config, new_state, self.stream_handle,
-                                           self.state_callback, self.pub_callback, self.exception_callback)
+        self.parser.set_state(new_state)
 
         particles = self.parser.get_records(10)
 
         # Should end up with 10 particles
         self.assertTrue(len(particles) == 10)
-        # 13th data record in test file
+
+        # particles[9] is the 13th data record in test file
         self.assert_result(self.test_particle2, particles[9])
 
         self.stream_handle.close()

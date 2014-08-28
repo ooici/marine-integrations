@@ -20,6 +20,7 @@ import gevent
 import ntplib
 import struct
 import binascii
+import time
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -33,7 +34,10 @@ from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, HEADER_BYTES, ST
 
 class GlobalWfpEFileParser(WfpEFileParser):
     """
-    Class used to parse the wfp e global data stream
+    Class used to parse the wfp e global data stream. This class is a common class that can be used
+    for parsing recovered Global WFP E-type file format data streams. There are several of this type,
+    including dosta_ln_wfp and flord_ln_wfp. When this class is referenced by the driver,
+    a unique parser does not have to be written, just the unique particle class.
     """
 
     def __init__(self,
@@ -87,7 +91,7 @@ class GlobalWfpEFileParser(WfpEFileParser):
                 eof = True
 
         if data != '':
-            self._chunker.add_chunk(data, self._timestamp)
+            self._chunker.add_chunk(data, ntplib.system_to_ntp_time(time.time()))
             self.file_complete = True
             return len(data)
         else:  # EOF
@@ -162,19 +166,19 @@ class GlobalWfpEFileParser(WfpEFileParser):
         while chunk is not None:
 
             data_match = WFP_E_GLOBAL_RECOVERED_ENG_DATA_SAMPLE_MATCHER.match(chunk)
-            #log.debug('data_match: %s', data_match)
             if data_match:
 
                 # Let's first get the 32-bit unsigned int timestamp which should be in the first match group
                 fields_prof = struct.unpack_from('>I', data_match.group(1))
                 timestamp = fields_prof[0]
-                self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
+                #self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
+                ntp_time = float(ntplib.system_to_ntp_time(timestamp))
 
                 # particle-ize the data block received, return the record
                 sample = self._extract_sample(self._particle_class,
                                               None,
                                               chunk,
-                                              self._timestamp)
+                                              ntp_time)
                 if sample:
                     # create particle
                     log.trace("Extracting sample chunk 0x%s with read_state: %s", binascii.b2a_hex(chunk),

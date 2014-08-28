@@ -26,11 +26,17 @@ from mi.core.instrument.data_particle import DataParticle
 
 
 class DataParticleType(BaseEnum):
+    """
+    The output particle/record stream for the recovered data, as identified in the
+    flord_l_wfp IDD.
+    """
     INSTRUMENT = 'flord_l_wfp_instrument_recovered'
 
 
 class FlordLWfpInstrumentParserDataParticleKey(BaseEnum):
-    TIME = 'time'
+    """
+    The names of the instrument particle parameters in the DataParticleType.INSTRUMENT stream.
+    """
     RAW_SIGNAL_CHL = 'raw_signal_chl'           # corresponds to 'chl' from E file
     RAW_SIGNAL_BETA = 'raw_signal_beta'         # corresponds to 'ntu' from E file
     RAW_INTERNAL_TEMP = 'raw_internal_temp'     # corresponds to 'temperature' from E file
