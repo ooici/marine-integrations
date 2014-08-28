@@ -1,8 +1,8 @@
 driver_metadata:
-  author: Stuart Pearce
+  author: Rachel Manoni
   driver_make: sunburst
   driver_model: sami2_ph
   driver_name: ooicore
-  email: spearce@coas.oregonstate.edu
-  release_notes: Sunburst Sensors SAMI2-PH pH underwater sensor
-  version: 0.0.2
+  email: rachel.manoni@gmail.com
+  release_notes: removed OBE phsen_data_record
+  version: 0.0.3
