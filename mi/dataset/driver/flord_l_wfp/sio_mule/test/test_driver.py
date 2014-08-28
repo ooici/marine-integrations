@@ -335,11 +335,12 @@ class QualificationTest(DataSetQualificationTestCase):
         # file contains invalid sample values
         self.create_sample_data_set_dir('bad_e_data3.dat', TELEM_DIR, "TestData.dat")
 
-        self.assert_initialize()
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 18, 30) 
+        self.assert_initialize()
+
+        result = self.get_samples(SAMPLE_STREAM, 18, 30)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_event_received(ResourceAgentErrorEvent, 60)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
