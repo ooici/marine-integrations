@@ -45,7 +45,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 from pyon.core.exception import Conflict
-from pyon.core.exception import ResourceError, BadRequest, ServerError
+from pyon.core.exception import ResourceError, BadRequest, Timeout, ServerError
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -257,9 +257,7 @@ class DataSetTestCase(MiIntTestCase):
         self.clear_sample_data()
         if isinstance(data_dir, list):
             for d_dir in data_dir:
-                # confirm this path exists in case we configure two parsers to look at the same dir
-                if os.path.exists(d_dir):
-                    os.rmdir(d_dir)
+                os.rmdir(d_dir)
         else:
             os.rmdir(data_dir)
 
@@ -503,7 +501,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                     log.debug("No exception detected yet, sleep for a bit")
                     gevent.sleep(1)
 
-        except gevent.Timeout:
+        except Timeout:
             log.error("Failed to detect exception %s", exception_class)
             self.fail("Exception detection failed.")
 
@@ -529,7 +527,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                     log.debug("No event detected yet, sleep for a bit")
                     gevent.sleep(1)
 
-        except gevent.Timeout:
+        except Timeout:
             log.error("Failed to detect event %s", event_class_str)
             self.fail("Event detection failed.")
 
@@ -544,20 +542,18 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         @param count, how many records to wait for
         @param timeout, how long to wait for the records.
         """
-        particles = self.get_samples(particle_class, count, timeout)
+        try:
+            particles = self.get_samples(particle_class, count, timeout)
+        except Timeout:
+            log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
+            self.fail("particle detection failed. Expected %d, Found %d" % (count, found))
 
-        if len(particles) == count:
-            # Verify the data against the result data set definition
-            if result_set_file:
-                rs_file = self._get_source_data_file(result_set_file)
-                rs = ResultSet(rs_file)
+        # Verify the data against the result data set definition
+        if result_set_file:
+            rs_file = self._get_source_data_file(result_set_file)
+            rs = ResultSet(rs_file)
 
-                self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
-        else:
-            log.error("%d particles were requested but only %d were found within the timeout of %d seconds",
-                      count, len(particles), timeout)
-            self.fail("%d particles were requested but only %d were found within the timeout of %d seconds" %
-                      (count, len(particles), timeout))
+            self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
 
     def assert_file_ingested(self, filename, data_source_key=None):
         """
@@ -611,7 +607,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                     if particle_class is None or isinstance(data, particle_class):
                         found += 1
                         result.append(self.data_callback_result.pop(check_idx))
-                        log.trace("Found sample index %d, #%d", check_idx, found)
+                        log.debug("Found sample index %d, #%d", check_idx, found)
                     else:
                         # skip past a particle that doesn't match our particle class
                         check_idx += 1
@@ -627,7 +623,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                 if not done and self.data_callback_result == []:
                     log.debug("No particle detected yet, sleep for a bit")
                     gevent.sleep(1)
-        except gevent.Timeout:
+        except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
             result = []
         finally:
@@ -1064,7 +1060,7 @@ class DataSetAgentTestCase(DataSetTestCase):
                 if not done:
                     log.debug("state mismatch, waiting for state to transition.")
                     gevent.sleep(1)
-        except gevent.Timeout:
+        except Timeout:
             log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
             self.fail("Failed to transition state.")
         finally:
@@ -1091,9 +1087,9 @@ class DataSetAgentTestCase(DataSetTestCase):
                 if not done:
                     log.debug("target event not detected, sleep a bit to let events happen")
                     gevent.sleep(1)
-        except gevent.Timeout:
+        except Timeout:
             log.error("Failed to find event in queue: %s", event_object_type)
-            log.error("Current event queue: %s", self.event_subscribers._events_received)
+            log.error("Current event queue: %s", self.event_subscribers.events_received)
             self.fail("%s event not detected")
         finally:
             to.cancel()
@@ -1539,7 +1535,7 @@ class DataSetIngestionTestCase(DataSetAgentTestCase):
                 log.debug("In our event sleep loop.  just resting for a bit.")
                 gevent.sleep(sleeptime)
 
-        except gevent.Timeout:
+        except Timeout:
             log.info("Finished ingestion test as runtime has been exceeded")
 
         finally:
