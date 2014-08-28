@@ -33,10 +33,12 @@ from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.driver.flord_l_wfp.sio_mule.driver import FlordLWfpSioMuleDataSetDriver
+from mi.dataset.driver.flord_l_wfp.sio_mule.driver import DataSourceKey, FlordLWfpSioMuleDataSetDriver
 from mi.dataset.parser.flord_l_wfp_sio_mule import FlordLWfpSioMuleParserDataParticle, DataParticleType
 
-# Fill in driver details
+TELEM_DIR = '/tmp/flord/telem/test'
+RECOV_DIR = '/tmp/flord/recov/test'
+
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.flord_l_wfp.sio_mule.driver',
     driver_class='FlordLWfpSioMuleDataSetDriver',
@@ -47,11 +49,21 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.RESOURCE_ID: 'flord_l_wfp_sio_mule',
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: 'TestData.dat',  
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSourceKey.FLORD_L_WFP_SIO_MULE: {
+                DataSetDriverConfigKeys.DIRECTORY: TELEM_DIR,
+                DataSetDriverConfigKeys.PATTERN: 'TestData.dat',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+            DataSourceKey.FLORD_L_WFP: {
+                DataSetDriverConfigKeys.DIRECTORY: RECOV_DIR,
+                DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER: {
+            DataSourceKey.FLORD_L_WFP_SIO_MULE: {},
+            DataSourceKey.FLORD_L_WFP: {}
+        }
     }
 )
 
@@ -75,10 +87,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # contains the first 2 WE blocks in node58p1.dat
         self.clear_async_data()
         self.driver.start_sampling()
-        self.create_sample_data('node58p1_1stWE.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1stWE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'first.result.yml',
                          count=3, timeout=30)       
-        self.create_sample_data('node58p1_1st2WE.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1st2WE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
         
@@ -86,30 +98,35 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        self.create_sample_data("node58p1_1st2WE.dat", "TestData.dat")
+        self.create_sample_data_set_dir("node58p1_1st2WE.dat", TELEM_DIR, "TestData.dat")
         
         driver_config = self._driver_config()['startup_config']
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                                driver_config['harvester']['pattern'])
+        fullfile = os.path.join(driver_config['harvester'][DataSourceKey.FLORD_L_WFP_SIO_MULE]['directory'],
+                                driver_config['harvester'][DataSourceKey.FLORD_L_WFP_SIO_MULE]['pattern'])
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
         # note that these values for size, checksum and mod_time are purposely incorrect,
         # to cause the harvester to decide that the target file has changed.
-        self.memento = {"TestData.dat": {DriverStateKey.FILE_SIZE: 300,
-                                         DriverStateKey.FILE_CHECKSUM: 'b9605fd76ed3aff469fe7a874c5e1681',
-                                         DriverStateKey.FILE_MOD_DATE: mod_time,
-                                         DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                                       'unprocessed_data': [[0, 300]],
-                                                                       'file_size': 300}
-                                         }
-                        }
+        self.memento = {
+            DataSourceKey.FLORD_L_WFP_SIO_MULE: {
+                "TestData.dat": {
+                    DriverStateKey.FILE_SIZE: 300,
+                    DriverStateKey.FILE_CHECKSUM: 'b9605fd76ed3aff469fe7a874c5e1681',
+                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                    DriverStateKey.PARSER_STATE: {'in_process_data': [],
+                                                  'unprocessed_data': [[0, 300]],
+                                                  'file_size': 300}
+                }
+            },
+            DataSourceKey.FLORD_L_WFP: {}
+        }
 
         self.driver = self._get_driver_object(memento=self.memento)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data("node58p1_1st2WE.dat", "TestData.dat")
+        self.create_sample_data_set_dir("node58p1_1st2WE.dat", TELEM_DIR, "TestData.dat")
 
         self.driver.start_sampling()
 
@@ -124,7 +141,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         # create the file so that it is unreadable
-        self.create_sample_data("node58p1_step1.dat", "TestData.dat", mode=000)
+        self.create_sample_data_set_dir("node58p1_step1.dat", TELEM_DIR, "TestData.dat", mode=000)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -137,11 +154,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.clear_async_data()
         self.driver.start_sampling()
-        self.create_sample_data('node58p1_1st2WE.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1st2WE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'first.result.yml',
                          count=3, timeout=30)    
         self.driver.stop_sampling()
-        self.create_sample_data('node58p1_1st6k.dat', "TestData.dat")
+        self.create_sample_data_set_dir('node58p1_1st6k.dat', TELEM_DIR, "TestData.dat")
         self.driver.start_sampling()
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
@@ -153,7 +170,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         SIO mule headers from node58p1.dat, the first wrapping a bad e header.
         Should throw exception, skip the bad data and continue parsing the 2nd WE.
         """
-        self.create_sample_data('bad_e_header5.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('bad_e_header5.dat', TELEM_DIR, 'TestData.dat')
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -169,7 +186,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         data. Should throw exception, skip the bad data and continue parsing
         the 2nd WE.
         """
-        self.create_sample_data('bad_e_data3.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('bad_e_data3.dat', TELEM_DIR, 'TestData.dat')
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -191,7 +208,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('node58p1_1stWE.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1stWE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second, otherwise samples come in the wrong order
@@ -210,7 +227,7 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test importing a large number of samples from the file at once
         """
-        self.create_sample_data("node58p1_10kBytes.dat", "TestData.dat")
+        self.create_sample_data_set_dir("node58p1_10kBytes.dat", TELEM_DIR, "TestData.dat")
         self.assert_initialize()
         result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,
                                                    30, timeout=60)
@@ -221,7 +238,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('node58p1_1st2WE.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1st2WE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -235,7 +252,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'firstA.result.yml')
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             # Read the second file, get the next sample, then stop
-            self.create_sample_data('node58p1_10kBytes.dat', 'TestData.dat')
+            self.create_sample_data_set_dir('node58p1_10kBytes.dat', TELEM_DIR, 'TestData.dat')
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
             self.assert_data_values(result2, 'firstB.result.yml')
             self.assert_stop_sampling()
@@ -256,7 +273,7 @@ class QualificationTest(DataSetQualificationTestCase):
         and confirm it restarts at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('node58p1_1st2WE.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1st2WE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         # Slow down processing to 1 per second to give us time to stop
@@ -270,7 +287,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             
             # Read the second file, get the next record, then stop
-            self.create_sample_data('node58p1_10kBytes.dat', 'TestData.dat')
+            self.create_sample_data_set_dir('node58p1_10kBytes.dat',TELEM_DIR, 'TestData.dat')
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
             self.assert_stop_sampling()
             
@@ -296,7 +313,7 @@ class QualificationTest(DataSetQualificationTestCase):
         the file read.
         """
         # need to put data in the file, not just make an empty file for this to work
-        self.create_sample_data('node58p1_1st6k.dat', 'TestData.dat', mode=000)
+        self.create_sample_data_set_dir('node58p1_1st6k.dat', TELEM_DIR, 'TestData.dat', mode=000)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.event_subscribers.clear_events()
@@ -305,7 +322,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.clear_sample_data()
-        self.create_sample_data('node58p1_1st6k.dat', 'TestData.dat')
+        self.create_sample_data_set_dir('node58p1_1st6k.dat', TELEM_DIR, 'TestData.dat')
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
@@ -316,7 +333,7 @@ class QualificationTest(DataSetQualificationTestCase):
         record parsing.
         """
         # file contains invalid sample values
-        self.create_sample_data('bad_e_data3.dat', "TestData.dat")
+        self.create_sample_data_set_dir('bad_e_data3.dat', TELEM_DIR, "TestData.dat")
 
         self.assert_initialize()
         self.event_subscribers.clear_events()

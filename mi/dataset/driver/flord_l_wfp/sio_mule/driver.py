@@ -113,7 +113,7 @@ class FlordLWfpSioMuleDataSetDriver(SioMuleDataSetDriver):
         if DataSourceKey.FLORD_L_WFP_SIO_MULE in self._harvester_config:
             telem_harvester = SingleFileHarvester(
                 self._harvester_config.get(DataSourceKey.FLORD_L_WFP_SIO_MULE),
-                driver_state[DataSourceKey.FLORD_L_WFP],
+                driver_state[DataSourceKey.FLORD_L_WFP_SIO_MULE],
                 lambda file_state: self._file_changed_callback(file_state, DataSourceKey.FLORD_L_WFP_SIO_MULE),
                 self._exception_callback
             )
