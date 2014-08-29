@@ -63,6 +63,8 @@ class VADCPDataParticleType(DataParticleType):
     """
     VADCP Stream types of data particles
     """
+    VADCP_PD0_BEAM_PARSED = 'vadcp_pd0_beam_parsed'
+
     VADCP_4BEAM_SYSTEM_CONFIGURATION = "vadcp_4beam_system_configuration"
     VADCP_5THBEAM_SYSTEM_CONFIGURATION = "vadcp_5thbeam_system_configuration"
 
