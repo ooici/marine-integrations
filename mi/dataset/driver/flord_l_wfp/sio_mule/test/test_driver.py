@@ -35,6 +35,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.flord_l_wfp.sio_mule.driver import DataSourceKey, FlordLWfpSioMuleDataSetDriver
 from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticle
+from mi.dataset.parser.flord_l_wfp import DataParticleType as RecoveredDataParticleType
 from mi.dataset.parser.flord_l_wfp_sio_mule import FlordLWfpSioMuleParserDataParticle, DataParticleType
 
 TELEM_DIR = '/tmp/flord/telem/test'
@@ -72,7 +73,8 @@ DataSetTestCase.initialize(
 
 SAMPLE_STREAM = 'flord_l_wfp_instrument'
 
-REC_PARTICLE = FlordLWfpInstrumentParserDataParticle;
+REC_PARTICLE = FlordLWfpInstrumentParserDataParticle
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -168,6 +170,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         recovered_path_1 = self.create_sample_data_set_dir(recovered_file_one, RECOV_DIR)
 
         # For recovered, we will assume first 2 records have been processed and put position to 84
+        # which is the beginning of the third data record
         state = {
             DataSourceKey.FLORD_L_WFP: {
                 recovered_file_one: self.get_file_state(recovered_path_1,
@@ -183,7 +186,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         driver.start_sampling()
 
-        # verify data is produced
+        # verify data is produced for the 3rd data record
         self.assert_data(REC_PARTICLE, 'test_recovered_midstate_start.yml', count=1, timeout=60)
            
     def test_harvester_new_file_exception(self):
@@ -288,6 +291,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -316,6 +320,23 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
+    def test_publish_path_recov(self):
+        """
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent
+        """
+        log.info("=========== START QUAL TEST PUBLISH PATH RECOV =================")
+
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, RECOV_DIR)
+
+        self.assert_initialize()
+
+        # get the recovered instrument particles
+        result = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 3, 10)
+
+        # check the results
+        self.assert_data_values(result, 'E0000001_recov.yml')
+
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
@@ -324,6 +345,20 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
         result = self.data_subscribers.get_samples(DataParticleType.SAMPLE,
                                                    30, timeout=60)
+
+    def test_large_import_recov(self):
+        """
+        Test importing a large number of samples from the file at once
+        Assert that we get the correct number of particles
+        """
+        log.info("=========== START QUAL TEST LARGE IMPORT RECOV =================")
+
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, RECOV_DIR)
+
+        self.assert_initialize()
+
+        # get the recovered instrument particle
+        self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 200, 500)
 
     def test_stop_start(self):
         """
@@ -360,6 +395,41 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
+    def test_stop_start_recov(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot.
+        """
+        log.info("=========== START QUAL TEST STOP START RECOV =================")
+
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, RECOV_DIR)
+
+        # Put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the first 2 recovered instrument particle
+        result1 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 2, 40)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        # restart sampling
+        self.assert_start_sampling()
+
+        # get the next 1 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 1, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
+
     def test_shutdown_restart(self):
         """
         Test a full stop of the dataset agent, then restart the agent 
@@ -380,7 +450,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_sample_queue_size(DataParticleType.SAMPLE, 0)
             
             # Read the second file, get the next record, then stop
-            self.create_sample_data_set_dir('node58p1_10kBytes.dat',TELEM_DIR, 'TestData.dat')
+            self.create_sample_data_set_dir('node58p1_10kBytes.dat', TELEM_DIR, 'TestData.dat')
             result2 = self.data_subscribers.get_samples(DataParticleType.SAMPLE, 1)
             self.assert_stop_sampling()
             
@@ -399,6 +469,42 @@ class QualificationTest(DataSetQualificationTestCase):
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
+
+    def test_shutdown_restart_recov(self):
+        """
+        Test a full stop of the dataset agent, then restart the agent
+        and confirm it restarts at the correct spot.
+        """
+        log.info("=========== START QUAL TEST SHUTDOWN RECOV RESTART =================")
+
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, RECOV_DIR)
+
+        #put the driver in command mode so it can be started and stopped
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+            {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # get the first 2 recovered instrument particle
+        result1 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 2, 40)
+
+        # check the results
+        self.assert_data_values(result1, 'test_recovered_stop_start_one.yml')
+
+        # stop sampling
+        self.assert_stop_sampling()
+
+        self.stop_dataset_agent_client()
+        # Re-start the agent
+        self.init_dataset_agent_client()
+        # Re-initialize and enter streaming state
+        self.assert_initialize()
+
+        # get the next 1 recovered instrument particle
+        result2 = self.data_subscribers.get_samples(RecoveredDataParticleType.INSTRUMENT, 1, 40)
+
+        # check the results
+        self.assert_data_values(result2, 'test_recovered_stop_start_two.yml')
 
     def test_harvester_new_file_exception(self):
         """
@@ -437,3 +543,16 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 60)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+    def test_parser_exception_recov(self):
+        """
+        Test an exception is raised after the driver is started during
+        record parsing.
+        """
+        log.info("=========== START QUAL TEST PARSER EXCEPTION RECOV =================")
+
+        self.create_sample_data_set_dir('E0000001-BAD-DATA.DAT', RECOV_DIR)
+
+        self.assert_initialize()
+
+        self.assert_event_received(ResourceAgentErrorEvent, 10)

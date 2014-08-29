@@ -1,0 +1,13 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3583638144.0
+    particle_object: FlordLWfpInstrumentParserDataParticle
+    particle_type: flord_l_wfp_instrument_recovered
+    raw_signal_chl: 54
+    raw_signal_beta: 113
+    raw_internal_temp: 571
+    wfp_timestamp: 1374649344.0

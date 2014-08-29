@@ -33,13 +33,24 @@ class DataSourceKey(BaseEnum):
 
 
 class FlordLWfpSioMuleDataSetDriver(SioMuleDataSetDriver):
-    
+    """
+    The flord_l_wfp_sio_mule data set driver
+    """
     @classmethod
     def stream_config(cls):
         return [FlordLWfpSioMuleParserDataParticle.type(),
                 FlordLWfpInstrumentParserDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
+        """
+        Initialize the flord_l_wfp_sio_mule data set driver
+        @param config Driver configuration
+        @param memento Previous driver state
+        @param data_callback Method to call when a data sample is available
+        @param state_callback Method to call when the driver state changes
+        @param event_callback Method to call when an event occurs
+        @param exception_callback Method to call when an exception occurs
+        """
         # initialize the possible types of harvester/parser pairs for this driver
         data_keys = DataSourceKey.list()
         # link the data keys to the harvester type, multiple or single file harvester
