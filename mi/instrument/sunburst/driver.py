@@ -119,21 +119,6 @@ SAMI_REGULAR_STATUS_REGEX = (
     SAMI_NEWLINE)
 SAMI_REGULAR_STATUS_REGEX_MATCHER = re.compile(SAMI_REGULAR_STATUS_REGEX)
 
-# Control Records (Types 0x80 - 0xFF)
-SAMI_CONTROL_RECORD_REGEX = (
-    r'[\*]' +  # record identifier
-    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
-    '([0-9A-Fa-f]{2})' +  # control record length (bytes)
-    '([8-9A-Fa-f][0-9A-Fa-f])' +  # type of control record 0x80-FF
-    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
-    '([0-9A-Fa-f]{4})' +  # status bit field
-    '([0-9A-Fa-f]{6})' +  # number of data records recorded
-    '([0-9A-Fa-f]{6})' +  # number of errors
-    '([0-9A-Fa-f]{6})' +  # number of bytes stored
-    '([0-9A-Fa-f]{2})' +  # checksum
-    SAMI_NEWLINE)
-SAMI_CONTROL_RECORD_REGEX_MATCHER = re.compile(SAMI_CONTROL_RECORD_REGEX)
-
 SAMI_BATTERY_VOLTAGE_REGEX = (
     r'([0-9A-Fa-f]{4})' +
     SAMI_NEWLINE)
@@ -173,7 +158,6 @@ class SamiDataParticleType(BaseEnum):
 
     RAW = CommonDataParticleType.RAW
     REGULAR_STATUS = 'pco2w_regular_status'
-    CONTROL_RECORD = 'pco2w_control_record'
     BATTERY_VOLTAGE = 'pco2w_battery_voltage'
     THERMISTOR_VOLTAGE = 'pco2w_thermistor_voltage'
 
@@ -474,131 +458,6 @@ class SamiRegularStatusDataParticle(DataParticle):
                                DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
                 bit_index += 1  # bump the bit index
                 grp_index = 3  # set the right group index for when we leave this part of the loop.
-            else:
-                # otherwise all values in the string are parsed to integers
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-                grp_index += 1
-
-        return result
-
-
-class SamiControlRecordDataParticleKey(BaseEnum):
-    """
-    Data particle key for peridoically produced control records.
-    """
-
-    UNIQUE_ID = 'unique_id'
-    RECORD_LENGTH = 'record_length'
-    RECORD_TYPE = 'record_type'
-    RECORD_TIME = 'record_time'
-    CLOCK_ACTIVE = 'clock_active'
-    RECORDING_ACTIVE = 'recording_active'
-    RECORD_END_ON_TIME = 'record_end_on_time'
-    RECORD_MEMORY_FULL = 'record_memory_full'
-    RECORD_END_ON_ERROR = 'record_end_on_error'
-    DATA_DOWNLOAD_OK = 'data_download_ok'
-    FLASH_MEMORY_OPEN = 'flash_memory_open'
-    BATTERY_LOW_PRESTART = 'battery_low_prestart'
-    BATTERY_LOW_MEASUREMENT = 'battery_low_measurement'
-    BATTERY_LOW_BANK = 'battery_low_bank'
-    BATTERY_LOW_EXTERNAL = 'battery_low_external'
-    EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
-    EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
-    EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
-    FLASH_ERASED = 'flash_erased'
-    POWER_ON_INVALID = 'power_on_invalid'
-    NUM_DATA_RECORDS = 'num_data_records'
-    NUM_ERROR_RECORDS = 'num_error_records'
-    NUM_BYTES_STORED = 'num_bytes_stored'
-    CHECKSUM = 'checksum'
-
-
-class SamiControlRecordDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into a control record data particle
-    structure.
-    @throw SampleException If there is a problem with sample creation
-    """
-
-    _data_particle_type = SamiDataParticleType.CONTROL_RECORD
-
-    def _build_parsed_values(self):
-        """
-        Parse control record values from raw data into a dictionary
-        """
-
-        ### Control Records
-        # Produced by the instrument periodically in reponse to certain events
-        # (e.g. when the Flash memory is opened). The messages are preceded by
-        # a '*' character and terminated with a '\r'. Sample string:
-        #
-        #   *541280CEE90B170041000001000000000200AF
-        #
-        # A full description of the control record strings can be found in the
-        # vendor supplied SAMI Record Format document.
-        ###
-
-        matched = SAMI_CONTROL_RECORD_REGEX_MATCHER.match(self.raw_data)
-        if not matched:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
-
-        particle_keys = [SamiControlRecordDataParticleKey.UNIQUE_ID,
-                         SamiControlRecordDataParticleKey.RECORD_LENGTH,
-                         SamiControlRecordDataParticleKey.RECORD_TYPE,
-                         SamiControlRecordDataParticleKey.RECORD_TIME,
-                         SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
-                         SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
-                         SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
-                         SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
-                         SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
-                         SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
-                         SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                         SamiControlRecordDataParticleKey.FLASH_ERASED,
-                         SamiControlRecordDataParticleKey.POWER_ON_INVALID,
-                         SamiControlRecordDataParticleKey.NUM_DATA_RECORDS,
-                         SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS,
-                         SamiControlRecordDataParticleKey.NUM_BYTES_STORED,
-                         SamiControlRecordDataParticleKey.CHECKSUM]
-
-        result = []
-        grp_index = 1  # used to index through match groups, starting at 1/
-        bit_index = 0  # used to index through the bit fields represented by
-        # the two bytes after CLOCK_ACTIVE.
-
-        for key in particle_keys:
-            if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
-                       SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
-                       SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
-                       SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
-                       SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
-                       SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
-                       SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
-                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                       SamiControlRecordDataParticleKey.FLASH_ERASED,
-                       SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
-                # if the keys match values represented by the bits in the two
-                # byte status flags value included in all control records,
-                # parse bit-by-bit using the bit-shift operator to determine
-                # boolean value.
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
-                bit_index += 1  # bump the bit index
-                grp_index = 6  # set the right group index for when we leave this part of the loop.
             else:
                 # otherwise all values in the string are parsed to integers
                 result.append({DataParticleKey.VALUE_ID: key,

@@ -26,6 +26,8 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 
 from mi.core.exceptions import SampleException
 
+BASE_YEAR = 2000
+
 #
 # Particle Regex's'
 #
@@ -61,7 +63,6 @@ class VADCPDataParticleType(DataParticleType):
     """
     VADCP Stream types of data particles
     """
-
     VADCP_4BEAM_SYSTEM_CONFIGURATION = "vadcp_4beam_system_configuration"
     VADCP_5THBEAM_SYSTEM_CONFIGURATION = "vadcp_5thbeam_system_configuration"
 
@@ -499,8 +500,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: temperature})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_MINUTES,
                                   DataParticleKey.VALUE: mpt_minutes})
-        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.REAL_TIME_CLOCK,
-                                  DataParticleKey.VALUE: rtc})
 
         mpt_seconds = float(mpt_seconds_component + (mpt_hundredths_component / 100))
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_SECONDS,
@@ -582,7 +581,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP,
                                   DataParticleKey.VALUE: time.mktime(dts.timetuple()) + (rtc2k['second'] / 100.0)})
 
-        rtc_date = dt.datetime(rtc['year'],
+        rtc_date = dt.datetime(rtc['year'] + BASE_YEAR,
                           rtc['month'],
                           rtc['day'],
                           rtc['hour'],
@@ -592,10 +591,14 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         #ensemble_start_time is expressed as seconds since Jan 01, 1900
         rtc_epoch = dt.datetime(1900, 1, 1, 0, 0, 0)
 
+        #Construct the real time clock array
+        rtc_list = [rtc['year'], rtc['month'], rtc['day'], rtc['hour'], rtc['minute'], rtc['second'], rtc['hundredths']]
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.REAL_TIME_CLOCK,
+                                  DataParticleKey.VALUE: rtc_list})
+
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_START_TIME,
                                   DataParticleKey.VALUE: (rtc_date - rtc_epoch).total_seconds()})
-
-
 
     def parse_velocity_chunk(self, chunk):
         """

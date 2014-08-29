@@ -536,7 +536,7 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        for part in [self.VALID_STATUS_MESSAGE, self.VALID_CONTROL_RECORD, self.VALID_R0_BLANK_SAMPLE,
+        for part in [self.VALID_STATUS_MESSAGE, self.VALID_R0_BLANK_SAMPLE,
                      self.VALID_R0_DATA_SAMPLE, self.VALID_R1_SAMPLE, self.VALID_CONFIG_STRING]:
             self.assert_chunker_sample(chunker, part)
             self.assert_chunker_sample_with_noise(chunker, part)
@@ -557,8 +557,6 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
         # Start validating data particles
         self.assert_particle_published(driver, self.VALID_STATUS_MESSAGE,
                                        self.assert_particle_regular_status, True)
-        self.assert_particle_published(driver, self.VALID_CONTROL_RECORD,
-                                       self.assert_particle_control_record, True)
         self.assert_particle_published(driver, self.VALID_R0_BLANK_SAMPLE,
                                        self.assert_particle_sami_blank_sample, True)
         self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE,

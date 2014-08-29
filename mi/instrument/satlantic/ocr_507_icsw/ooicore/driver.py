@@ -664,8 +664,8 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
             if len(cmd_line) > 1 and \
                     (expected_prompt is not None or
                          (response_regex is not None)) \
-                    and cmd_line not in result:
-                log.debug('_do_cmd_resp: Send command: %s failed %s attempt, result = %s.', cmd, retry_num, result)
+                    and cmd_line not in self._linebuf:
+                log.debug('_do_cmd_resp: Send command: %s failed %s attempt, result = %r', cmd, retry_num, result)
                 if retry_num >= retry_count:
                     raise InstrumentCommandException('_do_cmd_resp: Failed %s attempts sending command: %s' %
                                                      (retry_count, cmd))
@@ -762,7 +762,6 @@ class SatlanticOCR507InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Ensure the instrument is free running sampling mode.
         self._do_cmd_resp(Command.SWITCH_TO_AUTOSAMPLE, response_regex=SAMPLE_REGEX, timeout=30)
 
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         next_state = SatlanticProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
