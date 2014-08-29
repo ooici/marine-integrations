@@ -338,8 +338,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.VARIABLE_LEADER_ID: {'type': int, 'value': 128},
         ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER: {'type': int, 'value': 5},
         ADCP_PD0_PARSED_KEY.ENSEMBLE_START_TIME: {'type': float, 'value': 3595104000},
-        ADCP_PD0_PARSED_KEY.REAL_TIME_CLOCK: {'type': dict, 'value':
-            {'year': 13, 'month': 3, 'day': 15, 'hour': 21, 'minute': 33, 'second': 2, 'hundredths': 46}},
+        ADCP_PD0_PARSED_KEY.REAL_TIME_CLOCK: {'type': list, 'value': [13, 3, 15, 21, 33, 2, 46]},
         ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP: {'type': float, 'value': 752},
         ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER_INCREMENT: {'type': int, 'value': 0},
         ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_0: {'type': int, 'value': 0},
