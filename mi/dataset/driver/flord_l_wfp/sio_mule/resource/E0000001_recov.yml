@@ -1,0 +1,29 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3583638124.0
+    particle_object: FlordLWfpInstrumentParserDataParticle
+    particle_type: flord_l_wfp_instrument_recovered
+    raw_signal_chl: 55
+    raw_signal_beta: 112
+    raw_internal_temp: 571
+    wfp_timestamp: 1374649324.0
+  - _index: 2
+    internal_timestamp: 3583638134.0
+    particle_object: FlordLWfpInstrumentParserDataParticle
+    particle_type: flord_l_wfp_instrument_recovered
+    raw_signal_chl: 55
+    raw_signal_beta: 256
+    raw_internal_temp: 571
+    wfp_timestamp: 1374649334.0
+  - _index: 3
+    internal_timestamp: 3583638144.0
+    particle_object: FlordLWfpInstrumentParserDataParticle
+    particle_type: flord_l_wfp_instrument_recovered
+    raw_signal_chl: 54
+    raw_signal_beta: 113
+    raw_internal_temp: 571
+    wfp_timestamp: 1374649344.0

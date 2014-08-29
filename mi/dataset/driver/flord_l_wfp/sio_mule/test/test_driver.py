@@ -34,10 +34,13 @@ from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.driver.flord_l_wfp.sio_mule.driver import DataSourceKey, FlordLWfpSioMuleDataSetDriver
+from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticle
 from mi.dataset.parser.flord_l_wfp_sio_mule import FlordLWfpSioMuleParserDataParticle, DataParticleType
 
 TELEM_DIR = '/tmp/flord/telem/test'
 RECOV_DIR = '/tmp/flord/recov/test'
+
+RECOVERED_SAMPLE_DATA = 'E0000001.DAT'
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.flord_l_wfp.sio_mule.driver',
@@ -69,6 +72,7 @@ DataSetTestCase.initialize(
 
 SAMPLE_STREAM = 'flord_l_wfp_instrument'
 
+REC_PARTICLE = FlordLWfpInstrumentParserDataParticle;
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -93,7 +97,26 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data_set_dir('node58p1_1st2WE.dat', TELEM_DIR, 'TestData.dat')
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
-        
+
+    def test_get_recov(self):
+        """
+        Test that we can get data from files.
+        Assert that the particles are correct.
+        """
+        log.info("================ START INTEG TEST GET =====================")
+
+        # Start sampling.
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        self.create_sample_data_set_dir('E0000001.DAT', RECOV_DIR)
+        log.debug('### Sample file created in dir = %s ', TELEM_DIR)
+
+        # check the first 3 instrument particles
+        self.assert_data(REC_PARTICLE,
+                         'E0000001_recov.yml',
+                         count=3, timeout=10)
+
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -133,6 +156,35 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'first.result.yml',
                          count=3, timeout=10)
+
+    def test_mid_state_start_recov(self):
+        """
+        Test the ability to start the driver with a saved state
+        """
+        log.info("================ START INTEG TEST MID STATE START RECOV =====================")
+
+        recovered_file_one = RECOVERED_SAMPLE_DATA
+
+        recovered_path_1 = self.create_sample_data_set_dir(recovered_file_one, RECOV_DIR)
+
+        # For recovered, we will assume first 2 records have been processed and put position to 84
+        state = {
+            DataSourceKey.FLORD_L_WFP: {
+                recovered_file_one: self.get_file_state(recovered_path_1,
+                                                        ingested=False,
+                                                        position=84),
+            },
+            DataSourceKey.FLORD_L_WFP_SIO_MULE: {}
+        }
+
+        driver = self._get_driver_object(memento=state)
+
+        self.clear_async_data()
+
+        driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(REC_PARTICLE, 'test_recovered_midstate_start.yml', count=1, timeout=60)
            
     def test_harvester_new_file_exception(self):
         """
@@ -162,7 +214,32 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
-        
+
+    def test_start_stop_resume_recov(self):
+        """
+        Test the ability to stop and restart sampling, ingesting files in the
+        correct order
+        """
+        log.info("================ START INTEG TEST START STOP RESUME RECOV =====================")
+
+        self.create_sample_data_set_dir(RECOVERED_SAMPLE_DATA, RECOV_DIR)
+
+        self.clear_async_data()
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(REC_PARTICLE, 'test_recovered_start_stop_resume_one.yml', count=1, timeout=10)
+
+        self.driver.stop_sampling()
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(REC_PARTICLE, 'test_recovered_start_stop_resume_two.yml', count=2, timeout=60)
+
+        self.driver.stop_sampling()
+
     def test_bad_e_header(self):
         """
         Test a case that should produce a sample exception and confirm the
@@ -194,6 +271,22 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
 
+    def test_sample_exception_recov(self):
+        """
+        Test a case that should produce a sample exception and confirm the
+        sample exception occurs
+        """
+        log.info("================ START INTEG TEST SAMPLE EXCEPTION RECOV =====================")
+
+        # Start sampling.
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        # Handle a file that does not exist
+        self.create_sample_data_set_dir("Efoo.DAT", RECOV_DIR)
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

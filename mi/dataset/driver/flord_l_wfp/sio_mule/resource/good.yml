@@ -5,7 +5,7 @@ header:
 data:
   - _index: 1
     internal_timestamp: 3583638177.0
-    particle_object: FlordLWfpParserDataParticle
+    particle_object: FlordLWfpInstrumentParserDataParticle
     particle_type: flord_l_wfp_instrument_recovered
     raw_signal_chl: 54
     raw_signal_beta: 112
