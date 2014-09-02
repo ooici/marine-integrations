@@ -365,23 +365,20 @@ class OptaaDjDclParserUnitTestCase(ParserUnitTestCase):
         """
         This function creates a OptaaDjDcl parser for recovered data.
         """
-        parser = OptaaDjDclRecoveredParser(self.rec_config,
+        return OptaaDjDclRecoveredParser(self.rec_config,
             file_handle, new_state, self.rec_state_callback,
             self.rec_pub_callback, self.rec_exception_callback, filename)
-        return parser
 
     def create_tel_parser(self, file_handle, filename, new_state=None):
         """
         This function creates a OptaaDjDcl parser for telemetered data.
         """
-        parser = OptaaDjDclTelemeteredParser(self.tel_config,
+        return OptaaDjDclTelemeteredParser(self.tel_config,
             file_handle, new_state, self.rec_state_callback,
             self.tel_pub_callback, self.tel_exception_callback, filename)
-        return parser
 
     def open_file(self, filename):
-        file = open(os.path.join(RESOURCE_PATH, filename), mode='r')
-        return file
+        return open(os.path.join(RESOURCE_PATH, filename), mode='r')
 
     def rec_state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """

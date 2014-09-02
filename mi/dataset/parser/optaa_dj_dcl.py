@@ -39,19 +39,13 @@ from mi.core.exceptions import \
     RecoverableSampleException, \
     UnexpectedDataException
 
-from mi.core.instrument.data_particle import \
-    DataParticle, \
-    DataParticleKey, \
-    DataParticleValue
-
+from mi.core.instrument.data_particle import DataParticle
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 SIZE_CHECKSUM = 2                    # number of bytes for checksum in the input
 SIZE_PAD = 1                         # number of bytes for trailing pad in the input
 
 # Basic patterns
-START_GROUP = '('
-END_GROUP = ')'
 ANY_BYTE = r'[\x00-\xFF]'            # Any value from 0x00 to 0xFF
 BINARY_BYTE = r'([\x00-\xFF])'       # Binary 8-bit field (1 byte)
 BINARY_SHORT = r'([\x00-\xFF]{2})'   # Binary 16-bit field (2 bytes)
@@ -75,7 +69,7 @@ GROUP_SECOND = 6
 # Define a regex up to and including the packet length.
 LENGTH_REGEX = r'\xFF\x00\xFF\x00'        # all packets start with 0xFF00FF00
 LENGTH_REGEX += BINARY_SHORT              # packet length not including checksum or pad
-LENGTH_MATCHER = re.compile(START_GROUP + LENGTH_REGEX + END_GROUP)
+LENGTH_MATCHER = re.compile('(' + LENGTH_REGEX + ')')
 
 # Define a regex for the fixed part of the packet
 # which is up to and including the number of wavelengths.
@@ -94,7 +88,7 @@ WAVELENGTH_REGEX += BINARY_SHORT          # C signal dark count
 WAVELENGTH_REGEX += BINARY_LONG           # time since power-up
 WAVELENGTH_REGEX += UNUSED_BINARY_BYTE    # reserved
 WAVELENGTH_REGEX += BINARY_BYTE           # number of wavelengths
-WAVELENGTH_MATCHER = re.compile(START_GROUP + WAVELENGTH_REGEX + END_GROUP)
+WAVELENGTH_MATCHER = re.compile('(' + WAVELENGTH_REGEX + ')')
 
 # Group numbers to be used in match.group(GROUP_xxx)
 GROUP_CHECKSUM_REGION = 1
@@ -178,13 +172,13 @@ def build_packet_matcher(wavelengths):
     Once the number of wavelengths (set of measurements) is known,
     the matcher is built.
     """
-    regex = START_GROUP           # Start of the checksum region group
+    regex = '('                   # Start of the checksum region group
     regex += WAVELENGTH_REGEX     # Include up to the number of wavelengths
-    regex += START_GROUP          # all wavelength measurements go in one group
+    regex += '('                  # all wavelength measurements go in one group
     regex += ANY_BYTE             # each wavelength measurement is 2 bytes
     regex += '{%d}' % (wavelengths * BYTES_PER_SET)
-    regex += END_GROUP            # end of the wavelength measurements group
-    regex += END_GROUP            # end of the checksum region group
+    regex += ')'                  # end of the wavelength measurements group
+    regex += ')'                  # end of the checksum region group
     regex += BINARY_SHORT         # checksum
     regex += UNUSED_BINARY_BYTE   # pad
 
@@ -208,20 +202,6 @@ class OptaaDjDclInstrumentDataParticle(DataParticle):
     """
     Class for generating the Optaa_dj instrument particle.
     """
-
-    def __init__(self, raw_data,
-                 port_timestamp=None,
-                 internal_timestamp=None,
-                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                 quality_flag=DataParticleValue.OK,
-                 new_sequence=None):
-
-        super(OptaaDjDclInstrumentDataParticle, self).__init__(raw_data,
-                                                          port_timestamp,
-                                                          internal_timestamp,
-                                                          preferred_timestamp,
-                                                          quality_flag,
-                                                          new_sequence)
 
     def _build_parsed_values(self):
         """
@@ -255,20 +235,6 @@ class OptaaDjDclMetadataDataParticle(DataParticle):
     """
     Class for generating the Optaa_dj Metadata particle.
     """
-
-    def __init__(self, raw_data,
-                 port_timestamp=None,
-                 internal_timestamp=None,
-                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                 quality_flag=DataParticleValue.OK,
-                 new_sequence=None):
-
-        super(OptaaDjDclMetadataDataParticle, self).__init__(raw_data,
-                                                          port_timestamp,
-                                                          internal_timestamp,
-                                                          preferred_timestamp,
-                                                          quality_flag,
-                                                          new_sequence)
 
     def _build_parsed_values(self):
         """
@@ -329,20 +295,18 @@ class OptaaDjDclParser(BufferLoadingParser):
                                           *args,
                                           **kwargs)
 
-        # Default the position within the file to the beginning
-        # and metadata particle not having been generated.
-
-        self._read_state = {
-            OptaaStateKey.POSITION: 0,
-            OptaaStateKey.METADATA_GENERATED: False,
-            OptaaStateKey.TIME_SINCE_POWER_UP: 0.0
-        }
         self.input_file = stream_handle
 
         # If there's an existing state, update to it.
+        # Otherwise default the position within the file to the beginning
+        # and metadata particle not having been generated.
 
         if state is not None:
             self.set_state(state)
+        else:
+            self.set_state({OptaaStateKey.POSITION: 0,
+                            OptaaStateKey.METADATA_GENERATED: False,
+                            OptaaStateKey.TIME_SINCE_POWER_UP: 0.0})
 
         # Extract the start date and time from the filename and convert
         # it to the format expected for the output particle.
@@ -616,7 +580,6 @@ class OptaaDjDclParser(BufferLoadingParser):
             length_match = None
             while length_match is None and start_index < len(input_buffer):
                 length_match = LENGTH_MATCHER.match(input_buffer[start_index : ])
-
                 if length_match is None:
                     start_index += 1
 
