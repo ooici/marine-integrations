@@ -9,7 +9,6 @@ Vent Chemistry Instrument  Driver
 
 
 """
-from ion.agents.instrument.exceptions import InstrumentException
 
 __author__ = 'Richard Han'
 __license__ = 'Apache 2.0'
@@ -17,6 +16,7 @@ __license__ = 'Apache 2.0'
 import time
 import re
 
+from ion.agents.instrument.exceptions import InstrumentException
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException, \
     InstrumentTimeoutException
