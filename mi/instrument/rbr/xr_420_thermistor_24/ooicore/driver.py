@@ -24,7 +24,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentState
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -35,13 +35,11 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
                                SampleException, \
-                               InstrumentStateException, \
                                InstrumentCommandException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
-from pyon.agent.agent import ResourceAgentState
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -282,7 +280,30 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
 class XR_420SampleDataParticleKey(BaseEnum):
     TIMESTAMP       = "timestamp"
-    TEMPERATURE     = "temperature"
+    TEMPERATURE01    = "temperature01"
+    TEMPERATURE02    = "temperature02"
+    TEMPERATURE03    = "temperature03"
+    TEMPERATURE04    = "temperature04"
+    TEMPERATURE05    = "temperature05"
+    TEMPERATURE06    = "temperature06"
+    TEMPERATURE07    = "temperature07"
+    TEMPERATURE08    = "temperature08"
+    TEMPERATURE09    = "temperature09"
+    TEMPERATURE10   = "temperature10"
+    TEMPERATURE11   = "temperature11"
+    TEMPERATURE12   = "temperature12"
+    TEMPERATURE13   = "temperature13"
+    TEMPERATURE14   = "temperature14"
+    TEMPERATURE15   = "temperature15"
+    TEMPERATURE16   = "temperature16"
+    TEMPERATURE17   = "temperature17"
+    TEMPERATURE18   = "temperature18"
+    TEMPERATURE19   = "temperature19"
+    TEMPERATURE20   = "temperature20"
+    TEMPERATURE21   = "temperature21"
+    TEMPERATURE22   = "temperature22"
+    TEMPERATURE23   = "temperature23"
+    TEMPERATURE24   = "temperature24"
     BATTERY_VOLTAGE = "battery_voltage"
     SERIAL_NUMBER   = "serial_number"
                 
@@ -325,8 +346,54 @@ class XR_420SampleDataParticle(DataParticle):
                      
         result = [{DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: ntp_timestamp},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temps},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE01,
+                   DataParticleKey.VALUE: temps[0]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE02,
+                   DataParticleKey.VALUE: temps[1]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE03,
+                   DataParticleKey.VALUE: temps[2]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE04,
+                   DataParticleKey.VALUE: temps[3]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE05,
+                   DataParticleKey.VALUE: temps[4]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE06,
+                   DataParticleKey.VALUE: temps[5]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE07,
+                   DataParticleKey.VALUE: temps[6]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE08,
+                   DataParticleKey.VALUE: temps[7]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE09,
+                   DataParticleKey.VALUE: temps[8]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE10,
+                   DataParticleKey.VALUE: temps[9]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE11,
+                   DataParticleKey.VALUE: temps[10]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE12,
+                   DataParticleKey.VALUE: temps[11]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE13,
+                   DataParticleKey.VALUE: temps[12]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE14,
+                   DataParticleKey.VALUE: temps[13]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE15,
+                   DataParticleKey.VALUE: temps[14]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE16,
+                   DataParticleKey.VALUE: temps[15]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE17,
+                   DataParticleKey.VALUE: temps[16]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE18,
+                   DataParticleKey.VALUE: temps[17]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE19,
+                   DataParticleKey.VALUE: temps[18]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE20,
+                   DataParticleKey.VALUE: temps[19]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE21,
+                   DataParticleKey.VALUE: temps[20]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE22,
+                   DataParticleKey.VALUE: temps[21]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE23,
+                   DataParticleKey.VALUE: temps[22]},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE24,
+                   DataParticleKey.VALUE: temps[23]},
                   {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.BATTERY_VOLTAGE,
                    DataParticleKey.VALUE: battery_voltage},
                   {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.SERIAL_NUMBER,
@@ -417,7 +484,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     """
     This protocol implements a simple command-response interaction for the XR-420 instrument.  
     """
-    
+
     def __init__(self, prompts, newline, driver_event):
         """
         """
@@ -682,20 +749,20 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             send_time = time.time()
 
             while True:
-                time.sleep(.1)
-    
+                time.sleep(1)
+
                 # look for response
                 if InstrumentResponses.GET_STATUS in self._promptbuf:
                     log.debug('_wakeup got prompt: %s' % repr(InstrumentResponses.GET_STATUS))
                     return InstrumentResponses.GET_STATUS
-                    
+
                 time_now = time.time()
                 # check for overall timeout
                 if time_now > start_time + timeout:
-                    raise InstrumentTimeoutException("in _wakeup()")  
-                # check for retry timeout                  
+                    raise InstrumentTimeoutException("in _wakeup()")
+                # check for retry timeout
                 if time_now > send_time + response_delay:
-                    break  
+                    break
 
     
     ########################################################################
