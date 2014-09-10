@@ -264,15 +264,34 @@ class UtilMixin(DriverTestMixin):
         
     _sample_parameters = {
         XR_420SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3223662780.0},
-        XR_420SampleDataParticleKey.TEMPERATURE: {TYPE: list, VALUE:
-            [ 21.4548, 21.0132, 20.9255, 21.1266, 21.1341, 21.5606, 21.2156, 21.4749,
-              21.3044, 21.1320, 21.1798, 21.2352, 21.3488, 21.1214, 21.6426, 21.1479,
-              21.0069, 21.5426, 21.3204, 21.2402, 21.3968, 21.4371, 21.0411, 21.4361 ]
-        },
+        XR_420SampleDataParticleKey.TEMPERATURE01: {TYPE: float, VALUE: 21.4548},
+        XR_420SampleDataParticleKey.TEMPERATURE02: {TYPE: float, VALUE: 21.0132},
+        XR_420SampleDataParticleKey.TEMPERATURE03: {TYPE: float, VALUE: 20.9255},
+        XR_420SampleDataParticleKey.TEMPERATURE04: {TYPE: float, VALUE: 21.1266},
+        XR_420SampleDataParticleKey.TEMPERATURE05: {TYPE: float, VALUE: 21.1341},
+        XR_420SampleDataParticleKey.TEMPERATURE06: {TYPE: float, VALUE: 21.5606},
+        XR_420SampleDataParticleKey.TEMPERATURE07: {TYPE: float, VALUE: 21.2156},
+        XR_420SampleDataParticleKey.TEMPERATURE08: {TYPE: float, VALUE: 21.4749},
+        XR_420SampleDataParticleKey.TEMPERATURE09: {TYPE: float, VALUE: 21.3044},
+        XR_420SampleDataParticleKey.TEMPERATURE10: {TYPE: float, VALUE: 21.1320},
+        XR_420SampleDataParticleKey.TEMPERATURE11: {TYPE: float, VALUE: 21.1798},
+        XR_420SampleDataParticleKey.TEMPERATURE12: {TYPE: float, VALUE: 21.2352},
+        XR_420SampleDataParticleKey.TEMPERATURE13: {TYPE: float, VALUE: 21.3488},
+        XR_420SampleDataParticleKey.TEMPERATURE14: {TYPE: float, VALUE: 21.1214},
+        XR_420SampleDataParticleKey.TEMPERATURE15: {TYPE: float, VALUE: 21.6426},
+        XR_420SampleDataParticleKey.TEMPERATURE16: {TYPE: float, VALUE: 21.1479},
+        XR_420SampleDataParticleKey.TEMPERATURE17: {TYPE: float, VALUE: 21.0069},
+        XR_420SampleDataParticleKey.TEMPERATURE18: {TYPE: float, VALUE: 21.5426},
+        XR_420SampleDataParticleKey.TEMPERATURE19: {TYPE: float, VALUE: 21.3204},
+        XR_420SampleDataParticleKey.TEMPERATURE20: {TYPE: float, VALUE: 21.2402},
+        XR_420SampleDataParticleKey.TEMPERATURE21: {TYPE: float, VALUE: 21.3968},
+        XR_420SampleDataParticleKey.TEMPERATURE22: {TYPE: float, VALUE: 21.4371},
+        XR_420SampleDataParticleKey.TEMPERATURE23: {TYPE: float, VALUE: 21.0411},
+        XR_420SampleDataParticleKey.TEMPERATURE24: {TYPE: float, VALUE: 21.4361},
         XR_420SampleDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, VALUE: 11.5916},
         XR_420SampleDataParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u"021964"},
     }
-    
+
     SAMPLE = \
         "TIM 020225135300 " + \
         "21.4548 21.0132 20.9255 21.1266 21.1341 21.5606 21.2156 21.4749 " + \
@@ -840,7 +859,21 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
                 
         self.assert_current_state(ProtocolStates.COMMAND)
-    
+
+    def test_command_autosample(self):
+        """
+        Verify autosample command and events.
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to AUTOSAMPLE state
+        3. verify the particle coming in and the sampling is continuous (gather several samples)
+        4. stop AUTOSAMPLE
+        """
+        self.assert_initialize_driver(ProtocolStates.COMMAND)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.SAMPLE, self.assert_particle_sample,
+                                              particle_count=2, timeout=60)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=10)
 
     def test_polled_particle_generation(self):
         """

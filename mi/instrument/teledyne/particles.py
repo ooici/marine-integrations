@@ -63,6 +63,9 @@ class VADCPDataParticleType(DataParticleType):
     """
     VADCP Stream types of data particles
     """
+    VADCP_PD0_BEAM_PARSED = 'vadcp_pd0_beam_parsed'
+    VADCP_PD0_EARTH_PARSED = 'vadcp_pd0_earth_parsed'
+
     VADCP_4BEAM_SYSTEM_CONFIGURATION = "vadcp_4beam_system_configuration"
     VADCP_5THBEAM_SYSTEM_CONFIGURATION = "vadcp_5thbeam_system_configuration"
 
@@ -228,6 +231,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
     """
     _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse ADCP_PD0_PARSED_DataParticle'
     _slave = False
+    _master = False
 
     def _build_parsed_values(self):
         """
@@ -619,6 +623,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
             if self._slave:
                 self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_BEAM
+            elif self._master:
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_BEAM_PARSED
             beam_1_velocity = []
             beam_2_velocity = []
             beam_3_velocity = []
@@ -642,6 +648,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             if self._slave:
                 self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_EARTH
+            elif self._master:
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_EARTH_PARSED
             water_velocity_east = []
             water_velocity_north = []
             water_velocity_up = []
@@ -762,6 +770,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
             if self._slave:
                 self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_BEAM
+            elif self._master:
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_BEAM_PARSED
             percent_good_beam1 = []
             percent_good_beam2 = []
             percent_good_beam3 = []
@@ -785,6 +795,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             if self._slave:
                 self._data_particle_type = VADCPDataParticleType.VADCP_PD0_PARSED_EARTH
+            elif self._master:
+                self._data_particle_type = VADCPDataParticleType.VADCP_PD0_EARTH_PARSED
             percent_good_3beam = []
             percent_transforms_reject = []
             percent_bad_beams = []

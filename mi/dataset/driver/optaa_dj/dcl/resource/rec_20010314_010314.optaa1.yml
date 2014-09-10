@@ -1,0 +1,64 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: OptaaDjDclRecoveredMetadataDataParticle
+    particle_type: optaa_dj_dcl_metadata_recovered
+    internal_timestamp: 3193520594.000
+    start_date: '2001-03-14 01:03:14'
+    packet_type: 4
+    meter_type: 83
+    serial_number: 1193047
+  - _index:  2
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: 3193520594.000
+    a_reference_dark_counts: 1
+    pressure_counts: 2
+    a_signal_dark_counts: 3
+    external_temp_raw: 4
+    internal_temp_raw: 5
+    c_reference_dark_counts: 6
+    c_signal_dark_counts: 7
+    elapsed_run_time: 111
+    num_wavelengths: 1
+    c_reference_counts: [0]
+    a_reference_counts: [32767]
+    c_signal_counts: [32767]
+    a_signal_counts: [65535]
+  - _index:  3
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: 3193520594.111
+    a_reference_dark_counts: 2
+    pressure_counts: 4
+    a_signal_dark_counts: 6
+    external_temp_raw: 8
+    internal_temp_raw: 10
+    c_reference_dark_counts: 12
+    c_signal_dark_counts: 14
+    elapsed_run_time: 222
+    num_wavelengths: 3
+    c_reference_counts: [0, 16383, 32766]
+    a_reference_counts: [32767, 49150, 65533]
+    c_signal_counts: [32767, 16384, 1]
+    a_signal_counts: [65535, 49152, 32769]
+  - _index:  4
+    particle_object: OptaaDjDclRecoveredInstrumentDataParticle
+    particle_type: optaa_dj_dcl_instrument_recovered
+    internal_timestamp: 3193520594.222
+    a_reference_dark_counts: 3
+    pressure_counts: 6
+    a_signal_dark_counts: 9
+    external_temp_raw: 12
+    internal_temp_raw: 15
+    c_reference_dark_counts: 18
+    c_signal_dark_counts: 21
+    elapsed_run_time: 333
+    num_wavelengths: 14
+    c_reference_counts: [0, 2520, 5040, 7560, 10080, 12600, 15120, 17640, 20160, 22680, 25200, 27720, 30240, 32760]
+    a_reference_counts: [32767, 35287, 37807, 40327, 42847, 45367, 47887, 50407, 52927, 55447, 57967, 60487, 63007, 65527]
+    c_signal_counts: [32767, 30247, 27727, 25207, 22687, 20167, 17647, 15127, 12607, 10087, 7567, 5047, 2527, 7]
+    a_signal_counts: [65535, 63015, 60495, 57975, 55455, 52935, 50415, 47895, 45375, 42855, 40335, 37815, 35295, 32775]

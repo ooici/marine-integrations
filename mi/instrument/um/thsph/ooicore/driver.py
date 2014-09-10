@@ -9,12 +9,14 @@ Vent Chemistry Instrument  Driver
 
 
 """
+
 __author__ = 'Richard Han'
 __license__ = 'Apache 2.0'
 
 import time
 import re
 
+from ion.agents.instrument.exceptions import InstrumentException
 from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException, \
     InstrumentTimeoutException
@@ -78,8 +80,8 @@ class Command(BaseEnum):
     """
     Instrument command strings
     """
-    GET_SAMPLE = 'aH*'  # Gets data sample from ADC
-    COMM_TEST = 'aP*'  # Communication test, returns aP#
+    GET_SAMPLE = 'get_sample_cmd'  # Gets data sample from ADC
+    COMM_TEST  = 'comm_test_cmd'   # Communication test, returns aP#
 
 
 class ProtocolState(BaseEnum):
@@ -126,6 +128,8 @@ class Parameter(DriverParameter):
     Device specific parameters for THSPH.
     """
     INTERVAL = 'SampleInterval'
+    INSTRUMENT_SERIES = 'InstrumentSeries'
+
 
 
 class Prompt(BaseEnum):
@@ -300,6 +304,25 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    SERIES_A = 'A'
+    SERIES_B = 'B'
+    SERIES_C = 'C'
+    GET_SAMPLE_SERIES_A = 'aH*'  # Gets data sample from ADC for series A
+    COMM_TEST_SERIES_A = 'aP*'   # Communication test for series A. Returns aP#
+
+    GET_SAMPLE_SERIES_B = 'bH*'  # Gets data sample from ADC for series B
+    COMM_TEST_SERIES_B = 'bP*'   # Communication test for series B. Returns aP#
+
+    GET_SAMPLE_SERIES_C = 'cH*'  # Gets data sample from ADC for series C
+    COMM_TEST_SERIES_C = 'cP*'   # Communication test for series C. Returns aP#
+
+    # THSPH commands for instrument series A, B and C
+    THSPH_COMMANDS = {
+        SERIES_A : { Command.COMM_TEST : COMM_TEST_SERIES_A, Command.GET_SAMPLE : GET_SAMPLE_SERIES_A},
+        SERIES_B : { Command.COMM_TEST : COMM_TEST_SERIES_B, Command.GET_SAMPLE : GET_SAMPLE_SERIES_B},
+        SERIES_C : { Command.COMM_TEST : COMM_TEST_SERIES_C, Command.GET_SAMPLE : GET_SAMPLE_SERIES_C},
+    }
+
     __metaclass__ = get_logging_metaclass(log_level='debug')
 
     def __init__(self, prompts, newline, driver_event):
@@ -368,6 +391,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         self._chunker = StringChunker(THSPHProtocol.sieve_function)
 
+        # Set Get Sample Command and Communication Test Command for Series A as default
+        self._get_sample_cmd = self.GET_SAMPLE_SERIES_A
+        self._comm_test_cmd = self.COMM_TEST_SERIES_A
+
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -428,6 +455,16 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                              direct_access=False,
                              default_value=5)
 
+        self._param_dict.add(Parameter.INSTRUMENT_SERIES,
+                             r'Instrument Series = ([A-C])',
+                             lambda match: int(match.group(1)),
+                             str,
+                             type=ParameterDictType.STRING,
+                             display_name="Instrument Series",
+                             startup_param=True,
+                             direct_access=False,
+                             default_value='A')
+
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
@@ -468,7 +505,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Get device status
         """
-        log.debug("_handler_command_acquire_sample")
 
         next_state = None
         next_agent_state = None
@@ -513,7 +549,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         result = None
         startup = False
 
-        log.debug("_handler_command_set enter ")
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         try:
@@ -544,7 +579,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         Set various parameters internally to the driver. No issuing commands to the
         instrument needed for this driver.
         """
-        log.debug("_set_params ")
+
         try:
             params = args[0]
         except IndexError:
@@ -554,15 +589,24 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         if not params:
             return
 
-        # Sampling interval is the only parameter that is set by the driver.
         # Do a range check before we start all sets
         for (key, val) in params.iteritems():
+
             if key == Parameter.INTERVAL and not (0 < val < 601):
                 log.debug("Auto Sample Interval not in 1 to 600 range ")
                 raise InstrumentParameterException("sample interval out of range [1, 600]")
+
+            if key == Parameter.INSTRUMENT_SERIES:
+                if val not in 'ABC':
+                    log.debug("Instrument Series is not A, B or C ")
+                    raise InstrumentParameterException("Instrument Series is not invalid ")
+                else:
+                    self._get_sample_cmd = self.THSPH_COMMANDS[val][Command.GET_SAMPLE]
+                    self._comm_test_cmd = self.THSPH_COMMANDS[val][Command.COMM_TEST]
+
             log.debug('key = (%s), value = (%s)' % (key, val))
 
-        self._param_dict.set_value(Parameter.INTERVAL, params[Parameter.INTERVAL])
+            self._param_dict.set_value(key, val)
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -596,7 +640,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         instrument for data.
         @retval next_state, (next_agent_state, result)
         """
-        log.debug("_handler_autosample_enter ")
 
         self._init_params()
 
@@ -618,7 +661,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         # Start the scheduler to poll the instrument for
         # data every sample interval seconds
 
-        log.debug("_setup_autosample_config")
         job_name = ScheduledJob.AUTO_SAMPLE
         polled_interval = self._param_dict.get_config_value(Parameter.INTERVAL)
         config = {
@@ -641,7 +683,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Exit auto sample state. Remove the auto sample task
         """
-        log.debug("_handler_autosample_exit ")
 
         next_state = None
         next_agent_state = None
@@ -653,7 +694,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Remove the auto sample task. Exit Auto sample state
         """
-        log.debug("_handler_autosample_stop_autosample ")
 
         result = None
 
@@ -707,13 +747,23 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
+
     def _build_simple_command(self, cmd, *args):
         """
         Build handler for basic THSPH commands.
         @param cmd the simple ooicore command to format.
         @retval The command to be sent to the device.
         """
-        return "%s%s" % (cmd, NEWLINE)
+        instrument_series = self._param_dict.get(Parameter.INSTRUMENT_SERIES)
+        if cmd == Command.COMM_TEST:
+            instrument_cmd = self.THSPH_COMMANDS[instrument_series][Command.COMM_TEST]
+        elif cmd == Command.GET_SAMPLE:
+            instrument_cmd = self.THSPH_COMMANDS[instrument_series][Command.GET_SAMPLE]
+        else:
+            raise  InstrumentException('Unknown THSPH driver command  %s' % cmd)
+
+        return "%s%s" % (instrument_cmd, NEWLINE)
+
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -732,6 +782,8 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
             if param == 'INTERVAL':
                 param = 'sampleinterval'
+            elif param == 'INSTRUMENT_SERIES':
+                param = 'instrument_series'
 
             set_cmd = '%s=%s' % (param, str_val)
             set_cmd += NEWLINE
@@ -752,6 +804,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         log.debug("_wakeup ")
 
         sleep_time = CMD_RESP_TIME
+
         cmd_line = self._build_simple_command(Command.COMM_TEST)
 
         # Grab start time for overall wakeup timeout.
