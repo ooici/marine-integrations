@@ -85,6 +85,34 @@ PCO2W_SAMPLE_REGEX = (
     SAMI_NEWLINE)
 PCO2W_SAMPLE_REGEX_MATCHER = re.compile(PCO2W_SAMPLE_REGEX)
 
+# PCO2W Sample Records (Type 0x04: Normal Samples)
+PCO2W_SAMPLE_REGEX_NORMAL = (
+    r'[\*]' +  # record identifier
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
+    '(04)' +  # type of data record (04 for measurement)
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{56})' +  # 14 sets of light measurements (counts)
+    '([0-9A-Fa-f]{4})' +  # battery voltage (counts)
+    '([0-9A-Fa-f]{4})' +  # thermistor (counts)
+    '([0-9A-Fa-f]{2})' +  # checksum
+    SAMI_NEWLINE)
+PCO2W_SAMPLE_REGEX_MATCHER_NORMAL = re.compile(PCO2W_SAMPLE_REGEX_NORMAL)
+
+# PCO2W Sample Records (Type 0x05: Calibration Samples)
+PCO2W_SAMPLE_REGEX_CAL = (
+    r'[\*]' +  # record identifier
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
+    '(05)' +  # type of data record (05 for blank)
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{56})' +  # 14 sets of light measurements (counts)
+    '([0-9A-Fa-f]{4})' +  # battery voltage (counts)
+    '([0-9A-Fa-f]{4})' +  # thermistor (counts)
+    '([0-9A-Fa-f]{2})' +  # checksum
+    SAMI_NEWLINE)
+PCO2W_SAMPLE_REGEX_MATCHER_CAL = re.compile(PCO2W_SAMPLE_REGEX_CAL)
+
 ###
 #    Begin Classes
 ###
@@ -132,6 +160,7 @@ class Pco2wSamiDataParticleType(SamiDataParticleType):
     Extend base class with instrument specific functionality.
     """
     SAMI_SAMPLE = 'pco2w_sami_data_record'
+    SAMI_SAMPLE_CAL = 'pco2w_sami_data_record_cal'
 
 
 class Pco2wParameter(SamiParameter):
@@ -237,6 +266,15 @@ class Pco2wSamiSampleDataParticle(DataParticle):
             grp_index += 1
 
         return result
+
+class Pco2wSamiSampleCalibrationDataParticle(Pco2wSamiSampleDataParticle):
+    """
+    Routines for parsing raw data into a SAMI2-PCO2 sample data calibration particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+
+    _data_particle_type = Pco2wSamiDataParticleType.SAMI_SAMPLE_CAL
 
 
 class Pco2wSamiConfigurationDataParticleKey(SamiConfigDataParticleKey):
