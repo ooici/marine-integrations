@@ -41,7 +41,8 @@ from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
 from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER
-from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
+from mi.instrument.sunburst.sami2_pco2.driver import PCO2W_SAMPLE_REGEX_MATCHER_NORMAL, PCO2W_SAMPLE_REGEX_MATCHER_CAL
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle, Pco2wSamiSampleCalibrationDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 
@@ -126,6 +127,7 @@ class DataParticleType(Pco2wSamiDataParticleType):
     PCO2W_A_BATTERY_VOLTAGE = 'pco2w_a_battery_voltage'
     PCO2W_A_THERMISTOR_VOLTAGE = 'pco2w_a_thermistor_voltage'
     PCO2W_A_SAMI_SAMPLE = 'pco2w_a_sami_data_record'
+    PCO2W_A_SAMI_SAMPLE_CAL = 'pco2w_a_sami_data_record_cal'
 
 
 
@@ -150,6 +152,7 @@ SamiBatteryVoltageDataParticle._data_particle_type = DataParticleType.PCO2W_A_BA
 SamiThermistorVoltageDataParticle._data_particle_type = DataParticleType.PCO2W_A_THERMISTOR_VOLTAGE
 SamiRegularStatusDataParticle._data_particle_type = DataParticleType.PCO2W_A_REGULAR_STATUS
 Pco2wSamiSampleDataParticle._data_particle_type = DataParticleType.PCO2W_A_SAMI_SAMPLE
+Pco2wSamiSampleCalibrationDataParticle._data_particle_type = DataParticleType.PCO2W_A_SAMI_SAMPLE_CAL
 
 
 class Pco2waConfigurationDataParticleKey(Pco2wSamiConfigurationDataParticleKey):
@@ -395,7 +398,10 @@ class Protocol(Pco2wProtocol):
                                      chunk, timestamp)]):
             return
 
-        sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        sample = self._extract_sample(Pco2wSamiSampleDataParticle, PCO2W_SAMPLE_REGEX_MATCHER_NORMAL, chunk, timestamp)
+        if sample is None:
+            sample = self._extract_sample(Pco2wSamiSampleCalibrationDataParticle, PCO2W_SAMPLE_REGEX_MATCHER_CAL, chunk,
+                                          timestamp)
 
         log.debug('Protocol._got_chunk(): get_current_state() == %s', self.get_current_state())
 
