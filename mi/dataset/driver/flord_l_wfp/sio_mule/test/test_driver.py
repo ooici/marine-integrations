@@ -310,6 +310,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
