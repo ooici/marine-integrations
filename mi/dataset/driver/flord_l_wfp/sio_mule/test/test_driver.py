@@ -223,8 +223,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_start_stop_resume_recov(self):
         """
-        Test the ability to stop and restart sampling, ingesting files in the
-        correct order
+        Test the ability to stop and restart sampling.
         """
         log.info("================ START INTEG TEST START STOP RESUME RECOV =====================")
 
@@ -239,11 +238,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.stop_sampling()
 
-        # self.create_sample_data_set_dir("small.DAT", RECOV_DIR)
         self.driver.start_sampling()
+
         # verify data is produced
         self.assert_data(REC_PARTICLE, 'test_recovered_start_stop_resume_two.yml', count=2, timeout=60)
-        #self.assert_data(REC_PARTICLE, 'good.yml', count=1, timeout=60)
 
         self.driver.stop_sampling()
 
@@ -278,19 +276,36 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(FlordLWfpSioMuleParserDataParticle, 'second.result.yml',
                          count=1, timeout=30)
 
-    def test_sample_exception_recov(self):
+    def test_bad_header_recov(self):
         """
         Test a case that should produce a sample exception and confirm the
         sample exception occurs
         """
-        log.info("================ START INTEG TEST SAMPLE EXCEPTION RECOV =====================")
+        log.info("================ START INTEG TEST BAD HEADER RECOV =====================")
 
         # Start sampling.
         self.driver.start_sampling()
         self.clear_async_data()
 
         # Handle a file that does not exist
-        self.create_sample_data_set_dir("Efoo.DAT", RECOV_DIR)
+        self.create_sample_data_set_dir("E0000001-BAD-HEADER1.DAT", RECOV_DIR)
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+
+    def test_bad_data_recov(self):
+        """
+        Test a case that should produce a sample exception and confirm the
+        sample exception occurs
+        """
+        log.info("================ START INTEG TEST BAD DATA RECOV =====================")
+
+        # Start sampling.
+        self.driver.start_sampling()
+        self.clear_async_data()
+
+        # Handle a file that does not exist
+        self.create_sample_data_set_dir("E0000001-BAD-DATA.DAT", RECOV_DIR)
 
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
@@ -531,7 +546,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_parser_exception(self):
         """
-        Test an exception is raised after the driver is started during
+        Test an exception is raised after the parser is started during
         record parsing.
         """
         # file contains invalid sample values
@@ -549,7 +564,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_parser_exception_recov(self):
         """
-        Test an exception is raised after the driver is started during
+        Test an exception is raised after the parser is started during
         record parsing.
         """
         log.info("=========== START QUAL TEST PARSER EXCEPTION RECOV =================")
