@@ -98,8 +98,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
     def test_simple(self):
         """
-        Read test data and pull out data particles one at a time.
-        Assert that the results are those we expected.
+        Read test data and pull out data particles six at a time.
+        Assert that the results of sixth particle are those we expected.
         """
 
         file_path = os.path.join(RESOURCE_PATH, 'small.DAT')
@@ -248,7 +248,7 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
     def test_bad_header(self):
         """
-        Ensure that bad data is skipped when it exists.
+        Ensure that bad header is skipped when it exists.
         """
 
         # This case tests against a header that does not match
@@ -262,8 +262,8 @@ class FlordLWfpParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle.close()
 
-        # This case tests against a header that does not match global, but matches coastal
-        # 0001 0000 0000 0000 0001 0001 0000 0000
+        # This case tests against a header that does not match global E-type data, but matches coastal
+        # E-type data: 0001 0000 0000 0000 0001 0001 0000 0000
         file_path = os.path.join(RESOURCE_PATH, 'E0000001-BAD-HEADER2.DAT')
         self.stream_handle = open(file_path, 'rb')
 

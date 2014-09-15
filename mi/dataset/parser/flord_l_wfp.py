@@ -5,6 +5,8 @@
 @file marine-integrations/mi/dataset/parser/flord_l_wfp.py
 @author Joe Padula
 @brief Particle for the flord_l_wfp dataset driver
+    NOTE: there is no parser class in this file. This dataset is using the parser
+    in global_wfp_e_file_parser.py.
 Release notes:
 
 Initial Release
@@ -23,6 +25,10 @@ from mi.core.log import get_logger
 log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
+
+##############
+# There is no parser in this file, this dataset uses the parser in global_wfp_e_file_parser.py
+##############
 
 
 class DataParticleType(BaseEnum):
@@ -52,9 +58,10 @@ class FlordLWfpInstrumentParserDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Take something in the data format and turn it into
+        Take something in the binary data format and turn it into
         an array of dictionaries defining the data in the particle
-        with the appropriate tag.
+        with the appropriate tag. Note that parse_chunks() in global_wfp_e_file_parser.py
+        will set the data in raw_data.
         @throws SampleException If there is a problem with sample creation
         """
 

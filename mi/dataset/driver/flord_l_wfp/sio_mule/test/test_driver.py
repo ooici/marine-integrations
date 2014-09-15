@@ -24,6 +24,7 @@ from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 from mi.core.log import get_logger
 log = get_logger()
+from mi.idk.config import Config
 from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
@@ -37,6 +38,8 @@ from mi.dataset.driver.flord_l_wfp.sio_mule.driver import DataSourceKey, FlordLW
 from mi.dataset.parser.flord_l_wfp import FlordLWfpInstrumentParserDataParticle
 from mi.dataset.parser.flord_l_wfp import DataParticleType as RecoveredDataParticleType
 from mi.dataset.parser.flord_l_wfp_sio_mule import FlordLWfpSioMuleParserDataParticle, DataParticleType
+
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi', 'dataset', 'driver', 'flord_l_wfp', 'sio_mule', 'resource')
 
 TELEM_DIR = '/tmp/flord/telem/test'
 RECOV_DIR = '/tmp/flord/recov/test'
@@ -86,8 +89,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
             
     def test_get(self):
         """
-        Test that we can get data from files.  Verify that the driver
-        sampling can be started and stopped
+        Test that we can get data from files.
+        Assert that the particles are correct.
         """
         # Start sampling and watch for an exception. node58p1_1st2WE.dat
         # contains the first 2 WE blocks in node58p1.dat
@@ -236,10 +239,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.stop_sampling()
 
+        # self.create_sample_data_set_dir("small.DAT", RECOV_DIR)
         self.driver.start_sampling()
-
         # verify data is produced
         self.assert_data(REC_PARTICLE, 'test_recovered_start_stop_resume_two.yml', count=2, timeout=60)
+        #self.assert_data(REC_PARTICLE, 'good.yml', count=1, timeout=60)
 
         self.driver.stop_sampling()
 
@@ -290,7 +294,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
