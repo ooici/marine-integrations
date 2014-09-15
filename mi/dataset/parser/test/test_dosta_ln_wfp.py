@@ -9,6 +9,7 @@
 
 from nose.plugins.attrib import attr
 
+from StringIO import StringIO
 import yaml
 import numpy
 import os
