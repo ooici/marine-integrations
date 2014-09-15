@@ -63,12 +63,14 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config={
         DriverStartupConfigKey.PARAMETERS: {
             Parameter.INTERVAL: 6,
+            Parameter.INSTRUMENT_SERIES: 'A',
         }
     }
 )
 
 GO_ACTIVE_TIMEOUT = 180
 TEST_POLLED_INTERVAL = 12
+TEST_INSTRUMENT_SERIES = 'A'
 TEST_INVALID_POLLED_INTERVAL = 601
 #################################### RULES ####################################
 #                                                                             #
@@ -129,6 +131,7 @@ class THSPHMixinSub(DriverTestMixin):
     _driver_parameters = {
         # Parameters defined in the IOS
         Parameter.INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: True},
+        Parameter.INSTRUMENT_SERIES: {TYPE: str, READONLY: False, DA: False, STARTUP: True},
     }
 
     _driver_capabilities = {
@@ -319,6 +322,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
     def test_get(self):
         self.assert_initialize_driver()
         self.assert_get(Parameter.INTERVAL)
+        self.assert_get(Parameter.INSTRUMENT_SERIES)
 
     def test_set(self):
         """
@@ -326,6 +330,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         """
         self.assert_initialize_driver()
         self.assert_set(Parameter.INTERVAL, TEST_POLLED_INTERVAL)
+        self.assert_set(Parameter.INSTRUMENT_SERIES, TEST_INSTRUMENT_SERIES)
         self.assert_set_exception(Parameter.INTERVAL, TEST_INVALID_POLLED_INTERVAL)
 
     def test_data_on(self):
@@ -336,7 +341,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE,
                                         DataParticleType.THSPH_PARSED,
                                         self.assert_particle_sample,
-                                        delay=7)
+                                        delay=15)
 
     def test_autosample_on(self):
         """
@@ -379,7 +384,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        self.tcp_client.send_data(Command.COMM_TEST + NEWLINE)
+        self.tcp_client.send_data(THSPHProtocol.COMM_TEST_SERIES_A + NEWLINE)
         self.tcp_client.expect(COMM_TEST_RESPONSE)
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
@@ -450,3 +455,4 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
         """
         self.assert_enter_command_mode()
         self.assert_set_parameter(Parameter.INTERVAL, TEST_POLLED_INTERVAL, verify=True)
+        self.assert_set_parameter(Parameter.INSTRUMENT_SERIES, TEST_INSTRUMENT_SERIES, verify=True)

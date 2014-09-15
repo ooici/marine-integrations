@@ -46,9 +46,8 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.instrument.sunburst.driver import Prompt, SamiRegularStatusDataParticle, SamiBatteryVoltageDataParticle, \
-    SamiThermistorVoltageDataParticle, SamiControlRecordDataParticle
+    SamiThermistorVoltageDataParticle
 from mi.instrument.sunburst.driver import SAMI_NEWLINE
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.driver import SamiBatteryVoltageDataParticleKey
 from mi.instrument.sunburst.driver import SamiThermistorVoltageDataParticleKey
@@ -178,9 +177,6 @@ class SamiMixin(DriverTestMixin):
     #  Instrument output (driver input) Definitions
     ###
 
-    # Control records
-    VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + SAMI_NEWLINE
-
     # Regular Status Message (response to S0 command)
     VALID_STATUS_MESSAGE = ':CDDD74E10041000003000000000236F8' + SAMI_NEWLINE
 
@@ -214,33 +210,6 @@ class SamiMixin(DriverTestMixin):
         SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED: {TYPE: int, VALUE: 0x000236, REQUIRED: True},
         SamiRegularStatusDataParticleKey.UNIQUE_ID: {TYPE: int, VALUE: 0xF8, REQUIRED: True}
-    }
-
-    _control_record_parameters = {
-        SamiControlRecordDataParticleKey.UNIQUE_ID: {TYPE: int, VALUE: 0xF8, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_LENGTH: {TYPE: int, VALUE: 0x12, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_TYPE: {TYPE: int, VALUE: 0x85, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_TIME: {TYPE: int, VALUE: 0xCDDD74DD, REQUIRED: True},
-        SamiControlRecordDataParticleKey.CLOCK_ACTIVE: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORDING_ACTIVE: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_END_ON_TIME: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_BANK: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.FLASH_ERASED: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.POWER_ON_INVALID: {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_DATA_RECORDS: {TYPE: int, VALUE: 0x000003, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS: {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_BYTES_STORED: {TYPE: int, VALUE: 0x000224, REQUIRED: True},
-        SamiControlRecordDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0xFC, REQUIRED: True}
     }
 
     _battery_voltage_parameters = {
@@ -292,21 +261,6 @@ class SamiMixin(DriverTestMixin):
                                          SamiRegularStatusDataParticle._data_particle_type)
         self.assert_data_particle_parameters(data_particle,
                                              self._regular_status_parameters,
-                                             verify_values)
-
-    def assert_particle_control_record(self, data_particle, verify_values=False):
-        """
-        Verify control_record particle
-        @param data_particle: SamiControlRecordDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        """
-
-        self.assert_data_particle_keys(SamiControlRecordDataParticleKey,
-                                       self._control_record_parameters)
-        self.assert_data_particle_header(data_particle,
-                                         SamiControlRecordDataParticle._data_particle_type)
-        self.assert_data_particle_parameters(data_particle,
-                                             self._control_record_parameters,
                                              verify_values)
 
     @staticmethod

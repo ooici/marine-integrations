@@ -1,0 +1,13 @@
+header:
+  particle_object: MULTIPLE
+  particle_type: MULTIPLE
+
+data:
+  - _index:  1
+    particle_object: OptaaDjDclRecoveredMetadataDataParticle
+    particle_type: optaa_dj_dcl_metadata_recovered
+    internal_timestamp: '2014-04-11T17:37:10Z'
+    start_date: '2014-04-11 17:37:10'
+    packet_type: 5
+    meter_type: 83
+    serial_number: 135

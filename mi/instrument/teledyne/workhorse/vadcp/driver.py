@@ -194,6 +194,9 @@ class VADCP_4BEAM_SYSTEM_CONFIGURATION_DataParticle(ADCP_SYSTEM_CONFIGURATION_Da
     _data_particle_type = "vadcp_4beam_system_configuration"
     _master = True
 
+class VADCP_PD0_BEAM_PARSED_DataParticle(ADCP_PD0_PARSED_DataParticle):
+    _data_particle_type = "vadcp_pd0_beam_parsed"
+    _master = True
 
 class VADCP_5THBEAM_SYSTEM_CONFIGURATION_DataParticle(ADCP_SYSTEM_CONFIGURATION_DataParticle):
     _data_particle_type = "vadcp_5thbeam_system_configuration"
@@ -1029,7 +1032,7 @@ class Protocol(WorkhorseProtocol):
                              chunk,
                              timestamp)
 
-        self._extract_sample(ADCP_PD0_PARSED_DataParticle,
+        self._extract_sample(VADCP_PD0_BEAM_PARSED_DataParticle,
                              ADCP_PD0_PARSED_REGEX_MATCHER,
                              chunk,
                              timestamp)

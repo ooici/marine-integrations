@@ -40,12 +40,9 @@ from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiParameter
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
-
-from mi.instrument.sunburst.driver import SAMI_CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import SAMI_ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.driver import SAMI_REGULAR_STATUS_REGEX_MATCHER
 
@@ -189,7 +186,6 @@ class DataParticleType(SamiDataParticleType):
     PHSEN_CONFIGURATION = 'phsen_configuration'
     PHSEN_DATA_RECORD = 'phsen_data_record'
     PHSEN_REGULAR_STATUS = 'phsen_regular_status'
-    PHSEN_CONTROL_RECORD = 'phsen_control_record'
     PHSEN_BATTERY_VOLTAGE = 'phsen_battery_voltage'
     PHSEN_THERMISTOR_VOLTAGE = 'phsen_thermistor_voltage'
 
@@ -235,7 +231,6 @@ class InstrumentCommand(SamiInstrumentCommand):
 SamiBatteryVoltageDataParticle._data_particle_type = DataParticleType.PHSEN_BATTERY_VOLTAGE
 SamiThermistorVoltageDataParticle._data_particle_type = DataParticleType.PHSEN_THERMISTOR_VOLTAGE
 SamiRegularStatusDataParticle._data_particle_type = DataParticleType.PHSEN_REGULAR_STATUS
-SamiControlRecordDataParticle._data_particle_type = DataParticleType.PHSEN_CONTROL_RECORD
 
 
 class PhsenSamiSampleDataParticleKey(BaseEnum):
@@ -320,6 +315,8 @@ class PhsenSamiSampleDataParticle(DataParticle):
             elif key is PhsenSamiSampleDataParticleKey.PH_MEASUREMENTS:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: ph_measurements})
+            elif key is PhsenSamiSampleDataParticleKey.RESERVED_UNUSED:
+                pass
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: unhex(matched.group(grp_index))})
@@ -818,7 +815,6 @@ class Protocol(SamiProtocol):
         return_list = []
 
         sieve_matchers = [SAMI_REGULAR_STATUS_REGEX_MATCHER,
-                          SAMI_CONTROL_RECORD_REGEX_MATCHER,
                           PHSEN_SAMPLE_REGEX_MATCHER,
                           PHSEN_CONFIGURATION_REGEX_MATCHER,
                           SAMI_ERROR_REGEX_MATCHER]
@@ -836,8 +832,6 @@ class Protocol(SamiProtocol):
         """
 
         if any([self._extract_sample(SamiRegularStatusDataParticle, SAMI_REGULAR_STATUS_REGEX_MATCHER,
-                                     chunk, timestamp),
-                self._extract_sample(SamiControlRecordDataParticle, SAMI_CONTROL_RECORD_REGEX_MATCHER,
                                      chunk, timestamp),
                 self._extract_sample(PhsenConfigDataParticle, PHSEN_CONFIGURATION_REGEX_MATCHER,
                                      chunk, timestamp)]):
