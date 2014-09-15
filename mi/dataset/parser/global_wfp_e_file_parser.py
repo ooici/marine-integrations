@@ -171,7 +171,6 @@ class GlobalWfpEFileParser(WfpEFileParser):
                 # Let's first get the 32-bit unsigned int timestamp which should be in the first match group
                 fields_prof = struct.unpack_from('>I', data_match.group(1))
                 timestamp = fields_prof[0]
-                #self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
                 ntp_time = float(ntplib.system_to_ntp_time(timestamp))
 
                 # particle-ize the data block received, return the record
