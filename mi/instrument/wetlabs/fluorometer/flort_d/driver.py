@@ -629,18 +629,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         try:
             sig_1_data = match.group(1)
             data = sig_1_data.split(',')
-            FlortDSample_Particle.sig_1_offset = float(data[4])
-            FlortDSample_Particle.sig_1_scale = int(data[5])
+            FlortDSample_Particle.sig_1_offset = int(data[5])
+            FlortDSample_Particle.sig_1_scale = float(data[4])
 
             sig_2_data = match.group(2)
             data = sig_2_data.split(',')
-            FlortDSample_Particle.sig_2_offset = float(data[4])
-            FlortDSample_Particle.sig_2_scale = int(data[5])
+            FlortDSample_Particle.sig_2_offset = int(data[5])
+            FlortDSample_Particle.sig_2_scale = float(data[4])
 
             sig_3_data = match.group(3)
             data = sig_3_data.split(',')
-            FlortDSample_Particle.sig_3_offset = float(data[4])
-            FlortDSample_Particle.sig_3_scale = int(data[5])
+            FlortDSample_Particle.sig_3_offset = int(data[5])
+            FlortDSample_Particle.sig_3_scale = float(data[4])
         except Exception:
             raise SampleException('Error parsing particle FlortDMET_Particle')
 
