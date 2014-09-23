@@ -1093,7 +1093,7 @@ class DataSetAgentTestCase(DataSetTestCase):
                     gevent.sleep(1)
         except gevent.Timeout:
             log.error("Failed to find event in queue: %s", event_object_type)
-            log.error("Current event queue: %s", self.event_subscribers._events_received)
+            log.error("Current event queue: %s", self.event_subscribers.events_received)
             self.fail("%s event not detected")
         finally:
             to.cancel()
