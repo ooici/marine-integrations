@@ -69,8 +69,6 @@ data:
      pressure: 161.16
      oxygen: 2693.1
 
-New sequence flag indicates that we are at the beginning of a new sequence of
-contiguous records, but these are not used currently.
 
 """
 
@@ -334,32 +332,29 @@ class ResultSet(object):
         log.debug("Particle definition: %s", particle_def)
         particle_values = particle_dict['values']
 
-        expected_new_sequence = particle_dict.get("new_sequence", False)
-        particle_new_sequence = particle_def.get("_new_sequence", False)
-        if expected_new_sequence is None: expected_new_sequence = False
-        if particle_new_sequence is None: particle_new_sequence = False
-
         # particle object and particle type keys will only be present for drivers
         # returning multiple particle types
         if 'particle_object' in particle_def:
             expected_object = particle_def.get('particle_object')
             expected_type = particle_def.get('particle_type', None)
-            # if this is a dictionary can't compare classes
+
+            # particle is either a class or dictionary, if it is a
+            # dictionary there is no class to compare
             if not isinstance(particle, dict):
+                # particle is an actual class, check that the class matches
                 cls = particle.__class__.__name__
                 if not issubclass(particle.__class__, DataParticle):
-                    errors.append("Particle class %s is not a subclass of DataParticle" % particle.__class__)
+                    errors.append("Particle class %s is not a subclass of DataParticle" %
+                                  particle.__class__)
 
                 if expected_object != cls:
-                    errors.append("Class mismatch, expected: %s, received: %s" % (expected_object, cls))
+                    errors.append("Class mismatch, expected: %s, received: %s" %
+                                  (expected_object, cls))
 
-                particle_stream = particle_dict['stream_name']
-                if particle_stream != expected_type:
-                    errors.append("Stream type mismatch, expected: %s, received: %s" % (expected_type, particle_stream))
-
-        if expected_new_sequence != particle_new_sequence:
-            errors.append("New sequence flag mismatch, expected: %s, received: %s" %
-                          (expected_new_sequence, particle_new_sequence))
+            particle_stream = particle_dict['stream_name']
+            if particle_stream != expected_type:
+                log.debug("Stream type mismatch, expected: %s, received: %s" % (expected_type, particle_stream))
+                errors.append("Stream type mismatch, expected: %s, received: %s" % (expected_type, particle_stream))
 
         expected_keys = []
         for (key, value) in particle_def.items():
