@@ -837,6 +837,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 #     - Common Integration tests test the driver through the instrument agent #
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
+
 @attr('INT', group='mi')
 class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
@@ -1157,6 +1158,7 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 # integration.  The generally aren't used for instrument debugging and should #
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
+
 @attr('QUAL', group='mi')
 class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
     def setUp(self):
