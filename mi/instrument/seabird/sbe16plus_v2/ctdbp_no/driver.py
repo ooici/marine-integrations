@@ -273,7 +273,7 @@ class SBE16NOHardwareParticle(SeaBirdParticle):
 class SBE16NOCalibrationParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
 
-    TEMP_SENSOR_SERIAL_NUMBER = " temp_sensor_serial_number "
+    TEMP_SENSOR_SERIAL_NUMBER = "temp_sensor_serial_number"
     TEMP_CAL_DATE = "calibration_date_temperature"
     TA0 = "temp_coeff_ta0"
     TA1 = "temp_coeff_ta1"
@@ -281,7 +281,7 @@ class SBE16NOCalibrationParticleKey(BaseEnum):
     TA3 = "temp_coeff_ta3"
     TOFFSET = "temp_coeff_offset"
 
-    COND_SENSOR_SERIAL_NUMBER = " cond_sensor_serial_number "
+    COND_SENSOR_SERIAL_NUMBER = "cond_sensor_serial_number"
     COND_CAL_DATE = "calibration_date_conductivity"
     CONDG = "cond_coeff_cg"
     CONDH = "cond_coeff_ch"
